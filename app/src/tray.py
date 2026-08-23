@@ -1,6 +1,5 @@
 """系统托盘模块。在 Windows 托盘区显示图标，Web 服务后台运行。"""
 import sys
-import os
 import threading
 import webbrowser
 from pathlib import Path
@@ -41,11 +40,17 @@ def _open_settings():
 
 
 def _quit_app(icon: pystray.Icon):
+    from src import progress
+
+    if progress.is_busy() or progress.maintenance_active():
+        try:
+            icon.notify("当前任务尚未完成，请等待进度结束后再退出。", "Pixiv Tracker")
+        except Exception:
+            pass
+        return
+    from src.web import request_shutdown
+    request_shutdown()
     icon.stop()
-    # 给服务器线程一点时间收尾
-    import time
-    time.sleep(0.5)
-    os._exit(0)
 
 
 def _create_icon():
@@ -72,11 +77,12 @@ def _create_icon():
 def run_tray():
     """系统托盘入口。在主线程运行 pystray，Web 服务在 daemon 线程启动。"""
     from src.config import PORT, DATA_DIR
+    from src.version import __version__
 
     # 日志重定向（必须在任何 print 之前）
     _redirect_stdio(DATA_DIR)
 
-    print(f"[tray] Pixiv Tracking Tool v0.1.0 启动")
+    print(f"[tray] Pixiv Tracking Tool v{__version__} 启动")
     print(f"[tray] 端口: {PORT}")
 
     # 在 daemon 线程启动 Web 服务
@@ -86,7 +92,7 @@ def run_tray():
         from src.web import main
         main()
 
-    web_thread = threading.Thread(target=_start_web, daemon=True)
+    web_thread = threading.Thread(target=_start_web, daemon=False)
     web_thread.start()
 
     # 自动打开浏览器
@@ -100,3 +106,6 @@ def run_tray():
     # 主线程运行托盘图标
     icon = _create_icon()
     icon.run()
+    from src.web import request_shutdown
+    request_shutdown()
+    web_thread.join()

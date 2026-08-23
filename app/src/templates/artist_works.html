@@ -77,6 +77,8 @@
     </div>
 </div>
 
+<button id="back-to-top" class="back-to-top" title="回到顶部">↑</button>
+
 <script>
 (function() {
     var panel = document.getElementById('filter-panel');
@@ -141,7 +143,7 @@
             var p = new URLSearchParams(window.location.search);
             if (showHidden === '1') { p.delete('show_hidden'); }
             else { p.set('show_hidden', '1'); }
-            p.delete('fragment'); p.delete('offset');
+            p.delete('fragment'); p.delete('offset'); p.delete('page');
             tag.setAttribute('href', BASE_PATH + '?' + p.toString());
         });
 
@@ -163,14 +165,14 @@
             var p = new URLSearchParams(window.location.search);
             if (newSet.length === 0) { p.delete('tags'); }
             else { p.set('tags', newSet.join(',')); }
-            p.delete('fragment'); p.delete('offset');
+            p.delete('fragment'); p.delete('offset'); p.delete('page');
             tag.setAttribute('href', BASE_PATH + '?' + p.toString());
         });
         panel.querySelectorAll('#section-tags .filter-tag:not([data-tag])').forEach(function(tag) {
             tag.classList.toggle('active', selectedTags === null);
             var p = new URLSearchParams(window.location.search);
             p.delete('tags');
-            p.delete('fragment'); p.delete('offset');
+            p.delete('fragment'); p.delete('offset'); p.delete('page');
             tag.setAttribute('href', BASE_PATH + '?' + p.toString());
         });
     }
@@ -335,6 +337,7 @@
             params.set('posted_before', document.getElementById('filter-before').value);
             params.set('fragment', '1');
             params.set('offset', '0');
+            params.delete('page');
 
             var spinner = document.getElementById('load-spinner');
             if (spinner) spinner.style.display = 'block';
@@ -394,6 +397,7 @@
             params.set('tags', tags.join(','));
             params.set('fragment', '1');
             params.set('offset', '0');
+            params.delete('page');
 
             var spinner = document.getElementById('load-spinner');
             if (spinner) spinner.style.display = 'block';
@@ -458,9 +462,9 @@
     {% for illust in illustrations %}
     <div class="illust-card {% if illust.is_hidden %}card-hidden{% endif %}">
         <div class="thumb-container">
-            {% if illust.file_paths %}
-            <a href="/illust/{{ illust.id }}?artist_id={{ artist.id }}{% if current_type %}&type={{ current_type }}{% endif %}{% if show_hidden %}&show_hidden=1{% endif %}">
-                <img src="{{ illust.file_paths.split(',')[0] }}"
+            {% if illust.primary_file_path %}
+            <a href="/illust/{{ illust.id }}{{ detail_query }}">
+                <img src="{{ illust.primary_file_path }}"
                      alt="{{ illust.title }}"
                      loading="lazy"
                      class="illust-thumb"
@@ -544,25 +548,24 @@
 {% if pagination_mode == 'paginate' and total_pages > 1 %}
 <div class="pagination">
     {% if current_page > 1 %}
-    <a href="/artist/{{ artist.id }}?page={{ current_page - 1 }}{% if current_type %}&type={{ current_type }}{% endif %}{% if show_hidden %}&show_hidden=1{% endif %}">←</a>
+    <a href="{{ preserve_url(page=current_page - 1) }}">←</a>
     {% endif %}
     {% if page_range[0] > 1 %}
-    <a href="/artist/{{ artist.id }}?page=1{% if current_type %}&type={{ current_type }}{% endif %}{% if show_hidden %}&show_hidden=1{% endif %}">1</a>
+    <a href="{{ preserve_url(page=1) }}">1</a>
     {% if page_range[0] > 2 %}<span class="page-gap">...</span>{% endif %}
     {% endif %}
     {% for p in page_range %}
-    <a href="/artist/{{ artist.id }}?page={{ p }}{% if current_type %}&type={{ current_type }}{% endif %}{% if show_hidden %}&show_hidden=1{% endif %}" class="{% if p == current_page %}active{% endif %}">{{ p }}</a>
+    <a href="{{ preserve_url(page=p) }}" class="{% if p == current_page %}active{% endif %}">{{ p }}</a>
     {% endfor %}
     {% if page_range[-1] < total_pages %}
     {% if page_range[-1] < total_pages - 1 %}<span class="page-gap">...</span>{% endif %}
-    <a href="/artist/{{ artist.id }}?page={{ total_pages }}{% if current_type %}&type={{ current_type }}{% endif %}{% if show_hidden %}&show_hidden=1{% endif %}">{{ total_pages }}</a>
+    <a href="{{ preserve_url(page=total_pages) }}">{{ total_pages }}</a>
     {% endif %}
     {% if current_page < total_pages %}
-    <a href="/artist/{{ artist.id }}?page={{ current_page + 1 }}{% if current_type %}&type={{ current_type }}{% endif %}{% if show_hidden %}&show_hidden=1{% endif %}">→</a>
+    <a href="{{ preserve_url(page=current_page + 1) }}">→</a>
     {% endif %}
 </div>
 {% endif %}
 {% endif %}
 
-<button id="back-to-top" class="back-to-top" title="回到顶部">↑</button>
 {% endblock %}

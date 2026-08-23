@@ -90,6 +90,8 @@
     </div>
 </div>
 
+<button id="back-to-top" class="back-to-top" title="回到顶部">↑</button>
+
 <script>
 (function() {
     var panel = document.getElementById('filter-panel');
@@ -119,7 +121,7 @@
     var ALL_TYPE_IDS = Object.keys(TYPE_NAMES);
 
     function buildUrl(params) {
-        params.delete('fragment'); params.delete('offset');
+        params.delete('fragment'); params.delete('offset'); params.delete('page');
         var qs = params.toString();
         return qs ? '/?' + qs : '/';
     }
@@ -128,14 +130,14 @@
         var params = new URLSearchParams(window.location.search);
         var parts = [];
         var aids = params.get('artist_ids');
-        if (aids) {
-            parts.push('画师:' + aids.split(',').length + '位');
+        if (params.has('artist_ids')) {
+            parts.push('画师:' + (aids ? aids.split(',').length : 0) + '位');
         } else {
             parts.push('画师:全部');
         }
         var types = params.get('types');
-        if (types) {
-            parts.push('类型:' + types.split(',').map(function(t) { return TYPE_NAMES[t] || t; }).join(','));
+        if (params.has('types')) {
+            parts.push('类型:' + (types ? types.split(',').map(function(t) { return TYPE_NAMES[t] || t; }).join(',') : '无'));
         } else {
             parts.push('类型:全部');
         }
@@ -155,7 +157,7 @@
         var showHidden = params.get('show_hidden');
 
         // ── 画师 tags ──
-        var selectedArtists = aids ? aids.split(',') : null;  // null = 全选
+        var selectedArtists = params.has('artist_ids') ? (aids ? aids.split(',') : []) : null;
         panel.querySelectorAll('#section-artist .filter-tag[data-artist-id]').forEach(function(tag) {
             var id = tag.getAttribute('data-artist-id');
             var isActive = selectedArtists === null || selectedArtists.indexOf(id) >= 0;
@@ -170,7 +172,7 @@
                 newSet = selectedArtists.concat([id]);
             }
             var p = new URLSearchParams(window.location.search);
-            if (newSet.length === 0 || newSet.length === ALL_ARTIST_IDS.length) {
+            if (newSet.length === ALL_ARTIST_IDS.length) {
                 p.delete('artist_ids');
             } else {
                 p.set('artist_ids', newSet.join(','));
@@ -192,7 +194,7 @@
                 p.set('artist_ids', '');
             } else {
                 var inverted = ALL_ARTIST_IDS.filter(function(x) { return selectedArtists.indexOf(x) < 0; });
-                if (inverted.length === 0 || inverted.length === ALL_ARTIST_IDS.length) {
+                if (inverted.length === ALL_ARTIST_IDS.length) {
                     p.delete('artist_ids');
                 } else {
                     p.set('artist_ids', inverted.join(','));
@@ -202,7 +204,7 @@
         });
 
         // ── 类型 tags ──
-        var selectedTypes = types ? types.split(',') : null;
+        var selectedTypes = params.has('types') ? (types ? types.split(',') : []) : null;
         panel.querySelectorAll('#section-type .filter-tag[data-type]').forEach(function(tag) {
             var t = tag.getAttribute('data-type');
             var isActive = selectedTypes === null || selectedTypes.indexOf(t) >= 0;
@@ -216,7 +218,7 @@
                 newSet = selectedTypes.concat([t]);
             }
             var p = new URLSearchParams(window.location.search);
-            if (newSet.length === 0 || newSet.length === ALL_TYPE_IDS.length) {
+            if (newSet.length === ALL_TYPE_IDS.length) {
                 p.delete('types');
             } else {
                 p.set('types', newSet.join(','));
@@ -236,7 +238,7 @@
                 p.set('types', '');
             } else {
                 var inverted = ALL_TYPE_IDS.filter(function(x) { return selectedTypes.indexOf(x) < 0; });
-                if (inverted.length === 0 || inverted.length === ALL_TYPE_IDS.length) {
+                if (inverted.length === ALL_TYPE_IDS.length) {
                     p.delete('types');
                 } else {
                     p.set('types', inverted.join(','));
@@ -265,7 +267,7 @@
             var p = new URLSearchParams(window.location.search);
             if (showHidden === '1') { p.delete('show_hidden'); }
             else { p.set('show_hidden', '1'); }
-            p.delete('fragment'); p.delete('offset');
+            p.delete('fragment'); p.delete('offset'); p.delete('page');
             tag.setAttribute('href', '/?' + p.toString());
         });
 
@@ -467,6 +469,7 @@
             params.set('posted_before', document.getElementById('filter-before').value);
             params.set('fragment', '1');
             params.set('offset', '0');
+            params.delete('page');
 
             var spinner = document.getElementById('load-spinner');
             if (spinner) spinner.style.display = 'block';
@@ -526,6 +529,7 @@
             params.set('tags', tags.join(','));
             params.set('fragment', '1');
             params.set('offset', '0');
+            params.delete('page');
 
             var spinner = document.getElementById('load-spinner');
             if (spinner) spinner.style.display = 'block';
@@ -594,9 +598,9 @@
     {% for illust in illustrations %}
     <div class="illust-card {% if illust.is_hidden %}card-hidden{% endif %}">
         <div class="thumb-container">
-            <a href="/illust/{{ illust.id }}{% if selected_artist_ids is not none or selected_types is not none or show_hidden %}?{% if selected_artist_ids is not none %}artist_ids={{ selected_artist_ids|join(',') }}{% endif %}{% if selected_artist_ids is not none and selected_types is not none %}&{% endif %}{% if selected_types is not none %}types={{ selected_types|join(',') }}{% endif %}{% if (selected_artist_ids is not none or selected_types is not none) and show_hidden %}&{% endif %}{% if show_hidden %}show_hidden=1{% endif %}{% endif %}">
-            {% if illust.file_paths %}
-                <img src="{{ illust.file_paths.split(',')[0] }}"
+            <a href="/illust/{{ illust.id }}{{ detail_query }}">
+            {% if illust.primary_file_path %}
+                <img src="{{ illust.primary_file_path }}"
                      alt="{{ illust.title }}"
                      loading="lazy"
                      class="illust-thumb"
@@ -689,25 +693,24 @@
 {% if pagination_mode == 'paginate' and total_pages > 1 %}
 <div class="pagination">
     {% if current_page > 1 %}
-    <a href="?page={{ current_page - 1 }}{% if selected_artist_ids is not none %}&artist_ids={{ selected_artist_ids|join(',') }}{% endif %}{% if selected_types is not none %}&types={{ selected_types|join(',') }}{% endif %}{% if show_hidden %}&show_hidden=1{% endif %}">←</a>
+    <a href="{{ preserve_url(page=current_page - 1) }}">←</a>
     {% endif %}
     {% if page_range[0] > 1 %}
-    <a href="?page=1{% if selected_artist_ids is not none %}&artist_ids={{ selected_artist_ids|join(',') }}{% endif %}{% if selected_types is not none %}&types={{ selected_types|join(',') }}{% endif %}{% if show_hidden %}&show_hidden=1{% endif %}">1</a>
+    <a href="{{ preserve_url(page=1) }}">1</a>
     {% if page_range[0] > 2 %}<span class="page-gap">...</span>{% endif %}
     {% endif %}
     {% for p in page_range %}
-    <a href="?page={{ p }}{% if selected_artist_ids is not none %}&artist_ids={{ selected_artist_ids|join(',') }}{% endif %}{% if selected_types is not none %}&types={{ selected_types|join(',') }}{% endif %}{% if show_hidden %}&show_hidden=1{% endif %}" class="{% if p == current_page %}active{% endif %}">{{ p }}</a>
+    <a href="{{ preserve_url(page=p) }}" class="{% if p == current_page %}active{% endif %}">{{ p }}</a>
     {% endfor %}
     {% if page_range[-1] < total_pages %}
     {% if page_range[-1] < total_pages - 1 %}<span class="page-gap">...</span>{% endif %}
-    <a href="?page={{ total_pages }}{% if selected_artist_ids is not none %}&artist_ids={{ selected_artist_ids|join(',') }}{% endif %}{% if selected_types is not none %}&types={{ selected_types|join(',') }}{% endif %}{% if show_hidden %}&show_hidden=1{% endif %}">{{ total_pages }}</a>
+    <a href="{{ preserve_url(page=total_pages) }}">{{ total_pages }}</a>
     {% endif %}
     {% if current_page < total_pages %}
-    <a href="?page={{ current_page + 1 }}{% if selected_artist_ids is not none %}&artist_ids={{ selected_artist_ids|join(',') }}{% endif %}{% if selected_types is not none %}&types={{ selected_types|join(',') }}{% endif %}{% if show_hidden %}&show_hidden=1{% endif %}">→</a>
+    <a href="{{ preserve_url(page=current_page + 1) }}">→</a>
     {% endif %}
 </div>
 {% endif %}
 {% endif %}
 
-<button id="back-to-top" class="back-to-top" title="回到顶部">↑</button>
 {% endblock %}

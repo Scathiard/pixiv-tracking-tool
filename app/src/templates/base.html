@@ -92,9 +92,22 @@
             .then(function(data) {
                 var box = document.getElementById('progress-box');
                 if (!data.active) {
-                    if (_progressActive) { location.reload(); }
+                    if (_progressActive) { location.reload(); return; }
                     box.style.display = 'none';
                     _progressActive = false;
+                    var lastJob = data.last_job;
+                    if (lastJob && lastJob.status === 'failed') {
+                        var reportKey = 'pixiv-job-error-' + lastJob.task_id;
+                        var alreadyReported = false;
+                        try { alreadyReported = sessionStorage.getItem(reportKey) === '1'; } catch (e) {}
+                        if (!alreadyReported) {
+                            var errorText = lastJob.errors && lastJob.errors.length
+                                ? lastJob.errors[lastJob.errors.length - 1]
+                                : '后台任务失败';
+                            showToast(errorText, 'error');
+                            try { sessionStorage.setItem(reportKey, '1'); } catch (e) {}
+                        }
+                    }
                     setTimeout(pollProgress, 2000);
                     return;
                 }
@@ -151,11 +164,16 @@
                 // ── 错误 ──
                 var errDiv = document.getElementById('prog-errors');
                 if (data.errors && data.errors.length > 0) {
-                    errDiv.innerHTML = data.errors.slice(-5).map(function(e) {
-                        return '<div class="progress-error">' + e + '</div>';
-                    }).join('');
+                    errDiv.textContent = '';
+                    data.errors.slice(-5).forEach(function(e) {
+                        var row = document.createElement('div');
+                        row.className = 'progress-error';
+                        row.textContent = String(e);
+                        errDiv.appendChild(row);
+                    });
                     errDiv.style.display = 'block';
                 } else {
+                    errDiv.textContent = '';
                     errDiv.style.display = 'none';
                 }
 
@@ -184,6 +202,15 @@
             }, 300);
         }, 3000);
     }
+
+    document.addEventListener('submit', function(event) {
+        var form = event.target;
+        if (!form || !form.getAttribute) return;
+        var message = form.getAttribute('data-confirm');
+        if (message && !window.confirm(message)) {
+            event.preventDefault();
+        }
+    });
     </script>
 </body>
 </html>

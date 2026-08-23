@@ -1,4 +1,3 @@
-import json
 import threading
 import time
 import requests
@@ -14,11 +13,10 @@ _MIN_INTERVAL = 1.0  # 请求最小间隔（秒）
 
 def _get_auth_header():
     """获取当前有效的 access_token 用于 API 请求。"""
-    if not _token_file().exists():
-        return {}
+    from .auth import _load_token
 
-    saved = json.loads(_token_file().read_text())
-    return {"Authorization": f"Bearer {saved['access_token']}"}
+    access_token = _load_token().get("access_token")
+    return {"Authorization": f"Bearer {access_token}"} if access_token else {}
 
 
 class PixivClient:

@@ -1,8 +1,14 @@
-import threading
 from fastapi import APIRouter, Request, Query, Form
 from fastapi.responses import RedirectResponse, JSONResponse
 
 from ..models import Session, TrackedArtist, Illustration, IllustrationTag
+from ..file_index import decode_file_paths
+from ..query_state import (
+    build_local_url,
+    parse_csv_choices,
+    parse_csv_ints,
+    safe_redirect_target,
+)
 from ..web import templates, get_tracker
 
 router = APIRouter(tags=["works"])
@@ -14,21 +20,13 @@ def _ids_str(ids_set):
     return ",".join(str(x) for x in sorted(ids_set))
 
 
-# ── 内存缓存 ──
-_tag_cache = {"data": None, "key": None}
-_artist_cache = {"data": None, "time": 0}
-
-
 def reset_tag_cache():
-    """迁移后清除 tag 缓存。"""
-    _tag_cache["data"] = None
-    _tag_cache["key"] = None
+    """保留旧调用点；v0.1.1 已移除会串筛选条件的全局 tag 缓存。"""
+    return None
 
 
-def _get_cached_tags(session, query, cache_key):
-    """缓存 tag 聚合（走 illustration_tag 索引 DISTINCT）。"""
-    if _tag_cache["key"] == cache_key and _tag_cache["data"] is not None:
-        return _tag_cache["data"]
+def _get_tags(session, query):
+    """按当前完整筛选即时聚合 tag，避免跨请求复用错误结果。"""
     # 取最近 500 件作品（受筛选条件限制）的 tag 去重
     sub = session.query(IllustrationTag.illustration_id)\
         .join(Illustration, Illustration.id == IllustrationTag.illustration_id)
@@ -37,29 +35,20 @@ def _get_cached_tags(session, query, cache_key):
     sub = sub.order_by(Illustration.posted_at.desc()).limit(500)
     tag_query = session.query(IllustrationTag.tag).distinct()\
         .filter(IllustrationTag.illustration_id.in_(sub))
-    result = sorted(r[0] for r in tag_query.all())
-    _tag_cache["data"] = result
-    _tag_cache["key"] = cache_key
-    return result
+    return sorted(r[0] for r in tag_query.all())
 
 
 def _get_cached_artists(session):
-    """缓存画师列表，30 秒有效。"""
-    now = __import__('time').time()
-    if _artist_cache["data"] is not None and now - _artist_cache["time"] < 30:
-        return _artist_cache["data"]
-    artists = session.query(TrackedArtist).filter_by(is_active=True)\
+    """读取当前画师列表；查询很小，正确性优先于跨请求 ORM 缓存。"""
+    return session.query(TrackedArtist).filter_by(is_active=True)\
         .order_by(TrackedArtist.name).all()
-    _artist_cache["data"] = artists
-    _artist_cache["time"] = now
-    return artists
 
 
 @router.get("/")
 async def index(request: Request, artist_ids: str = Query(None), types: str = Query(None),
                 show_hidden: str = Query(None),
-                offset: int = Query(0), fragment: str = Query(None),
-                page: int = Query(None),
+                offset: int = Query(0, ge=0), fragment: str = Query(None),
+                page: int = Query(None, ge=1),
                 period: str = Query(None),
                 posted_after: str = Query(None),
                 posted_before: str = Query(None),
@@ -67,8 +56,6 @@ async def index(request: Request, artist_ids: str = Query(None), types: str = Qu
     show_hidden = show_hidden in ("1", "true")
     from .. import config as _cfg
     from datetime import datetime, timedelta
-    from sqlalchemy import or_
-    import json
 
     page_size = _cfg.PAGE_SIZE
     if page is not None and page > 0:
@@ -78,17 +65,10 @@ async def index(request: Request, artist_ids: str = Query(None), types: str = Qu
     all_artists = _get_cached_artists(session)
     all_artist_ids = {a.id for a in all_artists}
 
-    selected_ids = None  # None = 全选
-    if artist_ids:
-        try:
-            selected_ids = {int(x.strip()) for x in artist_ids.split(",") if x.strip()}
-        except (ValueError, TypeError):
-            pass
-
-    selected_types = None
-    if types:
-        parsed = {x.strip() for x in types.split(",") if x.strip()}
-        selected_types = {t for t in parsed if t in TYPE_LABELS} or None
+    selected_ids = parse_csv_ints(artist_ids)
+    if selected_ids is not None:
+        selected_ids &= all_artist_ids
+    selected_types = parse_csv_choices(types, set(TYPE_LABELS))
 
     query = session.query(Illustration).order_by(Illustration.posted_at.desc())
     if selected_ids is not None:
@@ -96,7 +76,7 @@ async def index(request: Request, artist_ids: str = Query(None), types: str = Qu
     if selected_types is not None:
         query = query.filter(Illustration.type.in_(selected_types))
     if not show_hidden:
-        query = query.filter(Illustration.is_hidden != True)
+        query = query.filter(Illustration.is_hidden.is_not(True))
 
     # 投稿期间筛选
     if period and period != 'custom':
@@ -135,11 +115,17 @@ async def index(request: Request, artist_ids: str = Query(None), types: str = Qu
     if illust_artist_ids:
         artists_list = session.query(TrackedArtist).filter(TrackedArtist.id.in_(illust_artist_ids)).all()
         artists_map = {a.id: a for a in artists_list}
-    session.close()
-
     # Fragment: 提前返回，跳过所有后续重计算
     if fragment == "1":
-        from starlette.responses import HTMLResponse
+        detail_query = build_local_url("", {
+            "artist_ids": _ids_str(selected_ids) if selected_ids is not None else None,
+            "types": _ids_str(selected_types) if selected_types is not None else None,
+            "show_hidden": "1" if show_hidden else None,
+            "period": period,
+            "posted_after": posted_after,
+            "posted_before": posted_before,
+            "tags": tags,
+        })
         resp = templates.TemplateResponse(request, "gallery_fragment.html", {
             "illustrations": illustrations,
             "artists_map": artists_map,
@@ -147,7 +133,9 @@ async def index(request: Request, artist_ids: str = Query(None), types: str = Qu
             "show_hidden": show_hidden,
             "selected_artist_ids": selected_ids,
             "selected_types": selected_types,
+            "detail_query": detail_query,
         })
+        session.close()
         resp.headers["X-Has-More"] = "1" if has_more else "0"
         return resp
 
@@ -155,44 +143,35 @@ async def index(request: Request, artist_ids: str = Query(None), types: str = Qu
 
     total_count = query.count()
 
-    # Tag 聚合（TTL 缓存）
-    tag_cache_key = str(query.whereclause) + '|' + str(show_hidden) + '|' + str(period)
-    tag_list_all = _get_cached_tags(session, query, tag_cache_key)
+    tag_list_all = _get_tags(session, query)
+    session.close()
 
-    def _period_params():
-        parts = []
-        if period:
-            parts.append(f"period={period}")
-        if posted_after:
-            parts.append(f"posted_after={posted_after}")
-        if posted_before:
-            parts.append(f"posted_before={posted_before}")
-        return parts
-
-    def _index_url(artist_param=None, type_param=None):
-        parts = []
-        if artist_param:
-            parts.append(artist_param)
-        if type_param:
-            parts.append(type_param)
-        parts.extend(_period_params())
-        if not parts:
-            return "/"
-        return "/?" + "&".join(parts)
+    def _index_url(artist_value=None, type_value=None):
+        return build_local_url("/", {
+            "artist_ids": artist_value,
+            "types": type_value,
+            "show_hidden": "1" if show_hidden else None,
+            "period": period,
+            "posted_after": posted_after,
+            "posted_before": posted_before,
+            "tags": tags,
+        })
 
     # 画师 toggle
     toggle_urls = {}
     if selected_ids is None:
         for a in all_artists:
             others = all_artist_ids - {a.id}
-            toggle_urls[a.id] = _index_url(f"artist_ids={_ids_str(others)}",
-                                           f"types={_ids_str(selected_types)}" if selected_types is not None else None)
+            toggle_urls[a.id] = _index_url(
+                _ids_str(others),
+                _ids_str(selected_types) if selected_types is not None else None,
+            )
     else:
         for a in all_artists:
             new_set = selected_ids.copy()
             new_set.discard(a.id) if a.id in new_set else new_set.add(a.id)
-            art_p = f"artist_ids={_ids_str(new_set)}" if new_set else None
-            typ_p = f"types={_ids_str(selected_types)}" if selected_types is not None else None
+            art_p = None if new_set == all_artist_ids else _ids_str(new_set)
+            typ_p = _ids_str(selected_types) if selected_types is not None else None
             toggle_urls[a.id] = _index_url(art_p, typ_p)
 
     # 类型 toggle
@@ -201,65 +180,74 @@ async def index(request: Request, artist_ids: str = Query(None), types: str = Qu
     if selected_types is None:
         for t in TYPE_LABELS:
             others = all_types - {t}
-            art_p = f"artist_ids={_ids_str(selected_ids)}" if selected_ids is not None else None
-            type_toggle_urls[t] = _index_url(art_p, f"types={_ids_str(others)}")
+            art_p = _ids_str(selected_ids) if selected_ids is not None else None
+            type_toggle_urls[t] = _index_url(art_p, _ids_str(others))
     else:
         for t in TYPE_LABELS:
             new_set = selected_types.copy()
             new_set.discard(t) if t in new_set else new_set.add(t)
-            art_p = f"artist_ids={_ids_str(selected_ids)}" if selected_ids is not None else None
-            typ_p = f"types={_ids_str(new_set)}" if new_set else None
+            art_p = _ids_str(selected_ids) if selected_ids is not None else None
+            typ_p = None if new_set == all_types else _ids_str(new_set)
             type_toggle_urls[t] = _index_url(art_p, typ_p)
 
     # 反选
     if selected_ids is None:
-        artist_invert_url = _index_url()
+        artist_invert_url = _index_url("")
     else:
         inverted = all_artist_ids - selected_ids
-        typ_p = f"types={_ids_str(selected_types)}" if selected_types is not None else None
-        artist_invert_url = _index_url(f"artist_ids={_ids_str(inverted)}" if inverted else "artist_ids=", typ_p)
+        typ_p = _ids_str(selected_types) if selected_types is not None else None
+        artist_invert_url = _index_url(
+            None if inverted == all_artist_ids else _ids_str(inverted), typ_p
+        )
 
     if selected_types is None:
-        type_invert_url = _index_url()
+        type_invert_url = _index_url(None, "")
     else:
         inverted = all_types - selected_types
-        art_p = f"artist_ids={_ids_str(selected_ids)}" if selected_ids is not None else None
-        type_invert_url = _index_url(art_p, f"types={_ids_str(inverted)}" if inverted else "types=")
+        art_p = _ids_str(selected_ids) if selected_ids is not None else None
+        type_invert_url = _index_url(
+            art_p, None if inverted == all_types else _ids_str(inverted)
+        )
 
     all_url = _index_url()
 
     # "显示已隐藏" toggle URL
     def _show_hidden_toggle_url():
-        parts = []
-        if artist_ids:
-            parts.append(f"artist_ids={artist_ids}")
-        if types:
-            parts.append(f"types={types}")
-        parts.extend(_period_params())
-        if not show_hidden:
-            parts.append("show_hidden=1")
-        qs = "&".join(parts)
-        return "/?" + qs if qs else "/"
+        return build_local_url("/", {
+            "artist_ids": artist_ids,
+            "types": types,
+            "show_hidden": None if show_hidden else "1",
+            "period": period,
+            "posted_after": posted_after,
+            "posted_before": posted_before,
+            "tags": tags,
+        })
     show_hidden_toggle_url = _show_hidden_toggle_url()
 
     # 通用 URL 构建器：保留所有筛选条件，覆盖指定 key
     def _preserve_url(**overrides):
-        p = {}
-        if artist_ids: p['artist_ids'] = artist_ids
-        if types: p['types'] = types
-        if show_hidden: p['show_hidden'] = '1'
-        if period: p['period'] = period
-        if posted_after: p['posted_after'] = posted_after
-        if posted_before: p['posted_before'] = posted_before
-        if tags: p['tags'] = tags
+        p = {
+            "artist_ids": artist_ids,
+            "types": types,
+            "show_hidden": "1" if show_hidden else None,
+            "period": period,
+            "posted_after": posted_after,
+            "posted_before": posted_before,
+            "tags": tags,
+        }
         for k, v in overrides.items():
-            if v is None:
-                p.pop(k, None)
-            else:
-                p[k] = v
-        if not p:
-            return '/'
-        return '/?' + '&'.join(f'{k}={v}' for k, v in p.items())
+            p[k] = v
+        return build_local_url("/", p)
+
+    detail_query = build_local_url("", {
+        "artist_ids": _ids_str(selected_ids) if selected_ids is not None else None,
+        "types": _ids_str(selected_types) if selected_types is not None else None,
+        "show_hidden": "1" if show_hidden else None,
+        "period": period,
+        "posted_after": posted_after,
+        "posted_before": posted_before,
+        "tags": tags,
+    })
 
     # 筛选摘要
     period_labels = {'24h': '24小时内', 'week': '一周内', 'month': '一个月内',
@@ -312,6 +300,7 @@ async def index(request: Request, artist_ids: str = Query(None), types: str = Qu
          "period": period, "posted_after": posted_after,
          "posted_before": posted_before,
          "preserve_url": _preserve_url,
+         "detail_query": detail_query,
          "period_labels": period_labels,
          "filter_summary": filter_summary,
          "tag_list": tag_list_all, "selected_tags": selected_tags},
@@ -321,43 +310,77 @@ async def index(request: Request, artist_ids: str = Query(None), types: str = Qu
 @router.get("/illust/{illust_id}")
 async def illust_detail(request: Request, illust_id: int,
                          artist_ids: str = Query(None), artist_id: int = Query(None),
-                         types: str = Query(None), show_hidden: str = Query(None)):
+                         types: str = Query(None), show_hidden: str = Query(None),
+                         period: str = Query(None), posted_after: str = Query(None),
+                         posted_before: str = Query(None), tags: str = Query(None)):
+    from datetime import datetime, timedelta
+
+    show_hidden_value = show_hidden in ("1", "true")
+    filter_tags = tags
     session = Session()
-    illust = session.query(Illustration).get(illust_id)
+    illust = session.get(Illustration, illust_id)
     if not illust:
         session.close()
         return templates.TemplateResponse(request, "error.html", {"message": "作品不存在"})
 
-    artist = session.query(TrackedArtist).get(illust.artist_id)
+    artist = session.get(TrackedArtist, illust.artist_id)
 
     import json
-    paths = illust.file_paths.split(",") if illust.file_paths else []
+    paths = decode_file_paths(illust.file_paths)
     page_count = len(paths) or illust.page_count
     try:
-        tags = json.loads(illust.tags) if illust.tags else []
+        illust_tags = json.loads(illust.tags) if illust.tags else []
     except (json.JSONDecodeError, TypeError):
-        tags = []
+        illust_tags = []
 
-    # 解析类型筛选
-    selected_types = None
-    if types:
-        parsed = {x.strip() for x in types.split(",") if x.strip()}
-        selected_types = {t for t in parsed if t in TYPE_LABELS} or None
+    all_artists = _get_cached_artists(session)
+    all_artist_ids = {a.id for a in all_artists}
+    all_type_ids = set(TYPE_LABELS)
+    selected_types = parse_csv_choices(types, all_type_ids)
+    if artist_id is not None:
+        selected_ids = {artist_id}
+    else:
+        selected_ids = parse_csv_ints(artist_ids)
+        if selected_ids is not None:
+            selected_ids &= all_artist_ids
 
     # 根据上下文构建查询，找到前/后作品（带 posted_at 用于插入点查找）
     base_query = session.query(Illustration.id, Illustration.posted_at)\
         .order_by(Illustration.posted_at.desc())
-    if artist_id:
+    if artist_id is not None:
         base_query = base_query.filter_by(artist_id=artist_id)
-    elif artist_ids:
-        try:
-            ids = {int(x.strip()) for x in artist_ids.split(",") if x.strip()}
-            if ids:
-                base_query = base_query.filter(Illustration.artist_id.in_(ids))
-        except (ValueError, TypeError):
-            pass
+    elif selected_ids is not None:
+        base_query = base_query.filter(Illustration.artist_id.in_(selected_ids))
     if selected_types is not None:
         base_query = base_query.filter(Illustration.type.in_(selected_types))
+    if not show_hidden_value:
+        base_query = base_query.filter(Illustration.is_hidden.is_not(True))
+    if period and period != "custom":
+        delta_map = {
+            "24h": timedelta(hours=24),
+            "week": timedelta(days=7),
+            "month": timedelta(days=30),
+            "half_year": timedelta(days=183),
+            "year": timedelta(days=365),
+        }
+        if period in delta_map:
+            base_query = base_query.filter(
+                Illustration.posted_at >= datetime.utcnow() - delta_map[period]
+            )
+    elif period == "custom":
+        if posted_after:
+            base_query = base_query.filter(Illustration.posted_at >= posted_after)
+        if posted_before:
+            base_query = base_query.filter(
+                Illustration.posted_at <= posted_before + "T23:59:59"
+            )
+    if filter_tags:
+        tag_list = [tag.strip() for tag in filter_tags.split(",") if tag.strip()]
+        if tag_list:
+            tag_subquery = session.query(IllustrationTag.illustration_id).filter(
+                IllustrationTag.tag.in_(tag_list)
+            )
+            base_query = base_query.filter(Illustration.id.in_(tag_subquery))
 
     all_rows = base_query.all()
     all_ids = [row[0] for row in all_rows]
@@ -375,60 +398,70 @@ async def illust_detail(request: Request, illust_id: int,
         prev_id = all_ids[current_idx - 1] if current_idx > 0 else None
         next_id = all_ids[current_idx] if current_idx < len(all_ids) else None
 
-    # 构建导航链接的查询参数
-    params = []
-    if artist_ids:
-        params.append(f"artist_ids={artist_ids}")
-    if artist_id:
-        params.append(f"artist_id={artist_id}")
-    if types:
-        params.append(f"types={types}")
-    if show_hidden in ("1", "true"):
-        params.append("show_hidden=1")
-    nav_query = "?" + "&".join(params) if params else ""
+    # 构建导航和返回链接，完整保留筛选上下文并统一 URL 编码。
+    nav_params = {
+        "artist_id": artist_id,
+        "artist_ids": (
+            _ids_str(selected_ids)
+            if artist_id is None and selected_ids is not None
+            else None
+        ),
+        "types": _ids_str(selected_types) if selected_types is not None else None,
+        "show_hidden": "1" if show_hidden_value else None,
+        "period": period,
+        "posted_after": posted_after,
+        "posted_before": posted_before,
+        "tags": filter_tags,
+    }
+    nav_query = build_local_url("", nav_params)
+    self_url = build_local_url(f"/illust/{illust.id}", nav_params)
+    prev_url = build_local_url(f"/illust/{prev_id}", nav_params) if prev_id else None
+    next_url = build_local_url(f"/illust/{next_id}", nav_params) if next_id else None
 
-    if artist_id:
-        back_url = f"/artist/{artist_id}"
+    if artist_id is not None:
+        only_type = (
+            next(iter(selected_types))
+            if selected_types is not None and len(selected_types) == 1
+            else None
+        )
+        back_url = build_local_url(f"/artist/{artist_id}", {
+            "type": only_type,
+            "show_hidden": "1" if show_hidden_value else None,
+            "period": period,
+            "posted_after": posted_after,
+            "posted_before": posted_before,
+            "tags": filter_tags,
+        })
     else:
-        back_url = "/" + nav_query
-
-    # 为详情页筛选栏准备数据
-    all_artists = _get_cached_artists(session)
-    all_artist_ids = {a.id for a in all_artists}
-    all_type_ids = set(TYPE_LABELS.keys())
-    selected_ids = None
-    if artist_id:
-        selected_ids = {artist_id}
-    elif artist_ids:
-        try:
-            selected_ids = {int(x.strip()) for x in artist_ids.split(",") if x.strip()}
-        except (ValueError, TypeError):
-            pass
+        back_url = build_local_url("/", {
+            key: value for key, value in nav_params.items() if key != "artist_id"
+        })
 
     # 构建详情页筛选 URL
-    def _make_url(artist_param=None, type_param=None):
-        parts = []
-        if artist_param:
-            parts.append(artist_param)
-        if type_param:
-            parts.append(type_param)
-        if not parts:
-            return f"/illust/{illust_id}"
-        return f"/illust/{illust_id}?{'&'.join(parts)}"
+    def _make_url(artist_value=None, type_value=None):
+        return build_local_url(f"/illust/{illust_id}", {
+            "artist_ids": artist_value,
+            "types": type_value,
+            "show_hidden": "1" if show_hidden_value else None,
+            "period": period,
+            "posted_after": posted_after,
+            "posted_before": posted_before,
+            "tags": filter_tags,
+        })
 
     # 画师 toggle
     detail_toggle_urls = {}
     if selected_ids is None:
         for a in all_artists:
             others = all_artist_ids - {a.id}
-            typ_p = f"types={_ids_str(selected_types)}" if selected_types is not None else None
-            detail_toggle_urls[a.id] = _make_url(f"artist_ids={_ids_str(others)}", typ_p)
+            typ_p = _ids_str(selected_types) if selected_types is not None else None
+            detail_toggle_urls[a.id] = _make_url(_ids_str(others), typ_p)
     else:
         for a in all_artists:
             new_set = selected_ids.copy()
             new_set.discard(a.id) if a.id in new_set else new_set.add(a.id)
-            art_p = f"artist_ids={_ids_str(new_set)}" if new_set else None
-            typ_p = f"types={_ids_str(selected_types)}" if selected_types is not None else None
+            art_p = None if new_set == all_artist_ids else _ids_str(new_set)
+            typ_p = _ids_str(selected_types) if selected_types is not None else None
             detail_toggle_urls[a.id] = _make_url(art_p, typ_p)
 
     # 类型 toggle
@@ -436,30 +469,34 @@ async def illust_detail(request: Request, illust_id: int,
     if selected_types is None:
         for t in TYPE_LABELS:
             others = all_type_ids - {t}
-            art_p = f"artist_ids={_ids_str(selected_ids)}" if selected_ids is not None else None
-            detail_type_urls[t] = _make_url(art_p, f"types={_ids_str(others)}")
+            art_p = _ids_str(selected_ids) if selected_ids is not None else None
+            detail_type_urls[t] = _make_url(art_p, _ids_str(others))
     else:
         for t in TYPE_LABELS:
             new_set = selected_types.copy()
             new_set.discard(t) if t in new_set else new_set.add(t)
-            art_p = f"artist_ids={_ids_str(selected_ids)}" if selected_ids is not None else None
-            typ_p = f"types={_ids_str(new_set)}" if new_set else None
+            art_p = _ids_str(selected_ids) if selected_ids is not None else None
+            typ_p = None if new_set == all_type_ids else _ids_str(new_set)
             detail_type_urls[t] = _make_url(art_p, typ_p)
 
     # 反选
     if selected_ids is None:
-        artist_invert_url = _make_url()
+        artist_invert_url = _make_url("")
     else:
         inverted = all_artist_ids - selected_ids
-        typ_p = f"types={_ids_str(selected_types)}" if selected_types is not None else None
-        artist_invert_url = _make_url(f"artist_ids={_ids_str(inverted)}" if inverted else "artist_ids=", typ_p)
+        typ_p = _ids_str(selected_types) if selected_types is not None else None
+        artist_invert_url = _make_url(
+            None if inverted == all_artist_ids else _ids_str(inverted), typ_p
+        )
 
     if selected_types is None:
-        type_invert_url = _make_url()
+        type_invert_url = _make_url(None, "")
     else:
         inverted = all_type_ids - selected_types
-        art_p = f"artist_ids={_ids_str(selected_ids)}" if selected_ids is not None else None
-        type_invert_url = _make_url(art_p, f"types={_ids_str(inverted)}" if inverted else "types=")
+        art_p = _ids_str(selected_ids) if selected_ids is not None else None
+        type_invert_url = _make_url(
+            art_p, None if inverted == all_type_ids else _ids_str(inverted)
+        )
 
     all_url = _make_url()
 
@@ -469,10 +506,14 @@ async def illust_detail(request: Request, illust_id: int,
 
     # 从文件读取 caption（与图片同级，随 DATA_ROOT 迁移）
     caption_html = ""
-    from ..tracker import _caption_path, _sanitize_caption, _artist_dir_name
+    from ..tracker import _caption_path, _artist_dir_name
+    from ..security import sanitize_caption
     caption_file = _caption_path(artist, illust.pixiv_illust_id)
-    if caption_file.exists():
-        caption_html = _sanitize_caption(caption_file.read_text(encoding='utf-8'))
+    try:
+        if caption_file.exists():
+            caption_html = sanitize_caption(caption_file.read_text(encoding='utf-8'))
+    except OSError:
+        caption_html = ""
 
     # 本地画师目录路径（供「在资源管理器中打开」使用）
     local_dir = str(_cfg.IMAGES_DIR / _artist_dir_name(artist))
@@ -482,9 +523,10 @@ async def illust_detail(request: Request, illust_id: int,
         {"illust": illust, "artist": artist, "paths": paths,
          "caption_html": caption_html,
          "local_dir": local_dir,
-         "page_count": page_count, "tags": tags,
+         "page_count": page_count, "tags": illust_tags,
          "prev_id": prev_id, "next_id": next_id, "nav_query": nav_query,
-         "current_idx": current_idx + 1, "total_count": len(all_ids),
+         "self_url": self_url, "prev_url": prev_url, "next_url": next_url,
+         "current_idx": current_idx + 1 if all_ids else 0, "total_count": len(all_ids),
          "back_url": back_url,
          "all_artists": all_artists, "all_artist_ids": all_artist_ids,
          "all_type_ids": all_type_ids,
@@ -494,15 +536,15 @@ async def illust_detail(request: Request, illust_id: int,
          "artist_invert_url": artist_invert_url, "type_invert_url": type_invert_url,
          "all_url": all_url,
          "type_labels": TYPE_LABELS,
-         "show_hidden": show_hidden in ("1", "true")},
+         "show_hidden": show_hidden_value},
     )
 
 
 @router.get("/artist/{artist_id}")
 async def artist_works(request: Request, artist_id: int, type: str = Query(None),
                        show_hidden: str = Query(None),
-                       offset: int = Query(0), fragment: str = Query(None),
-                       page: int = Query(None),
+                       offset: int = Query(0, ge=0), fragment: str = Query(None),
+                       page: int = Query(None, ge=1),
                        period: str = Query(None),
                        posted_after: str = Query(None),
                        posted_before: str = Query(None),
@@ -516,7 +558,7 @@ async def artist_works(request: Request, artist_id: int, type: str = Query(None)
         offset = (page - 1) * page_size
 
     session = Session()
-    artist = session.query(TrackedArtist).get(artist_id)
+    artist = session.get(TrackedArtist, artist_id)
     if not artist:
         session.close()
         return templates.TemplateResponse(request, "error.html", {"message": "画师不存在"})
@@ -529,7 +571,7 @@ async def artist_works(request: Request, artist_id: int, type: str = Query(None)
     if type and type in TYPE_LABELS:
         query = query.filter_by(type=type)
     if not show_hidden:
-        query = query.filter(Illustration.is_hidden != True)
+        query = query.filter(Illustration.is_hidden.is_not(True))
 
     # 投稿期间筛选
     if period and period != 'custom':
@@ -562,42 +604,47 @@ async def artist_works(request: Request, artist_id: int, type: str = Query(None)
     has_more = len(illustrations) > page_size
     if has_more:
         illustrations = illustrations[:page_size]
-    session.close()
 
     # Fragment 提前返回
     if fragment == "1":
+        detail_query = build_local_url("", {
+            "artist_id": artist.id,
+            "types": type if type in TYPE_LABELS else None,
+            "show_hidden": "1" if show_hidden else None,
+            "period": period,
+            "posted_after": posted_after,
+            "posted_before": posted_before,
+            "tags": tags,
+        })
         resp = templates.TemplateResponse(request, "artist_fragment.html", {
             "artist": artist, "illustrations": illustrations,
             "type_labels": TYPE_LABELS, "current_type": type,
             "show_hidden": show_hidden,
+            "detail_query": detail_query,
         })
+        session.close()
         resp.headers["X-Has-More"] = "1" if has_more else "0"
         return resp
 
     # ── 完整页面仅以下 ──
     total_count = query.count()
 
-    tag_cache_key = str(query.whereclause) + '|' + str(artist_id) + '|' + str(show_hidden) + '|' + str(period)
-    tag_list_all = _get_cached_tags(session, query, tag_cache_key)
+    tag_list_all = _get_tags(session, query)
+    session.close()
 
     # 通用 URL 构建器
     def _preserve_url(**overrides):
-        p = {}
-        if type and type in TYPE_LABELS: p['type'] = type
-        if show_hidden: p['show_hidden'] = '1'
-        if period: p['period'] = period
-        if posted_after: p['posted_after'] = posted_after
-        if posted_before: p['posted_before'] = posted_before
-        if tags: p['tags'] = tags
+        p = {
+            "type": type if type in TYPE_LABELS else None,
+            "show_hidden": "1" if show_hidden else None,
+            "period": period,
+            "posted_after": posted_after,
+            "posted_before": posted_before,
+            "tags": tags,
+        }
         for k, v in overrides.items():
-            if v is None:
-                p.pop(k, None)
-            else:
-                p[k] = v
-        base = f'/artist/{artist_id}'
-        if not p:
-            return base
-        return base + '?' + '&'.join(f'{k}={v}' for k, v in p.items())
+            p[k] = v
+        return build_local_url(f"/artist/{artist_id}", p)
 
     # 筛选摘要
     period_labels = {'24h': '24小时内', 'week': '一周内', 'month': '一个月内',
@@ -615,20 +662,25 @@ async def artist_works(request: Request, artist_id: int, type: str = Query(None)
 
     # 构建 show_hidden toggle URL
     def _toggle_url(target_show):
-        parts = []
-        if type and type in TYPE_LABELS:
-            parts.append(f"type={type}")
-        if period:
-            parts.append(f"period={period}")
-        if posted_after:
-            parts.append(f"posted_after={posted_after}")
-        if posted_before:
-            parts.append(f"posted_before={posted_before}")
-        if target_show:
-            parts.append("show_hidden=1")
-        qs = "&".join(parts)
-        return f"/artist/{artist_id}?{qs}" if qs else f"/artist/{artist_id}"
+        return build_local_url(f"/artist/{artist_id}", {
+            "type": type if type in TYPE_LABELS else None,
+            "show_hidden": "1" if target_show else None,
+            "period": period,
+            "posted_after": posted_after,
+            "posted_before": posted_before,
+            "tags": tags,
+        })
     show_hidden_toggle_url = _toggle_url(not show_hidden)
+
+    detail_query = build_local_url("", {
+        "artist_id": artist.id,
+        "types": type if type in TYPE_LABELS else None,
+        "show_hidden": "1" if show_hidden else None,
+        "period": period,
+        "posted_after": posted_after,
+        "posted_before": posted_before,
+        "tags": tags,
+    })
 
     # 页码计算（模式 A）
     import math
@@ -653,6 +705,7 @@ async def artist_works(request: Request, artist_id: int, type: str = Query(None)
          "period": period, "posted_after": posted_after,
          "posted_before": posted_before,
          "preserve_url": _preserve_url,
+         "detail_query": detail_query,
          "period_labels": period_labels,
          "filter_summary": filter_summary,
          "tag_list": tag_list_all, "selected_tags": selected_tags},
@@ -663,61 +716,68 @@ async def artist_works(request: Request, artist_id: int, type: str = Query(None)
 async def refresh_all(artist_ids: str = Form(None), types: str = Form(None)):
     tracker = get_tracker()
     if tracker:
-        threading.Thread(target=_do_refresh_all, args=(tracker,), daemon=True).start()
-    params = []
-    if artist_ids:
-        params.append(f"artist_ids={artist_ids}")
-    if types:
-        params.append(f"types={types}")
-    url = "/?" + "&".join(params) if params else "/"
+        from .. import progress
+        progress.submit_task(
+            "check_updates",
+            tracker.check_updates,
+            label="检查更新",
+            dedupe_key="check-updates",
+        )
+    url = build_local_url("/", {"artist_ids": artist_ids, "types": types})
     return RedirectResponse(url, status_code=303)
 
 
 @router.post("/illust/{illust_id}/hide")
 async def hide_illust(illust_id: int, redirect_url: str = Form("/")):
     session = Session()
-    illust = session.query(Illustration).get(illust_id)
+    illust = session.get(Illustration, illust_id)
     if illust:
         illust.is_hidden = True
         session.commit()
     session.close()
-    if not redirect_url.startswith("/"):
-        redirect_url = "/"
-    return RedirectResponse(redirect_url, status_code=303)
+    return RedirectResponse(safe_redirect_target(redirect_url), status_code=303)
 
 
 @router.post("/illust/{illust_id}/unhide")
 async def unhide_illust(illust_id: int, redirect_url: str = Form("/")):
     session = Session()
-    illust = session.query(Illustration).get(illust_id)
+    illust = session.get(Illustration, illust_id)
     if illust:
         illust.is_hidden = False
         session.commit()
     session.close()
-    if not redirect_url.startswith("/"):
-        redirect_url = "/"
-    return RedirectResponse(redirect_url, status_code=303)
+    return RedirectResponse(safe_redirect_target(redirect_url), status_code=303)
 
 
 @router.post("/illust/{illust_id}/delete")
-async def delete_illust(illust_id: int, redirect_url: str = Form("/")):
+async def delete_illust(request: Request, illust_id: int, redirect_url: str = Form("/")):
     tracker = get_tracker()
     if tracker:
-        tracker.permanently_delete_illust(illust_id)
-    if not redirect_url.startswith("/"):
-        redirect_url = "/"
-    return RedirectResponse(redirect_url, status_code=303)
+        from .. import progress
+        _, created = progress.submit_exclusive(
+            "delete_illust",
+            lambda: tracker.permanently_delete_illust(illust_id),
+            label="永久删除作品",
+        )
+        if not created:
+            return templates.TemplateResponse(
+                request,
+                "error.html",
+                {"message": "当前有检查、下载或其他写入任务，完成后才能永久删除。"},
+                status_code=409,
+            )
+    return RedirectResponse(safe_redirect_target(redirect_url), status_code=303)
 
 
 @router.post("/illust/{illust_id}/download-single")
 async def download_single_illust(illust_id: int):
     """为未下载的作品触发下载（复用已有下载流程，gallery-dl 自动去重）。"""
     session = Session()
-    illust = session.query(Illustration).get(illust_id)
+    illust = session.get(Illustration, illust_id)
     if not illust:
         session.close()
         return JSONResponse({"ok": False, "error": "作品不存在"}, status_code=404)
-    artist = session.query(TrackedArtist).get(illust.artist_id)
+    artist = session.get(TrackedArtist, illust.artist_id)
     session.close()
     if not artist:
         return JSONResponse({"ok": False, "error": "画师不存在"}, status_code=404)
@@ -726,29 +786,34 @@ async def download_single_illust(illust_id: int):
     if not tracker:
         return JSONResponse({"ok": False, "error": "未登录 Pixiv"}, status_code=503)
 
-    threading.Thread(target=tracker.download_single_artist, args=(artist.id,), daemon=True).start()
-    return JSONResponse({"ok": True})
+    from .. import progress
+    job_id, created = progress.submit_task(
+        "download_artist",
+        lambda: tracker.download_single_artist(artist.id),
+        label=f"下载 {artist.name}",
+        dedupe_key=f"artist-{artist.id}",
+    )
+    return JSONResponse({"ok": True, "job_id": job_id, "created": created})
 
 
 @router.post("/illust/{illust_id}/open-folder")
 async def open_illust_folder(illust_id: int):
     """在 Windows 资源管理器中打开作品所在的本地目录。"""
-    import subprocess
     import os
     session = Session()
-    illust = session.query(Illustration).get(illust_id)
+    illust = session.get(Illustration, illust_id)
     if not illust:
         session.close()
         return JSONResponse({"ok": False, "error": "作品不存在"}, status_code=404)
-    artist = session.query(TrackedArtist).get(illust.artist_id)
+    artist = session.get(TrackedArtist, illust.artist_id)
     session.close()
     if not artist:
         return JSONResponse({"ok": False, "error": "画师不存在"}, status_code=404)
     from .. import config as _cfg
     from ..tracker import _artist_dir_name
     folder = _cfg.IMAGES_DIR / _artist_dir_name(artist)
-    os.makedirs(str(folder), exist_ok=True)
-    subprocess.Popen(['explorer', str(folder)])
+    folder.mkdir(parents=True, exist_ok=True)
+    os.startfile(str(folder))
     return JSONResponse({"ok": True})
 
 
@@ -760,17 +825,25 @@ async def toggle_bookmark(illust_id: int):
         return JSONResponse({"ok": False, "error": "未登录 Pixiv"}, status_code=503)
 
     session = Session()
-    illust = session.query(Illustration).get(illust_id)
+    illust = session.get(Illustration, illust_id)
     if not illust:
         session.close()
         return JSONResponse({"ok": False, "error": "作品不存在"}, status_code=404)
 
     try:
         if illust.is_bookmarked:
-            tracker.client.delete_bookmark(illust.pixiv_illust_id)
+            import asyncio
+            await asyncio.to_thread(
+                tracker.client.delete_bookmark, illust.pixiv_illust_id
+            )
             illust.is_bookmarked = False
         else:
-            tracker.client.add_bookmark(illust.pixiv_illust_id, restrict="public")
+            import asyncio
+            await asyncio.to_thread(
+                tracker.client.add_bookmark,
+                illust.pixiv_illust_id,
+                restrict="public",
+            )
             illust.is_bookmarked = True
         session.commit()
         result = {"ok": True, "is_bookmarked": illust.is_bookmarked}
@@ -781,8 +854,3 @@ async def toggle_bookmark(illust_id: int):
         session.close()
 
     return JSONResponse(result, status_code=200 if result["ok"] else 500)
-
-
-def _do_refresh_all(tracker):
-    tracker.check_updates()
-    tracker.download_pending()

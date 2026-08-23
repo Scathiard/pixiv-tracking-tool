@@ -5,6 +5,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 build_tmp/
+build_*/
 dist/
 *.spec.bak
 test_images

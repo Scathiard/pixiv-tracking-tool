@@ -3,40 +3,81 @@ import os
 import io
 import re
 import shutil
-import zipfile
+import uuid
 from datetime import datetime
+from pathlib import Path
 
 import gallery_dl.job as gdl_job
 
 from .client import PixivClient
 from . import config as _cfg
 from . import progress
+from .caption_state import encode_caption_state, should_fetch_caption
+from .file_index import decode_file_paths, encode_file_paths, scan_artist_files
 from .models import Session, TrackedArtist, Illustration, IllustrationTag
+from .security import resolve_image_path, sanitize_caption as _sanitize_caption
+from .tombstones import (
+    add_deleted_illust,
+    discard_deleted_illust,
+    load_deleted_illust_ids,
+    purge_deleted_files,
+)
+
+
+def _dir_name(name, user_id):
+    safe_name = re.sub(r'[\\/:*?"<>|]', '_', name)
+    return f"{safe_name} {user_id}"
 
 
 def _artist_dir_name(artist):
     """画师对应的文件目录名：{name} {user_id}（Windows 非法字符替换为 _）"""
-    safe_name = re.sub(r'[\\/:*?"<>|]', '_', artist.name)
-    return f"{safe_name} {artist.pixiv_user_id}"
+    return _dir_name(artist.name, artist.pixiv_user_id)
 
 
 def _rebuild_file_paths(images_dir, dir_name, illust_id):
-    """从磁盘扫描匹配的文件，重建逗号分隔的 web file_paths 字符串。"""
-    import os
+    """从磁盘扫描匹配的文件，重建 JSON file_paths。"""
     artist_path = images_dir / dir_name
-    if not artist_path.exists():
-        return None
     web_prefix = f"/images/{dir_name}"
-    paths = []
-    for f in sorted(artist_path.iterdir(), key=_natsort_key):
-        name = f.name
-        if name.startswith(f"{illust_id}_p") \
-           or name.startswith(f"{illust_id}.") \
-           or name.startswith(f"{illust_id}_"):
-            if name.endswith('.part'):
-                continue
-            paths.append(f"{web_prefix}/{name}")
-    return ",".join(paths) if paths else None
+    return encode_file_paths(scan_artist_files(artist_path, web_prefix).get(str(illust_id), []))
+
+
+def _update_artist_file_paths(session, artist):
+    """单次扫描一个画师目录并更新该画师的全部作品索引。"""
+    dir_name = _artist_dir_name(artist)
+    artist_dir = _cfg.IMAGES_DIR / dir_name
+    web_prefix = f"/images/{dir_name}"
+    file_index = scan_artist_files(artist_dir, web_prefix)
+    all_illusts = (
+        session.query(Illustration)
+        .filter_by(artist_id=artist.id)
+        .all()
+    )
+    for illust in all_illusts:
+        illust.file_paths = encode_file_paths(
+            file_index.get(str(illust.pixiv_illust_id), [])
+        )
+
+
+def rebuild_all_file_paths():
+    """启动兼容迁移：从磁盘重建所有 JSON 文件索引。"""
+    session = Session()
+    task_id = progress.begin_task("重建文件索引")
+    try:
+        artists = session.query(TrackedArtist).all()
+        progress.begin_phase(task_id, "syncing")
+        progress.set_artist_progress(task_id, 0, len(artists))
+        for index, artist in enumerate(artists, start=1):
+            progress.set_artist(task_id, artist.name)
+            progress.set_artist_progress(task_id, index, len(artists))
+            _update_artist_file_paths(session, artist)
+        session.commit()
+        return len(artists)
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+        progress.finish_task(task_id)
 
 
 def _caption_path(artist, illust_id):
@@ -45,18 +86,37 @@ def _caption_path(artist, illust_id):
     return _cfg.IMAGES_DIR / _artist_dir_name(artist) / f"{illust_id}.caption.html"
 
 
-def _sanitize_caption(html):
-    """移除 caption HTML 中的危险标签和事件属性，防止 XSS。"""
-    if not html:
-        return html
-    # 移除 <script> / <iframe> / <object> / <embed> 整个标签
-    html = re.sub(r'<\s*(script|iframe|object|embed)\b[^>]*>.*?<\s*/\s*\1\s*>', '', html, flags=re.IGNORECASE | re.DOTALL)
-    html = re.sub(r'<\s*(script|iframe|object|embed)\b[^>]*/?>', '', html, flags=re.IGNORECASE)
-    # 移除 on* 事件属性
-    html = re.sub(r'\s+on\w+\s*=\s*"[^"]*"', '', html, flags=re.IGNORECASE)
-    html = re.sub(r"\s+on\w+\s*=\s*'[^']*'", '', html, flags=re.IGNORECASE)
-    html = re.sub(r'\s+on\w+\s*=\s*\S+', '', html, flags=re.IGNORECASE)
-    return html
+def _quarantine_files(paths):
+    """先把待删文件原子移入图片根目录内的隔离区，返回可回滚映射。"""
+    unique_paths = list(dict.fromkeys(Path(path) for path in paths if Path(path).is_file()))
+    if not unique_paths:
+        return None, []
+    trash_root = _cfg.IMAGES_DIR.resolve() / ".pixiv_tracker_trash"
+    trash_root.mkdir(parents=True, exist_ok=True)
+    quarantine = trash_root / uuid.uuid4().hex
+    quarantine.mkdir()
+    moved = []
+    try:
+        for index, source in enumerate(unique_paths):
+            destination = quarantine / f"{index:04d}_{source.name}"
+            os.replace(source, destination)
+            moved.append((destination, source))
+    except Exception:
+        for destination, source in reversed(moved):
+            source.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(destination, source)
+        shutil.rmtree(quarantine, ignore_errors=True)
+        raise
+    return quarantine, moved
+
+
+def _restore_quarantine(quarantine, moved):
+    for destination, source in reversed(moved):
+        if destination.exists():
+            source.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(destination, source)
+    if quarantine:
+        shutil.rmtree(quarantine, ignore_errors=True)
 
 
 def _natsort_key(f):
@@ -71,6 +131,11 @@ def _natsort_key(f):
 def _merge_and_cleanup(old_dir, new_dir):
     """将 old_dir 文件合并到 new_dir，同名文件内容一致则删旧，不一致则保留两份。"""
     import filecmp
+    try:
+        if os.path.samefile(old_dir, new_dir):
+            return
+    except (FileNotFoundError, OSError):
+        pass
     for f in old_dir.iterdir():
         if f.is_dir():
             continue
@@ -81,6 +146,10 @@ def _merge_and_cleanup(old_dir, new_dir):
             f.unlink()
         else:
             alt = new_dir / f"{f.stem}_old{f.suffix}"
+            counter = 2
+            while alt.exists():
+                alt = new_dir / f"{f.stem}_old{counter}{f.suffix}"
+                counter += 1
             shutil.move(str(f), str(alt))
             print(f"  [warn] 文件冲突，保留两份: {f.name} → {alt.name}")
     try:
@@ -102,8 +171,7 @@ def _sync_artist_name(artist, client, session):
         return
 
     old_dir_name = _artist_dir_name(artist)
-    artist.name = new_name
-    new_dir_name = _artist_dir_name(artist)
+    new_dir_name = _dir_name(new_name, artist.pixiv_user_id)
 
     if old_dir_name == new_dir_name:
         return
@@ -111,16 +179,37 @@ def _sync_artist_name(artist, client, session):
     old_dir = _cfg.IMAGES_DIR / old_dir_name
     new_dir = _cfg.IMAGES_DIR / new_dir_name
 
-    if old_dir.exists() and not new_dir.exists():
+    same_directory = False
+    if old_dir.exists() and new_dir.exists():
+        try:
+            same_directory = os.path.samefile(old_dir, new_dir)
+        except OSError:
+            same_directory = False
+
+    if same_directory and old_dir_name != new_dir_name:
+        # Windows 大小写不敏感：两步改名只修正目录显示大小写，不做“合并”。
+        temporary = _cfg.IMAGES_DIR / f".pixiv_rename_{uuid.uuid4().hex}"
+        try:
+            os.replace(old_dir, temporary)
+            os.replace(temporary, new_dir)
+        except Exception:
+            if temporary.exists() and not old_dir.exists():
+                os.replace(temporary, old_dir)
+            raise
+    elif old_dir.exists() and not new_dir.exists():
         shutil.move(str(old_dir), str(new_dir))
     elif old_dir.exists() and new_dir.exists():
         _merge_and_cleanup(old_dir, new_dir)
 
+    artist.name = new_name
+
     for illust in artist.illustrations:
         if illust.file_paths:
-            illust.file_paths = illust.file_paths.replace(
-                f"/images/{old_dir_name}/", f"/images/{new_dir_name}/"
-            )
+            paths = [
+                path.replace(f"/images/{old_dir_name}/", f"/images/{new_dir_name}/", 1)
+                for path in decode_file_paths(illust.file_paths)
+            ]
+            illust.file_paths = encode_file_paths(paths)
 
     session.commit()
     print(f"  [sync] 画师名已更新: {old_dir_name} → {new_dir_name}")
@@ -169,7 +258,7 @@ class Tracker:
     def fetch_artist(self, artist_id):
         """后台拉取画师的全部作品并下载（用于添加画师后的异步任务）。"""
         session = Session()
-        artist = session.query(TrackedArtist).get(artist_id)
+        artist = session.get(TrackedArtist, artist_id)
         if not artist:
             session.close()
             return
@@ -195,7 +284,7 @@ class Tracker:
         pending = (
             session.query(Illustration)
             .filter_by(artist_id=artist.id)
-            .filter(Illustration.file_paths == None)
+            .filter(Illustration.file_paths.is_(None))
             .all()
         )
         total_pending = len(pending)
@@ -236,38 +325,57 @@ class Tracker:
 
     def remove_artist(self, artist_id):
         session = Session()
-        artist = session.query(TrackedArtist).get(artist_id)
+        artist = session.get(TrackedArtist, artist_id)
         if artist:
             session.delete(artist)
             session.commit()
         session.close()
 
-    def delete_illust_files(self, illust):
-        """删除单件作品的全部本地图片文件。"""
-        if not illust.file_paths:
-            return
-        for web_path in illust.file_paths.split(","):
-            web_path = web_path.strip()
-            if not web_path:
+    def _illust_files(self, illust):
+        """只收集图片根目录内的普通文件，忽略越界或损坏的索引项。"""
+        files = []
+        for web_path in decode_file_paths(illust.file_paths):
+            if not web_path.startswith("/images/"):
                 continue
-            # "/images/DirName/file.jpg" → 文件系统路径
-            relative = web_path.replace("/images/", "", 1)
-            fs_path = _cfg.IMAGES_DIR / relative
-            try:
-                if fs_path.exists():
-                    fs_path.unlink()
-            except OSError as e:
-                print(f"  [!] 删除文件失败 {fs_path}: {e}")
+            file_path = resolve_image_path(_cfg.IMAGES_DIR, web_path[len("/images/"):])
+            if file_path:
+                files.append(file_path)
+        caption_path = _caption_path(illust.artist, illust.pixiv_illust_id)
+        try:
+            resolved_caption = caption_path.resolve()
+            resolved_caption.relative_to(_cfg.IMAGES_DIR.resolve())
+            if resolved_caption.is_file():
+                files.append(resolved_caption)
+        except (OSError, RuntimeError, ValueError):
+            pass
+        return files
 
     def permanently_delete_illust(self, illust_id):
-        """永久删除作品：删本地文件 + 删数据库记录。"""
+        """永久删除作品：文件先隔离，DB 提交失败时恢复文件。"""
         session = Session()
-        illust = session.query(Illustration).get(illust_id)
-        if illust:
-            self.delete_illust_files(illust)
+        quarantine = None
+        moved = []
+        tombstone_added = False
+        pixiv_illust_id = None
+        try:
+            illust = session.get(Illustration, illust_id)
+            if not illust:
+                return
+            pixiv_illust_id = illust.pixiv_illust_id
+            quarantine, moved = _quarantine_files(self._illust_files(illust))
+            tombstone_added = add_deleted_illust(pixiv_illust_id)
             session.delete(illust)
             session.commit()
-        session.close()
+        except Exception:
+            session.rollback()
+            _restore_quarantine(quarantine, moved)
+            if tombstone_added and pixiv_illust_id:
+                discard_deleted_illust(pixiv_illust_id)
+            raise
+        finally:
+            session.close()
+        if quarantine:
+            shutil.rmtree(quarantine)
 
     def sync_all_bookmarks(self):
         """全量同步所有活跃画师作品的 is_bookmarked 状态。
@@ -308,7 +416,6 @@ class Tracker:
     def validate_and_fix_all(self):
         """校验并补全所有已有作品信息：补拉缺失的 caption，标记缺失图片文件。
         在后台线程中调用；通过 progress 模块报告进度。"""
-        import os
         from . import progress
 
         session = Session()
@@ -319,7 +426,6 @@ class Tracker:
         artist_ids = {i.artist_id for i in all_illusts}
         artists = session.query(TrackedArtist).filter(TrackedArtist.id.in_(artist_ids)).all()
         artist_map = {a.id: a for a in artists}
-        artist_dir_map = {a.id: _artist_dir_name(a) for a in artists}
         artist_name_map = {a.id: a.name for a in artists}
 
         task_id = progress.begin_task("校验并补全作品信息")
@@ -331,7 +437,6 @@ class Tracker:
 
         for i, illust in enumerate(all_illusts):
             progress.add_files_done(task_id, 1)
-            artist_dir = artist_dir_map.get(illust.artist_id, f"unknown_{illust.artist_id}")
             artist_name = artist_name_map.get(illust.artist_id, str(illust.artist_id))
             progress.set_artist(task_id, artist_name)
 
@@ -339,23 +444,14 @@ class Tracker:
             artist = artist_map.get(illust.artist_id)
             if artist:
                 caption_file = _caption_path(artist, illust.pixiv_illust_id)
-                if not caption_file.exists():
-                    try:
-                        detail = self.client.get_illust_detail(illust.pixiv_illust_id)
-                        cap = detail.get("caption", "")
-                        if cap:
-                            caption_file.parent.mkdir(parents=True, exist_ok=True)
-                            caption_file.write_text(_sanitize_caption(cap), encoding='utf-8')
-                            caption_filled += 1
-                            progress.set_detail(task_id, f"补拉 caption: {illust.title}")
-                    except RuntimeError as e:
-                        msg = str(e)
-                        if "尚无此页" in msg or "not found" in msg.lower():
-                            pass  # 作品已删除/私有，静默跳过
-                        else:
-                            progress.add_error(task_id, f"caption {illust.pixiv_illust_id}: {e}")
-                    except Exception as e:
-                        progress.add_error(task_id, f"caption {illust.pixiv_illust_id}: {e}")
+                if should_fetch_caption(caption_file.exists(), illust.caption):
+                    status = self._fetch_and_save_caption(illust)
+                    if status in {"ok", "empty"}:
+                        caption_filled += 1
+                        progress.set_detail(task_id, f"补拉 caption: {illust.title}")
+                    elif status == "failed":
+                        state = illust.caption or ""
+                        progress.add_error(task_id, f"caption {illust.pixiv_illust_id}: {state}")
 
             # 2. file_paths 重建由下方的 per-artist _update_file_paths 统一处理
             pass
@@ -380,27 +476,42 @@ class Tracker:
     def remove_artist_keep_files(self, artist_id):
         """移除画师：删数据库记录，保留已下载文件。"""
         session = Session()
-        artist = session.query(TrackedArtist).get(artist_id)
+        artist = session.get(TrackedArtist, artist_id)
         if artist:
             session.delete(artist)  # cascade 删除所有 Illustration 记录
             session.commit()
         session.close()
 
     def remove_artist_and_files(self, artist_id):
-        """移除画师：删数据库记录 + 删除整个画师下载目录。"""
+        """移除画师：目录先隔离，DB 提交失败时恢复目录。"""
         session = Session()
-        artist = session.query(TrackedArtist).get(artist_id)
-        if not artist:
+        quarantine = None
+        original_folder = None
+        try:
+            artist = session.get(TrackedArtist, artist_id)
+            if not artist:
+                return
+            images_root = _cfg.IMAGES_DIR.resolve()
+            folder = (images_root / _artist_dir_name(artist)).resolve()
+            folder.relative_to(images_root)
+            if folder.is_dir():
+                trash_root = images_root / ".pixiv_tracker_trash"
+                trash_root.mkdir(parents=True, exist_ok=True)
+                quarantine = trash_root / uuid.uuid4().hex
+                os.replace(folder, quarantine)
+                original_folder = folder
+            session.delete(artist)
+            session.commit()
+        except Exception:
+            session.rollback()
+            if quarantine and quarantine.exists() and original_folder:
+                original_folder.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(quarantine, original_folder)
+            raise
+        finally:
             session.close()
-            return
-        dir_name = _artist_dir_name(artist)
-        session.delete(artist)  # 先删 DB（cascade），文件删除失败不影响 DB 清理
-        session.commit()
-        session.close()
-        # DB 提交成功后再删文件
-        folder = _cfg.IMAGES_DIR / dir_name
-        if folder.exists():
-            shutil.rmtree(folder, ignore_errors=True)
+        if quarantine:
+            shutil.rmtree(quarantine)
 
     def check_updates(self):
         """检查所有活跃画师的新作品——先全部检查，再统一下载。"""
@@ -437,7 +548,7 @@ class Tracker:
             pending = (
                 session.query(Illustration)
                 .filter_by(artist_id=artist.id)
-                .filter(Illustration.file_paths == None)
+                .filter(Illustration.file_paths.is_(None))
                 .all()
             )
             if pending:
@@ -492,7 +603,7 @@ class Tracker:
     def download_single_artist(self, artist_id):
         """下载指定画师的缺失作品（跳过元数据重拉，直接扫描磁盘+下载）。"""
         session = Session()
-        artist = session.query(TrackedArtist).get(artist_id)
+        artist = session.get(TrackedArtist, artist_id)
         if not artist:
             session.close()
             return
@@ -508,7 +619,7 @@ class Tracker:
         pending = (
             session.query(Illustration)
             .filter_by(artist_id=artist.id)
-            .filter(Illustration.file_paths == None)
+            .filter(Illustration.file_paths.is_(None))
             .all()
         )
 
@@ -555,7 +666,7 @@ class Tracker:
             pending = (
                 session.query(Illustration)
                 .filter_by(artist_id=artist.id)
-                .filter(Illustration.file_paths == None)
+                .filter(Illustration.file_paths.is_(None))
                 .all()
             )
             if pending:
@@ -599,7 +710,10 @@ class Tracker:
 
     def _fetch_all_illusts(self, session, artist):
         count = 0
+        deleted_ids = load_deleted_illust_ids()
         for illust_data in self.client.get_all_artist_illusts(artist.pixiv_user_id):
+            if illust_data["illust_id"] in deleted_ids:
+                continue
             illust = self._save_illust(session, artist, illust_data)
             self._fetch_and_save_caption(illust)
             count += 1
@@ -617,7 +731,10 @@ class Tracker:
         }
 
         count = 0
+        deleted_ids = load_deleted_illust_ids()
         for illust_data in self.client.get_all_artist_illusts(artist.pixiv_user_id):
+            if illust_data["illust_id"] in deleted_ids:
+                continue
             if illust_data["illust_id"] not in existing_ids:
                 illust = self._save_illust(session, artist, illust_data)
                 self._fetch_and_save_caption(illust)
@@ -666,29 +783,35 @@ class Tracker:
         return illust
 
     def _fetch_and_save_caption(self, illust):
-        """通过 detail API 补拉 caption 并写入 .caption.html 文件。"""
+        """补拉 caption，并持久化成功、空内容、不可用或暂时失败状态。"""
         try:
             detail = self.client.get_illust_detail(illust.pixiv_illust_id)
             caption = detail.get("caption", "")
-            if caption:
-                artist = illust.artist
-                caption_path = _caption_path(artist, illust.pixiv_illust_id)
-                caption_path.parent.mkdir(parents=True, exist_ok=True)
-                caption_path.write_text(_sanitize_caption(caption), encoding='utf-8')
+            artist = illust.artist
+            caption_path = _caption_path(artist, illust.pixiv_illust_id)
+            caption_path.parent.mkdir(parents=True, exist_ok=True)
+            caption_path.write_text(_sanitize_caption(caption), encoding='utf-8')
+            status = "ok" if caption else "empty"
+            illust.caption = encode_caption_state(status)
+            return status
         except RuntimeError as e:
             msg = str(e)
             if "尚无此页" in msg or "not found" in msg.lower():
-                return  # 作品已删除/私有，静默跳过
+                illust.caption = encode_caption_state("unavailable", msg)
+                return "unavailable"
+            illust.caption = encode_caption_state("failed", msg)
             print(f"  [caption] ✗ {illust.pixiv_illust_id}: {e}")
+            return "failed"
         except Exception as e:
+            illust.caption = encode_caption_state("failed", str(e))
             print(f"  [caption] ✗ {illust.pixiv_illust_id}: {e}")
+            return "failed"
 
     def _download_artist(self, user_id, artist_dir=None, task_id=None, clear_archive=False):
         """用 gallery-dl 下载画师的全部作品（auto-dedup）。
         若提供 artist_dir+task_id，会每秒轮询该目录新增文件数来更新下载进度。"""
         from .auth import configure_gallery_dl, _load_token
         import threading
-        import time
         from pathlib import Path
 
         saved = _load_token()
@@ -707,6 +830,7 @@ class Tracker:
             artist_dir.mkdir(parents=True, exist_ok=True)
             before = {f.name for f in artist_dir.iterdir() if not f.name.endswith(".part")}
             last_count = [0]
+            download_error = [None]
             done = threading.Event()
 
             def _dl():
@@ -714,7 +838,7 @@ class Tracker:
                     job = gdl_job.DownloadJob(url)
                     job.run()
                 except Exception as e:
-                    print(f"  [!] 下载出错 ({user_id}): {e}")
+                    download_error[0] = e
                 finally:
                     done.set()
 
@@ -731,6 +855,10 @@ class Tracker:
 
             t.join()
 
+            if download_error[0] is not None:
+                purge_deleted_files(artist_dir)
+                raise RuntimeError(f"下载出错 ({user_id}): {download_error[0]}") from download_error[0]
+
             if artist_dir.exists():
                 current = {f.name for f in artist_dir.iterdir() if not f.name.endswith(".part")}
                 new = len(current - before)
@@ -740,8 +868,13 @@ class Tracker:
             try:
                 job = gdl_job.DownloadJob(url)
                 job.run()
-            except Exception as e:
-                print(f"  [!] 下载出错 ({user_id}): {e}")
+            except Exception:
+                if artist_dir:
+                    purge_deleted_files(Path(artist_dir))
+                raise
+
+        if artist_dir:
+            purge_deleted_files(Path(artist_dir))
 
     def _convert_ugoira_zips(self, session, artist):
         """将画师目录下已下载的 ugoira ZIP 转换为 GIF。"""
@@ -769,8 +902,6 @@ class Tracker:
                 continue
 
             try:
-                # 获取帧延迟信息
-                metadata = self.client.get_illust_detail(illust.pixiv_illust_id)
                 frames_data = []
                 with zipfile.ZipFile(zip_path, 'r') as zf:
                     for name in sorted(zf.namelist()):
@@ -807,35 +938,12 @@ class Tracker:
 
                 # 更新文件路径指向 GIF
                 web_prefix = f"/images/{dir_name}"
-                illust.file_paths = f"{web_prefix}/{gif_path.name}"
+                illust.file_paths = encode_file_paths([f"{web_prefix}/{gif_path.name}"])
                 zip_path.unlink()  # 删除原始 ZIP
 
             except Exception as e:
                 print(f"  [!] ugoira 转换失败 {illust.title}: {e}")
 
     def _update_file_paths(self, session, artist):
-        """扫描下载目录，检查并更新所有作品的本地文件路径。缺失的标记为待下载。"""
-        dir_name = _artist_dir_name(artist)
-        artist_dir = _cfg.IMAGES_DIR / dir_name
-        web_prefix = f"/images/{dir_name}"
-
-        all_illusts = (
-            session.query(Illustration)
-            .filter_by(artist_id=artist.id)
-            .all()
-        )
-
-        for illust in all_illusts:
-            paths = []
-            if artist_dir.exists():
-                for f in sorted(artist_dir.iterdir(), key=_natsort_key):
-                    name = f.name
-                    # 匹配：{id}_p0.png, {id}.gif, {id}.jpg 等
-                    if name.startswith(f"{illust.pixiv_illust_id}_p") \
-                       or name.startswith(f"{illust.pixiv_illust_id}.") \
-                       or name.startswith(f"{illust.pixiv_illust_id}_"):
-                        ext = f.suffix.lower()
-                        if ext not in ('.jpg', '.jpeg', '.png', '.gif', '.mp4', '.webp', '.bmp'):
-                            continue  # 跳过非图片/视频文件（.html, .part, .json 等）
-                        paths.append(f"{web_prefix}/{name}")
-            illust.file_paths = ",".join(paths) if paths else None
+        """单次扫描画师目录并更新全部作品的 JSON 文件索引。"""
+        _update_artist_file_paths(session, artist)

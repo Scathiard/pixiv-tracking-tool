@@ -1,9 +1,9 @@
 {% for illust in illustrations %}
 <div class="illust-card {% if illust.is_hidden %}card-hidden{% endif %}">
     <div class="thumb-container">
-        {% if illust.file_paths %}
-        <a href="/illust/{{ illust.id }}?artist_id={{ artist.id }}{% if current_type %}&type={{ current_type }}{% endif %}{% if show_hidden %}&show_hidden=1{% endif %}">
-            <img src="{{ illust.file_paths.split(',')[0] }}"
+        {% if illust.primary_file_path %}
+        <a href="/illust/{{ illust.id }}{{ detail_query }}">
+            <img src="{{ illust.primary_file_path }}"
                  alt="{{ illust.title }}"
                  loading="lazy"
                  class="illust-thumb"

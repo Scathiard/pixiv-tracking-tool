@@ -1,5 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
 from PyInstaller.utils.hooks import collect_submodules
+
+version_namespace = {}
+exec(Path('src/version.py').read_text(encoding='utf-8'), version_namespace)
+EXE_NAME = f"PixivTracker_v{version_namespace['__version__']}"
 
 a = Analysis(
     ['run.py'],
@@ -32,7 +37,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='PixivTracker_v0.1.0',
+    name=EXE_NAME,
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

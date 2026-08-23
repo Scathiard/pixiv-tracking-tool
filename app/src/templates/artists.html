@@ -58,10 +58,12 @@
                     {{ "暂停同步" if artist.is_active else "解除暂停同步" }}
                 </button>
             </form>
-            <form method="post" action="/artists/{{ artist.id }}/remove-keep-files" style="display:inline" onsubmit="return confirm('仅移除 {{ artist.name|replace("'", "\\'") }} 的数据库记录？已下载的文件会保留在磁盘上。')">
+            <form method="post" action="/artists/{{ artist.id }}/remove-keep-files" style="display:inline"
+                  data-confirm="仅移除“{{ artist.name }}”的数据库记录？已下载的文件会保留在磁盘上。">
                 <button type="submit" class="btn-sm btn-warn">移除记录</button>
             </form>
-            <form method="post" action="/artists/{{ artist.id }}/remove-and-files" style="display:inline" onsubmit="return confirm('永久删除 {{ artist.name|replace("'", "\\'") }} 的所有记录及已下载文件？此操作不可撤销！')">
+            <form method="post" action="/artists/{{ artist.id }}/remove-and-files" style="display:inline"
+                  data-confirm="永久删除“{{ artist.name }}”的所有记录及已下载文件？此操作不可撤销！">
                 <button type="submit" class="btn-sm btn-danger">移除并删文件</button>
             </form>
         </div>

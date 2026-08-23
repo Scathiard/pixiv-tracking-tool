@@ -81,18 +81,18 @@
     <button class="btn-sm" onclick="fetch('/illust/{{ illust.id }}/open-folder',{method:'POST'});" title="打开本地文件夹">&#128193;</button>
     <div style="margin-left:auto;display:flex;gap:8px;">
         <form method="post" action="/illust/{{ illust.id }}/hide" style="display:inline;">
-            <input type="hidden" name="redirect_url" value="/illust/{{ illust.id }}{{ nav_query }}{% if show_hidden %}{% if nav_query %}&{% endif %}show_hidden=1{% endif %}">
+            <input type="hidden" name="redirect_url" value="{{ self_url }}">
             <button type="submit" class="btn-sm btn-warn"
                     {% if illust.is_hidden %}style="display:none;"{% endif %}>隐藏</button>
         </form>
         <form method="post" action="/illust/{{ illust.id }}/unhide" style="display:inline;">
-            <input type="hidden" name="redirect_url" value="/illust/{{ illust.id }}{{ nav_query }}{% if show_hidden %}{% if nav_query %}&{% endif %}show_hidden=1{% endif %}">
+            <input type="hidden" name="redirect_url" value="{{ self_url }}">
             <button type="submit" class="btn-sm btn-ok"
                     {% if not illust.is_hidden %}style="display:none;"{% endif %}>取消隐藏</button>
         </form>
         {% if illust.is_hidden %}
         <form method="post" action="/illust/{{ illust.id }}/delete" style="display:inline;"
-              onsubmit="return confirm('永久删除这件作品及所有已下载文件？此操作不可撤销。')">
+              data-confirm="永久删除这件作品及所有已下载文件？此操作不可撤销。">
             <input type="hidden" name="redirect_url" value="{{ back_url }}">
             <button type="submit" class="btn-sm btn-danger">永久删除</button>
         </form>
@@ -123,23 +123,23 @@
 {% if prev_id or next_id %}
 <div class="nav-arrows nav-arrows-bottom">
     {% if prev_id %}
-    <a href="/illust/{{ prev_id }}{{ nav_query }}" class="nav-arrow nav-prev">&larr;</a>
+    <a href="{{ prev_url }}" class="nav-arrow nav-prev">&larr;</a>
     {% else %}
     <span class="nav-arrow nav-disabled">&larr;</span>
     {% endif %}
     <span class="nav-count-bottom">{{ current_idx }} / {{ total_count }}</span>
     {% if next_id %}
-    <a href="/illust/{{ next_id }}{{ nav_query }}" class="nav-arrow nav-next">&rarr;</a>
+    <a href="{{ next_url }}" class="nav-arrow nav-next">&rarr;</a>
     {% else %}
     <span class="nav-arrow nav-disabled">&rarr;</span>
     {% endif %}
 </div>
 
 {% if prev_id %}
-<a href="/illust/{{ prev_id }}{{ nav_query }}" class="side-arrow side-prev" title="上一张">&larr;</a>
+<a href="{{ prev_url }}" class="side-arrow side-prev" title="上一张">&larr;</a>
 {% endif %}
 {% if next_id %}
-<a href="/illust/{{ next_id }}{{ nav_query }}" class="side-arrow side-next" title="下一张">&rarr;</a>
+<a href="{{ next_url }}" class="side-arrow side-next" title="下一张">&rarr;</a>
 {% endif %}
 {% endif %}
 {% if caption_html %}
@@ -190,10 +190,10 @@
 document.addEventListener('keydown', function(e) {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     {% if prev_id %}
-    if (e.key === 'ArrowLeft') { window.location.href = '/illust/{{ prev_id }}{{ nav_query }}'; }
+    if (e.key === 'ArrowLeft') { window.location.href = {{ prev_url | tojson }}; }
     {% endif %}
     {% if next_id %}
-    if (e.key === 'ArrowRight') { window.location.href = '/illust/{{ next_id }}{{ nav_query }}'; }
+    if (e.key === 'ArrowRight') { window.location.href = {{ next_url | tojson }}; }
     {% endif %}
 });
 
@@ -208,10 +208,10 @@ document.addEventListener('keydown', function(e) {
         var dy = e.changedTouches[0].clientY - startY;
         if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
         {% if prev_id %}
-        if (dx > 0) { window.location.href = '/illust/{{ prev_id }}{{ nav_query }}'; }
+        if (dx > 0) { window.location.href = {{ prev_url | tojson }}; }
         {% endif %}
         {% if next_id %}
-        if (dx < 0) { window.location.href = '/illust/{{ next_id }}{{ nav_query }}'; }
+        if (dx < 0) { window.location.href = {{ next_url | tojson }}; }
         {% endif %}
     });
 })();

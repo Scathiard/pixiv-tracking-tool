@@ -1,0 +1,15 @@
+# v0.1.1 发布构建所用的直接依赖版本（Python 3.12 / Windows）。
+gallery-dl==1.32.1
+playwright==1.60.0
+pillow==12.2.0
+fastapi==0.125.0
+uvicorn[standard]==0.47.0
+sqlalchemy==2.0.49
+jinja2==3.1.6
+apscheduler==3.11.2
+python-dotenv==1.2.2
+python-multipart==0.0.29
+requests==2.34.2
+psutil==7.2.2
+pystray==0.19.5
+pyinstaller==6.20.0

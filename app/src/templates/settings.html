@@ -43,6 +43,7 @@
     <form id="change-path-form" class="add-form">
         <input type="text" id="new_path" placeholder="输入路径或点击右侧按钮选择" value="{{ data_root }}">
         <button type="button" id="browse-btn">选择目录...</button>
+        <button type="submit">迁移到此目录</button>
     </form>
 </div>
 
@@ -59,16 +60,9 @@ async function applyPath(path) {
         const resp = await fetch('/settings/change-path', { method: 'POST', body: fd });
         const data = await resp.json();
         if (data.ok) {
-            msg.textContent = '路径已修改，正在重载服务...';
+            msg.textContent = data.message || '数据目录迁移完成。';
             msg.style.display = 'block';
-            const resp = await fetch('/api/reload', { method: 'POST' });
-            const rld = await resp.json();
-            if (rld.ok) {
-                msg.textContent = '路径修改完成，服务已重载。';
-                setTimeout(() => location.reload(), 500);
-            } else {
-                msg.textContent = '重载失败: ' + (rld.error || '未知错误') + '。请手动重启程序。';
-            }
+            setTimeout(() => location.reload(), 700);
         } else {
             msg.textContent = '错误: ' + (data.error || '操作失败');
             msg.style.display = 'block';
@@ -87,7 +81,6 @@ document.getElementById('browse-btn').addEventListener('click', async () => {
         const data = await resp.json();
         if (data.path) {
             document.getElementById('new_path').value = data.path;
-            applyPath(data.path);
         }
     } catch (e) {
         console.error(e);
@@ -96,7 +89,10 @@ document.getElementById('browse-btn').addEventListener('click', async () => {
 
 document.getElementById('change-path-form').addEventListener('submit', e => {
     e.preventDefault();
-    applyPath(document.getElementById('new_path').value.trim());
+    const path = document.getElementById('new_path').value.trim();
+    if (!path) return;
+    if (!confirm('将数据复制到这个空目录并切换使用？\n\n' + path + '\n\n旧目录会保留，不会删除。')) return;
+    applyPath(path);
 });
 </script>
 
@@ -167,8 +163,11 @@ document.getElementById('port-form').addEventListener('submit', async function(e
 
 <div class="settings-section">
     <h3>访问地址</h3>
-    <p>服务运行在端口 {{ port }}。同一网络下的设备可通过局域网地址访问，外网可通过 IPv6 地址访问（需放行防火墙）。</p>
-    <code>http://localhost:{{ port }}</code>
+    <p>服务运行在端口 {{ port }}，IPv4 与 IPv6 默认同时启用。同一局域网内的设备可直接访问；来自其他网段的请求会被拒绝。</p>
+    <p><a href="http://localhost:{{ port }}"><code>http://localhost:{{ port }}</code></a></p>
+    {% for label, url in network_urls %}
+    <p>{{ label }}：<a href="{{ url }}"><code>{{ url }}</code></a></p>
+    {% endfor %}
 </div>
 
 {% endblock %}

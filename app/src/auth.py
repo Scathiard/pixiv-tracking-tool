@@ -1,5 +1,6 @@
 import json
 import hashlib
+import os
 import secrets
 import base64
 import webbrowser
@@ -22,6 +23,8 @@ _pending_login_url = None
 _pending_code_verifier = None
 _received_code = None
 _code_event = threading.Event()
+_cancel_event = threading.Event()
+_token_lock = threading.RLock()
 
 
 def get_pending_login_url():
@@ -34,6 +37,12 @@ def submit_oauth_code(code):
     _code_event.set()
 
 
+def cancel_auth():
+    """唤醒正在等待的 OAuth 流程，供应用优雅退出。"""
+    _cancel_event.set()
+    _code_event.set()
+
+
 def validate_oauth_input(user_input):
     """校验用户粘贴的内容，返回 (code, error_msg)。"""
     from urllib.parse import urlparse, parse_qs
@@ -41,6 +50,8 @@ def validate_oauth_input(user_input):
     user_input = user_input.strip()
     if not user_input:
         return None, "内容不能为空"
+    if len(user_input) > 8192:
+        return None, "授权内容过长，请重新复制 callback URL"
 
     # 纯 code 字符串
     if "=" not in user_input and not user_input.startswith(("http", "pixiv")):
@@ -61,6 +72,7 @@ def validate_oauth_input(user_input):
 
     return None, "未找到 code 参数。请确认复制的是完整的 callback URL"
 
+# Pixiv 官方移动客户端的公开兼容标识，并非用户账号密钥；用户 token 只写入 DATA_ROOT。
 CLIENT_ID = "MOBrBDS8blbauoSck0ZfDbtuzpyT"
 CLIENT_SECRET = "lsACyCD94FhDUtGTXi3QzcFE2uU1hqtDaKeqrdwj"
 HASH_SECRET = "28c1fdd170a5204386cb1313c7077b34f83e4aaf4aa829ce78c231e05b0bae2c"
@@ -70,16 +82,39 @@ TOKEN_URL = "https://oauth.secure.pixiv.net/auth/token"
 
 
 def _save_token(access_token, refresh_token):
-    _token_file().write_text(json.dumps({
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-    }))
+    """原子写入 token，避免断电或进程退出留下半截 JSON。"""
+    token_path = _token_file()
+    token_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = token_path.with_name(
+        f"{token_path.name}.{secrets.token_hex(4)}.tmp"
+    )
+    payload = json.dumps(
+        {"access_token": access_token, "refresh_token": refresh_token},
+        ensure_ascii=False,
+    )
+    with _token_lock:
+        try:
+            with temporary.open("w", encoding="utf-8") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, token_path)
+        finally:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 def _load_token():
-    if _token_file().exists():
-        return json.loads(_token_file().read_text())
-    return {}
+    """损坏或暂时不可读的 token 按未登录处理，不阻断 OAuth 恢复流程。"""
+    token_path = _token_file()
+    with _token_lock:
+        try:
+            payload = json.loads(token_path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, OSError, json.JSONDecodeError, TypeError):
+            return {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def _try_refresh_token():
@@ -113,8 +148,9 @@ def _try_refresh_token():
             return None
 
         resp = r.json()
-        _save_token(resp["access_token"], resp.get("refresh_token", refresh_token))
-        return resp["refresh_token"]
+        next_refresh_token = resp.get("refresh_token") or refresh_token
+        _save_token(resp["access_token"], next_refresh_token)
+        return next_refresh_token
 
     except Exception:
         return None
@@ -123,6 +159,7 @@ def _try_refresh_token():
 def _oauth_pkce():
     global _pending_login_url, _pending_code_verifier, _received_code
     _code_event.clear()
+    _cancel_event.clear()
     _received_code = None
 
     code_verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b"=").decode()
@@ -159,7 +196,7 @@ def _oauth_pkce():
             pass
 
         # 等待网页端提交 code（最长等 3 分钟）
-        if not _code_event.wait(180):
+        if not _code_event.wait(180) or _cancel_event.is_set():
             _pending_login_url = None
             _pending_code_verifier = None
             print("\n[X] 等待授权超时。\n")
@@ -171,8 +208,6 @@ def _oauth_pkce():
 
     if not code:
         return None
-
-    print(f"  code={code[:20]}...")
 
     # 用 code 换取 token
     headers = {
@@ -267,7 +302,12 @@ def _browser_oauth(login_url):
             print("  (等待登录完成，不要关闭浏览器窗口。最长等待 3 分钟)\n")
 
             elapsed = 0
-            while not code and not browser_closed and elapsed < 180:
+            while (
+                not code
+                and not browser_closed
+                and not _cancel_event.is_set()
+                and elapsed < 180
+            ):
                 # 同时检查当前页面 URL（以防 request 事件没捕获到）
                 url = page.url
                 if "callback" in url and "code=" in url:

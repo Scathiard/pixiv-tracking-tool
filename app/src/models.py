@@ -16,6 +16,7 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
 
 
@@ -72,6 +73,16 @@ class Illustration(Base):
 
     artist = relationship("TrackedArtist", back_populates="illustrations")
     tags_rel = relationship("IllustrationTag", cascade="all, delete-orphan")
+
+    @property
+    def file_path_list(self):
+        from .file_index import decode_file_paths
+        return decode_file_paths(self.file_paths)
+
+    @property
+    def primary_file_path(self):
+        paths = self.file_path_list
+        return paths[0] if paths else None
 
 
 class IllustrationTag(Base):

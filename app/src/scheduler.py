@@ -1,41 +1,58 @@
 from apscheduler.schedulers.background import BackgroundScheduler
+import threading
 
 from .config import CHECK_INTERVAL_HOURS, CHECK_INTERVAL_MINUTES
-from .models import Session
 
 _scheduler: BackgroundScheduler = None
+_scheduler_lock = threading.RLock()
 
 
 def check_and_download(tracker):
     """定时任务：检查更新并下载新作品。"""
-    try:
-        tracker.check_updates()
-    except Exception:
-        pass  # 定时任务静默处理错误，避免影响主进程
+    from . import progress
+    progress.submit_task(
+        "check_updates",
+        tracker.check_updates,
+        label="定时检查更新",
+        dedupe_key="check-updates",
+    )
 
 
 def start_scheduler(tracker):
     global _scheduler
-    _scheduler = BackgroundScheduler(daemon=True)
+    with _scheduler_lock:
+        if _scheduler:
+            try:
+                _scheduler.shutdown(wait=False)
+            except Exception:
+                pass
+            _scheduler = None
+        scheduler = BackgroundScheduler(daemon=True)
 
-    interval_kwargs = {}
-    if CHECK_INTERVAL_HOURS:
-        interval_kwargs["hours"] = CHECK_INTERVAL_HOURS
-    if CHECK_INTERVAL_MINUTES:
-        interval_kwargs["minutes"] = CHECK_INTERVAL_MINUTES
+        interval_kwargs = {}
+        if CHECK_INTERVAL_HOURS:
+            interval_kwargs["hours"] = CHECK_INTERVAL_HOURS
+        if CHECK_INTERVAL_MINUTES:
+            interval_kwargs["minutes"] = CHECK_INTERVAL_MINUTES
+        if not interval_kwargs:
+            return
 
-    _scheduler.add_job(
-        check_and_download,
-        "interval",
-        args=[tracker],
-        id="check_updates",
-        **interval_kwargs,
-    )
-    _scheduler.start()
+        scheduler.add_job(
+            check_and_download,
+            "interval",
+            args=[tracker],
+            id="check_updates",
+            **interval_kwargs,
+        )
+        scheduler.start()
+        _scheduler = scheduler
 
 
 def stop_scheduler():
     global _scheduler
-    if _scheduler:
-        _scheduler.shutdown(wait=False)
-        _scheduler = None
+    with _scheduler_lock:
+        if _scheduler:
+            try:
+                _scheduler.shutdown(wait=False)
+            finally:
+                _scheduler = None

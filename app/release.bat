@@ -1,10 +1,14 @@
 @echo off
 cd /d "%~dp0"
 
-REM 从 build.spec 读取版本号
-for /f "tokens=2 delims='" %%a in ('findstr "name=" build.spec') do set "EXE_NAME=%%a"
-set "VERSION=%EXE_NAME:PixivTracker_v=%"
-set "RELEASE_DIR=..\release\%VERSION%"
+REM 从唯一版本源读取版本号
+for /f "tokens=2 delims== " %%a in ('findstr /b "__version__" src\version.py') do set "VERSION=%%~a"
+if not defined VERSION (
+    echo VERSION READ FAILED
+    exit /b 1
+)
+set "EXE_NAME=PixivTracker_v%VERSION%"
+set "RELEASE_DIR=..\release\v%VERSION%"
 
 echo ================================
 echo   Pixiv Tracker Release Builder
