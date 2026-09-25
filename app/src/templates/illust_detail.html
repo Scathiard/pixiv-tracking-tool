@@ -64,8 +64,8 @@
     <div class="detail-meta">
         <span>画师：<a href="/artist/{{ artist.id }}" style="color:var(--accent);text-decoration:none;">{{ artist.name if artist else 'Unknown' }}</a> (@{{ artist.pixiv_account if artist else '' }})</span>
         <span>发布于 {{ illust.posted_at.strftime('%Y-%m-%d') if illust.posted_at else '' }}</span>
-        <span>&hearts; {{ illust.bookmark_count or 0 }}</span>
-        <span>&#128065; {{ illust.view_count or 0 }}</span>
+        <span>&hearts; {{ illust.bookmark_count if illust.bookmark_count is not none else '—' }}</span>
+        <span>&#128065; {{ illust.view_count if illust.view_count is not none else '—' }}</span>
         {% if tags %}
         <div class="detail-tags">
             {% for tag in tags %}
@@ -77,6 +77,9 @@
 </div>
 
 <div class="detail-actions">
+    {% if archive_runtime %}
+    <form method="post" action="/illust/{{ illust.id }}/download-single"><button type="submit" class="btn-sm">补下载此作品</button></form>
+    {% endif %}
     <a href="https://www.pixiv.net/artworks/{{ illust.pixiv_illust_id }}" target="_blank" class="ext-link">在 Pixiv 查看 &#8599;</a>
     <button class="btn-sm" onclick="fetch('/illust/{{ illust.id }}/open-folder',{method:'POST'});" title="打开本地文件夹">&#128193;</button>
     <div style="margin-left:auto;display:flex;gap:8px;">
@@ -90,8 +93,8 @@
             <button type="submit" class="btn-sm btn-ok"
                     {% if not illust.is_hidden %}style="display:none;"{% endif %}>取消隐藏</button>
         </form>
-        {% if illust.is_hidden %}
-        <form method="post" action="/illust/{{ illust.id }}/delete" style="display:inline;"
+        {% if illust.is_hidden or archive_runtime %}
+        <form method="post" action="/illust/{{ illust.id }}/delete" style="display:{{ 'inline' if illust.is_hidden else 'none' }};" data-work-delete
               data-confirm="永久删除这件作品及所有已下载文件？此操作不可撤销。">
             <input type="hidden" name="redirect_url" value="{{ back_url }}">
             <button type="submit" class="btn-sm btn-danger">永久删除</button>
@@ -100,18 +103,38 @@
     </div>
 </div>
 
+{% if archive_runtime %}
+<details style="margin:8px 0;"><summary>查看存档状态</summary>
+    {% for asset in asset_states %}
+    <p>{{ {'image':'图片原件', 'ugoira_zip':'动图原包', 'ugoira_timing':'播放时序'}.get(asset.role, asset.role) }} · {{ asset.page + 1 }}：{{ {'verified':'已核验', 'unknown':'待核验', 'missing':'缺失', 'missing_deferred':'缺少原包，等待选择补下载', 'invalid':'未通过核验', 'failed':'处理失败'}.get(asset.state, asset.state) }}{% if asset.error %} · {{ asset.error }}{% endif %}</p>
+    {% endfor %}
+    {% if illust.type == 'ugoira' %}<a href="/settings#missing-originals">查看动图原包缺失项并选择补下载</a>{% endif %}
+</details>
+{% endif %}
+
 {% if illust.is_hidden %}
 <div class="alert alert-warn" style="margin-bottom:16px;">此作品已隐藏。可从画廊「显示已隐藏」或画师作品页中查看和管理。</div>
 {% endif %}
 
 {% if paths %}
 <div class="page-viewer">
+    {% if archive_runtime %}
+    {% for page in pages %}
+    <div class="page-item">
+        {% if page.src %}<img src="{{ page.src }}" alt="{{ illust.title }} - p{{ page.index }}" class="page-image" loading="lazy">
+        {% else %}<p>第 {{ page.index + 1 }} 页缺少本地文件，可使用补下载。</p>{% endif %}
+        <div class="page-num">{{ page.index + 1 }} / {{ display_page_count }}</div>
+    </div>
+    {% endfor %}
+    {% if more_pages_url %}<a href="{{ more_pages_url }}" class="btn-sm">继续阅读后续页面</a>{% endif %}
+    {% else %}
     {% for path in paths %}
     <div class="page-item">
         <img src="{{ path }}" alt="{{ illust.title }} - p{{ loop.index0 }}" class="page-image">
         <div class="page-num">{{ loop.index }} / {{ paths|length }}</div>
     </div>
     {% endfor %}
+    {% endif %}
     <button class="page-viewer-bookmark{% if illust.is_bookmarked %} bookmarked{% endif %}"
             id="detail-bookmark-btn"
             data-illust-id="{{ illust.id }}"

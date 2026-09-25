@@ -109,12 +109,18 @@ def _migrate_to_data_root():
     os.environ.pop("DATA_DIR", None)
 
 
-# 执行迁移（必须在 _resolve_data_root 之前）
-_migrate_to_data_root()
+# Upgrades are explicit. Importing configuration must never copy a library or
+# rewrite its .env; legacy locations stay mapped until an approved conversion.
 
 DATA_ROOT = _resolve_data_root()
 DATA_DIR = DATA_ROOT / "data"
 IMAGES_DIR = DATA_ROOT / "images"
+if not os.getenv("DATA_ROOT", "").strip():
+    for _key in ("DATA_DIR", "IMAGES_DIR"):
+        _legacy_location = os.getenv(_key, "").strip()
+        if _legacy_location:
+            _legacy_path = Path(_legacy_location)
+            globals()[_key] = _legacy_path if _legacy_path.is_absolute() else PROJECT_ROOT / _legacy_path
 
 # 确保目录存在
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -156,6 +162,7 @@ PIXIV_REFRESH_TOKEN = os.getenv("PIXIV_REFRESH_TOKEN", "")
 
 # Server（IPv4/IPv6 固定双栈监听；这里只配置两者共用的端口）
 PORT = int(os.getenv("PORT", "1919"))
+LISTENING_PORT = PORT
 
 
 def set_port(new_port):

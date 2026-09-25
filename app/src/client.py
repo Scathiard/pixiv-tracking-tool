@@ -11,6 +11,36 @@ API_HOST = "https://app-api.pixiv.net"
 _MIN_INTERVAL = 1.0  # 请求最小间隔（秒）
 
 
+class PixivRequestError(RuntimeError):
+    def __init__(self, status, message):
+        super().__init__(message)
+        self.status, self.user_message = status, message
+
+
+def _checked_response(response):
+    # A parseable error body (including {}) is never evidence of HTTP success.
+    if not 200 <= response.status_code < 300:
+        raise PixivRequestError(response.status_code, f"Pixiv 请求未成功（{response.status_code}）")
+    try:
+        value = response.json()
+    except ValueError as exc:
+        raise PixivRequestError(response.status_code, "Pixiv 返回了无法识别的内容") from exc
+    if not isinstance(value, dict):
+        raise PixivRequestError(response.status_code, "Pixiv 返回了无效的结果")
+    return value
+
+
+def _token_expired(response):
+    if response.status_code == 401:
+        return True
+    try:
+        body = response.json()
+        error = str(body.get("error", "")).lower() if isinstance(body, dict) else ""
+    except ValueError:
+        return False
+    return "invalid_grant" in error or "oauth" in error
+
+
 def _get_auth_header():
     """获取当前有效的 access_token 用于 API 请求。"""
     from .auth import _load_token
@@ -72,18 +102,16 @@ class PixivClient:
         headers["User-Agent"] = "PixivIOSApp/7.19.1 (iOS 16.7.2; iPhone14,2)"
 
         r = self._do_get(endpoint, headers, params)
-        data = r.json()
+        if retry_token and _token_expired(r):
+            from .auth import _try_refresh_token
+            if _try_refresh_token():
+                return self._request(endpoint, params, retry_token=False)
+        data = _checked_response(r)
         if "error" not in data:
             return data
 
         err_msg = str(data["error"])
         err_lower = err_msg.lower()
-
-        # token 过期——刷新后续期重试一次
-        if retry_token and ("invalid_grant" in err_msg or "oauth" in err_lower):
-            from .auth import _try_refresh_token
-            if _try_refresh_token():
-                return self._request(endpoint, params, retry_token=False)
 
         # 限流——等待后重试（最多 3 次）
         if "rate" in err_lower:
@@ -92,12 +120,12 @@ class PixivClient:
                 time.sleep(wait)
                 self._last_request = time.time()
                 r = self._do_get(endpoint, headers, params)
-                data = r.json()
+                data = _checked_response(r)
                 if "error" not in data:
                     return data
                 err_msg = str(data["error"])
 
-        raise RuntimeError(f"API error: {data['error']}")
+        raise PixivRequestError(r.status_code, "Pixiv 拒绝了此次请求，请检查登录状态或稍后重试")
 
     def _post(self, endpoint, data=None, retry_token=True):
         """带节流的 POST 请求（用于收藏等写操作）。"""
@@ -112,18 +140,16 @@ class PixivClient:
         headers["Content-Type"] = "application/x-www-form-urlencoded"
 
         r = self._do_post(endpoint, headers, data)
-        resp = r.json()
+        if retry_token and _token_expired(r):
+            from .auth import _try_refresh_token
+            if _try_refresh_token():
+                return self._post(endpoint, data, retry_token=False)
+        resp = _checked_response(r)
         if "error" not in resp:
             return resp
 
         err_msg = str(resp["error"])
         err_lower = err_msg.lower()
-
-        # token 过期——刷新后续期重试一次
-        if retry_token and ("invalid_grant" in err_msg or "oauth" in err_lower):
-            from .auth import _try_refresh_token
-            if _try_refresh_token():
-                return self._post(endpoint, data, retry_token=False)
 
         # 限流——等待后重试（最多 3 次）
         if "rate" in err_lower:
@@ -132,11 +158,11 @@ class PixivClient:
                 time.sleep(wait)
                 self._last_request = time.time()
                 r = self._do_post(endpoint, headers, data)
-                resp = r.json()
+                resp = _checked_response(r)
                 if "error" not in resp:
                     return resp
 
-        raise RuntimeError(f"API error: {resp['error']}")
+        raise PixivRequestError(r.status_code, "Pixiv 拒绝了此次操作，远端结果尚未确认")
 
     def add_bookmark(self, illust_id, restrict="public"):
         """收藏作品。restrict: 'public'=公开, 'private'=私有。"""
@@ -207,6 +233,9 @@ class PixivClient:
         data = self._get("/v1/illust/detail", {"illust_id": illust_id})
         return self._parse_illust(data["illust"])
 
+    def get_ugoira_metadata(self, illust_id):
+        return self._get("/v1/ugoira/metadata", {"illust_id": illust_id})["ugoira_metadata"]
+
     @staticmethod
     def _parse_illust(illust):
         tags = [t["name"] for t in illust.get("tags", [])]
@@ -225,8 +254,7 @@ class PixivClient:
                 {
                     "thumb": illust["image_urls"].get("square_medium"),
                     "medium": illust["image_urls"].get("medium"),
-                    "original": illust.get("meta_single_page", {}).get("original_image_url")
-                    or illust["image_urls"].get("large"),
+                    "original": illust.get("meta_single_page", {}).get("original_image_url"),
                 }
             ]
 
@@ -236,11 +264,11 @@ class PixivClient:
             "type": illust.get("type", "illust"),
             "page_count": illust.get("page_count", 1),
             "tags": tags,
-            "bookmark_count": illust.get("total_bookmarks", 0),
-            "view_count": illust.get("total_view", 0),
+            "bookmark_count": illust.get("total_bookmarks"),
+            "view_count": illust.get("total_view"),
             "posted_at": illust.get("create_date"),
-            "is_bookmarked": illust.get("is_bookmarked", False),
-            "caption": illust.get("caption", ""),
-            "x_restrict": illust.get("x_restrict", 0),
+            "is_bookmarked": illust.get("is_bookmarked"),
+            "caption": illust.get("caption"),
+            "x_restrict": illust.get("x_restrict"),
             "urls": urls,
         }

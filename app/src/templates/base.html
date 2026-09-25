@@ -17,7 +17,9 @@
     </nav>
     <main class="container">
         {% if not pixiv_logged_in %}
-        <div class="alert alert-warn">未登录 Pixiv。首次启动会自动弹出浏览器授权登录。</div>
+        <div class="alert alert-warn" id="login-notice">本地图库可用；追踪与下载需要登录 Pixiv。
+            {% if archive_runtime %}<button type="button" id="begin-login" class="btn-sm">登录 Pixiv</button>{% endif %}
+        </div>
         {% endif %}
         {% if error %}
         <div class="alert alert-error">{{ error }}</div>
@@ -40,6 +42,7 @@
     <div id="login-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:200; justify-content:center; align-items:center;">
         <div style="background:var(--surface); border-radius:12px; padding:28px; max-width:480px; width:90%; border:1px solid var(--border);">
             <h3 style="margin-bottom:12px;">Pixiv 授权登录</h3>
+            <button type="button" class="btn-sm" onclick="document.getElementById('login-modal').style.display='none'">稍后登录，继续看图</button>
             <p style="font-size:13px; color:var(--text-dim); margin-bottom:8px;">已在浏览器中打开 Pixiv 登录页面，完成登录。</p>
             <p style="font-size:13px; color:var(--text-dim); margin-bottom:8px;">登录成功后浏览器会跳转到一个无法打开的页面，<b>复制地址栏整条 URL</b>（以 <code>pixiv://</code> 开头）粘贴到下方。</p>
             <form id="code-form" style="display:flex; gap:8px;">
@@ -55,8 +58,13 @@
         fetch('/api/status')
             .then(r => r.json())
             .then(data => {
-                if (data.logged_in) { location.reload(); return; }
-                if (data.login_url && !loginShown) {
+                if (data.logged_in) {
+                    document.getElementById('login-modal').style.display = 'none';
+                    var notice = document.getElementById('login-notice');
+                    if (notice) notice.remove();
+                    return;
+                }
+                if (data.login_url && !loginShown && {{ 'false' if archive_runtime else 'true' }}) {
                     loginShown = true;
                     document.getElementById('login-modal').style.display = 'flex';
                 }
@@ -64,6 +72,13 @@
             })
             .catch(() => setTimeout(poll, 5000));
     })();
+    var beginLogin = document.getElementById('begin-login');
+    if (beginLogin) beginLogin.addEventListener('click', async function() {
+        const response = await fetch('/api/login', {method:'POST'});
+        const result = await response.json();
+        if (!response.ok || !result.ok) { showToast(result.error || '登录暂时不可用', 'error'); return; }
+        document.getElementById('login-modal').style.display = 'flex';
+    });
     document.getElementById('code-form').addEventListener('submit', function(e) {
         e.preventDefault();
         var code = document.getElementById('code-input').value.trim();
@@ -84,6 +99,9 @@
     });
     </script>
     {% endif %}
+    {% if archive_runtime %}
+    <script src="/static/task-panel.js" defer></script>
+    {% else %}
     <script>
     var _progressActive = false;
     (function pollProgress() {
@@ -184,6 +202,7 @@
             });
     })();
     </script>
+    {% endif %}
     <div id="toast-container" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:300;pointer-events:none;"></div>
     <script>
     function showToast(message, type) {

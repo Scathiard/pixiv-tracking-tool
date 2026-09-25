@@ -36,10 +36,10 @@
 <h3 style="margin-top: 24px;">已特别关注 ({{ artists|length }})</h3>
 <div class="artist-list">
     {% for artist in artists %}
-    <div class="artist-card {% if not artist.is_active %}inactive{% endif %}">
+    <div class="artist-card {% if not artist.is_active %}inactive{% endif %}" data-artist-id="{{ artist.id }}">
         <img src="{{ artist.avatar_url }}" alt="{{ artist.name }}" class="artist-avatar" onerror="this.style.display='none'">
         <div class="artist-info">
-            <div class="artist-name">{{ artist.name }}</div>
+            <div class="artist-name">{{ artist.name }}{% if archive_runtime and artist.mode == 'stopped' %} · 已停止追踪{% endif %}</div>
             <div class="artist-account">@{{ artist.pixiv_account or 'unknown' }} · {{ artist_counts.get(artist.id, 0) }} 件作品</div>
             <div class="artist-meta">
                 <span>添加于 {{ artist.added_at.strftime('%Y-%m-%d') if artist.added_at else '' }}</span>
@@ -59,8 +59,8 @@
                 </button>
             </form>
             <form method="post" action="/artists/{{ artist.id }}/remove-keep-files" style="display:inline"
-                  data-confirm="仅移除“{{ artist.name }}”的数据库记录？已下载的文件会保留在磁盘上。">
-                <button type="submit" class="btn-sm btn-warn">移除记录</button>
+                  data-confirm="停止追踪“{{ artist.name }}”？画师信息和已有作品继续留在图库。">
+                <button type="submit" class="btn-sm btn-warn">停止追踪</button>
             </form>
             <form method="post" action="/artists/{{ artist.id }}/remove-and-files" style="display:inline"
                   data-confirm="永久删除“{{ artist.name }}”的所有记录及已下载文件？此操作不可撤销！">

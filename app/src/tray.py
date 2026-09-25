@@ -30,19 +30,21 @@ def _redirect_stdio(log_dir: Path):
 
 
 def _open_gallery():
-    from src.config import PORT
+    from src.config import LISTENING_PORT as PORT
     webbrowser.open_new(f"http://localhost:{PORT}")
 
 
 def _open_settings():
-    from src.config import PORT
+    from src.config import LISTENING_PORT as PORT
     webbrowser.open_new(f"http://localhost:{PORT}/settings")
 
 
 def _quit_app(icon: pystray.Icon):
     from src import progress
+    from src.web import get_tracker
+    current = get_tracker()
 
-    if progress.is_busy() or progress.maintenance_active():
+    if (current is not None and current.busy()) or progress.maintenance_active():
         try:
             icon.notify("当前任务尚未完成，请等待进度结束后再退出。", "Pixiv Tracker")
         except Exception:

@@ -4,6 +4,7 @@ from __future__ import annotations
 import shutil
 import sqlite3
 import os
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -51,7 +52,7 @@ def _iter_copyable_files(root: Path):
             raise MigrationError(f"迁移源包含符号链接或联接点: {path}")
         if ".pixiv_tracker_trash" in path.parts:
             continue
-        if path.is_file() and path.name != "tracker.log" and not path.name.endswith(
+        if path.is_file() and path.name not in ("tracker.log", ".archive-writer.lock") and not path.name.endswith(
             (".part", ".tmp", "-wal", "-shm")
         ):
             yield path
@@ -125,13 +126,15 @@ def _copy_tree(source: Path, target: Path, *, skip_database: bool = False):
         shutil.copy2(path, destination)
 
 
-def _manifest(root: Path, *, skip_database: bool = False) -> dict[str, int]:
+def _manifest(root: Path, *, skip_database: bool = False) -> dict[str, tuple[int, str]]:
     result = {}
     for path in _iter_copyable_files(root) or ():
         relative = path.relative_to(root).as_posix()
         if skip_database and relative == "pixiv_tracker.db":
             continue
-        result[relative] = path.stat().st_size
+        with path.open("rb") as stream:
+            digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        result[relative] = (path.stat().st_size, digest)
     return result
 
 
@@ -176,7 +179,7 @@ def execute_migration(plan: MigrationPlan) -> MigrationReport:
         raise MigrationError("data 文件清单或大小校验失败")
     if target_image_manifest != source_image_manifest:
         raise MigrationError("图片文件清单或大小校验失败")
-    image_bytes = sum(target_image_manifest.values())
+    image_bytes = sum(size for size, _ in target_image_manifest.values())
     if len(target_image_manifest) != plan.image_files:
         raise MigrationError("迁移期间源图片清单发生变化")
     return MigrationReport(

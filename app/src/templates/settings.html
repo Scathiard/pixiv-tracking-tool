@@ -14,7 +14,7 @@
     </div>
     <div class="stat-card">
         <div class="stat-number">{{ downloaded }}</div>
-        <div class="stat-label">已下载</div>
+        <div class="stat-label">{% if archive_runtime %}原件已核验{% else %}已下载{% endif %}</div>
     </div>
 </div>
 
@@ -97,11 +97,19 @@ document.getElementById('change-path-form').addEventListener('submit', e => {
 </script>
 
 <div class="settings-section">
-    <h3>校验并补全作品信息</h3>
-    <p>遍历所有已有作品，检查并补拉缺失的 caption（作品简介）。缺失图片文件的作品将被标记为未下载状态，后续可通过「立即检查更新」重新下载。</p>
+    <h3>核验本地存档</h3>
+    <p>逐页检查原件是否完整；核验结果可在任务记录中查看。缺失图片可再选择补下载，旧动图缺少原包时单独列出。</p>
     <form method="post" action="/settings/validate-and-fix">
-        <button type="submit">校验并补全作品信息</button>
+        <button type="submit">核验本地存档</button>
     </form>
+    {% if archive_runtime %}
+    <form method="post" action="/settings/download-pending"><button type="submit">补下载缺失原件</button></form>
+    <form method="post" action="/settings/refresh-metadata"><button type="submit">刷新已存作品与画师信息</button></form>
+    <form method="post" action="/api/sync-bookmarks"><button type="submit">同步 Pixiv 收藏状态</button></form>
+    <button type="button" id="missing-originals" class="btn-sm">查看缺少原包的动图</button>
+    <div id="missing-originals-list"></div>
+    <button type="button" id="backfill-originals" class="btn-sm" hidden>补下载选中的原包</button>
+    {% endif %}
 </div>
 
 <div class="settings-section">
@@ -134,7 +142,7 @@ document.getElementById('change-path-form').addEventListener('submit', e => {
 
 <div class="settings-section">
     <h3>端口设置</h3>
-    <p>当前端口：<strong>{{ port }}</strong>。修改后需要<strong>重启程序</strong>才能生效。</p>
+    <p>当前端口：<strong>{{ listening_port|default(port) }}</strong>。下面保存的端口将在<strong>重启程序</strong>后生效。</p>
     <form id="port-form" style="display:flex;gap:8px;align-items:center;">
         <input type="number" id="port-input" value="{{ port }}" min="1024" max="65535"
                style="width:120px;padding:6px 10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:4px;">
@@ -163,8 +171,8 @@ document.getElementById('port-form').addEventListener('submit', async function(e
 
 <div class="settings-section">
     <h3>访问地址</h3>
-    <p>服务运行在端口 {{ port }}，IPv4 与 IPv6 默认同时启用。同一局域网内的设备可直接访问；来自其他网段的请求会被拒绝。</p>
-    <p><a href="http://localhost:{{ port }}"><code>http://localhost:{{ port }}</code></a></p>
+    <p>服务运行在端口 {{ listening_port|default(port) }}，IPv4 与 IPv6 默认同时启用。同一局域网内的设备可直接访问；来自其他网段的请求会被拒绝。</p>
+    <p><a href="http://localhost:{{ listening_port|default(port) }}"><code>http://localhost:{{ listening_port|default(port) }}</code></a></p>
     {% for label, url in network_urls %}
     <p>{{ label }}：<a href="{{ url }}"><code>{{ url }}</code></a></p>
     {% endfor %}

@@ -10,6 +10,11 @@ _scheduler_lock = threading.RLock()
 def check_and_download(tracker):
     """定时任务：检查更新并下载新作品。"""
     from . import progress
+    if progress.maintenance_active():
+        return
+    if hasattr(tracker, "queue"):
+        tracker.queue.submit("check", {}, "定时检查更新", source="automatic")
+        return
     progress.submit_task(
         "check_updates",
         tracker.check_updates,
