@@ -6,7 +6,10 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import tempfile
+import threading
+import time
 
 
 async def _request_status(app, path):
@@ -51,7 +54,13 @@ def run_smoke_test() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke-test", action="store_true")
     parser.add_argument("--smoke-output", type=Path)
+    parser.add_argument("--smoke-serve-port", type=int)
+    parser.add_argument("--smoke-stop-file", type=Path)
     args = parser.parse_args()
+    if (args.smoke_serve_port is None) != (args.smoke_stop_file is None):
+        parser.error("--smoke-serve-port 和 --smoke-stop-file 必须一起使用")
+    if args.smoke_serve_port is not None and not (1 <= args.smoke_serve_port <= 65535):
+        parser.error("无效的隔离服务端口")
     root = Path(tempfile.mkdtemp(prefix="pixiv-isolated-smoke-"))
     os.environ["DATA_ROOT"] = str(root)
     from .config import resource_path
@@ -76,12 +85,22 @@ def run_smoke_test() -> int:
     runtime.queue.run_round()
     if runtime.queue.snapshot()["round"]["outcome"] != "succeeded":
         raise RuntimeError("打包程序的原件核验和缩略图生成失败")
-    application = create_app(lambda: runtime, authenticate=False, schedule=False)
+    index = Path(resource_path("frontend/dist/index.html"))
+    reading_ui = index.is_file()
+    if __version__ == "0.2.0" and not reading_ui:
+        raise RuntimeError("v0.2.0 缺少阅览界面产物")
+    asset_paths = re.findall(r"/reader/assets/[^\"']+", index.read_text(encoding="utf-8")) if reading_ui else []
+    if reading_ui and not asset_paths:
+        raise RuntimeError("阅览界面缺少可加载的脚本与样式")
+    application = create_app(lambda: runtime, authenticate=False, schedule=False, reading_ui=reading_ui)
 
     async def exercise():
         result = {}
         async with application.router.lifespan_context(application):
-            for path in ("/api/status", "/api/library", "/api/progress", "/", "/illust/1", "/settings"):
+            paths = ["/api/status", "/api/library", "/api/progress", "/", "/illust/1", "/settings"]
+            if reading_ui:
+                paths.extend(["/flow", *asset_paths])
+            for path in paths:
                 status, body = await _request_status(application, path)
                 if status != 200 or not body:
                     raise RuntimeError(f"ASGI 冒烟失败: {path} HTTP {status}")
@@ -89,8 +108,34 @@ def run_smoke_test() -> int:
         return result
 
     checks = asyncio.run(exercise())
+    if args.smoke_serve_port is not None:
+        import uvicorn
+        # The ASGI checks closed their runtime; serve the same synthetic files
+        # through a new owner for actual packaged-browser checks.
+        browser_runtime = Runtime(root / "data/pixiv_tracker.db", root / "images")
+        browser_app = create_app(lambda: browser_runtime, authenticate=False, schedule=False, reading_ui=reading_ui)
+        server = uvicorn.Server(uvicorn.Config(browser_app, host="127.0.0.1", port=args.smoke_serve_port,
+            loop="src.networking:http_loop_factory", log_level="error", timeout_graceful_shutdown=10,
+            limit_concurrency=128))
+        expired = threading.Event()
+
+        def stop_when_requested():
+            deadline = time.monotonic() + 180
+            while not args.smoke_stop_file.is_file() and time.monotonic() < deadline:
+                time.sleep(0.1)
+            if not args.smoke_stop_file.is_file():
+                expired.set()
+            server.should_exit = True
+
+        observer = threading.Thread(target=stop_when_requested, daemon=True)
+        observer.start()
+        server.run()
+        observer.join(1)
+        if expired.is_set() or not server.started:
+            raise RuntimeError("隔离浏览器服务未正常完成")
+        checks["packaged_browser_service"] = 200
     report = {"status": "SMOKE_OK", "version": __version__, "fixture": str(root), "checks": checks,
-              "real_account_used": False, "real_library_used": False}
+              "real_account_used": False, "real_library_used": False, "reading_ui": reading_ui}
     destination = args.smoke_output or root / "smoke-result.json"
     with destination.open("x", encoding="utf-8") as output:
         json.dump(report, output, ensure_ascii=False, indent=2)

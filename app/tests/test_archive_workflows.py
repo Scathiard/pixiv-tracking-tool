@@ -167,6 +167,7 @@ def test_valid_gif_does_not_mask_mismatching_original_timing(setup_archive):
     queue.run_round()
     assert queue.snapshot()["round"]["outcome"] == "failed"
     assert Library(database).detail(1)["pages"][0]["src"] == "/images/200.gif"
+    assert Library(database).feed(offset=0, limit=1, ceiling=1)["items"][0]["src"] == "/images/200.gif"
     assert len(Library(database).missing_originals()) == 1
     assert client.calls == []
     queue.submit("repair", {"work_ids": [1]}, "修复配对")

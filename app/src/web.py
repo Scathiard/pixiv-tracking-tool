@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -38,7 +38,7 @@ def reload_runtime():
     raise RuntimeError("新版目录切换必须使用准备、核验和激活流程")
 
 
-def create_app(runtime_factory=None, *, authenticate=True, schedule=True):
+def create_app(runtime_factory=None, *, authenticate=True, schedule=True, reading_ui=False):
     from .routes.archive_api import create_router
     from .routes.archive_pages import create_pages
 
@@ -107,6 +107,17 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True):
     application.state.upgrade_required = False
     application.add_middleware(RequestBoundaryMiddleware)
     application.mount("/static", StaticFiles(directory=resource_path("static")), name="static")
+    if reading_ui:
+        frontend = Path(resource_path("frontend/dist"))
+        if not (frontend / "index.html").is_file():
+            raise RuntimeError("阅览前端尚未构建，请先完成 app/frontend 的本地构建")
+        application.mount("/reader", StaticFiles(directory=frontend), name="reader")
+
+        @application.get("/")
+        @application.get("/flow")
+        @application.get("/illust/{work_id}")
+        def reader_shell(work_id: int | None = None):
+            return FileResponse(frontend / "index.html", headers={"Cache-Control": "no-cache"})
 
     def current_runtime():
         return application.state.runtime
@@ -171,6 +182,7 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True):
                 "login_url": get_pending_login_url() if authenticate else None,
                 "login_error": application.state.login_error,
                 "upgrade_required": application.state.upgrade_required,
+                "page_size": _cfg.PAGE_SIZE, "pagination_mode": _cfg.PAGINATION_MODE,
                 "listening_port": _cfg.LISTENING_PORT, "saved_port": _cfg.PORT}
 
     @application.post("/api/login")
@@ -203,7 +215,7 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True):
     return application
 
 
-app = create_app()
+app = create_app(reading_ui=Path(resource_path("frontend/dist/index.html")).is_file())
 
 
 def _print_startup_urls():
@@ -234,7 +246,8 @@ def main():
     threading.Thread(target=_after_start, daemon=True).start()
 
     # 开发版与发布版使用同一双 socket 路径，保证默认行为一致。
-    config = uvicorn.Config(app, host=None, port=PORT, loop="asyncio", log_level="warning")
+    config = uvicorn.Config(app, host=None, port=PORT, loop="src.networking:http_loop_factory",
+                            log_level="warning", timeout_graceful_shutdown=10, limit_concurrency=128)
     server = uvicorn.Server(config)
 
     socks = []

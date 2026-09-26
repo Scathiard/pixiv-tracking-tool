@@ -3,6 +3,19 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+import asyncio
+import sys
+
+
+def http_loop_factory() -> asyncio.AbstractEventLoop:
+    """Use a socket-only loop for the local HTTP server, without changing policy.
+
+    Python 3.12's Windows Proactor shutdown can lose server detach after a peer
+    resets a cancelled media request. The HTTP thread needs only sockets; login
+    and Playwright run in their own threads with the default subprocess loop.
+    Windows SelectSelector has a 512-socket limit; this is a personal LAN server.
+    """
+    return asyncio.SelectorEventLoop() if sys.platform == "win32" else asyncio.new_event_loop()
 
 
 def active_ip_addresses() -> list[str]:

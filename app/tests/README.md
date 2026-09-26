@@ -14,5 +14,9 @@
 - `test_archive_client_contract.py`：模拟 Pixiv 响应，验证鉴权重试、原件地址与错误结果；不访问真实账号。
 - `run.py --smoke-test --smoke-output NEW_JSON_PATH`：源码与 EXE 共用的隔离冒烟，自动生成独立测试库和媒体，保留结果，不启动登录或托盘。
 - `archive_browser.py`：新核心的桌面与手机尺寸浏览器验证；`--artifacts` 必须指定新的隔离目录，保留结果和截图；不是手机实机验收。
+- `reading_browser.py`：生成大型合成图库，用实际 Chromium 验证普通／流式阅览、真实触控事件、乱序请求、长时间滚动与后台下载；`--artifacts` 每次用新目录。
+- `reading_deep_browser.py`：复用前项生成的 `.devtools/test-runs/` 合成图库，验证第 5000 件作品、流式末端及浏览器返回位置；拒绝真实图库路径。
+- `packaged_reading_browser.py`：让 v0.2.0 EXE 只在本机启动自己的合成图库服务，验证打包后的桌面／手机尺寸界面；`--exe` 与 `--artifacts` 指向交付文件和新证据目录。
+- `run.py --smoke-test --smoke-serve-port PORT --smoke-stop-file FILE`：仅隔离验证用，监听 `127.0.0.1`，最多运行 180 秒；普通启动不进入此入口。
 - 没有 `py` 启动器时可使用 `.devtools/v012-env/Scripts/python.exe`（Python 3.12）；指定 `.devtools/test-runs/` 下新的 `--basetemp`，不得重复使用会清理旧证据的路径。
 - 每个测试自行创建临时目录；不得依赖或修改项目 `.env`、`data/`、`images/` 和 `release/`。

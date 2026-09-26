@@ -1,0 +1,13 @@
+{
+  "name": "pixiv-local-reader",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "check": "vue-tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "build": "vue-tsc --noEmit && vite build"
+  },
+  "dependencies": {"vue": "3.5.43", "@tanstack/vue-virtual": "3.13.39"},
+  "devDependencies": {"vite": "8.3.1", "@vitejs/plugin-vue": "6.0.9", "typescript": "5.9.3", "vue-tsc": "3.3.11", "@types/node": "24.10.0"}
+}

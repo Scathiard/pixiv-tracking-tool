@@ -58,7 +58,10 @@ def parse_filters(parameters) -> LibraryFilter:
     period = parameters.get("period")
     intervals = {"24h": 1, "week": 7, "month": 30, "half_year": 183, "year": 365}
     if period in intervals:
-        after = utcnow() - timedelta(days=intervals[period])
+        reference = datetime.fromisoformat(parameters["as_of"]) if parameters.get("as_of") else utcnow()
+        if reference.tzinfo is not None:
+            raise ValueError("快照时间格式无效")
+        after = reference - timedelta(days=intervals[period])
     elif period == "custom":
         if parameters.get("posted_after"):
             after = datetime.fromisoformat(parameters["posted_after"])
@@ -89,8 +92,21 @@ def create_router(get_runtime):
             raise HTTPException(422, "筛选条件无效") from exc
 
     @router.get("/api/library")
-    def library(request: Request, offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500), ceiling: int | None = Query(None, ge=0)):
-        return runtime().library.query(filters(request), offset=offset, limit=limit, ceiling=ceiling)
+    def library(request: Request, offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500), ceiling: int | None = Query(None, ge=0), compact: bool = False):
+        parameters = dict(request.query_params)
+        parameters.setdefault("as_of", utcnow().isoformat())
+        return {**runtime().library.query(parse_filters(parameters), offset=offset, limit=limit, ceiling=ceiling, compact=compact), "as_of": parameters["as_of"]}
+
+    @router.get("/api/library/feed")
+    def feed(request: Request, offset: int = Query(0, ge=0), limit: int = Query(48, ge=1, le=120), ceiling: int = Query(..., ge=0)):
+        return runtime().library.feed(filters(request), offset=offset, limit=limit, ceiling=ceiling)
+
+    @router.get("/api/library/locate")
+    def locate(request: Request, work_id: int, page: int = Query(0, ge=0), ceiling: int = Query(..., ge=0)):
+        try:
+            return runtime().library.locate(work_id, filters(request), ceiling=ceiling, page=page)
+        except KeyError as exc:
+            raise HTTPException(404, "阅读位置已不在当前范围内") from exc
 
     @router.get("/api/library/tags")
     def tags(request: Request, ceiling: int | None = Query(None, ge=0)):

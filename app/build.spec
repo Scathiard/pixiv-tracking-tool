@@ -13,6 +13,7 @@ a = Analysis(
     datas=[
         ('src/templates', 'src/templates'),
         ('static', 'static'),
+        ('frontend/dist', 'frontend/dist'),
     ],
     hiddenimports=collect_submodules('gallery_dl') + [
         'jinja2.ext',
