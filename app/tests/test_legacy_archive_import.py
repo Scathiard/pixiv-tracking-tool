@@ -3,10 +3,12 @@ from pathlib import Path
 import sqlite3
 
 import pytest
+from PIL import Image
 from sqlalchemy import select
 
 from src.core.database import ArchiveDatabase
 from src.core.legacy_import import import_legacy
+from src.core.library import Library
 from src.core.models import ArchiveIntent, Asset, TrackingPolicy, Work
 
 
@@ -89,6 +91,60 @@ def test_existing_candidate_cannot_be_overwritten(tmp_path):
     with pytest.raises(FileExistsError):
         import_legacy(source, target)
     assert target.read_bytes() == before
+
+
+def test_contiguous_extra_pages_and_distinct_same_page_files_remain_browseable(tmp_path):
+    source, _ = legacy_fixture(tmp_path)
+    media = tmp_path / "images"
+    folder = media / "Artist, A 70"
+    folder.mkdir(parents=True)
+    paths = ["80_p0.jpg", "80_p1.jpg", "80_p2.jpg", "81_p0.jpg", "81_p0.png"]
+    for index, name in enumerate(paths):
+        Image.new("RGB", (8, 6), (index * 30, 0, 0)).save(folder / name)
+    before = {name: (folder / name).read_bytes() for name in paths}
+    with sqlite3.connect(source) as connection:
+        connection.execute("UPDATE illustration SET page_count=2, file_paths=? WHERE id=8", (
+            json.dumps([f"/images/Artist, A 70/{name}" for name in paths[:3]]),))
+        connection.execute("INSERT INTO illustration VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+            11, "81", 7, "Two recorded versions", "illust", 1, "[]", "", None,
+            json.dumps([f"/images/Artist, A 70/{name}" for name in paths[3:]]), 0, 0, 0, 0))
+    report = import_legacy(source, tmp_path / "candidate.db", media_root=media)
+    assert report.ready_for_review and not report.errors and not report.unmapped_files
+    assert {(warning.get("work"), warning["code"]) for warning in report.warnings} >= {
+        (8, "legacy_page_count_extended"), (11, "legacy_page_variants")}
+    assert before["81_p0.jpg"] != before["81_p0.png"]
+    assert {name: (folder / name).read_bytes() for name in paths} == before
+
+    db = ArchiveDatabase(tmp_path / "candidate.db")
+    try:
+        with db.read() as session:
+            extended = session.get(Work, 8)
+            assert extended.page_count == 3
+            assert extended.source_metadata["legacy"]["page_count"] == 2
+            assert {asset.page_index: asset.relative_path for asset in extended.assets}[2].endswith("80_p2.jpg")
+            variants = session.get(Work, 11)
+            assert variants.page_count == 1
+            assert variants.assets[0].relative_path.endswith("81_p0.jpg")
+            assert [(record.kind, record.page_index, record.relative_path) for record in variants.derivatives] == [
+                ("legacy_alternate", 0, "Artist, A 70/81_p0.png")]
+            assert variants.source_metadata["legacy_page_variants"][0]["alternates"] == ["Artist, A 70/81_p0.png"]
+        library = Library(db)
+        assert library.detail(8)["pages"][-1]["src"].endswith("80_p2.jpg")
+        view = library.detail(11)
+        assert [file["name"] for file in view["legacy_variants"][0]["files"]] == ["81_p0.jpg", "81_p0.png"]
+        assert all(file["src"] for file in view["legacy_variants"][0]["files"])
+    finally:
+        db.close()
+
+
+def test_out_of_range_page_gap_still_blocks_review(tmp_path):
+    source, _ = legacy_fixture(tmp_path)
+    with sqlite3.connect(source) as connection:
+        connection.execute("UPDATE illustration SET page_count=2, file_paths=? WHERE id=8", (
+            '["/images/Artist, A 70/80_p0.jpg", "/images/Artist, A 70/80_p3.jpg"]',))
+    report = import_legacy(source, tmp_path / "candidate.db")
+    assert report.completed and not report.ready_for_review
+    assert {error["code"] for error in report.errors} == {"ambiguous_asset_identity"}
 
 
 def test_unsafe_or_ambiguous_paths_block_activation_review(tmp_path):

@@ -15,6 +15,7 @@ export interface WorkDetail extends WorkSummary {
   display_page_count: number
   pages: {index: number; src: string | null; width: number | null; height: number | null; state: string}[]
   assets: {id: string; role: string; page: number; state: string; error: string | null}[]
+  legacy_variants: {page: number; files: {src: string | null; name: string; default: boolean}[]}[]
 }
 export interface PageBatch {items: PageData[]; total: number; offset: number; ceiling?: number}
 export type WorkCard = Pick<WorkSummary, 'id' | 'pixiv_id' | 'title' | 'artist_id' | 'artist_name' | 'type' | 'page_count' | 'thumbnail' | 'is_hidden' | 'posted_at'>

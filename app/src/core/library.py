@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from pathlib import PurePosixPath
 from urllib.parse import quote
 
 from sqlalchemy import and_, case, func, or_, select
@@ -190,6 +191,22 @@ class Library:
                     "state": record.state if record else "missing", "error": record.error if record else None})
             view["assets"] = [{"id": asset.id, "role": asset.role, "page": asset.page_index,
                                "state": asset.state, "error": asset.error} for asset in assets]
+            alternates = list(session.scalars(select(Derivative).where(
+                Derivative.work_id == work_id, Derivative.kind == "legacy_alternate")))
+            variant_pages = sorted({record.page_index for record in alternates})
+            variant_primaries = {record.page_index: record for record in session.scalars(select(Asset).where(
+                Asset.work_id == work_id, Asset.role == "image", Asset.page_index.in_(variant_pages)))} if variant_pages else {}
+            view["legacy_variants"] = []
+            for index in variant_pages:
+                primary = variant_primaries.get(index)
+                files = []
+                if primary and primary.relative_path:
+                    files.append({"src": readable_page_url(primary),
+                                  "name": PurePosixPath(primary.relative_path).name, "default": True})
+                files.extend({"src": readable_page_url(record),
+                              "name": PurePosixPath(record.relative_path).name, "default": False}
+                             for record in alternates if record.page_index == index and record.relative_path)
+                view["legacy_variants"].append({"page": index, "files": files})
             view["display_page_count"], view["has_more_pages"] = count, page_offset + len(view["pages"]) < count
             return view
 

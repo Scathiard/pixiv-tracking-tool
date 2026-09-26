@@ -225,15 +225,48 @@ def import_legacy(
                         work.assets[0].state = "missing_deferred"
                         report.warnings.append({"work": work.id, "code": "animation_original_missing"})
                 else:
-                    pages = {i: Asset(role="image", page_index=i, state="missing") for i in range(work.page_count)}
+                    indexed = {}
                     for path in paths:
                         name = PurePosixPath(path).name
                         match = re.fullmatch(re.escape(remote_id) + r"(?:_p(\d+))?\.[^.]+", name)
                         index = int(match.group(1) or 0) if match else -1
-                        if index not in pages or pages[index].relative_path is not None:
+                        if index < 0:
                             report.errors.append({"work": work.id, "code": "ambiguous_asset_identity"})
                             continue
-                        pages[index].relative_path, pages[index].state = path, "unknown"
+                        indexed.setdefault(index, []).append(path)
+                    # Old page_count can be stale even when the registered files
+                    # continue without a gap. Keep the old value for review.
+                    extra = {index for index in indexed if index >= work.page_count}
+                    if extra:
+                        expected = set(range(work.page_count, max(extra) + 1))
+                        if extra == expected:
+                            work.page_count = max(extra) + 1
+                            report.warnings.append({"work": work.id, "code": "legacy_page_count_extended",
+                                                    "old_page_count": legacy["page_count"], "page_count": work.page_count})
+                        else:
+                            report.errors.append({"work": work.id, "code": "ambiguous_asset_identity"})
+                    pages = {i: Asset(role="image", page_index=i, state="missing") for i in range(work.page_count)}
+                    variants = []
+                    for index, candidates in sorted(indexed.items()):
+                        if index not in pages:
+                            continue
+                        primary = candidates[0]
+                        pages[index].relative_path, pages[index].state = primary, "unknown"
+                        if len(candidates) > 1:
+                            if len(candidates) != len(set(candidates)):
+                                report.errors.append({"work": work.id, "code": "ambiguous_asset_identity"})
+                                continue
+                            variants.append({"page_index": index, "primary": primary, "alternates": candidates[1:]})
+                            for alternate in candidates[1:]:
+                                work.derivatives.append(Derivative(
+                                    kind="legacy_alternate", page_index=index,
+                                    spec_key=hashlib.sha256(alternate.encode("utf-8")).hexdigest(),
+                                    relative_path=alternate, state="unknown",
+                                ))
+                            report.warnings.append({"work": work.id, "code": "legacy_page_variants",
+                                                    "page_index": index, "alternates": len(candidates) - 1})
+                    if variants:
+                        work.source_metadata = {**work.source_metadata, "legacy_page_variants": variants}
                     work.assets = list(pages.values())
                 session.add(work)
                 mapped_files.update(record.relative_path for record in [*work.assets, *work.derivatives] if record.relative_path)
