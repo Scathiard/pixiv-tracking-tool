@@ -228,7 +228,7 @@ def _print_startup_urls():
     print()
 
 
-def main():
+def main(*, offline=False):
     import uvicorn
     import threading
     import socket as _socket
@@ -246,7 +246,9 @@ def main():
     threading.Thread(target=_after_start, daemon=True).start()
 
     # 开发版与发布版使用同一双 socket 路径，保证默认行为一致。
-    config = uvicorn.Config(app, host=None, port=PORT, loop="src.networking:http_loop_factory",
+    serving_app = create_app(authenticate=False, schedule=False,
+                             reading_ui=Path(resource_path("frontend/dist/index.html")).is_file()) if offline else app
+    config = uvicorn.Config(serving_app, host=None, port=PORT, loop="src.networking:http_loop_factory",
                             log_level="warning", timeout_graceful_shutdown=10, limit_concurrency=128)
     server = uvicorn.Server(config)
 

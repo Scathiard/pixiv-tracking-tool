@@ -76,7 +76,7 @@ def _create_icon():
     )
 
 
-def run_tray():
+def run_tray(*, offline=False):
     """系统托盘入口。在主线程运行 pystray，Web 服务在 daemon 线程启动。"""
     from src.config import PORT, DATA_DIR
     from src.version import __version__
@@ -86,13 +86,15 @@ def run_tray():
 
     print(f"[tray] Pixiv Tracking Tool v{__version__} 启动")
     print(f"[tray] 端口: {PORT}")
+    if offline:
+        print("[tray] 离线模式：不登录 Pixiv，不启动自动检查")
 
     # 在 daemon 线程启动 Web 服务
     def _start_web():
         import time
         time.sleep(1)  # 等托盘图标就位
         from src.web import main
-        main()
+        main(offline=offline)
 
     web_thread = threading.Thread(target=_start_web, daemon=False)
     web_thread.start()

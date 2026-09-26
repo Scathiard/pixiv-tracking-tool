@@ -11,7 +11,7 @@ if __name__ == "__main__":
             sys.exit(1)
     try:
         from src.tray import run_tray
-        run_tray()
+        run_tray(offline="--offline" in sys.argv)
     except Exception:
         print("\n启动失败：")
         traceback.print_exc()
