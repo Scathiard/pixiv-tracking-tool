@@ -1,0 +1,119 @@
+{
+  "checks": [
+    "trusted-vertical-touch-scrolls-long-work-without-navigation",
+    "diagonal-touch-keeps-the-same-work",
+    "horizontal-touch-navigates-one-ordinary-work",
+    "reverse-horizontal-touch-navigates-one-work",
+    "two-pointer-gesture-does-not-navigate-ordinary-work",
+    "zoom-toolbar-pan-pinch-and-close-preserve-reader-position",
+    "horizontal-touch-in-feed-does-not-navigate",
+    "trusted-feed-bookmark-control-receives-tap",
+    "trusted-feed-skip-button-advances-one-work",
+    "browser-back-restores-ordinary-reader-with-independent-feed-anchor",
+    "trusted-keyboard-and-cdp-ime-in-input-do-not-navigate"
+  ],
+  "errors": [],
+  "failures": [],
+  "probes": [
+    {
+      "zoom_browser_scale": {
+        "before": 1.1817207336425781,
+        "after": 1.1817207336425781
+      }
+    },
+    {
+      "feed_horizontal": {
+        "work_before": 79,
+        "work_after": 79,
+        "scroll_before": 7618,
+        "scroll_after": 7618
+      }
+    },
+    {
+      "bookmark_hit_test": {
+        "box": {
+          "x": 168,
+          "y": 785.5,
+          "width": 44,
+          "height": 44
+        },
+        "hit": true,
+        "clicks": 1,
+        "input_trace": [
+          {
+            "kind": "pointerdown",
+            "target": "bookmark-button problem cached"
+          },
+          {
+            "kind": "touchstart",
+            "target": "bookmark-button problem cached"
+          },
+          {
+            "kind": "pointerup",
+            "target": "bookmark-button problem cached"
+          },
+          {
+            "kind": "touchend",
+            "target": "bookmark-button problem cached"
+          },
+          {
+            "kind": "click",
+            "target": "bookmark-button problem cached"
+          }
+        ],
+        "viewport": {
+          "innerHeight": 844,
+          "scrollY": 0,
+          "scale": 1.1817207336425781,
+          "visualHeight": 714.2127075195312,
+          "toolbar": {
+            "x": 0,
+            "y": 770,
+            "width": 320,
+            "height": 74,
+            "top": 770,
+            "right": 320,
+            "bottom": 844,
+            "left": 0
+          },
+          "style": ""
+        }
+      }
+    },
+    {
+      "skip_hit_test": {
+        "box": {
+          "x": 217,
+          "y": 785.5,
+          "width": 90.99996948242188,
+          "height": 44
+        },
+        "hit": {
+          "tag": "BUTTON",
+          "className": "primary",
+          "html": "<button class=\"primary\">跳过作品<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" class=\"icon\"><path d=\"m4 9 8 8 8-8\"></path></svg></button>"
+        }
+      }
+    },
+    {
+      "trusted_skip": {
+        "clicks": 1,
+        "work_after_500ms": 78,
+        "scroll_after_500ms": 7631,
+        "work_after_1500ms": 78,
+        "scroll_after_1500ms": 7631
+      }
+    }
+  ],
+  "dist_index_sha256": "a0918f2d90d79124f05490a510b8a6c946280394caf5d54dfcf3a51fa7129d7b",
+  "bundle_name": "index-pYCa5Vez.js",
+  "bundle_sha256": "5996b00b563e8b228a9f5859995ada8093d661edd37d88b90b5358397478154c",
+  "uuid_fallback": false,
+  "synthetic_remote_used": false,
+  "elapsed_seconds": 10.02,
+  "real_account_used": false,
+  "real_library_used": false,
+  "real_phone_tested": false,
+  "emulated_mobile_width": 320,
+  "trusted_touch_method": "Chromium CDP Input.dispatchTouchEvent"
+}

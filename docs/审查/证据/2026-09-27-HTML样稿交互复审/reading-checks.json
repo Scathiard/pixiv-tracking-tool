@@ -1,0 +1,105 @@
+{
+  "results": [
+    {
+      "check": "mobile cards begin within first 270px",
+      "pass": true
+    },
+    {
+      "check": "keyboard favorite does not open detail",
+      "pass": true
+    },
+    {
+      "check": "favorite preserves image DOM",
+      "pass": true
+    },
+    {
+      "check": "mobile favorites scope",
+      "pass": true
+    },
+    {
+      "check": "mobile leaves favorites directly",
+      "pass": true
+    },
+    {
+      "check": "all pages unfolded",
+      "pass": true
+    },
+    {
+      "check": "skip reachable from start",
+      "pass": true
+    },
+    {
+      "check": "dock follows current work",
+      "pass": true
+    },
+    {
+      "check": "skip from middle lands on next work",
+      "pass": true
+    },
+    {
+      "check": "logo returns to read work",
+      "pass": true
+    },
+    {
+      "check": "stream position survives home",
+      "pass": true
+    },
+    {
+      "check": "stream detail retains origin",
+      "pass": true
+    },
+    {
+      "check": "detail returns to stream",
+      "pass": true
+    },
+    {
+      "check": "draft does not alter gallery filter",
+      "pass": true
+    },
+    {
+      "check": "cancel keeps filter",
+      "pass": true
+    },
+    {
+      "check": "apply filter commits selected range",
+      "pass": true
+    },
+    {
+      "check": "artist detail uses artist scope",
+      "pass": true
+    },
+    {
+      "check": "artist next remains same artist",
+      "pass": true
+    },
+    {
+      "check": "filter blocks reader keys",
+      "pass": true
+    },
+    {
+      "check": "filter traps keyboard focus",
+      "pass": true
+    },
+    {
+      "check": "filter restores focus",
+      "pass": true
+    },
+    {
+      "check": "zoom layer opens",
+      "pass": true
+    },
+    {
+      "check": "zoom control works",
+      "pass": true
+    },
+    {
+      "check": "zoom closes",
+      "pass": true
+    },
+    {
+      "check": "artist detail returns to artists",
+      "pass": true
+    }
+  ],
+  "errors": []
+}

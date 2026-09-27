@@ -1,0 +1,15 @@
+{
+  "checks": [
+    "exe-opens-new-local-gallery-and-thumbnail",
+    "exe-ordinary-reader-loads-original",
+    "exe-zoom-and-feed-share-synthetic-library",
+    "exe-old-settings-adapter-remains-accessible",
+    "exe-mobile-viewport-fits-reader"
+  ],
+  "page_errors": [],
+  "exe_exit_code": 0,
+  "package_report": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\packaged-v020-f7afa268fd8f46b99b2858d0b1a3d066\\exe-smoke.json",
+  "real_account_used": false,
+  "real_library_used": false,
+  "real_phone_tested": false
+}

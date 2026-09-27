@@ -1,0 +1,125 @@
+{
+  "fixture": "C:\\Users\\princ\\AppData\\Local\\Temp\\pixiv-review-backend-kerdhjaj",
+  "real_network_used": false,
+  "results": [
+    {
+      "case": "partial_and_zero_byte_archives",
+      "completed": true,
+      "observation": {
+        "works": [
+          {
+            "expected": 3,
+            "indexed": 1
+          },
+          {
+            "expected": 1,
+            "indexed": 1
+          }
+        ],
+        "download_calls": 0,
+        "zero_byte_file_accepted": true
+      }
+    },
+    {
+      "case": "gallery_dl_nonzero_status",
+      "completed": true,
+      "observation": {
+        "gallery_dl_return_status": 4,
+        "application_status": "succeeded",
+        "errors": []
+      }
+    },
+    {
+      "case": "image_url_special_characters",
+      "completed": true,
+      "observation": [
+        {
+          "name": "Normal",
+          "file_exists": true,
+          "status": 200
+        },
+        {
+          "name": "Hash#Name",
+          "file_exists": true,
+          "status": 404
+        },
+        {
+          "name": "Percent%20Name",
+          "file_exists": true,
+          "status": 404
+        }
+      ]
+    },
+    {
+      "case": "migration_same_size_corruption",
+      "completed": true,
+      "observation": {
+        "migration_returned_success": true,
+        "same_size": true,
+        "bytes_equal": false,
+        "source_retained": true
+      }
+    },
+    {
+      "case": "rename_commit_failure",
+      "completed": true,
+      "observation": {
+        "database_name": "Before",
+        "old_directory_exists": false,
+        "new_directory_exists": true
+      }
+    },
+    {
+      "case": "bookmark_http_failure",
+      "completed": true,
+      "observation": {
+        "upstream_http_status": 503,
+        "application_response": {
+          "ok": true,
+          "is_bookmarked": true
+        }
+      }
+    },
+    {
+      "case": "ugoira_missing_timing",
+      "completed": true,
+      "observation": {
+        "gif_frames": 2,
+        "gif_duration_ms": 0,
+        "original_zip_exists": false
+      }
+    },
+    {
+      "case": "posted_at_timezone",
+      "completed": true,
+      "observation": {
+        "stored": "2026-09-08T12:00:00",
+        "expected_utc": "2026-09-08T03:00:00",
+        "error_hours": 9.0
+      }
+    },
+    {
+      "case": "migration_reload_failure",
+      "completed": true,
+      "observation": {
+        "http_status": 500,
+        "config_switched": true,
+        "engine_still_old": true,
+        "web_tracker_is_none": true,
+        "old_scheduler_restarted": true,
+        "maintenance_released": true
+      }
+    },
+    {
+      "case": "query_shape",
+      "completed": true,
+      "observation": {
+        "detail_navigation_query_plan": [
+          "SCAN illustration",
+          "USE TEMP B-TREE FOR ORDER BY"
+        ],
+        "detail_route_fetches_all_rows": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,186 @@
+{
+  "results": [
+    {
+      "check": "desktop heart immediately before skip",
+      "pass": true
+    },
+    {
+      "check": "desktop 44px favorite target",
+      "pass": true
+    },
+    {
+      "check": "desktop no footer favorite duplicates",
+      "pass": true
+    },
+    {
+      "check": "desktop favorite updates current without moving",
+      "pass": true
+    },
+    {
+      "check": "desktop favorite follows skipped-to work",
+      "pass": true
+    },
+    {
+      "check": "desktop keyboard favorite controls second work",
+      "pass": true
+    },
+    {
+      "check": "desktop scroll retargets favorite",
+      "pass": true
+    },
+    {
+      "check": "desktop scroll-current favorite works",
+      "pass": true
+    },
+    {
+      "check": "desktop no horizontal overflow",
+      "pass": true
+    },
+    {
+      "check": "desktop final work can be favorited",
+      "pass": true
+    },
+    {
+      "check": "desktop caption is noncollapsible section",
+      "pass": true
+    },
+    {
+      "check": "desktop caption body visible without opening",
+      "pass": true
+    },
+    {
+      "check": "desktop caption title cannot collapse content",
+      "pass": true
+    },
+    {
+      "check": "desktop task details retain native disclosure",
+      "pass": true
+    },
+    {
+      "check": "mobile heart immediately before skip",
+      "pass": true
+    },
+    {
+      "check": "mobile 44px favorite target",
+      "pass": true
+    },
+    {
+      "check": "mobile no footer favorite duplicates",
+      "pass": true
+    },
+    {
+      "check": "mobile favorite updates current without moving",
+      "pass": true
+    },
+    {
+      "check": "mobile favorite follows skipped-to work",
+      "pass": true
+    },
+    {
+      "check": "mobile keyboard favorite controls second work",
+      "pass": true
+    },
+    {
+      "check": "mobile scroll retargets favorite",
+      "pass": true
+    },
+    {
+      "check": "mobile scroll-current favorite works",
+      "pass": true
+    },
+    {
+      "check": "mobile no horizontal overflow",
+      "pass": true
+    },
+    {
+      "check": "mobile final work can be favorited",
+      "pass": true
+    },
+    {
+      "check": "mobile caption is noncollapsible section",
+      "pass": true
+    },
+    {
+      "check": "mobile caption body visible without opening",
+      "pass": true
+    },
+    {
+      "check": "mobile caption title cannot collapse content",
+      "pass": true
+    },
+    {
+      "check": "mobile task details retain native disclosure",
+      "pass": true
+    },
+    {
+      "check": "task stage details still expand",
+      "pass": true
+    },
+    {
+      "check": "light theme heart binding retained",
+      "pass": true
+    },
+    {
+      "check": "small heart immediately before skip",
+      "pass": true
+    },
+    {
+      "check": "small 44px favorite target",
+      "pass": true
+    },
+    {
+      "check": "small no footer favorite duplicates",
+      "pass": true
+    },
+    {
+      "check": "small favorite updates current without moving",
+      "pass": true
+    },
+    {
+      "check": "small favorite follows skipped-to work",
+      "pass": true
+    },
+    {
+      "check": "small keyboard favorite controls second work",
+      "pass": true
+    },
+    {
+      "check": "small scroll retargets favorite",
+      "pass": true
+    },
+    {
+      "check": "small scroll-current favorite works",
+      "pass": true
+    },
+    {
+      "check": "small no horizontal overflow",
+      "pass": true
+    },
+    {
+      "check": "small final work can be favorited",
+      "pass": true
+    },
+    {
+      "check": "small caption is noncollapsible section",
+      "pass": true
+    },
+    {
+      "check": "small caption body visible without opening",
+      "pass": true
+    },
+    {
+      "check": "small caption title cannot collapse content",
+      "pass": true
+    },
+    {
+      "check": "small task details retain native disclosure",
+      "pass": true
+    },
+    {
+      "check": "no page errors",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "scope": "Offline prototype, synthetic artwork, isolated browser; no real app or account operations."
+}

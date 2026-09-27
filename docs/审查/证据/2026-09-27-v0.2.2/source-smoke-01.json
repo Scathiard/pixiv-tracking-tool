@@ -1,0 +1,24 @@
+{
+  "status": "SMOKE_OK",
+  "version": "0.2.2",
+  "fixture": "C:\\Users\\princ\\AppData\\Local\\Temp\\pixiv-isolated-smoke-y7g58u2d",
+  "checks": {
+    "/api/status": 200,
+    "/api/library": 200,
+    "/api/progress": 200,
+    "/api/settings": 200,
+    "/api/artists": 200,
+    "/api/works/1/bookmark": 200,
+    "/": 200,
+    "/illust/1": 200,
+    "/artists": 200,
+    "/artist/1": 200,
+    "/settings": 200,
+    "/flow": 200,
+    "/reader/assets/index-pYCa5Vez.js": 200,
+    "/reader/assets/index-DxdfvTyC.css": 200
+  },
+  "real_account_used": false,
+  "real_library_used": false,
+  "reading_ui": true
+}

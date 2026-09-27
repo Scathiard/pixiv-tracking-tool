@@ -1,0 +1,16 @@
+{
+  "temporary_root": "C:\\Users\\princ\\AppData\\Local\\Temp\\pixiv-architecture-20260920-m2ie9ja4",
+  "fixture_works": 24,
+  "held_earlier_responses": 1,
+  "after_latest_user_action": {
+    "query": "types=illust%2Cugoira",
+    "cards": 18
+  },
+  "after_earlier_response_released": {
+    "query": "types=manga%2Cugoira",
+    "cards": 6
+  },
+  "stale_response_overwrites_latest": true,
+  "page_errors": [],
+  "scope": "Current homepage template in headless Chromium; isolated fixture; deterministic response reordering; no real Pixiv requests"
+}

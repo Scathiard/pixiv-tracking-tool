@@ -1,0 +1,54 @@
+{
+  "results": [
+    {
+      "check": "vertical touch starting on artwork strip scrolls page",
+      "pass": true
+    },
+    {
+      "check": "horizontal touch scrolls artist strip without opening detail",
+      "pass": true
+    },
+    {
+      "check": "horizontal detail gesture advances once",
+      "pass": true
+    },
+    {
+      "check": "vertical detail gesture only scrolls",
+      "pass": true
+    },
+    {
+      "check": "stream horizontal swipe never changes work",
+      "pass": true
+    },
+    {
+      "check": "reload retains stream mode and page",
+      "pass": true
+    },
+    {
+      "check": "pinch only zooms independent layer",
+      "pass": true
+    },
+    {
+      "check": "closing pinch view restores underlying stream",
+      "pass": true
+    },
+    {
+      "check": "320px gallery has no horizontal overflow",
+      "pass": true
+    },
+    {
+      "check": "small-screen navigation keeps 44px targets",
+      "pass": true
+    },
+    {
+      "check": "filter prevents background scroll",
+      "pass": true
+    },
+    {
+      "check": "touch validation has no page errors",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "device": "Chromium touch emulation, not a physical phone"
+}

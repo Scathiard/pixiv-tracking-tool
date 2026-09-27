@@ -1,0 +1,319 @@
+{
+  "sha256": "62d7e97c8b0d3361aade36f9b011bcc0a37689dc4526b7b2d7231bfc7e3cc4b0",
+  "checks": [
+    {
+      "name": "R3 reproduces lost second physical click",
+      "passed": true,
+      "detail": {
+        "theme": "light",
+        "clicks": [
+          {
+            "choice": "light",
+            "trusted": true,
+            "time": 720.8999999761581
+          },
+          {
+            "choice": null,
+            "trusted": true,
+            "time": 782.5
+          }
+        ]
+      }
+    },
+    {
+      "name": "mouse 1440px every real click is handled during animation",
+      "passed": true,
+      "detail": [
+        {
+          "choice": "light",
+          "trusted": true,
+          "time": 421.2999999523163
+        },
+        {
+          "choice": "dark",
+          "trusted": true,
+          "time": 453.1999999284744
+        },
+        {
+          "choice": "light",
+          "trusted": true,
+          "time": 483.5
+        },
+        {
+          "choice": "dark",
+          "trusted": true,
+          "time": 514.6999999284744
+        },
+        {
+          "choice": "light",
+          "trusted": true,
+          "time": 546.0999999046326
+        },
+        {
+          "choice": "dark",
+          "trusted": true,
+          "time": 592
+        },
+        {
+          "choice": "light",
+          "trusted": true,
+          "time": 623.3999999761581
+        },
+        {
+          "choice": "dark",
+          "trusted": true,
+          "time": 667.8999999761581
+        }
+      ]
+    },
+    {
+      "name": "mouse 1440px every choice updates immediately without rebuilding",
+      "passed": true,
+      "detail": [
+        {
+          "theme": "light",
+          "selected": "light",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        },
+        {
+          "theme": "dark",
+          "selected": "dark",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        },
+        {
+          "theme": "light",
+          "selected": "light",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        },
+        {
+          "theme": "dark",
+          "selected": "dark",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        },
+        {
+          "theme": "light",
+          "selected": "light",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        },
+        {
+          "theme": "dark",
+          "selected": "dark",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        },
+        {
+          "theme": "light",
+          "selected": "light",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        },
+        {
+          "theme": "dark",
+          "selected": "dark",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        }
+      ]
+    },
+    {
+      "name": "mouse 1440px ends on last choice with no remaining overlay",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "mouse 1440px mid-animation copy is aligned and never captures input",
+      "passed": true,
+      "detail": {
+        "radius": 804.068,
+        "inset": true,
+        "hidden": "true",
+        "hit": true,
+        "aligned": true
+      }
+    },
+    {
+      "name": "mouse 1440px navigation stays clickable during animation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "mouse 1440px final choice persists without startup animation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "mouse 1440px keyboard also switches during animation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "scrolling removes the stale visual copy",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "touch 390px every real click is handled during animation",
+      "passed": true,
+      "detail": [
+        {
+          "choice": "light",
+          "trusted": true,
+          "time": 424.2999999523163
+        },
+        {
+          "choice": "dark",
+          "trusted": true,
+          "time": 471.2999999523163
+        },
+        {
+          "choice": "light",
+          "trusted": true,
+          "time": 518.7000000476837
+        },
+        {
+          "choice": "dark",
+          "trusted": true,
+          "time": 565.2000000476837
+        },
+        {
+          "choice": "light",
+          "trusted": true,
+          "time": 611.8999999761581
+        },
+        {
+          "choice": "dark",
+          "trusted": true,
+          "time": 659.1000000238419
+        },
+        {
+          "choice": "light",
+          "trusted": true,
+          "time": 705.8999999761581
+        },
+        {
+          "choice": "dark",
+          "trusted": true,
+          "time": 753.1000000238419
+        }
+      ]
+    },
+    {
+      "name": "touch 390px every choice updates immediately without rebuilding",
+      "passed": true,
+      "detail": [
+        {
+          "theme": "light",
+          "selected": "light",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        },
+        {
+          "theme": "dark",
+          "selected": "dark",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        },
+        {
+          "theme": "light",
+          "selected": "light",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        },
+        {
+          "theme": "dark",
+          "selected": "dark",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        },
+        {
+          "theme": "light",
+          "selected": "light",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        },
+        {
+          "theme": "dark",
+          "selected": "dark",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        },
+        {
+          "theme": "light",
+          "selected": "light",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        },
+        {
+          "theme": "dark",
+          "selected": "dark",
+          "count": 1,
+          "sameCard": true,
+          "scrollY": 80
+        }
+      ]
+    },
+    {
+      "name": "touch 390px ends on last choice with no remaining overlay",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "touch 390px mid-animation copy is aligned and never captures input",
+      "passed": true,
+      "detail": {
+        "radius": 386.852,
+        "inset": true,
+        "hidden": "true",
+        "hit": true,
+        "aligned": true
+      }
+    },
+    {
+      "name": "touch 390px navigation stays clickable during animation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "touch 390px final choice persists without startup animation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "touch 390px keyboard also switches during animation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "reduced motion is immediate without an overlay",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "no script errors or external requests",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "errors": [],
+  "external_requests": []
+}

@@ -1,0 +1,15 @@
+{
+  "version": "0.1.2",
+  "commit": "c140b8fb3c13d9ca44dfbb469a3dd32a214da3af",
+  "python": "3.12.13",
+  "pytest_passed": 131,
+  "pytest_warnings": 177,
+  "browser_checks": 8,
+  "exe_smoke_exit": 0,
+  "exe_sha256": "78f4a9a4d03c7872d07fd487ed68f66c5556813a55a15739dc179ede7fc4eef4",
+  "exe_bytes": 74593355,
+  "real_library_used": false,
+  "real_account_used": false,
+  "real_phone_tested": false,
+  "published": false
+}

@@ -1,0 +1,49 @@
+{
+  "checked_at": "2026-09-20T11:49:53.109689+08:00",
+  "files": [
+    {
+      "file": "README.md",
+      "utf8_valid": true,
+      "lines": 107,
+      "local_links": 8
+    },
+    {
+      "file": "docs\\项目策划书.md",
+      "utf8_valid": true,
+      "lines": 132,
+      "local_links": 13
+    },
+    {
+      "file": "docs\\功能路线图.md",
+      "utf8_valid": true,
+      "lines": 205,
+      "local_links": 15
+    },
+    {
+      "file": "docs\\BUG回报.md",
+      "utf8_valid": true,
+      "lines": 192,
+      "local_links": 27
+    },
+    {
+      "file": "docs\\团队通信.md",
+      "utf8_valid": true,
+      "lines": 39,
+      "local_links": 6
+    },
+    {
+      "file": "docs\\审查\\2026-09-20-实现架构重新评估.md",
+      "utf8_valid": true,
+      "lines": 322,
+      "local_links": 6
+    },
+    {
+      "file": "docs\\审查\\证据\\2026-09-20-实现架构重新评估\\README.md",
+      "utf8_valid": true,
+      "lines": 61,
+      "local_links": 12
+    }
+  ],
+  "missing_links": [],
+  "passed": true
+}

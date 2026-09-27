@@ -1,0 +1,2 @@
+  [migrate] illustration_tag: 0 �� tag������ 0 ����Ʒ��
+BROWSER_SMOKE_OK data=C:\Users\princ\AppData\Local\Temp\pixiv-tracker-browser-hlvm2p_z port=62535

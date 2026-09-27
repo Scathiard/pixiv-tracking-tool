@@ -1,0 +1,157 @@
+{
+  "index_sha256": "a0918f2d90d79124f05490a510b8a6c946280394caf5d54dfcf3a51fa7129d7b",
+  "cdp": [
+    {
+      "step": 0,
+      "nodes": 260,
+      "heap": 3286680,
+      "images": 3,
+      "window_pages": "64"
+    },
+    {
+      "step": 5,
+      "nodes": 318,
+      "heap": 3755140,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": 10,
+      "nodes": 318,
+      "heap": 3844068,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": 15,
+      "nodes": 318,
+      "heap": 3912676,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": 20,
+      "nodes": 318,
+      "heap": 3946620,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": 25,
+      "nodes": 318,
+      "heap": 4007052,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": "after_unmount",
+      "nodes": 494,
+      "heap": 4104892,
+      "images": 0,
+      "window_pages": null
+    }
+  ],
+  "imagewait": [
+    {
+      "step": 0,
+      "nodes": 260,
+      "heap": 3286688,
+      "images": 3,
+      "window_pages": "64"
+    },
+    {
+      "step": 5,
+      "nodes": 423,
+      "heap": 3805920,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": 10,
+      "nodes": 528,
+      "heap": 3902176,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": 15,
+      "nodes": 633,
+      "heap": 3981640,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": 20,
+      "nodes": 738,
+      "heap": 4033284,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": 25,
+      "nodes": 843,
+      "heap": 4103176,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": "after_unmount",
+      "nodes": 1019,
+      "heap": 4202832,
+      "images": 0,
+      "window_pages": null
+    }
+  ],
+  "explicitdispose": [
+    {
+      "step": 0,
+      "nodes": 259,
+      "heap": 3295684,
+      "images": 3,
+      "window_pages": "64"
+    },
+    {
+      "step": 5,
+      "nodes": 322,
+      "heap": 3790760,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": 10,
+      "nodes": 318,
+      "heap": 3861796,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": 15,
+      "nodes": 322,
+      "heap": 3927776,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": 20,
+      "nodes": 318,
+      "heap": 3958860,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": 25,
+      "nodes": 318,
+      "heap": 4018120,
+      "images": 6,
+      "window_pages": "120"
+    },
+    {
+      "step": "after_unmount",
+      "nodes": 494,
+      "heap": 4130060,
+      "images": 0,
+      "window_pages": null
+    }
+  ],
+  "server_stopped": true
+}

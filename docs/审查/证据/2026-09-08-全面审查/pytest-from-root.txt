@@ -1,0 +1,148 @@
+
+=================================== ERRORS ====================================
+_______________ ERROR collecting app/tests/test_auth_tokens.py ________________
+ImportError while importing test module 'D:\claude_sandbox\pixiv-tracking-tool\app\tests\test_auth_tokens.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\test_auth_tokens.py:3: in <module>
+    from src import auth
+E   ModuleNotFoundError: No module named 'src'
+______________ ERROR collecting app/tests/test_caption_fetch.py _______________
+ImportError while importing test module 'D:\claude_sandbox\pixiv-tracking-tool\app\tests\test_caption_fetch.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\test_caption_fetch.py:3: in <module>
+    from src.caption_state import decode_caption_state
+E   ModuleNotFoundError: No module named 'src'
+______________ ERROR collecting app/tests/test_caption_state.py _______________
+ImportError while importing test module 'D:\claude_sandbox\pixiv-tracking-tool\app\tests\test_caption_state.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\test_caption_state.py:1: in <module>
+    from src.caption_state import (
+E   ModuleNotFoundError: No module named 'src'
+____________ ERROR collecting app/tests/test_config_persistence.py ____________
+ImportError while importing test module 'D:\claude_sandbox\pixiv-tracking-tool\app\tests\test_config_persistence.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\test_config_persistence.py:3: in <module>
+    from src import config
+E   ModuleNotFoundError: No module named 'src'
+________________ ERROR collecting app/tests/test_file_index.py ________________
+ImportError while importing test module 'D:\claude_sandbox\pixiv-tracking-tool\app\tests\test_file_index.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\test_file_index.py:7: in <module>
+    from src import config, tracker as tracker_module
+E   ModuleNotFoundError: No module named 'src'
+______________ ERROR collecting app/tests/test_filter_routes.py _______________
+ImportError while importing test module 'D:\claude_sandbox\pixiv-tracking-tool\app\tests\test_filter_routes.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\test_filter_routes.py:10: in <module>
+    from src import config
+E   ModuleNotFoundError: No module named 'src'
+___________________ ERROR collecting app/tests/test_jobs.py ___________________
+ImportError while importing test module 'D:\claude_sandbox\pixiv-tracking-tool\app\tests\test_jobs.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\test_jobs.py:4: in <module>
+    from src import progress
+E   ModuleNotFoundError: No module named 'src'
+________________ ERROR collecting app/tests/test_migration.py _________________
+ImportError while importing test module 'D:\claude_sandbox\pixiv-tracking-tool\app\tests\test_migration.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\test_migration.py:6: in <module>
+    from src.data_migration import (
+E   ModuleNotFoundError: No module named 'src'
+________________ ERROR collecting app/tests/test_networking.py ________________
+ImportError while importing test module 'D:\claude_sandbox\pixiv-tracking-tool\app\tests\test_networking.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\test_networking.py:1: in <module>
+    from src.networking import access_urls
+E   ModuleNotFoundError: No module named 'src'
+_______________ ERROR collecting app/tests/test_query_state.py ________________
+ImportError while importing test module 'D:\claude_sandbox\pixiv-tracking-tool\app\tests\test_query_state.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\test_query_state.py:1: in <module>
+    from src.query_state import (
+E   ModuleNotFoundError: No module named 'src'
+_________________ ERROR collecting app/tests/test_security.py _________________
+ImportError while importing test module 'D:\claude_sandbox\pixiv-tracking-tool\app\tests\test_security.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\test_security.py:5: in <module>
+    from src.security import (
+E   ModuleNotFoundError: No module named 'src'
+________________ ERROR collecting app/tests/test_tombstones.py ________________
+ImportError while importing test module 'D:\claude_sandbox\pixiv-tracking-tool\app\tests\test_tombstones.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\test_tombstones.py:8: in <module>
+    from src import config, tombstones, tracker as tracker_module
+E   ModuleNotFoundError: No module named 'src'
+_______________ ERROR collecting app/tests/test_web_boundary.py _______________
+ImportError while importing test module 'D:\claude_sandbox\pixiv-tracking-tool\app\tests\test_web_boundary.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\test_web_boundary.py:4: in <module>
+    from src import progress
+E   ModuleNotFoundError: No module named 'src'
+=========================== short test summary info ===========================
+ERROR app/tests/test_auth_tokens.py
+ERROR app/tests/test_caption_fetch.py
+ERROR app/tests/test_caption_state.py
+ERROR app/tests/test_config_persistence.py
+ERROR app/tests/test_file_index.py
+ERROR app/tests/test_filter_routes.py
+ERROR app/tests/test_jobs.py
+ERROR app/tests/test_migration.py
+ERROR app/tests/test_networking.py
+ERROR app/tests/test_query_state.py
+ERROR app/tests/test_security.py
+ERROR app/tests/test_tombstones.py
+ERROR app/tests/test_web_boundary.py
+!!!!!!!!!!!!!!!!!! Interrupted: 13 errors during collection !!!!!!!!!!!!!!!!!!!
+13 errors in 1.77s

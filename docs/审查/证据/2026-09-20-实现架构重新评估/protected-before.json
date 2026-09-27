@@ -1,0 +1,347 @@
+[
+  {
+    "path": "app/.env.example",
+    "size": 299,
+    "sha256": "FF386D4E7A21323022A6847202CB0089C3E6565DD49CF860709416FC5D237CA2"
+  },
+  {
+    "path": "app/build.spec",
+    "size": 1192,
+    "sha256": "DBCB0836F821BE5F0710F6B57B916A64DE4B5570D3C7085186C0F79E417F0BA3"
+  },
+  {
+    "path": "app/release.bat",
+    "size": 1106,
+    "sha256": "22C25549EAAD80A34B6E7EEA86E289CD475A83F3C8E20D29FD77CBF3DDD2E744"
+  },
+  {
+    "path": "app/requirements-dev.txt",
+    "size": 51,
+    "sha256": "818785C9A0AB9A1BECBE86C66C0AC5B81235ED65CB9E09060F42137ABEFB1BFC"
+  },
+  {
+    "path": "app/requirements-lock.txt",
+    "size": 356,
+    "sha256": "C9A5F0B0869E9ACA1A99B2C1A640D11087FD9F054D6F4360D7F4B43520E1BB46"
+  },
+  {
+    "path": "app/requirements.txt",
+    "size": 251,
+    "sha256": "E1E539A39081B423E32A5D0CCA3E64CB2860BB1F67C55BC92D29F3810809DD56"
+  },
+  {
+    "path": "app/run.py",
+    "size": 524,
+    "sha256": "975554A5262FF3EB5A68B0B9590C609E269A552D0C72F7A7CB25F126265F4263"
+  },
+  {
+    "path": "app/src/auth.py",
+    "size": 13837,
+    "sha256": "8C6FAD3960DEC324876C5BD2A33B20DD5FA2F62EB0E4B784328C7E36683DA2C1"
+  },
+  {
+    "path": "app/src/caption_state.py",
+    "size": 1122,
+    "sha256": "C84D15D94D9D065D93A4DFA05D7655A1853C868F4CBB11D2BD5DAE1B538E8A80"
+  },
+  {
+    "path": "app/src/client.py",
+    "size": 9072,
+    "sha256": "38A080C06201B321083DF8295645119CF80C0C70AD9C3E0E11C8924850C239F8"
+  },
+  {
+    "path": "app/src/config.py",
+    "size": 8367,
+    "sha256": "FD9F503008009955EF7E9D292682B725AB68969ED1D56E0A6853F008430F328A"
+  },
+  {
+    "path": "app/src/data_migration.py",
+    "size": 7160,
+    "sha256": "E285FCA4A0DD40EEFBA99250B2C7ACA3F3B76EF53C66366923D33547EAACD407"
+  },
+  {
+    "path": "app/src/file_index.py",
+    "size": 1914,
+    "sha256": "66722C2658051678864447BE683BC4F8DEEE9D3B73C10E950A6210D54BFD2B94"
+  },
+  {
+    "path": "app/src/models.py",
+    "size": 6781,
+    "sha256": "AAAFCFE21F87EC115F31734E90239229ACC16125AB161F4A87DFF31D39B7CF3C"
+  },
+  {
+    "path": "app/src/networking.py",
+    "size": 1721,
+    "sha256": "58B3172C481116A42725658240D7DB300F08D92E8D0232BEE7A13D21D95DD0C1"
+  },
+  {
+    "path": "app/src/progress.py",
+    "size": 14737,
+    "sha256": "013791FF00C31DFFDCF70D4E96C9F44494C51DE93C23179C532815C5F32970CE"
+  },
+  {
+    "path": "app/src/query_state.py",
+    "size": 1726,
+    "sha256": "CE26D3B858C577B01C3BEBDF368633CB04B745AB25925C4D1F44C81BC15D3151"
+  },
+  {
+    "path": "app/src/routes/__init__.py",
+    "size": 0,
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "path": "app/src/routes/artists.py",
+    "size": 9324,
+    "sha256": "F9C59E0B0AF16A1C1474743B4671EB13651763C2BE7BCF2C8AAC0E5FF4829D59"
+  },
+  {
+    "path": "app/src/routes/settings.py",
+    "size": 6453,
+    "sha256": "1019D620DD9019CEC528E048A32EE02F0D9B27285004E54D30664D7AA59675A8"
+  },
+  {
+    "path": "app/src/routes/works.py",
+    "size": 34417,
+    "sha256": "10729756E315BA29D2D70BACC7D950985FF24D533EE1F882E18E7B16D0A75ADE"
+  },
+  {
+    "path": "app/src/scheduler.py",
+    "size": 1596,
+    "sha256": "CE0A483CEED5002491AC2347D474BD6FEE6215B88F9288707F05983E3D3B9E1E"
+  },
+  {
+    "path": "app/src/security.py",
+    "size": 12460,
+    "sha256": "A711D3089F230893C41CC2B755236FACA6D497BAE87B0E3530EE92BEB2EB6C5B"
+  },
+  {
+    "path": "app/src/smoke.py",
+    "size": 1936,
+    "sha256": "60B98F7C7CA46457C26E70D3770A5C1BDBDD0FEA89D704F857F6587105AFA96E"
+  },
+  {
+    "path": "app/src/templates/artist_fragment.html",
+    "size": 1835,
+    "sha256": "36BE2CF75A5BB1AE844633D75312BEED9911BDA8B5361596B1C5F5D1A5456A54"
+  },
+  {
+    "path": "app/src/templates/artist_works.html",
+    "size": 27724,
+    "sha256": "A5F9F6A8696B085F863825FB4D9F7FA1E9C18E5EE748317E723FE21B7E9603A0"
+  },
+  {
+    "path": "app/src/templates/artists.html",
+    "size": 3709,
+    "sha256": "DCFFE6E7FB1554B84F0060EBB8109B93A02A225F4C92072252A62271F78C98FB"
+  },
+  {
+    "path": "app/src/templates/base.html",
+    "size": 10476,
+    "sha256": "5FFA8919A640444E4265F3F85B0787753A6056E8D0E7885B38E9FC393D413B32"
+  },
+  {
+    "path": "app/src/templates/error.html",
+    "size": 177,
+    "sha256": "B55EA9A53689D87C4DC1E46C81885255D9F647F09364B5FEDD0A8D738989888B"
+  },
+  {
+    "path": "app/src/templates/gallery_fragment.html",
+    "size": 2299,
+    "sha256": "328CF1DE88053368EBF17F9656781227082B83BABA6E6E407B2C2F0D38332D22"
+  },
+  {
+    "path": "app/src/templates/illust_detail.html",
+    "size": 11147,
+    "sha256": "991B85D950B9C4BC4B9918CCD04751EAAE71CDC0C3F7E2F25AEAE016844A443E"
+  },
+  {
+    "path": "app/src/templates/index.html",
+    "size": 34592,
+    "sha256": "B305A95A3D6EA14873749BCFBA42F40B97547C877F6D8F6F2AEE390416E6503D"
+  },
+  {
+    "path": "app/src/templates/settings.html",
+    "size": 7442,
+    "sha256": "EC337C4F42170EF06639009DA24BF5B5DD9776B3C11F68A3AD5C4E1EE134D4D8"
+  },
+  {
+    "path": "app/src/tombstones.py",
+    "size": 2696,
+    "sha256": "ACA0435D7319EE4B5BE18B7468FEB8F8F12A88ACB96030BCB030E5E403F3BF46"
+  },
+  {
+    "path": "app/src/tracker.py",
+    "size": 37669,
+    "sha256": "0197C068BA819AFC8C094629AD89550435F5542900316B153BB39C42023CD88C"
+  },
+  {
+    "path": "app/src/tray.py",
+    "size": 3287,
+    "sha256": "0BDF00348838F61C9806311116E4CA0449057EEC3A6EC4EFC2B53A9BC1EA6782"
+  },
+  {
+    "path": "app/src/version.py",
+    "size": 23,
+    "sha256": "E71BCDFE06FAD6729EAB94C44797527DC02B4CFDC355AB1918DFCC42AE5D3690"
+  },
+  {
+    "path": "app/src/web.py",
+    "size": 6946,
+    "sha256": "D1D4B8DD912C463689B202C478948093121F8B53BBAA5EED731886080D4EBA93"
+  },
+  {
+    "path": "app/start.bat",
+    "size": 48,
+    "sha256": "CE8EC4CD501FCCD25A4C067819FAB7CCB5CBE458CA7F14393FE823D71B2DAD2F"
+  },
+  {
+    "path": "app/static/icon.png",
+    "size": 45012,
+    "sha256": "120BE3EA9BC86038B0D272CC2CFCDD0F41387F8DDE9CD34FDE1D816F24E68D4A"
+  },
+  {
+    "path": "app/static/placeholder.svg",
+    "size": 262,
+    "sha256": "C3EC0719857B18CEE6461AB1422F4B7494DD2AF895F76255725198DF36A22367"
+  },
+  {
+    "path": "app/static/style.css",
+    "size": 19535,
+    "sha256": "22D75A05D4B8B10A58D63AF0D37EB3C9B5C73518863F307ECE47B45D36F6F8DB"
+  },
+  {
+    "path": "app/tests/browser_fixture.py",
+    "size": 2555,
+    "sha256": "F08265B88ABBFA150313D4D4DF12AF676B997EDC6F8005531605C688A3B58CB9"
+  },
+  {
+    "path": "app/tests/browser_smoke.py",
+    "size": 4552,
+    "sha256": "ADA723BC023435ECB0471730BDDC48ECE9C9DD184FB2146B795A32CF115527DD"
+  },
+  {
+    "path": "app/tests/conftest.py",
+    "size": 188,
+    "sha256": "4416FFA381BB80BD8161DA533A2064B2E942ECDC2D9ADC7F98C9C97838DAEEC2"
+  },
+  {
+    "path": "app/tests/README.md",
+    "size": 700,
+    "sha256": "028BE0C59F97C60DBC856BB17E8808AC5A9FFDF78867242862676CA16DB982F8"
+  },
+  {
+    "path": "app/tests/test_auth_tokens.py",
+    "size": 1074,
+    "sha256": "C42C71795BBE342B395391F9118D4F8CBA7981356B9EF3864A037DB65293A650"
+  },
+  {
+    "path": "app/tests/test_caption_fetch.py",
+    "size": 2078,
+    "sha256": "E66D717D4975FEA5AEEF4158CEA9B0EA03EFF75D8246C025B2549CBF00021F8A"
+  },
+  {
+    "path": "app/tests/test_caption_state.py",
+    "size": 979,
+    "sha256": "383BB8BC435541D4BA6BD980C603C8C809EF99EE75128B6608C9BCA7E8E7EE4F"
+  },
+  {
+    "path": "app/tests/test_config_persistence.py",
+    "size": 1707,
+    "sha256": "BAE5D683337CC989F3920D210B4351DDA32164DB2C6EFDAE3F35999B4195B02F"
+  },
+  {
+    "path": "app/tests/test_file_index.py",
+    "size": 3349,
+    "sha256": "683497AE10C8FD78D30DC91652C7605696DA87C837891F8A8C3F4556F97228F7"
+  },
+  {
+    "path": "app/tests/test_filter_routes.py",
+    "size": 3405,
+    "sha256": "8CF66486D5BA9B306965F3AA30A2A734AE217DCB91535210BE3779939AAC8325"
+  },
+  {
+    "path": "app/tests/test_jobs.py",
+    "size": 3984,
+    "sha256": "8B96E2F6F8865EA17387407555409B15EF1F26250108DB4D77BA16BECA31AC06"
+  },
+  {
+    "path": "app/tests/test_migration.py",
+    "size": 3430,
+    "sha256": "D08EC833DED9E8BF1556CFDFC1240CE0877278D0DD932DA47B0D698571942F85"
+  },
+  {
+    "path": "app/tests/test_networking.py",
+    "size": 470,
+    "sha256": "0B0AA6BD984B840D898ABC05CF473FA3A793D64EEAA9CCD47B7386430CC0480C"
+  },
+  {
+    "path": "app/tests/test_query_state.py",
+    "size": 1035,
+    "sha256": "9716A75744445BE45C6FAAB7053770F742D3D129A98BCB37BD37979790571B10"
+  },
+  {
+    "path": "app/tests/test_security.py",
+    "size": 3521,
+    "sha256": "0A4B50DC40C004CE0C218704881AD159AAF8E16F6DC5B88A10F196C6D6DD2AF2"
+  },
+  {
+    "path": "app/tests/test_template_safety.py",
+    "size": 705,
+    "sha256": "1C458B21312BDC5CD6D0EA1279141918C5FC81A9AF0A3F7451BF748ACCA292A5"
+  },
+  {
+    "path": "app/tests/test_tombstones.py",
+    "size": 3891,
+    "sha256": "FF6761E01F587716255C7001715218A9A6645D33599D0768ABED221C7F2352B6"
+  },
+  {
+    "path": "app/tests/test_web_boundary.py",
+    "size": 3769,
+    "sha256": "75680298834289952DA9413EDD23388867FC17BC43CCF57C1BE47653105F5937"
+  },
+  {
+    "path": "data/pixiv_tracker.db",
+    "size": 32768,
+    "sha256": "0061FBDDCD67FAD6F2995B61C57622A43C44B8EE10BB08C3A0CA62A7EEB6C6F9"
+  },
+  {
+    "path": "pixiv_token.json",
+    "size": 127,
+    "sha256": "9719D5D8FD7E103B989AEC8DBD1831985AC5F5F3442FD96D08D1D51F25E5946B"
+  },
+  {
+    "path": "release/v0.0.3/.env.example",
+    "size": 651,
+    "sha256": "1D870546EE770C3728743316CBA564BE2FB2CDCEAC68740FF6E41E8C64643EC4"
+  },
+  {
+    "path": "release/v0.0.3/PixivTracker_v0.0.3.exe",
+    "size": 70835630,
+    "sha256": "CD3C4345C2BA08E294CC8466EBE2770C02C64BF0C3366F65D430A429D23EC97D"
+  },
+  {
+    "path": "release/v0.0.4/PixivTracker_v0.0.4.exe",
+    "size": 71214672,
+    "sha256": "F16CAF13C829D563482BDD842AE8423D7B912028E550CEB3FEB74BF32109C72C"
+  },
+  {
+    "path": "release/v0.0.5/PixivTracker_v0.0.5.exe",
+    "size": 71217353,
+    "sha256": "E4BD64D154C005401EC9A8F763645793D931BEE494BFF64275BE35303423E21A"
+  },
+  {
+    "path": "release/v0.0.6/PixivTracker_v0.0.6.exe",
+    "size": 89706427,
+    "sha256": "86FF8A651C8FB8F2BA1EDCDB46FC3C74E0383C6EB3B111F1158C29C83B101A15"
+  },
+  {
+    "path": "release/v0.1.0/PixivTracker_v0.1.0.exe",
+    "size": 110038617,
+    "sha256": "98869E2551076BE0DDA1F710F88F640231C4F11D4C076B747F25F3EBB4E37CC8"
+  },
+  {
+    "path": "release/v0.1.1/PixivTracker_v0.1.1.exe",
+    "size": 110080388,
+    "sha256": "327DF93F1D095EDAF4A383B37C2D0C098AB0CAA6279F26DB14AD365A2C3689FF"
+  }
+]

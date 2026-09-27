@@ -1,0 +1,89 @@
+{
+  "checks": [
+    "virtual-grid-uses-thumbnails-with-500-items-per-page",
+    "ordinary-reader-virtualizes-2000-page-work",
+    "delayed-old-navigation-cannot-overwrite-newer-intent",
+    "buttons-and-keys-share-soft-navigation",
+    "failed-image-keeps-old-work-and-retry-target",
+    "zoom-layer-blocks-navigation-and-returns-in-place",
+    "return-to-gallery-locates-last-read-work",
+    "continuous-grid-slides-a-bounded-window",
+    "delayed-old-filter-cannot-overwrite-new-scope",
+    "independent-feed-expands-pages-and-skips-work",
+    "ordinary-and-feed-positions-are-independent",
+    "mobile-real-touch-direction-lock-and-horizontal-navigation",
+    "mobile-pinch-zooms-without-changing-work",
+    "mobile-feed-does-not-use-horizontal-work-switching",
+    "long-stream-media-dom-and-heap-stay-bounded-idle-and-downloading"
+  ],
+  "page_errors": [],
+  "metrics": {
+    "continuous_grid_window_sizes": [
+      "480",
+      "480",
+      "480",
+      "480",
+      "480",
+      "480",
+      "480",
+      "480",
+      "480",
+      "480",
+      "480",
+      "480"
+    ],
+    "stream_samples": [
+      {
+        "step": 5,
+        "heap_bytes": 3356824,
+        "nodes": 157,
+        "images": 5,
+        "window_pages": 120,
+        "downloading": false
+      },
+      {
+        "step": 10,
+        "heap_bytes": 3479248,
+        "nodes": 160,
+        "images": 5,
+        "window_pages": 120,
+        "downloading": false
+      },
+      {
+        "step": 15,
+        "heap_bytes": 3539076,
+        "nodes": 160,
+        "images": 5,
+        "window_pages": 120,
+        "downloading": false
+      },
+      {
+        "step": 20,
+        "heap_bytes": 3622108,
+        "nodes": 161,
+        "images": 5,
+        "window_pages": 120,
+        "downloading": true
+      },
+      {
+        "step": 25,
+        "heap_bytes": 3651384,
+        "nodes": 161,
+        "images": 5,
+        "window_pages": 120,
+        "downloading": true
+      },
+      {
+        "step": 30,
+        "heap_bytes": 3710240,
+        "nodes": 161,
+        "images": 5,
+        "window_pages": 120,
+        "downloading": true
+      }
+    ]
+  },
+  "works": 5000,
+  "server_stopped": true,
+  "real_phone_tested": false
+}

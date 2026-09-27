@@ -1,0 +1,50 @@
+{
+  "version": "0.2.2",
+  "source_commit": "96815988e1e459502af4aa51c65d7e0381af90e8",
+  "source_branch": "codex/v0.2.2-r4",
+  "exe_file": "PixivTracker_v0.2.2.exe",
+  "exe_size_bytes": 75166900,
+  "exe_sha256": "21014f005577878292771bd98a7079c279c44acd45b9a8f562fd095d972ca5a2",
+  "build_environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "pyinstaller": "6.20.0",
+    "fastapi": "0.125.0",
+    "sqlalchemy": "2.0.49"
+  },
+  "active_frontend_from_exe": {
+    "frontend/dist/index.html": "a0918f2d90d79124f05490a510b8a6c946280394caf5d54dfcf3a51fa7129d7b",
+    "frontend/dist/assets/index-pYCa5Vez.js": "5996b00b563e8b228a9f5859995ada8093d661edd37d88b90b5358397478154c",
+    "frontend/dist/assets/index-DxdfvTyC.css": "181d4ec431f146b1eb53d7f435c04356edbb8443492f889e2608b0c72e6713bc"
+  },
+  "evidence_sha256": {
+    "bookmark-http-fallback.json": "6b540b1e5c30a806d143c4aa72ee8e64567ed7911bc0836fea342dc0681dba49",
+    "browser-r4.json": "72eefd02ee23542693031ea610939f694baf4f3189438c6b0613eea51b6fdfe1",
+    "exe-browser-final.json": "4e8add9be99d84f3a35ec0ccd29f144d6ec70135fd8a9897df0164a461711a37",
+    "exe-feed.png": "7c0145cbb9084cd5a11b9a0b1b42cc8276817154a019cefc59ed0bf7546a2f4c",
+    "exe-mobile.png": "d2ec1e3fa9ad889efa1b7214a7761184a5020aa63d62e144c110e9c4a08b0b85",
+    "exe-ordinary.png": "f4c3b34b6b3220cc9b3ee7d2f70fe32cf9af20569ecc0876019483800f5e2a92",
+    "exe-smoke-final.json": "37764652d5a5bb446462f66dc5e3ca58e6dcc28989106e75db5b7ff7918b42a5",
+    "load-final.json": "efc2c9d66102cd079a9f726bb2649e60a3f435d75b9f29c57ca60d069dd5cac8",
+    "memory-measurement-control.json": "60c77c4c6740c2591d38be2d6a0ade64e95af4a8e2964cb6b96c8373035e9a0c",
+    "pytest-auth-04.xml": "2b25227a4be06de8b9ada0000d99d40b84e515fc62ce9ef061e98fb669e58e9a",
+    "pytest-auth-05.xml": "b6b7f44e1c1d8b2339d67c883b238fbd4cb0fa34cae2bafd49283a7f253a893f",
+    "pytest-final-01.xml": "2ffa05f242efa951e4efec23cf71bf84074a48bae71bf3ccc2ac709c44250f7c",
+    "pytest-integration-03.xml": "ee40b7d7e077d872b55be0904d948c31ddb75fb45c0521d5dc0e06af79995ce0",
+    "pytest-release-06.xml": "343c98a1b797b6a6b8f78711a2949b87ee7ae2bac3475b6dfacac4aea0bcd642",
+    "source-smoke-01.json": "2b5c7d72c98a949f37b4ec608d3e0c5049335ee22bbc4181fe37b58ffd455451",
+    "touch-320-final.json": "6a2fe49632b9758b0323c33195aab474993cb46a76242ee4bb895ecad85a2454",
+    "touch-390-final.json": "aec6bae60fc0e27713fd2786218e2a8959263c9243d0d4b0328aee2454f33ac8"
+  },
+  "validation": {
+    "python_passed": 172,
+    "frontend_passed": 7,
+    "load_checks_passed": 7,
+    "exe_browser_checks_passed": 7,
+    "real_library_upgraded": false,
+    "real_account_tested": false,
+    "real_phone_tested": false,
+    "user_acceptance": false
+  },
+  "published": false
+}

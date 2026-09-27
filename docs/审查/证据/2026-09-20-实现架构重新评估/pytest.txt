@@ -1,0 +1,25 @@
+..........................................................               [100%]
+============================== warnings summary ===============================
+C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\site-packages\pydantic\fields.py:799: 46 warnings
+tests/test_filter_routes.py: 132 warnings
+  C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\site-packages\pydantic\fields.py:799: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'deprecated'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.5/migration/
+    warn(
+
+tests/test_file_index.py: 2 warnings
+tests/test_filter_routes.py: 168 warnings
+tests/test_tombstones.py: 2 warnings
+  C:\Users\princ\AppData\Local\Programs\Python\Python312\Lib\site-packages\sqlalchemy\sql\schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/test_filter_routes.py::test_explicit_empty_artist_filter_means_no_results
+tests/test_filter_routes.py::test_detail_and_pagination_links_keep_encoded_filter_context
+tests/test_filter_routes.py::test_detail_navigation_applies_type_tag_and_hidden_filters
+  D:\claude_sandbox\pixiv-tracking-tool\app\tests\test_filter_routes.py:38: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_filter_routes.py::test_detail_and_pagination_links_keep_encoded_filter_context
+  D:\claude_sandbox\pixiv-tracking-tool\app\src\routes\works.py:83: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+58 passed, 354 warnings in 2.81s

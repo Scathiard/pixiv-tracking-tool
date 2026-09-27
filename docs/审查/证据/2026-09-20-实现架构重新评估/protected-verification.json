@@ -1,0 +1,359 @@
+{
+  "time": "2026-09-20T11:47:11.901395+08:00",
+  "count": 69,
+  "groups": {
+    "app": 60,
+    "data": 1,
+    "pixiv_token.json": 1,
+    "release": 7
+  },
+  "all_unchanged": true,
+  "checks": [
+    {
+      "path": "app/.env.example",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/build.spec",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/release.bat",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/requirements-dev.txt",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/requirements-lock.txt",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/requirements.txt",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/run.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/auth.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/caption_state.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/client.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/config.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/data_migration.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/file_index.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/models.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/networking.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/progress.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/query_state.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/routes/__init__.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/routes/artists.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/routes/settings.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/routes/works.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/scheduler.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/security.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/smoke.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/templates/artist_fragment.html",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/templates/artist_works.html",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/templates/artists.html",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/templates/base.html",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/templates/error.html",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/templates/gallery_fragment.html",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/templates/illust_detail.html",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/templates/index.html",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/templates/settings.html",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/tombstones.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/tracker.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/tray.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/version.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/src/web.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/start.bat",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/static/icon.png",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/static/placeholder.svg",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/static/style.css",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/browser_fixture.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/browser_smoke.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/conftest.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/README.md",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/test_auth_tokens.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/test_caption_fetch.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/test_caption_state.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/test_config_persistence.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/test_file_index.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/test_filter_routes.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/test_jobs.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/test_migration.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/test_networking.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/test_query_state.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/test_security.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/test_template_safety.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/test_tombstones.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "app/tests/test_web_boundary.py",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "data/pixiv_tracker.db",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "pixiv_token.json",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "release/v0.0.3/.env.example",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "release/v0.0.3/PixivTracker_v0.0.3.exe",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "release/v0.0.4/PixivTracker_v0.0.4.exe",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "release/v0.0.5/PixivTracker_v0.0.5.exe",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "release/v0.0.6/PixivTracker_v0.0.6.exe",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "release/v0.1.0/PixivTracker_v0.1.0.exe",
+      "same_size": true,
+      "same_sha256": true
+    },
+    {
+      "path": "release/v0.1.1/PixivTracker_v0.1.1.exe",
+      "same_size": true,
+      "same_sha256": true
+    }
+  ],
+  "scope": "Only files in protected-before.json; ignores actual .env/private release config and external libraries."
+}

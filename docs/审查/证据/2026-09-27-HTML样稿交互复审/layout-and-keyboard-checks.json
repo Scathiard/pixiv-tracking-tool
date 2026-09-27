@@ -1,0 +1,275 @@
+{
+  "layouts": [
+    {
+      "width": 1440,
+      "body": 1440,
+      "view": "gallery",
+      "theme": "dark"
+    },
+    {
+      "width": 1440,
+      "body": 1440,
+      "view": "artists",
+      "theme": "dark"
+    },
+    {
+      "width": 1440,
+      "body": 1440,
+      "view": "settings",
+      "theme": "dark"
+    },
+    {
+      "width": 1440,
+      "body": 1440,
+      "view": "stream",
+      "theme": "dark"
+    },
+    {
+      "width": 1440,
+      "body": 1440,
+      "view": "gallery",
+      "theme": "light"
+    },
+    {
+      "width": 1440,
+      "body": 1440,
+      "view": "artists",
+      "theme": "light"
+    },
+    {
+      "width": 1440,
+      "body": 1440,
+      "view": "settings",
+      "theme": "light"
+    },
+    {
+      "width": 1440,
+      "body": 1440,
+      "view": "stream",
+      "theme": "light"
+    },
+    {
+      "width": 390,
+      "body": 390,
+      "view": "gallery",
+      "theme": "dark"
+    },
+    {
+      "width": 390,
+      "body": 390,
+      "view": "artists",
+      "theme": "dark"
+    },
+    {
+      "width": 390,
+      "body": 390,
+      "view": "settings",
+      "theme": "dark"
+    },
+    {
+      "width": 390,
+      "body": 390,
+      "view": "stream",
+      "theme": "dark"
+    },
+    {
+      "width": 390,
+      "body": 390,
+      "view": "gallery",
+      "theme": "light"
+    },
+    {
+      "width": 390,
+      "body": 390,
+      "view": "artists",
+      "theme": "light"
+    },
+    {
+      "width": 390,
+      "body": 390,
+      "view": "settings",
+      "theme": "light"
+    },
+    {
+      "width": 390,
+      "body": 390,
+      "view": "stream",
+      "theme": "light"
+    },
+    {
+      "width": 320,
+      "body": 320,
+      "view": "gallery",
+      "theme": "dark"
+    },
+    {
+      "width": 320,
+      "body": 320,
+      "view": "artists",
+      "theme": "dark"
+    },
+    {
+      "width": 320,
+      "body": 320,
+      "view": "settings",
+      "theme": "dark"
+    },
+    {
+      "width": 320,
+      "body": 320,
+      "view": "stream",
+      "theme": "dark"
+    },
+    {
+      "width": 320,
+      "body": 320,
+      "view": "gallery",
+      "theme": "light"
+    },
+    {
+      "width": 320,
+      "body": 320,
+      "view": "artists",
+      "theme": "light"
+    },
+    {
+      "width": 320,
+      "body": 320,
+      "view": "settings",
+      "theme": "light"
+    },
+    {
+      "width": 320,
+      "body": 320,
+      "view": "stream",
+      "theme": "light"
+    }
+  ],
+  "checks": [
+    {
+      "check": "desktop dark gallery width",
+      "pass": true
+    },
+    {
+      "check": "desktop dark artists width",
+      "pass": true
+    },
+    {
+      "check": "desktop dark settings width",
+      "pass": true
+    },
+    {
+      "check": "desktop dark stream width",
+      "pass": true
+    },
+    {
+      "check": "desktop light gallery width",
+      "pass": true
+    },
+    {
+      "check": "desktop light artists width",
+      "pass": true
+    },
+    {
+      "check": "desktop light settings width",
+      "pass": true
+    },
+    {
+      "check": "desktop light stream width",
+      "pass": true
+    },
+    {
+      "check": "keyboard continues after button navigation",
+      "pass": true
+    },
+    {
+      "check": "favorite Enter stays on current detail",
+      "pass": true
+    },
+    {
+      "check": "date editing preserves focused input",
+      "pass": true
+    },
+    {
+      "check": "inverted dates rejected",
+      "pass": true
+    },
+    {
+      "check": "Alt-arrow does not trigger artwork navigation",
+      "pass": true
+    },
+    {
+      "check": "browser history restores gallery",
+      "pass": true
+    },
+    {
+      "check": "mobile dark gallery width",
+      "pass": true
+    },
+    {
+      "check": "mobile dark artists width",
+      "pass": true
+    },
+    {
+      "check": "mobile dark settings width",
+      "pass": true
+    },
+    {
+      "check": "mobile dark stream width",
+      "pass": true
+    },
+    {
+      "check": "mobile light gallery width",
+      "pass": true
+    },
+    {
+      "check": "mobile light artists width",
+      "pass": true
+    },
+    {
+      "check": "mobile light settings width",
+      "pass": true
+    },
+    {
+      "check": "mobile light stream width",
+      "pass": true
+    },
+    {
+      "check": "small dark gallery width",
+      "pass": true
+    },
+    {
+      "check": "small dark artists width",
+      "pass": true
+    },
+    {
+      "check": "small dark settings width",
+      "pass": true
+    },
+    {
+      "check": "small dark stream width",
+      "pass": true
+    },
+    {
+      "check": "small light gallery width",
+      "pass": true
+    },
+    {
+      "check": "small light artists width",
+      "pass": true
+    },
+    {
+      "check": "small light settings width",
+      "pass": true
+    },
+    {
+      "check": "small light stream width",
+      "pass": true
+    },
+    {
+      "check": "no final browser errors",
+      "pass": true
+    }
+  ],
+  "errors": []
+}

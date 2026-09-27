@@ -1,0 +1,13 @@
+{
+  "checks": [
+    "last-work-accessible-on-page-ten-of-five-thousand",
+    "last-work-opens-even-with-missing-original",
+    "feed-can-start-at-last-work-without-a-total-cap",
+    "history-returns-to-last-gallery-page",
+    "ordinary-position-survives-browser-reload"
+  ],
+  "page_errors": [],
+  "works": 5000,
+  "server_stopped": true,
+  "real_library_used": false
+}

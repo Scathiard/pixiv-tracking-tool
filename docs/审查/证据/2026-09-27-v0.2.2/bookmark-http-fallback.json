@@ -1,0 +1,76 @@
+{
+  "checks": [
+    "randomUUID-unavailable-getRandomValues-available",
+    "fallback-bookmark-confirmed",
+    "fallback-unbookmark-confirmed"
+  ],
+  "errors": [],
+  "failures": [],
+  "probes": [
+    {
+      "bookmark_post": {
+        "desired": true,
+        "request_id": "ed4cd5f8-43cf-4bcc-a25c-1470b34c9294"
+      },
+      "api_after_readback": {
+        "work_id": 79,
+        "operation_id": "2e8b8598d7824fe8a2d651747048d901",
+        "status": "confirmed",
+        "desired": true,
+        "value": true,
+        "confirmed_at": "2026-09-27T10:30:47.357349Z",
+        "error": null,
+        "version": 2,
+        "cached": false
+      },
+      "button_after_readback": "<button type=\"button\" class=\"bookmark-button pending cached\" title=\"正在核对 Pixiv 收藏状态。最近核实：2026/9/27 18:30:44。收藏到 Pixiv\" aria-label=\"正在核对 Pixiv 收藏状态。最近核实：2026/9/27 18:30:44。收藏到 Pixiv\" disabled=\"\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" class=\"icon\"><path d=\"M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z\"></path></svg><span>核对中</span><small class=\"bookmark-time\">最近核实 2026/9/27 18:30:44</small><span class=\"cached-dot\" aria-label=\"上次确认的状态\"></span></button>",
+      "button_after_ui": {
+        "className": "bookmark-button on",
+        "pressed": "true",
+        "text": "已收藏\n最近核实 2026/9/27 18:30:47"
+      }
+    },
+    {
+      "bookmark_post": {
+        "desired": false,
+        "request_id": "cf2d8bf7-0516-46a4-aae8-6ef2f2652591"
+      },
+      "api_after_readback": {
+        "work_id": 79,
+        "operation_id": "563bc1d55f104a8691379b99d427cd03",
+        "status": "confirmed",
+        "desired": false,
+        "value": false,
+        "confirmed_at": "2026-09-27T10:30:48.356962Z",
+        "error": null,
+        "version": 3,
+        "cached": false
+      },
+      "button_after_readback": "<button type=\"button\" class=\"bookmark-button pending cached\" title=\"正在核对 Pixiv 收藏状态。最近核实：2026/9/27 18:30:47。取消 Pixiv 收藏\" aria-label=\"正在核对 Pixiv 收藏状态。最近核实：2026/9/27 18:30:47。取消 Pixiv 收藏\" disabled=\"\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" class=\"icon\"><path d=\"M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z\"></path></svg><span>核对中</span><small class=\"bookmark-time\">最近核实 2026/9/27 18:30:47</small><span class=\"cached-dot\" aria-label=\"上次确认的状态\"></span></button>",
+      "button_after_ui": {
+        "className": "bookmark-button",
+        "pressed": "false",
+        "text": "收藏\n最近核实 2026/9/27 18:30:48"
+      }
+    },
+    {
+      "fallback_request_ids": [
+        "ed4cd5f8-43cf-4bcc-a25c-1470b34c9294",
+        "cf2d8bf7-0516-46a4-aae8-6ef2f2652591"
+      ],
+      "remote_writes": 2,
+      "remote_final_value": false
+    }
+  ],
+  "dist_index_sha256": "a0918f2d90d79124f05490a510b8a6c946280394caf5d54dfcf3a51fa7129d7b",
+  "bundle_name": "index-pYCa5Vez.js",
+  "bundle_sha256": "5996b00b563e8b228a9f5859995ada8093d661edd37d88b90b5358397478154c",
+  "uuid_fallback": true,
+  "synthetic_remote_used": true,
+  "elapsed_seconds": 6.94,
+  "real_account_used": false,
+  "real_library_used": false,
+  "real_phone_tested": false,
+  "emulated_mobile_width": 390,
+  "trusted_touch_method": "Chromium CDP Input.dispatchTouchEvent"
+}
