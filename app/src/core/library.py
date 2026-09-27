@@ -12,7 +12,7 @@ from sqlalchemy.orm import load_only, selectinload
 from ..security import sanitize_caption
 
 from .models import (
-    ArchiveIntent, Artist, Asset, Derivative, LocalPreference, RemoteBookmark,
+    ArchiveIntent, Artist, Asset, BookmarkOperation, Derivative, LocalPreference, RemoteBookmark,
     TrackingPolicy, Work, WorkTag, utcnow,
 )
 
@@ -26,9 +26,13 @@ class LibraryFilter:
     posted_after: datetime | None = None
     posted_before: datetime | None = None
     sort: str = "newest"
+    q: str = ""
+    favorites: bool = False
+    recent: bool = False
+    as_of: datetime | None = None
 
     def __post_init__(self):
-        if self.sort not in ("newest", "oldest", "added"):
+        if self.sort not in ("newest", "oldest", "added", "title"):
             raise ValueError("不支持的排序方式")
         if self.types is not None and any(t not in ("illust", "manga", "ugoira") for t in self.types):
             raise ValueError("不支持的作品类型")
@@ -51,6 +55,8 @@ def readable_page_url(record, *, animation=False):
 class Library:
     def __init__(self, database):
         self.database = database
+        self.account_id = None
+        self.bookmarks = None
 
     @staticmethod
     def _statement(filters, ceiling):
@@ -64,6 +70,19 @@ class Library:
             statement = statement.where(Work.type.in_(filters.types))
         if filters.tags:
             statement = statement.where(Work.id.in_(select(WorkTag.work_id).where(WorkTag.tag.in_(filters.tags))))
+        if filters.q:
+            term = filters.q.strip()
+            if term:
+                statement = statement.where(or_(Work.title.contains(term, autoescape=True),
+                    Work.artist.has(Artist.name.contains(term, autoescape=True)),
+                    Work.id.in_(select(WorkTag.work_id).where(WorkTag.tag.contains(term, autoescape=True)))))
+        if filters.favorites:
+            statement = statement.where(Work.id.in_(select(RemoteBookmark.work_id).where(
+                RemoteBookmark.value.is_(True))))
+        if filters.recent:
+            reference = filters.as_of or utcnow()
+            statement = statement.where(Work.downloaded_at >= reference - timedelta(days=30),
+                                        Work.downloaded_at <= reference)
         if filters.posted_after is not None:
             statement = statement.where(Work.posted_at >= filters.posted_after)
         if filters.posted_before is not None:
@@ -72,6 +91,8 @@ class Library:
 
     @staticmethod
     def _order(filters):
+        if filters.sort == "title":
+            return func.lower(Work.title).asc(), Work.id.asc()
         if filters.sort == "oldest":
             return Work.posted_at.asc(), Work.id.asc()
         if filters.sort == "added":
@@ -84,7 +105,26 @@ class Library:
                                  selectinload(Work.preference), selectinload(Work.bookmark))
 
     @staticmethod
-    def _work_view(work):
+    def _bookmark_operations(session, ids):
+        if not ids:
+            return {}
+        ranked = select(BookmarkOperation.id.label("id"), BookmarkOperation.work_id.label("work_id"),
+            func.row_number().over(partition_by=BookmarkOperation.work_id,
+                order_by=(BookmarkOperation.version.desc(), BookmarkOperation.created_at.desc(),
+                          BookmarkOperation.id.desc())).label("position")).where(
+            BookmarkOperation.work_id.in_(ids)).subquery()
+        return {operation.work_id: operation for operation in session.scalars(select(BookmarkOperation).join(
+            ranked, BookmarkOperation.id == ranked.c.id).where(ranked.c.position == 1))}
+
+    def _bookmark_view(self, work, operation=None):
+        from .bookmarks import bookmark_snapshot
+        if self.bookmarks is not None:
+            return self.bookmarks.snapshot(work.bookmark, operation, work_id=work.id)
+        return bookmark_snapshot(work.bookmark, operation,
+                                 account_id=self.account_id, work_id=work.id)
+
+    def _work_view(self, work, operation=None):
+        bookmark = self._bookmark_view(work, operation)
         return {"id": work.id, "pixiv_id": work.pixiv_illust_id, "title": work.title,
             "artist_id": work.artist_id, "artist_name": work.artist.name,
             "type": work.type, "page_count": work.page_count,
@@ -92,22 +132,85 @@ class Library:
             "tags": [tag.tag for tag in work.tags],
             "is_hidden": bool(work.preference and work.preference.is_hidden),
             "rating": work.preference.rating if work.preference else 0,
-            "is_bookmarked": bool(work.bookmark and work.bookmark.value),
-            "bookmark_confirmed_at": work.bookmark.confirmed_at.isoformat() if work.bookmark and work.bookmark.confirmed_at else None,
+            "is_bookmarked": bool(bookmark["value"]), "bookmark": bookmark,
+            "bookmark_confirmed_at": bookmark["confirmed_at"],
             "bookmark_count": work.bookmark_count, "view_count": work.view_count,
             "posted_at": work.posted_at.isoformat() if work.posted_at else None,
             "time_basis": work.time_basis, "x_restrict": work.x_restrict,
             "restriction_verified": work.restriction_verified}
 
     def artists(self):
+        # Existing HTML pages need the full selector, but no artwork previews.
         with self.database.read() as session:
             artists = session.scalars(select(Artist).options(selectinload(Artist.policy)).order_by(Artist.name, Artist.id))
             return [{"id": artist.id, "pixiv_id": artist.pixiv_user_id, "name": artist.name,
-                "account": artist.account, "avatar_url": artist.avatar_url,
+                "account": artist.account, "avatar_url": media_url(artist.avatar_path),
                 "mode": artist.policy.mode if artist.policy else "stopped",
                 "added_at": artist.added_at.isoformat() if artist.added_at else None,
                 "last_checked_at": artist.last_checked_at.isoformat() if artist.last_checked_at else None}
                 for artist in artists]
+
+    def artist_page(self, *, offset=0, limit=50, q=""):
+        if offset < 0 or limit is not None and not 1 <= limit <= 100:
+            raise ValueError("画师分页范围不合法")
+        with self.database.read() as session:
+            statement = select(Artist).options(selectinload(Artist.policy))
+            if q.strip():
+                statement = statement.where(or_(Artist.name.contains(q.strip(), autoescape=True),
+                    Artist.account.contains(q.strip(), autoescape=True)))
+            total = session.scalar(select(func.count()).select_from(statement.subquery())) or 0
+            statement = statement.order_by(Artist.name, Artist.id).offset(offset)
+            if limit is not None:
+                statement = statement.limit(limit)
+            artists = list(session.scalars(statement))
+            items = self._artist_views(session, artists)
+            return {"items": items, "total": total, "offset": offset,
+                    "limit": limit if limit is not None else total}
+
+    def artist_detail(self, artist_id):
+        with self.database.read() as session:
+            artist = session.scalar(select(Artist).options(selectinload(Artist.policy)).where(Artist.id == artist_id))
+            if artist is None:
+                raise KeyError(artist_id)
+            return self._artist_views(session, [artist])[0]
+
+    @staticmethod
+    def _artist_views(session, artists):
+        ids = [artist.id for artist in artists]
+        counts = dict(session.execute(select(Work.artist_id, func.count()).where(
+            Work.artist_id.in_(ids), ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(
+                ArchiveIntent.mode == "suppressed"))).group_by(Work.artist_id)).all()) if ids else {}
+        ranked = select(Work.id.label("id"), Work.artist_id.label("artist_id"),
+            Work.pixiv_illust_id.label("pixiv_id"), Work.title.label("title"),
+            Work.type.label("type"), Work.page_count.label("page_count"),
+            func.row_number().over(partition_by=Work.artist_id,
+                order_by=(Work.posted_at.desc(), Work.id.desc())).label("position")).where(
+            Work.artist_id.in_(ids), ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(
+                ArchiveIntent.mode == "suppressed"))).subquery()
+        recent_rows = list(session.execute(select(ranked).where(ranked.c.position <= 12).order_by(
+            ranked.c.artist_id, ranked.c.position)).mappings()) if ids else []
+        work_ids = [row["id"] for row in recent_rows]
+        thumbs = {item.work_id: item for item in session.scalars(select(Derivative).where(
+            Derivative.work_id.in_(work_ids), Derivative.kind == "thumbnail",
+            Derivative.page_index == 0, Derivative.spec_key == "v1", Derivative.state == "verified"))} if work_ids else {}
+        recent = {artist_id: [] for artist_id in ids}
+        for row in recent_rows:
+            thumb = thumbs.get(row["id"])
+            url = media_url(thumb.relative_path) if thumb else None
+            if url and thumb.sha256:
+                url += "?v=" + thumb.sha256[:16]
+            recent[row["artist_id"]].append({"id": row["id"], "pixiv_id": row["pixiv_id"],
+                "title": row["title"], "type": row["type"], "page_count": row["page_count"],
+                "thumbnail": url})
+        return [{"id": artist.id, "pixiv_id": artist.pixiv_user_id, "name": artist.name,
+            "account": artist.account, "avatar_url": media_url(artist.avatar_path),
+            "avatar": media_url(artist.avatar_path), "biography": artist.biography,
+            "profile_refreshed_at": artist.profile_refreshed_at.isoformat() if artist.profile_refreshed_at else None,
+            "mode": artist.policy.mode if artist.policy else "stopped",
+            "added_at": artist.added_at.isoformat() if artist.added_at else None,
+            "last_checked_at": artist.last_checked_at.isoformat() if artist.last_checked_at else None,
+            "work_count": counts.get(artist.id, 0), "recent_works": recent[artist.id]}
+            for artist in artists]
 
     def set_tracking(self, artist_id, mode):
         if mode not in ("active", "paused", "stopped"):
@@ -144,12 +247,17 @@ class Library:
             total = session.scalar(select(func.count()).select_from(statement.subquery()))
             related = statement.options(load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title,
                 Work.type, Work.page_count, Work.posted_at), selectinload(Work.artist).load_only(Artist.name),
-                selectinload(Work.preference)) if compact else self._related(statement)
+                selectinload(Work.preference), selectinload(Work.bookmark)) if compact else self._related(statement)
             works = list(session.scalars(related.order_by(*self._order(filters)).offset(offset).limit(limit)))
+            operations = self._bookmark_operations(session, [work.id for work in works])
             views = [{"id": work.id, "pixiv_id": work.pixiv_illust_id, "artist_id": work.artist_id,
                       "artist_name": work.artist.name, "title": work.title, "type": work.type,
                       "page_count": work.page_count, "is_hidden": bool(work.preference and work.preference.is_hidden),
-                      "posted_at": work.posted_at.isoformat() if work.posted_at else None} for work in works] if compact else [self._work_view(work) for work in works]
+                      "posted_at": work.posted_at.isoformat() if work.posted_at else None,
+                      "bookmark": self._bookmark_view(work, operations.get(work.id))} for work in works] if compact else [self._work_view(work, operations.get(work.id)) for work in works]
+            if compact:
+                for view in views:
+                    view["is_bookmarked"] = bool(view["bookmark"]["value"])
             ids = [work.id for work in works]
             thumbnails = {row.work_id: row for row in session.scalars(select(Derivative).where(
                 Derivative.work_id.in_(ids), Derivative.kind == "thumbnail", Derivative.page_index == 0,
@@ -176,7 +284,7 @@ class Library:
             work = session.scalar(self._related(self._statement(LibraryFilter(show_hidden=True), work_id)).where(Work.id == work_id))
             if work is None:
                 raise KeyError(work_id)
-            view = self._work_view(work)
+            view = self._work_view(work, self._bookmark_operations(session, [work.id]).get(work.id))
             count = 1 if work.type == "ugoira" else work.page_count
             assets = list(session.scalars(select(Asset).where(Asset.work_id == work_id,
                 Asset.page_index >= page_offset, Asset.page_index < page_offset + page_limit)))
@@ -292,4 +400,6 @@ class Library:
                 Work.type == "ugoira", Work.id.in_(select(Asset.work_id).where(
                     Asset.role.in_(("ugoira_zip", "ugoira_timing")), Asset.state != "verified")))
             works = session.scalars(self._related(statement).order_by(Work.id).offset(max(0, offset)).limit(min(max(1, limit), 100)))
-            return [self._work_view(work) for work in works]
+            works = list(works)
+            operations = self._bookmark_operations(session, [work.id for work in works])
+            return [self._work_view(work, operations.get(work.id)) for work in works]

@@ -16,7 +16,15 @@
 - `archive_browser.py`：新核心的桌面与手机尺寸浏览器验证；`--artifacts` 必须指定新的隔离目录，保留结果和截图；不是手机实机验收。
 - `reading_browser.py`：生成大型合成图库，用实际 Chromium 验证普通／流式阅览、真实触控事件、乱序请求、长时间滚动与后台下载；`--artifacts` 每次用新目录。
 - `reading_deep_browser.py`：复用前项生成的 `.devtools/test-runs/` 合成图库，验证第 5000 件作品、流式末端及浏览器返回位置；拒绝真实图库路径。
-- `packaged_reading_browser.py`：让 v0.2.0 EXE 只在本机启动自己的合成图库服务，验证打包后的桌面／手机尺寸界面；`--exe` 与 `--artifacts` 指向交付文件和新证据目录。
+- `packaged_reading_browser.py`：让当前 EXE 只在本机启动自己的合成图库服务，验证打包后的图库、详情、流式、画师、设置与主题；`--exe` 与 `--artifacts` 指向交付文件和新证据目录。
+- `test_bookmarks_v022.py`、`test_bookmark_client_v022.py`：收藏请求只写一次、同账号明确回读、旧响应、限流、未知字段、离线启动与仅回读恢复。
+- `test_upgrade_v022.py`：0001 → 0002 显式转换、源库保留、未知收藏空值及失败回退；仅合成 SQLite。
+- `test_v022_api.py`、`test_v022_integration.py`：统一筛选、画师资料、设置与暂停、跨模块收藏竞争及登录就绪后的恢复。
+- `test_v022_scale.py`：5,000 件作品和 2,000 页单作品，检查接口窗口、批量查询和末端定位。
+- `client_fixture.py`、`client_browser.py`：R4 正式界面、5,000 / 2,000 合成图库、桌面与 390 / 320px、主题连点与收藏跨作品响应。
+- `client_touch_browser.py`：实际 CDP 触点、方向锁、缩放、中文输入、返回位置及无 randomUUID 环境；手机尺寸模拟不等于实机验收。
+- `client_load_browser.py`：故障图片重试、第 5,000 件定位、下载中的长流阅览、固定总量与下一轮、部分失败记录、暂停队列和离线浏览。
+- 上述 client 脚本均要求新的 `--artifacts` 目录，保留模拟媒体、结果和失败截图；只使用合成账号，禁止传入真实图库。
 - `run.py --smoke-test --smoke-serve-port PORT --smoke-stop-file FILE`：仅隔离验证用，监听 `127.0.0.1`，最多运行 180 秒；普通启动不进入此入口。
 - 没有 `py` 启动器时可使用 `.devtools/v012-env/Scripts/python.exe`（Python 3.12）；指定 `.devtools/test-runs/` 下新的 `--basetemp`，不得重复使用会清理旧证据的路径。
 - 每个测试自行创建临时目录；不得依赖或修改项目 `.env`、`data/`、`images/` 和 `release/`。

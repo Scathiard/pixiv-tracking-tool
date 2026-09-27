@@ -51,6 +51,7 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
         current = application.state.runtime
         if current is None:
             return
+        installed_client = None
         try:
             if interactive:
                 await asyncio.to_thread(auth)
@@ -58,11 +59,18 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
             else:
                 connected = bool(await asyncio.to_thread(_try_refresh_token))
             if connected:
-                current.client = PixivClient()
+                installed_client = PixivClient()
+                current.client = installed_client
+                await asyncio.to_thread(current.remote.get_account_id)
+                await asyncio.to_thread(current.bookmarks.reconcile_pending)
                 application.state.login_error = None
                 if schedule:
                     start_scheduler(current)
         except Exception:
+            if installed_client is not None and current.client is installed_client:
+                current.client = None
+                current.account_id = current.library.account_id = None
+                current.bookmarks.mark_disconnected()
             application.state.login_error = "Pixiv 暂时无法连接，本地图库可继续使用"
 
     @asynccontextmanager
@@ -115,8 +123,11 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
 
         @application.get("/")
         @application.get("/flow")
+        @application.get("/artists")
+        @application.get("/artist/{artist_id}")
+        @application.get("/settings")
         @application.get("/illust/{work_id}")
-        def reader_shell(work_id: int | None = None):
+        def reader_shell(work_id: int | None = None, artist_id: int | None = None):
             return FileResponse(frontend / "index.html", headers={"Cache-Control": "no-cache"})
 
     def current_runtime():
@@ -138,6 +149,7 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
         committed = False
         try:
             current.queue.accept_submissions(False)
+            current.bookmarks.accept_submissions(False)
             if schedule:
                 stop_scheduler()
             target = Path(new_path).expanduser()
@@ -148,6 +160,7 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
             candidate, report = prepare_relocation(current, _cfg.DATA_ROOT, target)
             candidate.start()
             candidate.queue.accept_submissions(True)
+            candidate.bookmarks.accept_submissions(True)
             # All copy/hash/database/startup checks precede the only commit point.
             persist_data_root(_cfg.env_file, target)
             committed = True
@@ -168,6 +181,7 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
         finally:
             if not committed:
                 current.queue.accept_submissions(True)
+                current.bookmarks.accept_submissions(True)
                 if schedule and current.client is not None:
                     start_scheduler(current)
             progress.end_maintenance()

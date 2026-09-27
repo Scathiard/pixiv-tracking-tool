@@ -1,0 +1,102 @@
+<script setup lang="ts">
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { api, write } from '../api'
+import Icon from '../components/Icon.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+defineProps<{galleryMode: string}>()
+interface Settings {
+  login: {status: 'logged_in' | 'offline' | 'pending'; account_id: string | null}
+  automatic_paused: boolean; current_port: number; next_port: number; data_root: string
+  check_interval_minutes: number; stats: {artists: number; works: number; downloaded_pages: number}
+}
+const emit = defineEmits<{task: [kind: string, workId?: number]; history: []; theme: [theme: 'dark' | 'light', event: MouseEvent]; galleryMode: [value: string]; message: [text: string]}>()
+const settings = ref<Settings | null>(null), loading = ref(true), error = ref(''), port = ref(''), pendingPath = ref(''), busy = ref(false)
+const theme = ref<'dark' | 'light'>('dark')
+const auth = ref<{logged_in: boolean; login_url: string | null; login_error: string | null} | null>(null)
+const oauthCode = ref(''), confirmPath = ref(false), missing = ref<{id: number; title: string}[]>([]), missingOffset = ref(0)
+let statusTimer = 0, stopped = false
+async function load() {
+  loading.value = true
+  try { settings.value = await api<Settings>('/api/settings'); port.value = String(settings.value.next_port); error.value = '' }
+  catch (failure) { error.value = failure instanceof Error ? failure.message : '设置暂时无法读取' }
+  finally { loading.value = false }
+}
+async function pause() {
+  if (!settings.value) return
+  busy.value = true
+  try { settings.value = await write<Settings>('/api/settings', {automatic_paused: !settings.value.automatic_paused}, 'PATCH'); emit('message', settings.value.automatic_paused ? '后续自动检查已暂停' : '已恢复自动检查') }
+  catch (failure) { emit('message', failure instanceof Error ? failure.message : '设置未能保存') }
+  finally { busy.value = false }
+}
+async function savePort() {
+  const next = Number(port.value)
+  if (!Number.isInteger(next) || next < 1024 || next > 65535) { error.value = '请输入 1024 到 65535 之间的端口号'; return }
+  busy.value = true
+  try { settings.value = await write<Settings>('/api/settings', {port: next}, 'PATCH'); error.value = ''; emit('message', `端口 ${next} 已保存，重启后生效`) }
+  catch (failure) { error.value = failure instanceof Error ? failure.message : '端口未能保存' }
+  finally { busy.value = false }
+}
+async function login() {
+  busy.value = true
+  try { await api('/api/login', {method: 'POST'}); emit('message', '已开始连接 Pixiv，可继续使用本地图库'); await pollStatus(); await load() }
+  catch (failure) { emit('message', failure instanceof Error ? failure.message : '无法开始登录') }
+  finally { busy.value = false }
+}
+async function submitCode() {
+  if (!oauthCode.value.trim()) return
+  busy.value = true
+  try { await write('/api/submit-code', {code: oauthCode.value.trim()}); oauthCode.value = ''; emit('message', '已提交授权回调，正在确认登录'); await pollStatus() }
+  catch (failure) { emit('message', failure instanceof Error ? failure.message : '授权回调未能提交') }
+  finally { busy.value = false }
+}
+async function pollStatus() {
+  clearTimeout(statusTimer)
+  try {
+    const previous = auth.value?.logged_in
+    auth.value = await api<{logged_in: boolean; login_url: string | null; login_error: string | null}>('/api/status')
+    if (auth.value.logged_in && !previous) await load()
+  } catch { /* Settings remain usable while status is unavailable. */ }
+  if (!stopped) statusTimer = window.setTimeout(pollStatus, 3000)
+}
+async function loadMissing() {
+  try { missing.value = (await api<{items: {id: number; title: string}[]}>(`/api/library/missing-originals?offset=${missingOffset.value}&limit=100`)).items }
+  catch (failure) { emit('message', failure instanceof Error ? failure.message : '缺少原包的作品暂时无法读取') }
+}
+async function browsePath() {
+  try { const result = await api<{path: string}>('/settings/browse-path', {method: 'POST'}); if (result.path) pendingPath.value = result.path }
+  catch (failure) { emit('message', failure instanceof Error ? failure.message : '未能打开目录选择器') }
+}
+async function changePath() {
+  if (!pendingPath.value || pendingPath.value === settings.value?.data_root) return
+  confirmPath.value = false
+  busy.value = true
+  try {
+    const body = new URLSearchParams({new_path: pendingPath.value})
+    const result = await api<{message?: string}>('/settings/change-path', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body})
+    emit('message', result.message || '数据目录已更新'); pendingPath.value = ''; await load()
+  } catch (failure) { emit('message', failure instanceof Error ? failure.message : '数据目录未能更新') }
+  finally { busy.value = false }
+}
+onMounted(() => { theme.value = document.body.dataset.theme === 'light' ? 'light' : 'dark'; void load(); void pollStatus(); void loadMissing() })
+onBeforeUnmount(() => { stopped = true; clearTimeout(statusTimer) })
+</script>
+<template>
+  <section class="settings-page"><div class="settings-heading"><h1>设置</h1><p class="sublead">管理连接、自动检查和本地存储。</p></div>
+    <p v-if="error" class="notice error" role="alert">{{ error }} <button @click="load">重试</button></p>
+    <div v-if="loading && !settings" class="empty">正在读取设置…</div>
+    <template v-if="settings">
+      <h2 class="settings-section-title">账号与检查</h2>
+      <div class="settings-card settings-stack"><div class="setting-top"><div><h3>Pixiv 连接</h3><p>{{ settings.login.status === 'logged_in' || auth?.logged_in ? `已连接${settings.login.account_id ? ` · ${settings.login.account_id}` : ''}` : settings.login.status === 'pending' || auth?.login_url ? '登录进行中' : '离线，本地图库仍可阅读' }}</p></div><button v-if="settings.login.status !== 'logged_in' && !auth?.logged_in" :disabled="busy" @click="login">{{ auth?.login_url ? '重新连接' : '连接 Pixiv' }}</button></div><div v-if="auth?.login_url" class="auth-flow"><a class="softbtn" :href="auth.login_url" target="_blank" rel="noopener noreferrer">打开 Pixiv 授权页面 <Icon name="external" /></a><p>授权后复制浏览器中的 callback 地址，粘贴到下面完成登录。</p><form @submit.prevent="submitCode"><input v-model="oauthCode" type="text" autocomplete="off" spellcheck="false" aria-label="授权回调地址或 code" placeholder="粘贴 callback 地址或 code"><button class="primary" :disabled="busy || !oauthCode.trim()" type="submit">提交回调</button></form></div><p v-if="auth?.login_error" class="error">{{ auth.login_error }}</p></div>
+      <div class="settings-card"><div><h3>自动检查</h3><p>{{ settings.automatic_paused ? '已暂停后续自动检查；当前任务会继续。' : `每 ${settings.check_interval_minutes} 分钟检查一次；当前任务不会中断。` }}</p></div><button :disabled="busy" :aria-pressed="settings.automatic_paused" @click="pause"><Icon :name="settings.automatic_paused ? 'check' : 'pause'" />{{ settings.automatic_paused ? '恢复自动检查' : '暂停自动检查' }}</button></div>
+      <div class="settings-card settings-stack"><div><h3>手动管理</h3><p>按需检查画师、核对本地文件；任务记录保留结果和失败原因。</p></div><div class="settings-controls wrap"><button @click="emit('task', 'check')">检查更新</button><button @click="emit('task', 'repair')">补下载</button><button @click="emit('task', 'metadata')">刷新作品信息</button><button @click="emit('task', 'bookmarks')">同步收藏状态</button><button @click="emit('task', 'verify')">校验存档</button><button @click="emit('history')">任务记录</button></div></div>
+      <div class="settings-card settings-stack"><div><h3>缺少动图原包</h3><p>选择需要补齐的作品，提交后在任务记录查看结果。</p></div><div v-if="missing.length" class="missing-list"><button v-for="work in missing" :key="work.id" @click="emit('task', 'backfill', work.id)">{{ work.title }} · 补回原包</button></div><p v-else class="muted">当前没有列出的缺失原包。</p><div v-if="missing.length === 100 || missingOffset" class="button-row"><button :disabled="missingOffset === 0" @click="missingOffset = Math.max(0, missingOffset - 100); loadMissing()">上一页</button><button :disabled="missing.length < 100" @click="missingOffset += 100; loadMissing()">下一页</button></div></div>
+      <h2 class="settings-section-title">本地存储</h2>
+      <div class="settings-card settings-stack"><div><h3>图库位置</h3><p>{{ settings.stats.artists }} 位画师 · {{ settings.stats.works }} 件作品 · {{ settings.stats.downloaded_pages }} 页已下载</p></div><div class="path-display">{{ settings.data_root }}</div><div class="settings-controls"><button @click="browsePath"><Icon name="folder" />选择目录</button><span v-if="pendingPath" class="muted">{{ pendingPath }}</span><button v-if="pendingPath" :disabled="busy" @click="confirmPath = true">迁移到这里</button></div></div>
+      <div class="settings-card"><div><h3>访问端口</h3><p>当前使用 {{ settings.current_port }}；修改后重启程序才会生效。</p></div><div class="settings-controls"><input v-model="port" type="number" min="1024" max="65535" aria-label="下次启动端口"><button :disabled="busy" @click="savePort">保存端口</button></div></div>
+      <h2 class="settings-section-title">界面</h2>
+      <div class="settings-card"><div><h3>图库浏览方式</h3><p>连续滚动会按需读取作品；页码模式可直接跳页。</p></div><select :value="galleryMode" aria-label="图库浏览方式" @change="emit('galleryMode', ($event.target as HTMLSelectElement).value)"><option value="scroll">连续滚动</option><option value="50">50 件 / 页</option><option value="100">100 件 / 页</option><option value="200">200 件 / 页</option></select></div>
+      <div class="settings-card"><div><h3>外观</h3><p>选择适合当前环境的阅读配色。</p></div><div class="theme-choices"><button :class="{active: theme === 'dark'}" :aria-pressed="theme === 'dark'" @click="theme = 'dark'; emit('theme', 'dark', $event)">深色</button><button :class="{active: theme === 'light'}" :aria-pressed="theme === 'light'" @click="theme = 'light'; emit('theme', 'light', $event)">浅色</button></div></div>
+    </template>
+    <ConfirmDialog v-if="confirmPath" title="迁移本地图库" :description="`将图库从 ${settings?.data_root} 迁移到 ${pendingPath}。现有文件会移动到新位置，请确认当前没有运行中的任务。`" action="开始迁移" @cancel="confirmPath = false" @confirm="changePath" />
+  </section>
+</template>

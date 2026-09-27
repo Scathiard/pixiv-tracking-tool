@@ -87,8 +87,8 @@ def run_smoke_test() -> int:
         raise RuntimeError("打包程序的原件核验和缩略图生成失败")
     index = Path(resource_path("frontend/dist/index.html"))
     reading_ui = index.is_file()
-    if __version__ == "0.2.0" and not reading_ui:
-        raise RuntimeError("v0.2.0 缺少阅览界面产物")
+    if not reading_ui:
+        raise RuntimeError(f"v{__version__} 缺少阅览界面产物")
     asset_paths = re.findall(r"/reader/assets/[^\"']+", index.read_text(encoding="utf-8")) if reading_ui else []
     if reading_ui and not asset_paths:
         raise RuntimeError("阅览界面缺少可加载的脚本与样式")
@@ -97,7 +97,8 @@ def run_smoke_test() -> int:
     async def exercise():
         result = {}
         async with application.router.lifespan_context(application):
-            paths = ["/api/status", "/api/library", "/api/progress", "/", "/illust/1", "/settings"]
+            paths = ["/api/status", "/api/library", "/api/progress", "/api/settings", "/api/artists",
+                     "/api/works/1/bookmark", "/", "/illust/1", "/artists", "/artist/1", "/settings"]
             if reading_ui:
                 paths.extend(["/flow", *asset_paths])
             for path in paths:

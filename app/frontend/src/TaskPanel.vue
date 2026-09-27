@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { api } from './api'
-interface Operation {id: string; label: string; state: string; needs_attention: boolean
+interface Operation {id: string; label: string; state: string; needs_attention: boolean; source?: 'manual' | 'automatic' | 'maintenance'
   phase: {name: string; done: number; total: number | null; unit: string; detail: string}
   result: {outcome?: string; inventory_complete?: boolean; phase_snapshots?: Record<string, {phase: string; unit: string; done: number; total: number | null}>}}
 interface Snapshot {
   round: {id: string; state: string; total: number | null; settled: number; outcome: string | null; counts: Record<string, number>} | null
-  next_round_count: number; needs_attention_count: number; operations: Operation[]; worker_error?: string
+  next_round_count: number; needs_attention_count: number; operations: Operation[]; worker_error?: string; automatic_paused?: boolean
   recovery_issues: {id: string; error: string}[]
 }
 interface TaskDetail extends Operation {items: {key: string; state: string; result: {message?: string}}[]; has_more_items: boolean}
@@ -18,9 +18,13 @@ const states: Record<string, string> = {queued: '已排队', planning: '清点�
 const phases: Record<string, string> = {waiting: '等待', checking: '检查', inventory: '清点', metadata: '画师信息', captions: '作品信息', bookmarks: '收藏状态', downloading: '下载', converting: '生成预览', verifying: '核验', thumbnails: '缩略图', deleting: '删除'}
 const units: Record<string, string> = {artists: '位画师', works: '件作品', pages: '页', assets: '项原件', previews: '件预览', files: '个文件', items: '项'}
 const round = computed(() => snapshot.value?.round)
-const percent = computed(() => !stale.value && round.value?.total ? Math.floor(round.value.settled / round.value.total * 100) : null)
+const activeRound = computed(() => round.value?.state !== 'finished' ? round.value : null)
+const queued = computed(() => snapshot.value?.operations.filter(op => op.state === 'queued') || [])
+const active = computed(() => !!activeRound.value || !!snapshot.value?.operations.some(op => ['queued', 'planning', 'ready', 'running', 'interrupted'].includes(op.state)))
+const percent = computed(() => !stale.value && activeRound.value?.total && ['ready', 'running'].includes(activeRound.value.state) ? Math.floor(activeRound.value.settled / activeRound.value.total * 100) : null)
 const label = computed(() => stale.value ? '暂时无法获取状态' : snapshot.value?.worker_error ? '任务已中断，请重启继续' :
-  round.value ? outcome[round.value.outcome || ''] || (round.value.state === 'planning' ? '正在清点' : '正在处理') : '暂无运行任务')
+  activeRound.value ? activeRound.value.state === 'interrupted' ? '已中断，等待恢复' : activeRound.value.state === 'planning' ? '正在清点' : '正在处理' :
+  queued.value.length ? snapshot.value?.automatic_paused && queued.value.every(op => op.source === 'automatic') ? '等待恢复自动检查' : '已排队' : '暂无运行任务')
 let timer = 0, stopped = false, previousId = '', previousState = '', detailGeneration = 0
 const controller = new AbortController()
 async function showTask(id: string, offset = 0) {
@@ -45,7 +49,7 @@ async function poll() {
 async function older(reset = false) {
   try {
     const page = await api<{items: Operation[]; has_more: boolean}>('/api/tasks?limit=20' + (!reset && cursor.value ? '&before=' + cursor.value : ''))
-    history.value = page.items; hasMore.value = page.has_more; cursor.value = page.items.at(-1)?.id || null
+    history.value = reset ? page.items : [...(history.value || []), ...page.items]; hasMore.value = page.has_more; cursor.value = page.items.at(-1)?.id || null
   } catch (failure) { error.value = failure instanceof Error ? failure.message : '历史记录暂时无法读取' }
 }
 async function acknowledge() {
@@ -60,16 +64,17 @@ async function retry() {
 }
 onMounted(() => { void poll() })
 onBeforeUnmount(() => { stopped = true; controller.abort(); clearTimeout(timer) })
-defineExpose({showTask})
+function openHistory() { open.value = true; void older(true) }
+defineExpose({showTask, openHistory})
 </script>
 <template>
-  <div class="task-status" :class="{stale}" data-no-navigation @keydown.esc.stop="open = false">
+  <div v-if="active || open" class="task-status" :class="{stale}" data-no-navigation @keydown.esc.stop="open = false">
     <button class="task-summary" @click="open = !open" :aria-expanded="open"><span class="status-dot" />{{ label }}<b v-if="percent !== null">{{ percent }}%</b><span v-if="snapshot?.next_round_count"> · 下一轮 {{ snapshot.next_round_count }}</span><span v-if="snapshot?.needs_attention_count" class="attention">{{ snapshot.needs_attention_count }} 项待查看</span><span class="muted">{{ open ? '收起' : '任务记录' }}</span></button>
-    <div class="task-track" role="progressbar" aria-label="本轮处理进度" :aria-valuenow="percent ?? undefined" aria-valuemin="0" aria-valuemax="100"><span :style="{width: `${percent || 0}%`}" /></div>
+    <div v-if="activeRound" class="task-track" :class="{indeterminate: percent === null}" role="progressbar" aria-label="本轮处理进度" :aria-valuenow="percent ?? undefined" aria-valuemin="0" aria-valuemax="100"><span :style="{width: percent === null ? '35%' : `${percent}%`}" /></div>
     <section v-if="open" class="task-panel" aria-label="任务记录"><header><h2>任务记录</h2><button @click="open = false">关闭</button></header>
       <p v-if="stale" class="error">暂时无法获取状态，正在重连；不会刷新阅读页面。</p>
-      <p v-else-if="round?.total !== null && round?.total">本轮 {{ round.settled }} / {{ round.total }} 项已有处理结论</p><p v-else-if="round?.state === 'planning'">正在清点，清单确定后再显示总进度。</p>
-      <p v-if="round" class="result-counts">成功 {{ round.counts.succeeded || 0 }} · 失败 {{ round.counts.failed || 0 }} · 跳过 {{ round.counts.skipped || 0 }} · 未执行 {{ round.counts.not_executed || 0 }}</p>
+      <p v-else-if="activeRound?.total !== null && activeRound?.total">本轮 {{ activeRound.settled }} / {{ activeRound.total }} 项已有处理结论</p><p v-else-if="activeRound?.state === 'planning'">正在清点，清单确定后再显示总进度。</p>
+      <p v-if="activeRound" class="result-counts">成功 {{ activeRound.counts.succeeded || 0 }} · 失败 {{ activeRound.counts.failed || 0 }} · 跳过 {{ activeRound.counts.skipped || 0 }} · 未执行 {{ activeRound.counts.not_executed || 0 }}</p>
       <p v-if="snapshot?.next_round_count">下一轮等待 {{ snapshot.next_round_count }} 个任务，本轮分母保持不变。</p>
       <p v-if="snapshot?.recovery_issues.length" class="error">有文件尚未恢复，相关输入已保留，请检查任务原因。</p>
       <div class="task-tabs"><button @click="history = null">当前与最近</button><button @click="older(true)">历史任务</button><button v-if="history && hasMore" @click="older()">更早的记录</button></div>

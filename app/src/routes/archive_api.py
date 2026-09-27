@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse
@@ -31,7 +32,9 @@ class TrackingEdit(BaseModel):
 
 
 class BookmarkEdit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     desired: bool
+    request_id: UUID
 
 
 class DeleteRequest(BaseModel):
@@ -55,12 +58,12 @@ def parse_filters(parameters) -> LibraryFilter:
         return tuple(sorted(set(int(v) for v in values))) if numeric else tuple(sorted(set(values)))
 
     after, before = None, None
+    reference = datetime.fromisoformat(parameters["as_of"]) if parameters.get("as_of") else utcnow()
+    if reference.tzinfo is not None:
+        raise ValueError("快照时间格式无效")
     period = parameters.get("period")
     intervals = {"24h": 1, "week": 7, "month": 30, "half_year": 183, "year": 365}
     if period in intervals:
-        reference = datetime.fromisoformat(parameters["as_of"]) if parameters.get("as_of") else utcnow()
-        if reference.tzinfo is not None:
-            raise ValueError("快照时间格式无效")
         after = reference - timedelta(days=intervals[period])
     elif period == "custom":
         if parameters.get("posted_after"):
@@ -71,13 +74,23 @@ def parse_filters(parameters) -> LibraryFilter:
         raise ValueError("不支持的日期范围")
     if any(value and value.tzinfo is not None for value in (after, before)):
         raise ValueError("日期筛选请使用 YYYY-MM-DD")
+    q = parameters.get("q", "").strip()
+    if len(q) > 200:
+        raise ValueError("搜索文字过长")
+    for name in ("favorites", "recent"):
+        if parameters.get(name, "0") not in ("0", "1"):
+            raise ValueError("筛选条件无效")
     return LibraryFilter(artist_ids=csv("artist_ids", True), types=csv("types"),
         tags=csv("tags") or (), show_hidden=parameters.get("show_hidden") in ("1", "true"),
-        posted_after=after, posted_before=before, sort=parameters.get("sort", "newest"))
+        posted_after=after, posted_before=before, sort=parameters.get("sort", "newest"),
+        q=q, favorites=parameters.get("favorites") == "1", recent=parameters.get("recent") == "1",
+        as_of=reference)
 
 
 def create_router(get_runtime):
     router = APIRouter()
+    from .settings_api import create_settings_router
+    router.include_router(create_settings_router(get_runtime))
 
     def runtime():
         value = get_runtime()
@@ -95,7 +108,11 @@ def create_router(get_runtime):
     def library(request: Request, offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500), ceiling: int | None = Query(None, ge=0), compact: bool = False):
         parameters = dict(request.query_params)
         parameters.setdefault("as_of", utcnow().isoformat())
-        return {**runtime().library.query(parse_filters(parameters), offset=offset, limit=limit, ceiling=ceiling, compact=compact), "as_of": parameters["as_of"]}
+        try:
+            selected = parse_filters(parameters)
+        except ValueError as exc:
+            raise HTTPException(422, "筛选条件无效") from exc
+        return {**runtime().library.query(selected, offset=offset, limit=limit, ceiling=ceiling, compact=compact), "as_of": parameters["as_of"]}
 
     @router.get("/api/library/feed")
     def feed(request: Request, offset: int = Query(0, ge=0), limit: int = Query(48, ge=1, le=120), ceiling: int = Query(..., ge=0)):
@@ -141,11 +158,36 @@ def create_router(get_runtime):
     @router.post("/api/works/{work_id}/bookmark")
     def bookmark(work_id: int, edit: BookmarkEdit):
         try:
-            return runtime().bookmark(work_id, edit.desired)
-        except KeyError as exc:
+            return runtime().bookmarks.submit(work_id, edit.desired, str(edit.request_id))
+        except LookupError as exc:
+            raise HTTPException(404, "作品不存在") from exc
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(503, safe_failure(exc)["message"]) from exc
+
+    @router.post("/api/works/{work_id}/bookmark/refresh")
+    def refresh_bookmark(work_id: int):
+        try:
+            return runtime().bookmarks.refresh(work_id)
+        except LookupError as exc:
             raise HTTPException(404, "作品不存在") from exc
         except Exception as exc:
             raise HTTPException(503, safe_failure(exc)["message"]) from exc
+
+    @router.get("/api/works/{work_id}/bookmark")
+    def bookmark_state(work_id: int):
+        try:
+            return runtime().bookmarks.state(work_id)
+        except LookupError as exc:
+            raise HTTPException(404, "作品不存在") from exc
+
+    @router.get("/api/bookmark-operations/{operation_id}")
+    def bookmark_operation(operation_id: str):
+        try:
+            return runtime().bookmarks.operation(operation_id)
+        except LookupError as exc:
+            raise HTTPException(404, "收藏操作不存在") from exc
 
     @router.post("/api/works/delete")
     def delete(request: DeleteRequest):
@@ -155,8 +197,9 @@ def create_router(get_runtime):
             raise HTTPException(404, "部分作品不存在，已提交的删除决定仍保留") from exc
 
     @router.get("/api/artists")
-    def artists():
-        return {"items": runtime().library.artists()}
+    def artists(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=100),
+                q: str = Query("", max_length=200)):
+        return runtime().library.artist_page(offset=offset, limit=limit, q=q)
 
     @router.get("/api/artists/search")
     def search_artist(query: str = Query(..., min_length=1, max_length=200)):
@@ -164,6 +207,13 @@ def create_router(get_runtime):
             return {"items": runtime().remote.search_artist(query)}
         except Exception as exc:
             raise HTTPException(503, safe_failure(exc)["message"]) from exc
+
+    @router.get("/api/artists/{artist_id}")
+    def artist(artist_id: int):
+        try:
+            return runtime().library.artist_detail(artist_id)
+        except KeyError as exc:
+            raise HTTPException(404, "画师不存在") from exc
 
     @router.post("/api/artists")
     def add_artist(request: ArtistAdd):
@@ -179,6 +229,15 @@ def create_router(get_runtime):
         except KeyError as exc:
             raise HTTPException(404, "画师不存在") from exc
         return {"ok": True, "mode": edit.mode}
+
+    @router.delete("/api/artists/{artist_id}")
+    def delete_artist(artist_id: int, delete_files: Literal[True] = Query(...)):
+        try:
+            return {"ok": True, **runtime().delete_artist(artist_id)}
+        except KeyError as exc:
+            raise HTTPException(404, "画师不存在") from exc
+        except RuntimeError as exc:
+            raise HTTPException(409, safe_failure(exc)["message"]) from exc
 
     @router.post("/api/tasks")
     def submit(request: TaskSubmission):

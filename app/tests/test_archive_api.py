@@ -1,4 +1,6 @@
 import threading
+import time
+from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
@@ -24,6 +26,7 @@ def archive_api(tmp_path):
         session.add_all([work, ArchiveIntent(pixiv_illust_id="100")])
     for index in range(3):
         Image.new("RGB", (8, 6), "red").save(runtime.images / f"100_p{index}.png")
+    runtime.bookmarks.start()
     app = FastAPI()
     app.add_middleware(RequestBoundaryMiddleware, policy=NetworkPolicy.from_interfaces([]))
     app.include_router(create_router(lambda: runtime))
@@ -79,12 +82,21 @@ def test_backfill_requires_explicit_selection_and_secret_parameters_are_rejected
 
 def test_failed_remote_bookmark_does_not_change_local_cached_result(archive_api):
     client, runtime = archive_api
-    response = client.post("/api/works/1/bookmark", json={"desired": True}, headers={"Origin": "http://localhost"})
-    assert response.status_code == 503
+    response = client.post("/api/works/1/bookmark", json={"desired": True, "request_id": str(uuid4())},
+                           headers={"Origin": "http://localhost"})
+    assert response.status_code == 200
+    operation_id = response.json()["operation_id"]
+    for _ in range(100):
+        result = client.get("/api/bookmark-operations/" + operation_id).json()
+        if result["status"] != "pending":
+            break
+        time.sleep(0.01)
+    assert result["status"] == "unconfirmed"
+    state = client.get("/api/works/1/bookmark").json()
+    assert state["value"] is False and state["cached"] is True
     with runtime.database.read() as session:
         record = session.get(RemoteBookmark, 1)
         assert record.value is False and record.confirmed_at is None
-        assert record.error
 
 
 def test_slow_remote_artist_search_does_not_block_local_library(archive_api):

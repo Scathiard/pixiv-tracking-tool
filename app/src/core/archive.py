@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import PurePosixPath
 from urllib.parse import urlsplit
 
@@ -19,9 +19,47 @@ from .tasks import ItemResult, ItemSpec, safe_failure
 
 
 class ArchiveHandler:
-    def __init__(self, kind, database, publisher: Publisher, client, downloader=None):
+    def __init__(self, kind, database, publisher: Publisher, client, downloader=None, *, bookmarks=None, profiles=None):
         self.kind, self.database, self.publisher, self.client = kind, database, publisher, client
         self.downloader = downloader or AssetDownloader()
+        self.bookmarks, self.profiles = bookmarks, profiles
+
+    def _bookmark_account(self):
+        if self.bookmarks is None:
+            return None
+        try:
+            return self.client.get_account_id()
+        except Exception:
+            # An unknown account must not turn a metadata field into a fact.
+            return None
+
+    def _bookmark_scope(self, artist_id):
+        if self.bookmarks is None:
+            return {}, None
+        account = self._bookmark_account()
+        if account is None:
+            return {}, None
+        with self.database.read() as session:
+            works = list(session.execute(select(Work.id, Work.pixiv_illust_id).where(
+                Work.artist_id == artist_id, ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(
+                    ArchiveIntent.mode == "suppressed")))))
+        versions = self.bookmarks.begin_observations([row.id for row in works])
+        return {row.pixiv_illust_id: versions.get(row.id) for row in works}, account
+
+    def _apply_bookmark(self, work_id, data, version, account):
+        if work_id is not None and account is not None and self._bookmark_account() == account:
+            return self.bookmarks.apply_observation(work_id, data.get("is_bookmarked"), account, version)
+        return False
+
+    def _refresh_work(self, artist_id, remote_id, work_id):
+        account = self._bookmark_account()
+        version = self.bookmarks.begin_observation(work_id) if account is not None else None
+        data = self.client.get_illust_detail(remote_id)
+        if str(data.get("illust_id", "")) != str(remote_id):
+            raise InvalidMedia("主站返回的作品编号与请求不符，已有信息保留")
+        result = self._save_remote_work(artist_id, data)
+        self._apply_bookmark(result, data, version, account)
+        return result
 
     def _artist_ids(self, parameters, context):
         if "started_artist_ids" in parameters:
@@ -32,7 +70,8 @@ class ArchiveHandler:
             with self.database.read() as session:
                 from .models import Operation
                 operation = session.get(Operation, context.operation_id)
-                modes = ("active",) if operation.source == "automatic" else ("active", "paused")
+                modes = (("active",) if operation.source == "automatic" else
+                         ("active", "paused", "stopped") if self.kind == "bookmarks" else ("active", "paused"))
                 result = list(session.scalars(select(Artist.id).join(TrackingPolicy).where(
                     TrackingPolicy.mode.in_(modes)).order_by(Artist.id)))
         context.checkpoint_parameters({**parameters, "started_artist_ids": result})
@@ -75,8 +114,6 @@ class ArchiveHandler:
             work.tags = [existing_tags[tag] if tag in existing_tags else WorkTag(tag=tag) for tag in sorted(remote_tags)]
             if work.bookmark is None:
                 work.bookmark = RemoteBookmark()
-            if data.get("is_bookmarked") is not None:
-                work.bookmark.value, work.bookmark.confirmed_at = bool(data["is_bookmarked"]), utcnow()
             work.source_metadata = {**(work.source_metadata or {}), "urls": data.get("urls", [])}
             session.flush()
             existing_assets = {(asset.role, asset.page_index): asset for asset in work.assets}
@@ -123,8 +160,18 @@ class ArchiveHandler:
                             raise KeyError(artist_id)
                         remote_id, name = artist.pixiv_user_id, artist.name
                     context.report("checking", index, len(ids), "artists", f"正在检查 {name}")
+                    if self.profiles is not None and (artist.profile_refreshed_at is None or
+                            artist.profile_refreshed_at < utcnow() - timedelta(days=1)):
+                        try:
+                            self.profiles.refresh(artist_id)
+                        except Exception as exc:
+                            specs.append(ItemSpec(f"profile-error-{artist_id}", "error", safe_failure(exc), "metadata", "artists"))
+                    versions, account = self._bookmark_scope(artist_id)
                     for data in self.client.get_all_artist_illusts(remote_id):
-                        self._save_remote_work(artist_id, data)
+                        work_id = self._save_remote_work(artist_id, data)
+                        # New works begin at version zero; any newer user action
+                        # wins before this older discovery response is applied.
+                        self._apply_bookmark(work_id, data, versions.get(str(data["illust_id"]), 0), account)
                     with self.database.write() as session:
                         session.get(Artist, artist_id).last_checked_at = utcnow()
                 except Exception as exc:
@@ -200,7 +247,7 @@ class ArchiveHandler:
                 if work.type == "ugoira":
                     metadata = self.client.get_ugoira_metadata(work.pixiv_illust_id)
                 elif any(not asset.source_url for asset in missing):
-                    self._save_remote_work(work.artist_id, self.client.get_illust_detail(work.pixiv_illust_id))
+                    self._refresh_work(work.artist_id, work.pixiv_illust_id, work_id)
                     with self.database.read() as session:
                         missing = [session.get(Asset, asset.id) for asset in missing]
             for asset in missing:
@@ -419,7 +466,7 @@ class ArchiveHandler:
                 if work is None or intent is None or intent.mode == "suppressed":
                     return ItemResult("skipped", {"message": "作品已删除，不再刷新信息"})
                 artist_id, remote_id = work.artist_id, work.pixiv_illust_id
-            result = self._save_remote_work(artist_id, self.client.get_illust_detail(remote_id))
+            result = self._refresh_work(artist_id, remote_id, item.target["work_id"])
             return ItemResult("succeeded" if result else "skipped")
         artist_id = item.target["artist_id"]
         with self.database.read() as session:
@@ -428,18 +475,39 @@ class ArchiveHandler:
                 return ItemResult("skipped", {"message": "画师记录不存在"})
             remote_id = artist.pixiv_user_id
         if item.kind == "metadata_artist":
-            data = self.client.get_artist_detail(remote_id)
-            with self.database.write() as session:
-                artist = session.get(Artist, artist_id)
-                artist.name, artist.account, artist.avatar_url = data["name"], data.get("account"), data.get("avatar_url")
-        else:
-            for data in self.client.get_all_artist_illusts(remote_id):
-                if data.get("is_bookmarked") is None:
-                    continue
+            if self.profiles is not None:
+                self.profiles.refresh(artist_id)
+            else:
+                data = self.client.get_artist_detail(remote_id)
                 with self.database.write() as session:
-                    work = session.scalar(select(Work).where(Work.pixiv_illust_id == str(data["illust_id"])))
-                    if work is not None:
-                        if work.bookmark is None:
-                            work.bookmark = RemoteBookmark()
-                        work.bookmark.value, work.bookmark.confirmed_at = bool(data["is_bookmarked"]), utcnow()
+                    artist = session.get(Artist, artist_id)
+                    artist.name, artist.account, artist.avatar_url = data["name"], data.get("account"), data.get("avatar_url")
+        else:
+            versions, account = self._bookmark_scope(artist_id)
+            if account is None:
+                return ItemResult("failed", {"message": "无法核实当前账号，已保留最近收藏缓存"})
+            remaining, confirmed, unknown, superseded = set(versions), 0, 0, 0
+            for data in self.client.get_all_artist_illusts(remote_id):
+                remote_work_id = str(data["illust_id"])
+                if remote_work_id not in remaining:
+                    continue
+                remaining.remove(remote_work_id)
+                if versions[remote_work_id] is None:
+                    superseded += 1
+                    continue
+                if type(data.get("is_bookmarked")) is not bool:
+                    unknown += 1
+                    continue
+                with self.database.read() as session:
+                    work_id = session.scalar(select(Work.id).where(Work.pixiv_illust_id == remote_work_id))
+                if self._apply_bookmark(work_id, data, versions[remote_work_id], account):
+                    confirmed += 1
+                else:
+                    superseded += 1
+            unknown += len(remaining)
+            detail = {"confirmed_works": confirmed, "unconfirmed_works": unknown,
+                      "superseded_works": superseded}
+            if unknown:
+                return ItemResult("failed", {**detail, "message": f"已核实 {confirmed} 件；{unknown} 件未取得明确的主站状态，已保留缓存"})
+            return ItemResult("succeeded" if confirmed else "skipped", detail)
         return ItemResult()

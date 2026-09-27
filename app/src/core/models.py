@@ -30,6 +30,9 @@ class Artist(Base):
     name: Mapped[str] = mapped_column(String)
     account: Mapped[str | None] = mapped_column(String)
     avatar_url: Mapped[str | None] = mapped_column(Text)
+    biography: Mapped[str | None] = mapped_column(Text)
+    avatar_path: Mapped[str | None] = mapped_column(Text)
+    profile_refreshed_at: Mapped[datetime | None] = mapped_column(DateTime)
     added_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime)
     # Historical locations are mappings, not names to rename when the artist changes name.
@@ -95,9 +98,36 @@ class LocalPreference(Base):
 class RemoteBookmark(Base):
     __tablename__ = "remote_bookmarks"
     work_id: Mapped[int] = mapped_column(ForeignKey("works.id"), primary_key=True)
-    value: Mapped[bool] = mapped_column(Boolean, default=False)
+    value: Mapped[bool | None] = mapped_column(Boolean)
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime)
     error: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String, default="legacy_cache")
+    account_id: Mapped[str | None] = mapped_column(String)
+    version: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class ApplicationState(Base):
+    __tablename__ = "application_state"
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    value: Mapped[dict | list | str | int | float | bool | None] = mapped_column(JSON)
+
+
+class BookmarkOperation(Base):
+    __tablename__ = "bookmark_operations"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_id)
+    request_id: Mapped[str] = mapped_column(String, unique=True)
+    work_id: Mapped[int] = mapped_column(ForeignKey("works.id"), index=True)
+    desired: Mapped[bool | None] = mapped_column(Boolean)
+    kind: Mapped[str] = mapped_column(String)
+    account_id: Mapped[str | None] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String, default="pending")
+    phase: Mapped[str] = mapped_column(String, default="queued")
+    version: Mapped[int] = mapped_column(Integer)
+    write_started_at: Mapped[datetime | None] = mapped_column(DateTime)
+    read_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
 class ArchiveIntent(Base):

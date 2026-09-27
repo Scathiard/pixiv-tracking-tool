@@ -5,13 +5,14 @@ import { api, url, write } from './api'
 import { LatestIntent } from './interaction'
 import type { GalleryBatch, WorkCard } from './types'
 import MediaImage from './MediaImage.vue'
+import BookmarkButton from './components/BookmarkButton.vue'
 const props = defineProps<{query: string; startIndex: number; pageSize: number; continuous: boolean}>()
-const emit = defineEmits<{open: [index: number]; anchor: [index: number]; total: [count: number]; page: [index: number]}>()
+const emit = defineEmits<{open: [index: number]; artist: [id: number]; message: [text: string]; anchor: [index: number, workId: number]; total: [count: number]; page: [index: number]}>()
 const viewport = ref<HTMLDivElement | null>(null), works = ref<WorkCard[]>([]), total = ref(0)
 const page = ref(0), start = ref(0), columns = ref(5), width = ref(1000), loading = ref(false), error = ref('')
 const request = new LatestIntent(), thumbs = new Set<number>()
 let observer: ResizeObserver | null = null, restoreIndex = 0, refreshTimer = 0, refreshes = 0, restoring = false, scrollFrame = 0
-const rowHeight = computed(() => (width.value - 16 * (columns.value - 1)) / columns.value + 70)
+const rowHeight = computed(() => ((width.value - 16 * (columns.value - 1)) / columns.value) * 1.15 + 77)
 const virtual = useVirtualizer(computed(() => ({count: Math.ceil(works.value.length / columns.value),
   getScrollElement: () => viewport.value, estimateSize: () => rowHeight.value, overscan: 2})))
 const rows = computed(() => virtual.value.getVirtualItems())
@@ -91,7 +92,9 @@ function readScroll() {
   if (restoring) return
   const row = rows.value.find(row => row.end > (viewport.value?.scrollTop || 0))
   if (!row) return
-  restoreIndex = start.value + row.index * columns.value; emit('anchor', restoreIndex)
+  restoreIndex = start.value + row.index * columns.value
+  const work = works.value[row.index * columns.value]
+  if (work) emit('anchor', restoreIndex, work.id)
   if (!props.continuous || loading.value || error.value) return
   if (row.index > Math.ceil(works.value.length / columns.value) - 12) void extend(1)
   else if (row.index < 6) void extend(-1)
@@ -100,7 +103,7 @@ watch(() => [props.query, props.pageSize, props.continuous], restart)
 onMounted(() => {
   observer = new ResizeObserver(entries => {
     const rect = entries[0]?.contentRect
-    if (rect) { width.value = rect.width; columns.value = Math.max(2, Math.floor((rect.width + 16) / 205)) }
+    if (rect) { width.value = rect.width; columns.value = Math.max(2, Math.floor((rect.width + 16) / 260)) }
   })
   if (viewport.value) observer.observe(viewport.value)
   window.addEventListener('archive-updated', refresh)
@@ -114,11 +117,12 @@ onBeforeUnmount(() => { request.cancel(); observer?.disconnect(); clearTimeout(r
     <div ref="viewport" class="gallery-viewport" @scroll.passive="scroll" :aria-busy="loading">
       <div class="gallery-window" :data-window-size="works.length" :data-start="start" :style="{height: `${virtual.getTotalSize()}px`}">
         <div v-for="row in rows" :key="String(row.key)" class="gallery-row" :style="{transform: `translateY(${row.start}px)`, gridTemplateColumns: `repeat(${columns},minmax(0,1fr))`}">
-          <button v-for="(work, col) in works.slice(row.index * columns, (row.index + 1) * columns)" :key="work.id"
-            class="work-card" :class="{'is-hidden': work.is_hidden}" :data-work-id="work.id" @click="emit('open', start + row.index * columns + col)">
-            <div class="card-picture"><MediaImage :src="work.thumbnail" :label="work.title" thumbnail /><span v-if="work.type === 'ugoira' || work.page_count > 1" class="card-count">{{ work.type === 'ugoira' ? '动图' : work.page_count + ' 页' }}</span></div>
-            <strong>{{ work.title }}</strong><small>{{ work.artist_name }}<span v-if="work.is_hidden"> · 已隐藏</span></small>
-          </button>
+          <article v-for="(work, col) in works.slice(row.index * columns, (row.index + 1) * columns)" :key="work.id"
+            class="work-card" :class="{'is-hidden': work.is_hidden}" :data-work-id="work.id">
+            <button class="card-open" :aria-label="`查看 ${work.title}`" @click="emit('open', start + row.index * columns + col)"><div class="card-picture"><MediaImage :src="work.thumbnail" :label="work.title" thumbnail /><span v-if="work.type === 'ugoira' || work.page_count > 1" class="card-count">{{ work.type === 'ugoira' ? '动图' : work.page_count + ' 页' }}</span></div><strong>{{ work.title }}</strong></button>
+            <button class="card-artist" @click="emit('artist', work.artist_id)">{{ work.artist_name }}<span v-if="work.is_hidden"> · 已隐藏</span></button>
+            <BookmarkButton :work-id="work.id" :initial="work.bookmark" compact @message="emit('message', $event)" />
+          </article>
         </div>
       </div>
       <div v-if="!works.length" class="empty"><h2>{{ loading ? '正在读取本地图库' : '这个范围里还没有作品' }}</h2><p>{{ loading ? '图片不会重新从 Pixiv 下载。' : '调整筛选，或从画师管理添加想要存档的画师。' }}</p><a v-if="!loading" href="/artists">前往画师管理</a></div>

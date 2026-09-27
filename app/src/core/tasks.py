@@ -12,7 +12,7 @@ from typing import Protocol
 from sqlalchemy import and_, func, or_, select
 
 from .database import ArchiveDatabase
-from .models import Operation, OperationItem, TaskRound, utcnow
+from .models import ApplicationState, Operation, OperationItem, TaskRound, utcnow
 
 log = logging.getLogger(__name__)
 SETTLED = ("succeeded", "failed", "skipped", "not_executed")
@@ -101,6 +101,23 @@ class TaskQueue:
         with self.database.write():
             self._accepting = bool(accepting)
 
+    def automatic_paused(self) -> bool:
+        with self.database.read() as session:
+            setting = session.get(ApplicationState, "automatic_paused")
+            return setting is not None and setting.value is True
+
+    def set_automatic_paused(self, paused: bool) -> bool:
+        if type(paused) is not bool:
+            raise ValueError("暂停设置必须是布尔值")
+        with self.database.write() as session:
+            setting = session.get(ApplicationState, "automatic_paused")
+            if setting is None:
+                session.add(ApplicationState(key="automatic_paused", value=paused))
+            else:
+                setting.value = paused
+        self._wake.set()
+        return paused
+
     def submit(self, kind: str, parameters: dict, label: str, source="manual") -> dict:
         if kind not in self.handlers or source not in ("manual", "automatic", "maintenance"):
             raise ValueError("不支持的任务类型或来源")
@@ -174,8 +191,12 @@ class TaskQueue:
                 TaskRound.state.in_(("planning", "running"))).order_by(TaskRound.created_at))
             if current is not None:
                 return current.id
+            paused = session.get(ApplicationState, "automatic_paused")
+            eligible = [Operation.state == "queued", Operation.round_id.is_(None)]
+            if paused is not None and paused.value is True:
+                eligible.append(Operation.source != "automatic")
             waiting = list(session.scalars(select(Operation).where(
-                Operation.state == "queued", Operation.round_id.is_(None)).order_by(
+                *eligible).order_by(
                     Operation.created_at, Operation.id)))
             if not waiting:
                 return None
@@ -189,6 +210,12 @@ class TaskQueue:
     def _plan(self, operation_id):
         with self.database.write() as session:
             operation = session.get(Operation, operation_id)
+            paused = session.get(ApplicationState, "automatic_paused")
+            if (operation.source == "automatic" and operation.state == "queued"
+                    and operation.started_at is None and paused is not None and paused.value is True):
+                # A pause may arrive after round selection but before this batch starts.
+                operation.round_id = None
+                return False
             operation.state, operation.phase = "planning", "checking"
             operation.started_at = operation.started_at or utcnow()
             kind, parameters = operation.kind, operation.parameters
@@ -217,6 +244,7 @@ class TaskQueue:
                     unit=spec.unit, depends_on=list(spec.depends_on),
                     state="failed" if failure else "pending", result=failure or {}))
             operation.state = "ready"
+        return True
 
     def run_round(self) -> bool:
         """Run one frozen round; submissions made after claim stay in the next round."""
@@ -229,16 +257,19 @@ class TaskQueue:
             with self.database.read() as session:
                 operations = list(session.scalars(select(Operation).where(
                     Operation.round_id == round_id).order_by(Operation.created_at, Operation.id)))
+            included = []
             for operation in operations:
                 if self._stop.is_set():
                     return False
                 if operation.state in ("queued", "planning"):
-                    self._plan(operation.id)
+                    if not self._plan(operation.id):
+                        continue
+                included.append(operation)
             with self.database.write() as session:
                 current = session.get(TaskRound, round_id)
                 current.state = "running"
                 current.frozen_at = current.frozen_at or utcnow()
-            for operation in operations:
+            for operation in included:
                 if self._stop.is_set():
                     return False
                 if operation.state in SETTLED or operation.state == "finished":
@@ -336,12 +367,14 @@ class TaskQueue:
                 Operation.finished_at.desc()).limit(max(1, min(history_limit, 100)))))
             attention_count = session.scalar(select(func.count()).select_from(Operation).where(Operation.needs_attention.is_(True)))
             return {"round": rounds, "next_round_count": waiting, "needs_attention_count": attention_count,
+                    "automatic_paused": bool((setting := session.get(ApplicationState, "automatic_paused")) and setting.value),
                     "worker_error": self.worker_error,
                     "operations": [self._operation_view(op) for op in active + history]}
 
     @staticmethod
     def _operation_view(op):
         return {"id": op.id, "round_id": op.round_id, "kind": op.kind, "label": op.label,
+                "source": op.source,
                 "state": op.state, "phase": {"name": op.phase, "unit": op.phase_unit,
                     "done": op.phase_done, "total": op.phase_total, "detail": op.detail},
                 "result": op.result, "needs_attention": op.needs_attention,

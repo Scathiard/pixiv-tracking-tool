@@ -9,6 +9,7 @@ import MediaImage from './MediaImage.vue'
 const props = defineProps<{mode: 'reader' | 'feed'; loader: PageLoader; initial: Anchor | null; sessionKey: string; inactive?: boolean}>()
 const emit = defineEmits<{focus: [page: PageData, anchor: Anchor]; navigate: [delta: number]; zoom: [page: PageData]}>()
 const viewport = ref<HTMLDivElement | null>(null), pages = ref<PageData[]>([]), total = ref(0)
+const before = ref<HTMLDivElement | null>(null), beforeHeight = ref(0)
 const size = ref({width: 1000, height: 760}), loading = ref(false), error = ref('')
 const gesture = new DirectionGesture(), intent = new LatestIntent()
 let observer: ResizeObserver | null = null, restoring = false, frame = 0, lastAnchor: Anchor | null = null
@@ -18,17 +19,21 @@ function height(page: PageData | undefined) {
   const availableWidth = Math.max(100, Math.min(1100, size.value.width - (size.value.width < 600 ? 16 : 56)))
   const ratio = page?.width && page.height ? page.height / page.width : 1.35
   const natural = availableWidth * ratio
-  return Math.max(120, props.mode === 'reader' ? Math.min(natural, size.value.height - 84) : natural)
+  return Math.max(120, props.mode === 'reader' ? Math.min(natural, size.value.height - 84) : Math.min(natural, 1600))
 }
 const virtual = useVirtualizer(computed(() => ({
   count: pages.value.length, getScrollElement: () => viewport.value,
   getItemKey: (index: number) => pages.value[index]?.index ?? index,
   estimateSize: (index: number) => height(pages.value[index]) + 48,
-  overscan: 2, gap: 16,
+  overscan: 2, gap: 16, scrollMargin: beforeHeight.value,
 })))
 const rows = computed(() => virtual.value.getVirtualItems())
 const fullHeight = computed(() => virtual.value.getTotalSize())
-function measure(element: unknown) { if (element instanceof HTMLElement) virtual.value.measureElement(element) }
+function measure(element: unknown) {
+  if (element instanceof HTMLElement) virtual.value.measureElement(element)
+  // Vue clears refs before removing DOM; prune measurements after that removal.
+  else if (element === null) void nextTick(() => virtual.value.measureElement(null))
+}
 function current(): {page: PageData; anchor: Anchor} | null {
   const top = viewport.value?.scrollTop || 0
   const row = rows.value.find(row => row.end > top + 2) || rows.value[0]
@@ -62,7 +67,9 @@ async function jump(index: number, offset = 0) {
     if (target && pages.value.length) await prepareImage(target.src, request.signal)
     if (!request.current()) return
     pages.value = batch.items; total.value = batch.total
-    if (target) await restore({work_id: target.work_id, page: target.page, offset, index: target.index, work_index: target.work_index})
+    if (target && target.index === 0 && index === 0 && offset === 0) {
+      await nextTick(); viewport.value?.scrollTo({top: 0, behavior: 'instant'}); await paint()
+    } else if (target) await restore({work_id: target.work_id, page: target.page, offset, index: target.index, work_index: target.work_index})
     else viewport.value?.scrollTo({top: 0})
   } catch (failure) {
     if (request.current()) error.value = failure instanceof Error ? failure.message : '图片页未能载入'
@@ -122,8 +129,9 @@ function dimensions(page: PageData, width: number, height: number) { page.width 
 function retry() { failedAction?.() }
 watch(() => props.sessionKey, () => { lastAnchor = null; void jump(props.initial?.index || 0, props.initial?.offset || 0) })
 onMounted(() => {
-  observer = new ResizeObserver(entries => { const rect = entries[0]?.contentRect; if (rect) size.value = {width: rect.width, height: rect.height} })
+  observer = new ResizeObserver(entries => { for (const entry of entries) { const rect = entry.contentRect; if (entry.target === viewport.value) size.value = {width: rect.width, height: rect.height}; else if (entry.target === before.value) beforeHeight.value = rect.height } })
   if (viewport.value) observer.observe(viewport.value)
+  if (before.value) observer.observe(before.value)
   void jump(props.initial?.index || 0, props.initial?.offset || 0)
 })
 onBeforeUnmount(() => { intent.cancel(); observer?.disconnect(); cancelAnimationFrame(frame) })
@@ -133,10 +141,11 @@ defineExpose({readAnchor, jump, scrollBy: (delta: number) => viewport.value?.scr
   <div class="reading-surface">
     <div ref="viewport" class="page-viewport" :class="mode" tabindex="0" aria-label="图片阅读区"
       @scroll.passive="scroll" @pointerdown="down" @pointermove="move" @pointerup="up" @pointercancel="gesture.cancel($event.pointerId)">
+      <div ref="before" class="reader-before"><slot name="before" /></div>
       <div class="page-window" :style="{height: `${fullHeight}px`}" :data-window-size="pages.length">
         <figure v-for="row in rows" :key="String(row.key)" :ref="measure" class="image-page" :data-index="row.index"
           :data-global-index="pages[row.index]!.index" :data-work-id="pages[row.index]!.work_id" :data-page="pages[row.index]!.page"
-          :style="{transform: `translateY(${row.start}px)`}">
+          :style="{transform: `translateY(${row.start - beforeHeight}px)`}">
           <figcaption><span class="page-title">{{ pages[row.index]!.title }} <small>{{ pages[row.index]!.artist_name }}</small></span>
             <span class="page-number">{{ pages[row.index]!.page + 1 }} / {{ pages[row.index]!.page_count }}</span>
             <button class="quiet" :disabled="!pages[row.index]!.src" @click="emit('zoom', pages[row.index]!)" aria-label="放大此页">放大</button>
@@ -147,6 +156,7 @@ defineExpose({readAnchor, jump, scrollBy: (delta: number) => viewport.value?.scr
           </div>
         </figure>
       </div>
+      <div class="reader-after"><slot name="after" /></div>
       <p v-if="!loading && !pages.length" class="empty">当前范围没有可阅读的作品。</p>
       <p v-if="pages.length && pages.at(-1)!.index + 1 === total" class="end-mark">已到{{ mode === 'feed' ? '当前图库范围' : '这件作品' }}末尾</p>
     </div>

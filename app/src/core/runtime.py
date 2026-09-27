@@ -2,17 +2,18 @@
 from __future__ import annotations
 
 from pathlib import Path
-from threading import RLock
 
 from sqlalchemy import func, select
 
 from .archive import ArchiveHandler
+from .bookmarks import BookmarkService
 from .database import ArchiveDatabase
 from .library import Library
 from .media import Publisher, contained_path
-from .models import ArchiveIntent, Artist, Asset, Derivative, Operation, PublicationJournal, RemoteBookmark, TrackingPolicy, Work, utcnow
+from .models import ArchiveIntent, Artist, Asset, Derivative, Operation, PublicationJournal, TrackingPolicy, Work, utcnow
 from .ownership import LibraryLease
-from .tasks import TaskQueue, safe_failure
+from .profiles import ArtistProfiles
+from .tasks import TaskQueue
 
 
 class LoginRequired(RuntimeError):
@@ -33,6 +34,18 @@ class RemoteAccess:
             raise LoginRequired(LoginRequired.user_message)
         return getattr(client, name)
 
+    def get_account_id(self):
+        client = self.runtime.client
+        if client is None:
+            self.runtime.account_id = self.runtime.library.account_id = None
+            self.runtime.bookmarks.mark_disconnected()
+            raise LoginRequired(LoginRequired.user_message)
+        account_id = client.get_account_id()
+        # Local catalogue responses remain explicitly cached. An OAuth identity
+        # alone does not prove that the current network can reach Pixiv.
+        self.runtime.account_id = account_id
+        return account_id
+
 
 class Runtime:
     def __init__(self, database_path: Path, images: Path, *, create=False, client=None, downloader=None):
@@ -43,29 +56,41 @@ class Runtime:
             self.lease.close()
             raise
         self.images, self.client = Path(images).resolve(), client
+        self.account_id = None
         self.library = Library(self.database)
         self.publisher = Publisher(self.database, self.images)
         remote = RemoteAccess(self)
         self.remote = remote
+        self.bookmarks = BookmarkService(self.database, remote,
+                                         is_available=lambda: self.client is not None,
+                                         current_account=lambda: self.account_id)
+        self.library.bookmarks = self.bookmarks
+        self.profiles = ArtistProfiles(self.database, self.publisher, remote)
         self.queue = TaskQueue(self.database, {
-            kind: ArchiveHandler(kind, self.database, self.publisher, remote, downloader)
+            kind: ArchiveHandler(kind, self.database, self.publisher, remote, downloader,
+                                 bookmarks=self.bookmarks, profiles=self.profiles)
             for kind in ("check", "metadata", "bookmarks", "repair", "verify", "backfill", "thumbnails", "delete")})
-        self._bookmark_lock = RLock()
 
     def start(self):
         self.publisher.recover()
+        self.bookmarks.start()
         self.queue.recover()
         self.queue.start()
 
     def close(self):
+        self.bookmarks.accept_submissions(False)
         if not self.queue.stop():
             # Do not release ownership or dispose a DB still used by network work.
+            return False
+        if not self.bookmarks.stop():
             return False
         self.database.close()
         self.lease.close()
         return True
 
     def busy(self):
+        if self.bookmarks.busy():
+            return True
         with self.database.read() as session:
             return bool(session.scalar(select(func.count()).select_from(Operation).where(
                 Operation.state.in_(("queued", "planning", "ready", "running", "interrupted")))))
@@ -84,6 +109,9 @@ class Runtime:
             artist.policy.mode, artist.policy.updated_at = "active", utcnow()
             session.flush()
             artist_id = artist.id
+        # Fetching profile text/avatar is part of the visible background task.
+        # Adding an artist still succeeds when a remote avatar is unavailable.
+        self.queue.submit("metadata", {"artist_ids": [artist_id]}, f"刷新 {data['name']} 的资料")
         operation = self.queue.submit("check", {"artist_ids": [artist_id]}, f"检查 {data['name']}")
         return {"artist_id": artist_id, **operation}
 
@@ -114,34 +142,14 @@ class Runtime:
         return self.queue.submit("delete", {"work_ids": ids}, "删除画师的已有存档")
 
     def bookmark(self, work_id, desired: bool | None = None):
-        with self._bookmark_lock:
-            with self.database.read() as session:
-                work = session.get(Work, work_id)
-                if work is None:
-                    raise KeyError(work_id)
-                remote_id = work.pixiv_illust_id
-                current = bool(work.bookmark and work.bookmark.value)
-            desired = not current if desired is None else desired
-            try:
-                if desired:
-                    self.remote.add_bookmark(remote_id, restrict="public")
-                else:
-                    self.remote.delete_bookmark(remote_id)
-            except Exception as exc:
-                with self.database.write() as session:
-                    record = session.get(RemoteBookmark, work_id)
-                    if record is None:
-                        record = RemoteBookmark(work_id=work_id, value=current)
-                        session.add(record)
-                    record.error = safe_failure(exc)["message"]
-                raise
-            with self.database.write() as session:
-                record = session.get(RemoteBookmark, work_id)
-                if record is None:
-                    record = RemoteBookmark(work_id=work_id)
-                    session.add(record)
-                record.value, record.confirmed_at, record.error = desired, utcnow(), None
-            return {"ok": True, "is_bookmarked": desired}
+        """Legacy adapter shares the same confirmed-fact service as the new UI."""
+        from uuid import uuid4
+        if desired is None:
+            current = self.bookmarks.state(work_id)
+            if current["value"] is None:
+                return self.bookmarks.refresh(work_id)
+            desired = not current["value"]
+        return self.bookmarks.submit(work_id, desired, uuid4().hex)
 
     def media_path(self, relative):
         if relative.startswith((".staging/", ".recovery/", ".archive-writer")):
@@ -151,7 +159,7 @@ class Runtime:
         except ValueError:
             return None
         with self.database.read() as session:
-            allowed = False
+            allowed = session.scalar(select(Artist.id).where(Artist.avatar_path == relative).limit(1)) is not None
             for model in (Asset, Derivative):
                 work_id = session.scalar(select(model.work_id).join(Work).where(model.relative_path == relative,
                     ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(ArchiveIntent.mode == "suppressed"))).limit(1))

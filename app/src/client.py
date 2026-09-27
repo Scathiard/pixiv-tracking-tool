@@ -52,6 +52,7 @@ def _get_auth_header():
 class PixivClient:
     _last_request = 0.0
     _lock = threading.Lock()
+    _bookmark_cooldown_until = 0.0
 
     def __init__(self):
         pass
@@ -76,20 +77,10 @@ class PixivClient:
                 time.sleep(2 * (attempt + 1))
 
     def _do_post(self, endpoint, headers, data):
-        """带连接重试的 POST。"""
-        for attempt in range(3):
-            try:
-                r = requests.post(
-                    f"{API_HOST}{endpoint}",
-                    headers=headers,
-                    data=data or {},
-                    timeout=30,
-                )
-                return r
-            except (requests.exceptions.SSLError, requests.exceptions.ConnectionError):
-                if attempt == 2:
-                    raise
-                time.sleep(2 * (attempt + 1))
+        """A remote write may commit before a transport error, so send it once."""
+        return requests.post(
+            f"{API_HOST}{endpoint}", headers=headers, data=data or {}, timeout=30,
+        )
 
     def _request(self, endpoint, params, retry_token):
         self._throttle()
@@ -148,31 +139,108 @@ class PixivClient:
         if "error" not in resp:
             return resp
 
-        err_msg = str(resp["error"])
-        err_lower = err_msg.lower()
-
-        # 限流——等待后重试（最多 3 次）
-        if "rate" in err_lower:
-            for attempt in range(3):
-                wait = 60 * (attempt + 1)
-                time.sleep(wait)
-                self._last_request = time.time()
-                r = self._do_post(endpoint, headers, data)
-                resp = _checked_response(r)
-                if "error" not in resp:
-                    return resp
-
         raise PixivRequestError(r.status_code, "Pixiv 拒绝了此次操作，远端结果尚未确认")
+
+    def get_account_id(self):
+        """Use the identity returned with OAuth tokens, refreshing old tokens once."""
+        from .auth import _load_token, _try_refresh_token
+        token = _load_token()
+        account_id = token.get("user_id")
+        if not account_id:
+            if not _try_refresh_token():
+                raise PixivRequestError(401, "无法确认当前 Pixiv 账号")
+            account_id = _load_token().get("user_id")
+        if not isinstance(account_id, (str, int)) or not str(account_id).isdigit():
+            raise PixivRequestError(401, "无法确认当前 Pixiv 账号")
+        return str(account_id)
+
+    def read_bookmark(self, illust_id):
+        """A missing or non-boolean field is unknown, never false."""
+        result = self._get("/v1/illust/detail", {"illust_id": illust_id})
+        illust = result.get("illust")
+        if not isinstance(illust, dict) or str(illust.get("id", "")) != str(illust_id):
+            return None
+        value = illust.get("is_bookmarked") if isinstance(illust, dict) else None
+        return value if type(value) is bool else None
+
+    @staticmethod
+    def _bound_headers(account_id):
+        from .auth import _load_token
+        token = _load_token()
+        if str(token.get("user_id", "")) != str(account_id) or not token.get("access_token"):
+            raise PixivRequestError(401, "当前 Pixiv 账号已变化")
+        return {
+            "Authorization": f"Bearer {token['access_token']}",
+            "Accept-Language": "zh-cn", "App-OS": "ios",
+            "App-OS-Version": "16.7.2", "App-Version": "7.19.1",
+            "User-Agent": "PixivIOSApp/7.19.1 (iOS 16.7.2; iPhone14,2)",
+        }
+
+    def write_bookmark(self, illust_id, desired, account_id):
+        """Capture identity and bearer together, then issue exactly one POST."""
+        headers = self._bound_headers(account_id)
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        endpoint = "/v2/illust/bookmark/add" if desired else "/v1/illust/bookmark/delete"
+        data = {"illust_id": illust_id}
+        if desired:
+            data["restrict"] = "public"
+        self._bookmark_throttle()
+        response = self._do_post(endpoint, headers, data)
+        self._note_bookmark_limit(response)
+        result = _checked_response(response)
+        if "error" in result:
+            raise PixivRequestError(response.status_code, "Pixiv 拒绝了此次收藏操作")
+        return result
+
+    def read_bookmark_bound(self, illust_id, account_id):
+        """One throttled read using the captured account's token."""
+        headers = self._bound_headers(account_id)
+        self._bookmark_throttle()
+        response = requests.get(f"{API_HOST}/v1/illust/detail", headers=headers,
+                                params={"illust_id": illust_id}, timeout=30)
+        self._note_bookmark_limit(response)
+        if _token_expired(response):
+            from .auth import _try_refresh_token
+            _try_refresh_token()
+            raise PixivRequestError(response.status_code, "收藏核对登录已更新，请重试回读")
+        result = _checked_response(response)
+        if "error" in result:
+            raise PixivRequestError(response.status_code, "Pixiv 拒绝了此次收藏核对")
+        illust = result.get("illust")
+        if not isinstance(illust, dict) or str(illust.get("id", "")) != str(illust_id):
+            return None
+        value = illust.get("is_bookmarked") if isinstance(illust, dict) else None
+        return value if type(value) is bool else None
+
+    def _bookmark_throttle(self):
+        with type(self)._lock:
+            if time.monotonic() < type(self)._bookmark_cooldown_until:
+                raise PixivRequestError(429, "Pixiv 收藏请求受限，请稍后手动核对")
+        self._throttle()
+
+    @classmethod
+    def _note_bookmark_limit(cls, response):
+        if response.status_code != 429:
+            return
+        headers = getattr(response, "headers", {})
+        raw = headers.get("Retry-After", "60") if headers else "60"
+        try:
+            seconds = max(1, min(int(raw), 600))
+        except (TypeError, ValueError):
+            seconds = 60
+        with cls._lock:
+            cls._bookmark_cooldown_until = max(
+                cls._bookmark_cooldown_until, time.monotonic() + seconds)
 
     def add_bookmark(self, illust_id, restrict="public"):
         """收藏作品。restrict: 'public'=公开, 'private'=私有。"""
         return self._post("/v2/illust/bookmark/add",
-                          {"illust_id": illust_id, "restrict": restrict})
+                          {"illust_id": illust_id, "restrict": restrict}, retry_token=False)
 
     def delete_bookmark(self, illust_id):
         """取消收藏。"""
         return self._post("/v1/illust/bookmark/delete",
-                          {"illust_id": illust_id})
+                          {"illust_id": illust_id}, retry_token=False)
 
     @classmethod
     def _throttle(cls):
@@ -207,6 +275,7 @@ class PixivClient:
             "name": user["name"],
             "account": user["account"],
             "avatar_url": user["profile_image_urls"]["medium"],
+            "biography": user.get("comment") if isinstance(user.get("comment"), str) else None,
             "total_illusts": user.get("total_illusts", 0),
         }
 

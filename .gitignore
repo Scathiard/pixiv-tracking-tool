@@ -16,3 +16,9 @@ pixiv_token.json
 .obsidian/
 docs/.obsidian/
 manga-image-translator-windows-x86_64/
+
+# Project-local build dependencies and validation caches.
+node_modules/
+app/frontend/dist/
+.devtools/
+.worktrees/

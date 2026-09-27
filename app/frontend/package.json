@@ -8,6 +8,16 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "build": "vue-tsc --noEmit && vite build"
   },
-  "dependencies": {"vue": "3.5.43", "@tanstack/vue-virtual": "3.13.39"},
-  "devDependencies": {"vite": "8.3.1", "@vitejs/plugin-vue": "6.0.9", "typescript": "5.9.3", "vue-tsc": "3.3.11", "@types/node": "24.10.0"}
+  "dependencies": {
+    "@tanstack/vue-virtual": "3.13.39",
+    "vue": "3.5.43",
+    "vue-router": "4.6.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.0",
+    "@vitejs/plugin-vue": "6.0.9",
+    "typescript": "5.9.3",
+    "vite": "8.3.1",
+    "vue-tsc": "3.3.11"
+  }
 }

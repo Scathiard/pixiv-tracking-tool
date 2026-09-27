@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -62,7 +63,7 @@ def main():
             page.locator('.work-card[data-work-id="1"]').wait_for()
             assert '.webp' in page.locator('.card-picture img').first.get_attribute('src').split('?')[0]
             checks.append("exe-opens-new-local-gallery-and-thumbnail")
-            page.locator('.work-card[data-work-id="1"]').click()
+            page.locator('.work-card[data-work-id="1"] .card-picture').click()
             page.locator('.image-page img').first.wait_for()
             page.wait_for_function("document.querySelector('.image-page img').complete")
             assert page.locator('.image-page img').first.get_attribute('src').endswith('/images/1_p0.png')
@@ -71,14 +72,25 @@ def main():
             page.get_by_role("button", name="放大此页", exact=True).first.click()
             page.get_by_role("dialog", name="放大查看").wait_for()
             page.get_by_role("button", name="关闭放大", exact=False).click()
-            page.get_by_role("button", name="流式阅览", exact=True).click()
+            page.get_by_role("navigation", name="主导航").get_by_role("button", name="流式", exact=False).click()
             page.locator('.page-viewport.feed').wait_for()
             page.wait_for_function("!document.querySelector('.reader-notice')")
             page.screenshot(path=str(artifacts / "exe-feed.png"))
             checks.append("exe-zoom-and-feed-share-synthetic-library")
             page.goto(origin + "/settings", wait_until="domcontentloaded")
-            assert page.get_by_text("设置", exact=False).count() > 0
-            checks.append("exe-old-settings-adapter-remains-accessible")
+            page.locator(".settings-page").wait_for()
+            page.get_by_text("离线，本地图库仍可阅读", exact=True).wait_for()
+            checks.append("exe-real-settings-remain-usable-offline")
+            for label in ("浅色", "深色", "浅色", "深色"):
+                page.get_by_role("button", name=label, exact=True).click()
+                assert page.locator("body").get_attribute("data-theme") == ("light" if label == "浅色" else "dark")
+            page.reload()
+            page.locator(".settings-page").wait_for()
+            assert page.locator("body").get_attribute("data-theme") == "dark"
+            checks.append("exe-theme-rapid-clicks-and-reload")
+            page.goto(origin + "/artist/1")
+            page.locator(".artist-profile").wait_for()
+            checks.append("exe-direct-artist-route-and-local-profile")
             phone = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
             mobile = phone.new_page()
             mobile.on("pageerror", lambda error: page_errors.append(str(error)))
@@ -100,6 +112,7 @@ def main():
         output.close()
         (artifacts / "result.json").write_text(json.dumps({"checks": checks,
             "page_errors": page_errors, "exe_exit_code": code, "package_report": str(package_report),
+            "exe_sha256": hashlib.sha256(exe.read_bytes()).hexdigest(),
             "real_account_used": False, "real_library_used": False, "real_phone_tested": False},
             ensure_ascii=False, indent=2), encoding="utf-8")
     if code != 0 or not package_report.is_file():

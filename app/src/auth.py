@@ -7,7 +7,7 @@ import webbrowser
 import threading
 import requests
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from requests.structures import CaseInsensitiveDict
 
 import gallery_dl.config as gdl_config
@@ -81,17 +81,24 @@ REDIRECT_URI = "https://app-api.pixiv.net/web/v1/users/auth/pixiv/callback"
 TOKEN_URL = "https://oauth.secure.pixiv.net/auth/token"
 
 
-def _save_token(access_token, refresh_token):
+def _account_id_from_response(response):
+    body = response.get("response", response) if isinstance(response, dict) else {}
+    user = body.get("user") if isinstance(body, dict) else None
+    value = user.get("id") if isinstance(user, dict) else None
+    return str(value) if isinstance(value, (str, int)) and str(value).isdigit() else None
+
+
+def _save_token(access_token, refresh_token, user_id=None):
     """原子写入 token，避免断电或进程退出留下半截 JSON。"""
     token_path = _token_file()
     token_path.parent.mkdir(parents=True, exist_ok=True)
     temporary = token_path.with_name(
         f"{token_path.name}.{secrets.token_hex(4)}.tmp"
     )
-    payload = json.dumps(
-        {"access_token": access_token, "refresh_token": refresh_token},
-        ensure_ascii=False,
-    )
+    record = {"access_token": access_token, "refresh_token": refresh_token}
+    if user_id is not None:
+        record["user_id"] = str(user_id)
+    payload = json.dumps(record, ensure_ascii=False)
     with _token_lock:
         try:
             with temporary.open("w", encoding="utf-8") as handle:
@@ -125,7 +132,7 @@ def _try_refresh_token():
         return None
 
     try:
-        local_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        local_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
         headers = CaseInsensitiveDict({
             "x-client-time": local_time,
             "x-client-hash": hashlib.md5(
@@ -148,8 +155,10 @@ def _try_refresh_token():
             return None
 
         resp = r.json()
-        next_refresh_token = resp.get("refresh_token") or refresh_token
-        _save_token(resp["access_token"], next_refresh_token)
+        body = resp.get("response", resp)
+        next_refresh_token = body.get("refresh_token") or refresh_token
+        _save_token(body["access_token"], next_refresh_token,
+                    _account_id_from_response(resp))
         return next_refresh_token
 
     except Exception:
@@ -232,17 +241,19 @@ def _oauth_pkce():
             print("\n[X] code 已过期，请重新启动程序再试一次。\n")
         else:
             print(f"\n[X] Token 交换失败: HTTP {r.status_code}")
-            print(f"  {r.text}\n")
+            print("  请重试或重新登录。\n")
         return None
 
     resp = r.json()
     if "error" in resp:
-        print(f"\n[X] {resp}\n")
+        print("\n[X] Token 交换被拒绝。\n")
         return None
 
-    _save_token(resp["access_token"], resp["refresh_token"])
+    body = resp.get("response", resp)
+    _save_token(body["access_token"], body["refresh_token"],
+                _account_id_from_response(resp))
     print("\n[OK] 登录成功！\n")
-    return resp["refresh_token"]
+    return body["refresh_token"]
 
 
 def _find_system_browser():
