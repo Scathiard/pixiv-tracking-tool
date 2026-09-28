@@ -39,6 +39,8 @@ button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer;mi
 .card-picture>.restriction-badge,.artist-work-image>.restriction-badge{position:absolute;top:8px;left:8px;z-index:1;pointer-events:none}
 .artist-work-image{position:relative}
 .bookmark-button{width:44px;height:44px;padding:0;justify-content:center}
+.feed .page-picture,.feed .page-picture .media-image,.feed .page-picture img{height:auto}
+.feed .page-picture .media-placeholder{height:auto;aspect-ratio:1/1.35}
 .info-actions .bookmark-button{justify-content:center}
 .detail-bottom-actions{max-width:1100px;margin:14px auto 0;padding:0 20px;display:flex;justify-content:flex-end}
 @media(max-width:760px){.detail-bottom-actions{padding-inline:12px}.image-page figcaption .restriction-badge{font-size:10px;padding:3px 5px}}

@@ -1,0 +1,190 @@
+{
+  "media_lookup": {
+    "works": 15244,
+    "assets": 44992,
+    "derivatives": 15244,
+    "artists": 83,
+    "request_count": 100,
+    "before_plan": [
+      [
+        4,
+        0,
+        216,
+        "SCAN assets"
+      ],
+      [
+        8,
+        0,
+        45,
+        "SEARCH works USING INTEGER PRIMARY KEY (rowid=?)"
+      ],
+      [
+        14,
+        0,
+        0,
+        "LIST SUBQUERY 1"
+      ],
+      [
+        17,
+        14,
+        216,
+        "SCAN archive_intents"
+      ],
+      [
+        25,
+        14,
+        0,
+        "CREATE BLOOM FILTER"
+      ]
+    ],
+    "before_ms": 92.61,
+    "after_plan": [
+      [
+        5,
+        0,
+        62,
+        "SEARCH assets USING INDEX synthetic_assets_relative_path (relative_path=?)"
+      ],
+      [
+        12,
+        0,
+        45,
+        "SEARCH works USING INTEGER PRIMARY KEY (rowid=?)"
+      ],
+      [
+        18,
+        0,
+        0,
+        "LIST SUBQUERY 1"
+      ],
+      [
+        21,
+        18,
+        216,
+        "SCAN archive_intents"
+      ],
+      [
+        29,
+        18,
+        0,
+        "CREATE BLOOM FILTER"
+      ]
+    ],
+    "after_ms": 0.37,
+    "note": "Pure in-memory SQL microbenchmark; excludes HTTP, filesystem, ORM, and real-library latency."
+  },
+  "feed_window": {
+    "works": 15244,
+    "pages_per_work": 3,
+    "window_pages": 40,
+    "plan": [
+      [
+        2,
+        0,
+        0,
+        "CO-ROUTINE ranges"
+      ],
+      [
+        6,
+        2,
+        0,
+        "CO-ROUTINE (subquery-5)"
+      ],
+      [
+        10,
+        6,
+        224,
+        "SCAN works USING INDEX ix_works_order"
+      ],
+      [
+        18,
+        6,
+        0,
+        "LIST SUBQUERY 2"
+      ],
+      [
+        21,
+        18,
+        216,
+        "SCAN local_preferences"
+      ],
+      [
+        29,
+        18,
+        0,
+        "CREATE BLOOM FILTER"
+      ],
+      [
+        44,
+        6,
+        0,
+        "LIST SUBQUERY 1"
+      ],
+      [
+        47,
+        44,
+        216,
+        "SCAN archive_intents"
+      ],
+      [
+        55,
+        44,
+        0,
+        "CREATE BLOOM FILTER"
+      ],
+      [
+        85,
+        2,
+        213,
+        "SCAN (subquery-5)"
+      ],
+      [
+        135,
+        0,
+        213,
+        "SCAN ranges"
+      ],
+      [
+        150,
+        0,
+        0,
+        "USE TEMP B-TREE FOR ORDER BY"
+      ]
+    ],
+    "windows": [
+      {
+        "offset": 0,
+        "returned_works": 14,
+        "ten_windows_ms": 66.62
+      },
+      {
+        "offset": 22000,
+        "returned_works": 14,
+        "ten_windows_ms": 67.62
+      },
+      {
+        "offset": 45000,
+        "returned_works": 14,
+        "ten_windows_ms": 71.06
+      }
+    ],
+    "note": "Equivalent single window SQL in memory; actual feed also computes total and loads pages/media."
+  },
+  "conditional_http": {
+    "served_file": "app/src/version.py (synthetic path adapter)",
+    "initial": {
+      "status": 200,
+      "body_bytes": 23,
+      "cache_control": null,
+      "has_etag": true
+    },
+    "matching_etag": {
+      "status": 200,
+      "body_bytes": 23
+    },
+    "matching_modified_since": {
+      "status": 200,
+      "body_bytes": 23
+    }
+  }
+}

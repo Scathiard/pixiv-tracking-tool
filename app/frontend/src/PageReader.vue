@@ -17,10 +17,11 @@ let observer: ResizeObserver | null = null, restoring = false, frame = 0, lastAn
 let failedAction: (() => void) | null = null
 const MAX_PAGES = 120, CHUNK = 40
 function height(page: PageData | undefined) {
-  const availableWidth = Math.max(100, Math.min(1100, size.value.width - (size.value.width < 600 ? 16 : 56)))
+  const padding = props.mode === 'feed' ? (size.value.width <= 760 ? 28 : 44) : (size.value.width < 600 ? 16 : 56)
+  const availableWidth = Math.max(1, Math.min(props.mode === 'feed' ? 690 : 1100, size.value.width - padding))
   const ratio = page?.width && page.height ? page.height / page.width : 1.35
   const natural = availableWidth * ratio
-  return Math.max(120, props.mode === 'reader' ? Math.min(natural, size.value.height - 84) : Math.min(natural, 1600))
+  return props.mode === 'reader' ? Math.max(120, Math.min(natural, size.value.height - 84)) : Math.max(1, natural)
 }
 const virtual = useVirtualizer(computed(() => ({
   count: pages.value.length, getScrollElement: () => viewport.value,
@@ -147,13 +148,15 @@ defineExpose({readAnchor, jump, scrollBy: (delta: number) => viewport.value?.scr
         <figure v-for="row in rows" :key="String(row.key)" :ref="measure" class="image-page" :data-index="row.index"
           :data-global-index="pages[row.index]!.index" :data-work-id="pages[row.index]!.work_id" :data-page="pages[row.index]!.page"
           :style="{transform: `translateY(${row.start - beforeHeight}px)`}">
-          <figcaption><span class="page-title">{{ pages[row.index]!.title }} <small>{{ pages[row.index]!.artist_name }}</small></span>
-            <RestrictionBadge v-if="mode === 'feed'" :value="pages[row.index]!.x_restrict" />
+          <figcaption><span v-if="mode === 'feed' && pages[row.index]!.page === 0" class="page-title">{{ pages[row.index]!.title }} <small>{{ pages[row.index]!.artist_name }}</small></span>
+            <RestrictionBadge v-if="mode === 'feed' && pages[row.index]!.page === 0" :value="pages[row.index]!.x_restrict" />
             <span class="page-number">{{ pages[row.index]!.page + 1 }} / {{ pages[row.index]!.page_count }}</span>
             <button class="quiet" :disabled="!pages[row.index]!.src" @click="emit('zoom', pages[row.index]!)" aria-label="放大此页">放大</button>
           </figcaption>
-          <div class="page-picture" :style="{height: `${height(pages[row.index])}px`}">
+          <div class="page-picture" :style="mode === 'reader' ? {height: `${height(pages[row.index])}px`} : undefined">
             <MediaImage :src="pages[row.index]!.src" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
+              :width="mode === 'feed' ? pages[row.index]!.width || 1000 : undefined"
+              :height="mode === 'feed' ? pages[row.index]!.height || 1350 : undefined"
               @size="(width, height) => dimensions(pages[row.index]!, width, height)" @zoom="emit('zoom', pages[row.index]!)" />
           </div>
         </figure>

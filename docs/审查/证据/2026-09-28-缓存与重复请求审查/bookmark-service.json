@@ -1,0 +1,59 @@
+{
+  "after_restart_before_network": {
+    "work_id": 1,
+    "operation_id": null,
+    "status": "confirmed",
+    "desired": null,
+    "value": true,
+    "confirmed_at": "2026-09-28T00:00:00Z",
+    "error": null,
+    "version": 1,
+    "cached": true
+  },
+  "first_refresh": {
+    "work_id": 1,
+    "operation_id": "789f11aa0e474f95833cdc2b3ff7a762",
+    "status": "confirmed",
+    "desired": null,
+    "value": true,
+    "confirmed_at": "2026-09-28T15:02:26.560268Z",
+    "error": null,
+    "version": 2,
+    "cached": false,
+    "id": "789f11aa0e474f95833cdc2b3ff7a762",
+    "request_id": "cde7600b-fddf-48ef-a9e9-0bba12b9b157",
+    "kind": "refresh",
+    "phase": "finished",
+    "read_attempts": 1,
+    "created_at": "2026-09-28T15:02:26.320350Z"
+  },
+  "fresh_repeat_refresh": {
+    "work_id": 1,
+    "operation_id": "33eac2afb5c34e83815c2571611b725d",
+    "status": "confirmed",
+    "desired": null,
+    "value": true,
+    "confirmed_at": "2026-09-28T15:02:26.843416Z",
+    "error": null,
+    "version": 3,
+    "cached": false,
+    "id": "33eac2afb5c34e83815c2571611b725d",
+    "request_id": "d253b3aa-0af8-4639-8acd-d64c2fe4cd8f",
+    "kind": "refresh",
+    "phase": "finished",
+    "read_attempts": 1,
+    "created_at": "2026-09-28T15:02:26.678389Z"
+  },
+  "remote_reads_before_ttl_expired": 2,
+  "expired_cached_fact": {
+    "work_id": 1,
+    "operation_id": "33eac2afb5c34e83815c2571611b725d",
+    "status": "confirmed",
+    "desired": null,
+    "value": true,
+    "confirmed_at": "2026-09-28T15:02:26.843416Z",
+    "error": null,
+    "version": 3,
+    "cached": true
+  }
+}

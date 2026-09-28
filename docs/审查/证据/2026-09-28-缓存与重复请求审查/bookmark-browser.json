@@ -1,0 +1,369 @@
+{
+  "observations": {
+    "home_persisted_facts": {
+      "true_local_values": 32,
+      "visible_cards": 12,
+      "red_hearts": 0,
+      "remote_reads": 0
+    },
+    "persisted_true_before_readback": {
+      "local": {
+        "work_id": 31,
+        "operation_id": "e50d043b684c41f9a8ac816d079a8d1c",
+        "status": "pending",
+        "desired": null,
+        "value": true,
+        "confirmed_at": "2026-09-28T14:59:23.150317Z",
+        "error": null,
+        "version": 2,
+        "cached": true
+      },
+      "class": "bookmark-button pending cached",
+      "red": false,
+      "remote_reads": 1
+    },
+    "after_readback": {
+      "red": true,
+      "remote_reads": 1
+    },
+    "reload_within_fresh_period": {
+      "new_remote_reads": 1
+    },
+    "second_tab_same_fresh_work": {
+      "new_remote_reads": 1
+    },
+    "four_feed_skips": {
+      "new_remote_reads": 4,
+      "toolbar_class": "bookmark-button on"
+    }
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "url": "/api/progress",
+      "at": 1.0
+    },
+    {
+      "method": "GET",
+      "url": "/api/status",
+      "at": 1.0
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?limit=1",
+      "at": 1.032
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.520936&limit=1",
+      "at": 1.078
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.520936&recent=1&limit=1",
+      "at": 1.078
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.520936&favorites=1&limit=1",
+      "at": 1.078
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.520936&offset=0&limit=240&compact=1",
+      "at": 1.078
+    },
+    {
+      "method": "GET",
+      "url": "/api/progress",
+      "at": 1.407
+    },
+    {
+      "method": "GET",
+      "url": "/api/status",
+      "at": 1.407
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?limit=1",
+      "at": 1.407
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?limit=1",
+      "at": 1.407
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&limit=1",
+      "at": 1.422
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&recent=1&limit=1",
+      "at": 1.422
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&favorites=1&limit=1",
+      "at": 1.422
+    },
+    {
+      "method": "GET",
+      "url": "/api/library/locate?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&work_id=31",
+      "at": 1.422
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&offset=0&limit=240&compact=1",
+      "at": 1.422
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&offset=1&limit=1",
+      "at": 1.438
+    },
+    {
+      "method": "GET",
+      "url": "/api/works/31?page_limit=1&page_offset=0",
+      "at": 1.453
+    },
+    {
+      "method": "GET",
+      "url": "/api/works/31?page_offset=0&page_limit=64",
+      "at": 1.516
+    },
+    {
+      "method": "POST",
+      "url": "/api/works/31/bookmark/refresh",
+      "at": 1.516
+    },
+    {
+      "method": "GET",
+      "url": "/api/bookmark-operations/e50d043b684c41f9a8ac816d079a8d1c",
+      "at": 2.469
+    },
+    {
+      "method": "GET",
+      "url": "/api/progress",
+      "at": 2.485
+    },
+    {
+      "method": "GET",
+      "url": "/api/status",
+      "at": 2.485
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&limit=1",
+      "at": 2.485
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&limit=1",
+      "at": 2.5
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&limit=1",
+      "at": 2.5
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&recent=1&limit=1",
+      "at": 2.5
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&favorites=1&limit=1",
+      "at": 2.5
+    },
+    {
+      "method": "GET",
+      "url": "/api/library/locate?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&work_id=31",
+      "at": 2.5
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&offset=0&limit=240&compact=1",
+      "at": 2.5
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&offset=1&limit=1",
+      "at": 2.516
+    },
+    {
+      "method": "GET",
+      "url": "/api/works/31?page_limit=1&page_offset=0",
+      "at": 2.578
+    },
+    {
+      "method": "GET",
+      "url": "/api/works/31?page_offset=0&page_limit=64",
+      "at": 2.625
+    },
+    {
+      "method": "POST",
+      "url": "/api/works/31/bookmark/refresh",
+      "at": 2.625
+    },
+    {
+      "method": "GET",
+      "url": "/api/bookmark-operations/d9d041d118304e8ba04435ceb888c7ee",
+      "at": 3.594
+    },
+    {
+      "method": "GET",
+      "url": "/api/progress",
+      "at": 4.016
+    },
+    {
+      "method": "GET",
+      "url": "/api/library?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&offset=1&limit=1",
+      "at": 5.328
+    },
+    {
+      "method": "GET",
+      "url": "/api/library/locate?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&work_id=31",
+      "at": 5.344
+    },
+    {
+      "method": "GET",
+      "url": "/api/library/feed?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&offset=1984&limit=64",
+      "at": 5.344
+    },
+    {
+      "method": "GET",
+      "url": "/api/library/feed?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&offset=1985&limit=64",
+      "at": 5.407
+    },
+    {
+      "method": "POST",
+      "url": "/api/works/30/bookmark/refresh",
+      "at": 5.438
+    },
+    {
+      "method": "GET",
+      "url": "/api/progress",
+      "at": 5.532
+    },
+    {
+      "method": "GET",
+      "url": "/api/bookmark-operations/28125fa2a13d4edaa9b335795b58a27d",
+      "at": 6.407
+    },
+    {
+      "method": "GET",
+      "url": "/api/progress",
+      "at": 7.032
+    },
+    {
+      "method": "GET",
+      "url": "/api/library/feed?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&offset=1988&limit=64",
+      "at": 8.125
+    },
+    {
+      "method": "POST",
+      "url": "/api/works/29/bookmark/refresh",
+      "at": 8.422
+    },
+    {
+      "method": "GET",
+      "url": "/api/progress",
+      "at": 8.547
+    },
+    {
+      "method": "GET",
+      "url": "/api/bookmark-operations/e28f5669338547a490693ac6a33b7ec3",
+      "at": 9.141
+    },
+    {
+      "method": "GET",
+      "url": "/api/progress",
+      "at": 10.047
+    },
+    {
+      "method": "GET",
+      "url": "/api/library/feed?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&offset=1989&limit=64",
+      "at": 10.844
+    },
+    {
+      "method": "POST",
+      "url": "/api/works/28/bookmark/refresh",
+      "at": 10.86
+    },
+    {
+      "method": "GET",
+      "url": "/api/progress",
+      "at": 11.563
+    },
+    {
+      "method": "GET",
+      "url": "/api/bookmark-operations/36f042e4780a45218af57fdfb0f55b81",
+      "at": 11.86
+    },
+    {
+      "method": "GET",
+      "url": "/api/progress",
+      "at": 13.078
+    },
+    {
+      "method": "GET",
+      "url": "/api/library/feed?ceiling=32&as_of=2026-09-28T14%3A59%3A24.904018&offset=1990&limit=64",
+      "at": 13.563
+    },
+    {
+      "method": "POST",
+      "url": "/api/works/27/bookmark/refresh",
+      "at": 13.594
+    },
+    {
+      "method": "GET",
+      "url": "/api/progress",
+      "at": 14.594
+    },
+    {
+      "method": "GET",
+      "url": "/api/bookmark-operations/5c3ab7a481e449c28e6c2ba9c1b8a530",
+      "at": 14.75
+    },
+    {
+      "method": "GET",
+      "url": "/api/progress",
+      "at": 16.11
+    }
+  ],
+  "remote_reads": [
+    {
+      "id": "100031",
+      "at": 743551.906
+    },
+    {
+      "id": "100031",
+      "at": 743552.968
+    },
+    {
+      "id": "100031",
+      "at": 743554.437
+    },
+    {
+      "id": "100030",
+      "at": 743555.781
+    },
+    {
+      "id": "100029",
+      "at": 743558.593
+    },
+    {
+      "id": "100028",
+      "at": 743561.25
+    },
+    {
+      "id": "100027",
+      "at": 743564.125
+    }
+  ],
+  "real_account_used": false,
+  "real_library_used": false
+}

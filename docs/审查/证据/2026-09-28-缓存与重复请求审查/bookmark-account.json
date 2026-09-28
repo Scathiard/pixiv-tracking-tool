@@ -1,0 +1,41 @@
+{
+  "ui_state": {
+    "work_id": 1,
+    "operation_id": null,
+    "status": "confirmed",
+    "desired": null,
+    "value": true,
+    "confirmed_at": "2026-09-28T00:00:00Z",
+    "error": null,
+    "version": 1,
+    "cached": true
+  },
+  "ui_heart_on": false,
+  "frontend_target": false,
+  "account_B_before": true,
+  "writes": [
+    {
+      "account": "account-B",
+      "desired": false
+    }
+  ],
+  "account_B_after": false,
+  "result": {
+    "work_id": 1,
+    "operation_id": "c24e78a8004b4c398ab7174d2f9ebc48",
+    "status": "confirmed",
+    "desired": false,
+    "value": false,
+    "confirmed_at": "2026-09-28T15:03:57.318782Z",
+    "error": null,
+    "version": 2,
+    "cached": false,
+    "id": "c24e78a8004b4c398ab7174d2f9ebc48",
+    "request_id": "0fcf497d-7ef3-47f2-9542-5d2773b5c31f",
+    "kind": "write",
+    "phase": "finished",
+    "read_attempts": 1,
+    "created_at": "2026-09-28T15:03:57.202359Z"
+  },
+  "real_account_used": false
+}
