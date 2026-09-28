@@ -3,7 +3,7 @@ import { computed, onMounted } from 'vue'
 import { bookmarkBusy, bookmarkState, ingestBookmark, refreshBookmark, toggleBookmark } from '../state/bookmarks'
 import type { BookmarkState } from '../types'
 import Icon from './Icon.vue'
-const props = defineProps<{workId: number; initial?: BookmarkState; compact?: boolean; refreshOnMount?: boolean}>()
+const props = defineProps<{workId: number; initial?: BookmarkState; refreshOnMount?: boolean}>()
 const emit = defineEmits<{message: [text: string]}>()
 const state = computed(() => bookmarkState(props.workId))
 const known = computed(() => typeof state.value?.value === 'boolean')
@@ -25,4 +25,4 @@ async function click() {
   } catch (failure) { emit('message', failure instanceof Error ? failure.message : '收藏状态未能确认') }
 }
 </script>
-<template><button type="button" class="bookmark-button" :class="{on, pending, problem, cached: state?.cached, unknown: !known}" :disabled="pending" :title="title" :aria-label="title" :aria-pressed="known && !state?.cached ? on : undefined" @click.stop="click"><Icon name="heart" /><span v-if="!compact">{{ pending ? '核对中' : problem ? state?.status === 'failed' ? '操作失败' : '待确认' : state?.cached ? lastValue ? '上次已收藏' : '上次未收藏' : !known ? '收藏（状态未知）' : on ? '已收藏' : '收藏' }}</span><small v-if="!compact && confirmedAt" class="bookmark-time">最近核实 {{ confirmedAt }}</small><span v-if="problem" class="bookmark-alert" aria-hidden="true">!</span><span v-else-if="state?.cached" class="cached-dot" aria-label="上次确认的状态" /><span v-else-if="compact && !known && !pending" class="bookmark-unknown" aria-hidden="true">?</span></button></template>
+<template><button type="button" class="bookmark-button" :class="{on, pending, problem, cached: state?.cached, unknown: !known}" :disabled="pending" :title="title" :aria-label="title" :aria-pressed="known && !state?.cached ? on : undefined" :aria-busy="pending" @click.stop="click"><Icon name="heart" /></button></template>

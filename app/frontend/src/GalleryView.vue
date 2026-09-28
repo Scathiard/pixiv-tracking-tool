@@ -122,7 +122,7 @@ onBeforeUnmount(() => { request.cancel(); observer?.disconnect(); clearTimeout(r
             class="work-card" :class="{'is-hidden': work.is_hidden}" :data-work-id="work.id">
             <button class="card-open" :aria-label="`查看 ${work.title}${work.x_restrict === 2 ? '，R-18G' : work.x_restrict === 1 ? '，R-18' : ''}`" @click="emit('open', start + row.index * columns + col)"><div class="card-picture"><MediaImage :src="work.thumbnail" :label="work.title" thumbnail /><RestrictionBadge :value="work.x_restrict" /><span v-if="work.type === 'ugoira' || work.page_count > 1" class="card-count">{{ work.type === 'ugoira' ? '动图' : work.page_count + ' 页' }}</span></div><strong>{{ work.title }}</strong></button>
             <button class="card-artist" @click="emit('artist', work.artist_id)">{{ work.artist_name }}<span v-if="work.is_hidden"> · 已隐藏</span></button>
-            <BookmarkButton :work-id="work.id" :initial="work.bookmark" compact @message="emit('message', $event)" />
+            <BookmarkButton :work-id="work.id" :initial="work.bookmark" @message="emit('message', $event)" />
           </article>
         </div>
       </div>
