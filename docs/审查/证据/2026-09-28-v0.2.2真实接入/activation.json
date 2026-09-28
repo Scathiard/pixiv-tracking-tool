@@ -1,0 +1,33 @@
+{
+  "stage": "activated",
+  "version": "0.2.2",
+  "backup_directory": "D:\\PixivTracker-v022-backup\\20260928-104556",
+  "database": "D:\\PixivTracker\\data\\pixiv_tracker.db",
+  "schema": "0002_client",
+  "exe": "D:\\PixivTracker\\PixivTracker_v0.2.2.exe",
+  "exe_sha256": "21014f005577878292771bd98a7079c279c44acd45b9a8f562fd095d972ca5a2",
+  "snapshot_sha256": "fa7703e1eac65b20cf1c110ec2c47616f29eb77e213d339269db86ac05b3587f",
+  "counts": {
+    "archive_intents": 15244,
+    "artists": 83,
+    "assets": 48376,
+    "derivatives": 1655,
+    "local_preferences": 15244,
+    "operation_items": 240,
+    "operations": 1,
+    "publication_journal": 240,
+    "remote_bookmarks": 15244,
+    "task_rounds": 1,
+    "tracking_policies": 83,
+    "work_tags": 113081,
+    "works": 15244
+  },
+  "row_content_preserved": true,
+  "old_bookmark_values_preserved": true,
+  "old_bookmark_confirmation_cleared": true,
+  "automatic_paused": true,
+  "protected_files_unchanged": true,
+  "media_paths_changed": false,
+  "real_account_used": false,
+  "application_started": false
+}
