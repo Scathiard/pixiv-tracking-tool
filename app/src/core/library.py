@@ -182,7 +182,7 @@ class Library:
                 ArchiveIntent.mode == "suppressed"))).group_by(Work.artist_id)).all()) if ids else {}
         ranked = select(Work.id.label("id"), Work.artist_id.label("artist_id"),
             Work.pixiv_illust_id.label("pixiv_id"), Work.title.label("title"),
-            Work.type.label("type"), Work.page_count.label("page_count"),
+            Work.type.label("type"), Work.page_count.label("page_count"), Work.x_restrict.label("x_restrict"),
             func.row_number().over(partition_by=Work.artist_id,
                 order_by=(Work.posted_at.desc(), Work.id.desc())).label("position")).where(
             Work.artist_id.in_(ids), ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(
@@ -201,6 +201,7 @@ class Library:
                 url += "?v=" + thumb.sha256[:16]
             recent[row["artist_id"]].append({"id": row["id"], "pixiv_id": row["pixiv_id"],
                 "title": row["title"], "type": row["type"], "page_count": row["page_count"],
+                "x_restrict": row["x_restrict"],
                 "thumbnail": url})
         return [{"id": artist.id, "pixiv_id": artist.pixiv_user_id, "name": artist.name,
             "account": artist.account, "avatar_url": media_url(artist.avatar_path),
@@ -246,13 +247,14 @@ class Library:
             statement = self._statement(filters, ceiling)
             total = session.scalar(select(func.count()).select_from(statement.subquery()))
             related = statement.options(load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title,
-                Work.type, Work.page_count, Work.posted_at), selectinload(Work.artist).load_only(Artist.name),
+                Work.type, Work.page_count, Work.posted_at, Work.x_restrict), selectinload(Work.artist).load_only(Artist.name),
                 selectinload(Work.preference), selectinload(Work.bookmark)) if compact else self._related(statement)
             works = list(session.scalars(related.order_by(*self._order(filters)).offset(offset).limit(limit)))
             operations = self._bookmark_operations(session, [work.id for work in works])
             views = [{"id": work.id, "pixiv_id": work.pixiv_illust_id, "artist_id": work.artist_id,
                       "artist_name": work.artist.name, "title": work.title, "type": work.type,
-                      "page_count": work.page_count, "is_hidden": bool(work.preference and work.preference.is_hidden),
+                      "page_count": work.page_count, "x_restrict": work.x_restrict,
+                      "is_hidden": bool(work.preference and work.preference.is_hidden),
                       "posted_at": work.posted_at.isoformat() if work.posted_at else None,
                       "bookmark": self._bookmark_view(work, operations.get(work.id))} for work in works] if compact else [self._work_view(work, operations.get(work.id)) for work in works]
             if compact:
@@ -370,7 +372,7 @@ class Library:
                 ranges.c.page_start + ranges.c.page_count > offset).order_by(ranges.c.page_start)).mappings())
             ids = [row["work_id"] for row in rows]
             works = {work.id: work for work in session.scalars(select(Work).options(
-                load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title, Work.type),
+                load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title, Work.type, Work.x_restrict),
                 selectinload(Work.artist).load_only(Artist.name)).where(Work.id.in_(ids)))}
             bounds = [and_(Asset.work_id == row["work_id"], Asset.role == "image",
                 Asset.page_index >= max(0, offset - row["page_start"]),
@@ -387,7 +389,8 @@ class Library:
                     items.append({"index": row["page_start"] + page, "work_id": work.id, "work_index": row["work_index"],
                         "page": page, "page_count": row["page_count"], "title": work.title,
                         "artist_name": work.artist.name, "artist_id": work.artist_id, "pixiv_id": work.pixiv_illust_id,
-                        "type": work.type, "next_work_index": row["page_start"] + row["page_count"],
+                        "type": work.type, "x_restrict": work.x_restrict,
+                        "next_work_index": row["page_start"] + row["page_count"],
                         "src": readable_page_url(media, animation=work.type == "ugoira"),
                         "width": media.width if media else None, "height": media.height if media else None,
                         "state": media.state if media else "missing"})

@@ -5,6 +5,7 @@ import type { Anchor, PageData, PageLoader } from './types'
 import { DirectionGesture, LatestIntent } from './interaction'
 import { prepareImage } from './api'
 import MediaImage from './MediaImage.vue'
+import RestrictionBadge from './components/RestrictionBadge.vue'
 
 const props = defineProps<{mode: 'reader' | 'feed'; loader: PageLoader; initial: Anchor | null; sessionKey: string; inactive?: boolean}>()
 const emit = defineEmits<{focus: [page: PageData, anchor: Anchor]; navigate: [delta: number]; zoom: [page: PageData]}>()
@@ -147,6 +148,7 @@ defineExpose({readAnchor, jump, scrollBy: (delta: number) => viewport.value?.scr
           :data-global-index="pages[row.index]!.index" :data-work-id="pages[row.index]!.work_id" :data-page="pages[row.index]!.page"
           :style="{transform: `translateY(${row.start - beforeHeight}px)`}">
           <figcaption><span class="page-title">{{ pages[row.index]!.title }} <small>{{ pages[row.index]!.artist_name }}</small></span>
+            <RestrictionBadge v-if="mode === 'feed'" :value="pages[row.index]!.x_restrict" />
             <span class="page-number">{{ pages[row.index]!.page + 1 }} / {{ pages[row.index]!.page_count }}</span>
             <button class="quiet" :disabled="!pages[row.index]!.src" @click="emit('zoom', pages[row.index]!)" aria-label="放大此页">放大</button>
           </figcaption>
@@ -156,7 +158,7 @@ defineExpose({readAnchor, jump, scrollBy: (delta: number) => viewport.value?.scr
           </div>
         </figure>
       </div>
-      <div class="reader-after"><slot name="after" /></div>
+      <div v-if="pages.length && pages.at(-1)!.index + 1 === total" class="reader-after"><slot name="after" /></div>
       <p v-if="!loading && !pages.length" class="empty">当前范围没有可阅读的作品。</p>
       <p v-if="pages.length && pages.at(-1)!.index + 1 === total" class="end-mark">已到{{ mode === 'feed' ? '当前图库范围' : '这件作品' }}末尾</p>
     </div>

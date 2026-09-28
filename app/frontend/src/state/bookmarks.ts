@@ -7,7 +7,7 @@ import { requestId } from './requestId'
 const states = reactive(new Map<number, BookmarkState>())
 const lastRead = new Map<number, number>()
 const polling = new Map<number, number>()
-const inFlight = new Set<number>()
+const inFlight = reactive(new Set<number>())
 const lastRefresh = new Map<number, number>()
 let lastRemoteRefresh = 0, refreshTimer = 0, queuedRefresh = 0
 type Incoming = Partial<BookmarkState> & {work_id?: number}
@@ -25,6 +25,7 @@ function unwrap(value: unknown): Incoming | null {
   return null
 }
 export function bookmarkState(id: number) { return states.get(id) }
+export function bookmarkBusy(id: number) { return inFlight.has(id) || states.get(id)?.status === 'pending' }
 function trim() {
   if (states.size <= 600) return
   for (const [id, state] of states) {
