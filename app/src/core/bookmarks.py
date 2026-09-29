@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, wait
+from datetime import timedelta
 from threading import RLock
 import time
 from uuid import UUID, uuid4
@@ -16,14 +17,18 @@ from sqlalchemy import func, select
 from .models import ArchiveIntent, BookmarkOperation, RemoteBookmark, Work, utcnow
 
 
-def bookmark_snapshot(bookmark, operation=None, account_id=None, work_id=None):
+def bookmark_snapshot(bookmark, operation=None, account_id=None, work_id=None,
+                      fresh=False, account_epoch=0):
     """Serialize one already-loaded fact and latest operation without querying."""
-    verified = bool(bookmark and bookmark.source in ("readback", "metadata"))
+    verified = bool(bookmark and bookmark.source in ("readback", "metadata")
+                    and bookmark.account_id)
     cached = bool(bookmark and bookmark.value is not None and
-                  (not verified or account_id is None or
+                  (not verified or not fresh or account_id is None or
                    bookmark.account_id != account_id))
     operation_is_current = bool(operation and (
-        not bookmark or operation.version >= bookmark.version))
+        not bookmark or operation.version >= bookmark.version) and
+        (account_id is None or operation.account_id is None or
+         operation.account_id == account_id))
     status = (operation.status if operation_is_current else
               "confirmed" if verified else "idle")
     return {
@@ -37,13 +42,17 @@ def bookmark_snapshot(bookmark, operation=None, account_id=None, work_id=None):
         "error": operation.error if operation_is_current else bookmark.error if bookmark else None,
         "version": bookmark.version if bookmark else operation.version if operation else 0,
         "cached": cached,
+        "verified": verified,
+        "fact_account_id": bookmark.account_id if verified else None,
+        "current_account_id": account_id,
+        "account_epoch": account_epoch,
     }
 
 
 class BookmarkService:
     def __init__(self, database, remote, max_workers=4, max_pending=128,
                  is_available=None, current_account=None, fresh_seconds=45,
-                 clock=None):
+                 clock=None, auto_refresh_seconds=300):
         self.database = database
         self.remote = remote
         self.max_workers = max_workers
@@ -53,9 +62,14 @@ class BookmarkService:
         self._is_available = is_available or (lambda: True)
         self._current_account = current_account
         self._fresh_seconds = fresh_seconds
+        self._auto_refresh_seconds = auto_refresh_seconds
         self._clock = clock or time.monotonic
         self._fresh = OrderedDict()
         self._last_account_id = None
+        self._observed_account_id = None
+        # Microseconds fit JavaScript's safe integer range and order responses
+        # across server restarts as well as account switches within a process.
+        self._account_epoch = time.time_ns() // 1000
         self._lock = RLock()
         self._executor = None
         self._futures = set()
@@ -89,6 +103,19 @@ class BookmarkService:
         with self._lock:
             self._fresh.clear()
             self._last_account_id = None
+
+    def _account_context(self):
+        with self._lock:
+            try:
+                current = (self._current_account() if self._current_account is not None
+                           else self._last_account_id)
+            except Exception:
+                current = None
+            current = str(current) if current is not None else None
+            if current != self._observed_account_id:
+                self._observed_account_id = current
+                self._account_epoch = max(time.time_ns() // 1000, self._account_epoch + 1)
+            return current, self._account_epoch
 
     def _mark_fresh(self, work_id, version, account_id):
         with self._lock:
@@ -125,15 +152,18 @@ class BookmarkService:
             return str(current)
 
     def snapshot(self, bookmark, operation=None, work_id=None):
-        """Serialize loaded rows using only recent in-process account evidence."""
+        """Keep durable account facts separate from short-lived remote freshness."""
         identity = work_id if work_id is not None else (
             bookmark.work_id if bookmark else operation.work_id if operation else None)
         version = bookmark.version if bookmark else operation.version if operation else 0
-        account = self._fresh_account_for(identity, version) if identity is not None else None
+        account, epoch = self._account_context()
+        fresh_account = self._fresh_account_for(identity, version) if identity is not None else None
         result = bookmark_snapshot(bookmark, operation, account_id=account,
-                                   work_id=identity)
+                                   work_id=identity, fresh=fresh_account == account and account is not None,
+                                   account_epoch=epoch)
         operation_is_current = operation is not None and (
-            bookmark is None or operation.version >= bookmark.version)
+            bookmark is None or operation.version >= bookmark.version) and (
+            account is None or operation.account_id is None or operation.account_id == account)
         if operation_is_current and operation.status in ("failed", "unconfirmed"):
             result["cached"] = result["value"] is not None
         return result
@@ -207,16 +237,34 @@ class BookmarkService:
         except (TypeError, ValueError, AttributeError) as exc:
             raise ValueError("request_id 必须是 UUID") from exc
 
-    def submit(self, work_id, desired, request_id):
+    def submit(self, work_id, desired, request_id, expected_account_id=None):
         if type(desired) is not bool:
             raise ValueError("desired 必须是布尔值")
         request_id = self._request_id(request_id)
-        return self._enqueue(work_id, desired, request_id, "write")
+        if expected_account_id is not None:
+            account, _ = self._account_context()
+            if not account or account != str(expected_account_id):
+                raise ValueError("当前 Pixiv 账号已变化，请核对后重试")
+        return self._enqueue(work_id, desired, request_id, "write", expected_account_id)
 
-    def refresh(self, work_id):
+    def refresh(self, work_id, automatic=False):
+        if automatic:
+            with self._lock:
+                account, _ = self._account_context()
+                with self.database.read() as session:
+                    if session.get(Work, work_id) is None:
+                        raise LookupError("作品不存在")
+                    fact = session.get(RemoteBookmark, work_id)
+                    if not account or not self._is_available():
+                        return self._state_in_session(session, work_id)
+                    if (fact and fact.source in ("readback", "metadata") and
+                            fact.account_id == account and fact.confirmed_at and
+                            timedelta(0) <= utcnow() - fact.confirmed_at <
+                            timedelta(seconds=self._auto_refresh_seconds)):
+                        return self._state_in_session(session, work_id)
         return self._enqueue(work_id, None, str(uuid4()), "refresh")
 
-    def _enqueue(self, work_id, desired, request_id, kind):
+    def _enqueue(self, work_id, desired, request_id, kind, expected_account_id=None):
         with self._lock:
             if not self._accepting:
                 raise RuntimeError("当前正在切换图库，暂不接收收藏操作")
@@ -226,7 +274,8 @@ class BookmarkService:
                 existing = session.scalar(select(BookmarkOperation).where(
                     BookmarkOperation.request_id == request_id))
                 if existing:
-                    if existing.work_id != work_id or existing.desired != desired or existing.kind != kind:
+                    if (existing.work_id != work_id or existing.desired != desired or existing.kind != kind
+                            or expected_account_id is not None and existing.account_id != str(expected_account_id)):
                         raise ValueError("request_id 已用于另一项收藏操作")
                     return self._state_in_session(session, work_id)
                 work = session.get(Work, work_id)
@@ -240,6 +289,8 @@ class BookmarkService:
                     BookmarkOperation.status == "pending").order_by(
                     BookmarkOperation.version.desc()).limit(1))
                 if existing:
+                    if expected_account_id is not None and existing.account_id != str(expected_account_id):
+                        raise ValueError("另一账号的收藏操作尚未核对，请稍后重试")
                     return self._state_in_session(session, work_id)
                 pending_total = session.scalar(select(func.count()).select_from(
                     BookmarkOperation).where(BookmarkOperation.status == "pending"))
@@ -253,7 +304,8 @@ class BookmarkService:
                 fact.version += 1
                 operation = BookmarkOperation(
                     request_id=request_id, work_id=work_id, desired=desired,
-                    kind=kind, version=fact.version, status="pending", phase="queued")
+                    kind=kind, version=fact.version, status="pending", phase="queued",
+                    account_id=str(expected_account_id) if expected_account_id is not None else None)
                 session.add(operation)
                 session.flush()
                 result = self._state_in_session(session, work_id)

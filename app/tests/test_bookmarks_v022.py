@@ -7,7 +7,7 @@ import pytest
 
 from src.core.bookmarks import BookmarkService
 from src.core.database import ArchiveDatabase
-from src.core.models import ArchiveIntent, Artist, BookmarkOperation, RemoteBookmark, Work
+from src.core.models import ArchiveIntent, Artist, BookmarkOperation, RemoteBookmark, Work, utcnow
 from src.client import PixivRequestError
 
 
@@ -53,6 +53,83 @@ def wait_result(service, operation_id):
             return result
         time.sleep(.01)
     pytest.fail("bookmark operation did not finish")
+
+
+def test_durable_fact_survives_expiry_restart_and_account_switch(database):
+    remote = Remote()
+    clock = [100.0]
+    with database.write() as session:
+        session.add(RemoteBookmark(work_id=2, value=True, source="readback",
+                                   account_id="123", confirmed_at=utcnow(), version=1))
+    service = BookmarkService(database, remote, current_account=lambda: remote.account,
+                              clock=lambda: clock[0])
+    service.start()
+    try:
+        initial = service.state(2)
+        assert initial["value"] is True and initial["verified"] is True
+        assert initial["confirmed_at"].endswith("Z")
+        assert initial["fact_account_id"] == initial["current_account_id"] == "123"
+        assert initial["cached"] is True
+        service._mark_fresh(2, 1, "123")
+        assert service.state(2)["cached"] is False
+        clock[0] += 46
+        expired = service.state(2)
+        assert expired["cached"] is True and expired["verified"] is True
+        first_epoch = expired["account_epoch"]
+    finally:
+        assert service.stop()
+
+    restarted = BookmarkService(database, remote, current_account=lambda: remote.account)
+    restarted.start()
+    try:
+        same = restarted.state(2)
+        assert same["cached"] is True and same["verified"] is True
+        assert same["confirmed_at"].endswith("Z")
+        assert same["fact_account_id"] == same["current_account_id"] == "123"
+        assert same["account_epoch"] > first_epoch
+        remote.account = None
+        offline = restarted.state(2)
+        assert offline["verified"] is True and offline["current_account_id"] is None
+        assert offline["account_epoch"] > same["account_epoch"]
+        remote.account = "999"
+        switched = restarted.state(2)
+        assert switched["fact_account_id"] == "123" and switched["current_account_id"] == "999"
+        assert switched["account_epoch"] > offline["account_epoch"]
+        assert remote.reads == remote.writes == 0
+    finally:
+        assert restarted.stop()
+
+
+def test_automatic_refresh_reuses_recent_same_account_fact_and_manual_forces_read(database):
+    remote = Remote()
+    remote.value = True
+    with database.write() as session:
+        session.add(RemoteBookmark(work_id=2, value=True, source="readback",
+                                   account_id="123", confirmed_at=utcnow(), version=1))
+    service = BookmarkService(database, remote, current_account=lambda: remote.account)
+    service.start()
+    try:
+        reused = service.refresh(2, automatic=True)
+        assert reused["value"] is True and reused["operation_id"] is None
+        assert remote.reads == remote.writes == 0
+        explicit = service.refresh(2)
+        assert wait_result(service, explicit["operation_id"])["value"] is True
+        assert remote.reads == 1 and remote.writes == 0
+    finally:
+        assert service.stop()
+
+
+def test_write_rejects_stale_account_before_creating_intent(database):
+    remote = Remote()
+    service = BookmarkService(database, remote, current_account=lambda: remote.account)
+    service.start()
+    try:
+        with pytest.raises(ValueError, match="账号已变化"):
+            service.submit(2, False, str(uuid4()), expected_account_id="other-account")
+        assert service.state(2)["operation_id"] is None
+        assert remote.writes == remote.reads == 0
+    finally:
+        assert service.stop()
 
 
 def test_write_confirmed_only_after_readback_and_duplicate_suppressed(database):

@@ -12,7 +12,7 @@ onBeforeUnmount(() => { image.value?.removeAttribute('src') })
     <img v-if="src && !failed" :key="revision" ref="image" :src="src" :alt="label" :width="width" :height="height" draggable="false" decoding="async"
       @load="loaded" @error="failed = true" @dblclick="emit('zoom')">
     <div v-else class="media-placeholder">
-      <span>{{ thumbnail ? '缩略图准备中' : src ? '这张图片暂时无法显示' : '本地缺少此页' }}</span>
+      <span>{{ thumbnail ? '暂无预览图' : src ? '这张图片暂时无法显示' : '本地缺少此页' }}</span>
       <button v-if="src && failed && !thumbnail" type="button" class="quiet" @click.stop="failed = false; revision++">重试图片</button>
     </div>
   </div>

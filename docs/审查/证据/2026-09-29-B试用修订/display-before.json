@@ -1,0 +1,126 @@
+{
+  "checks": [],
+  "issues": [
+    "settings-1440: bottom control is clipped or cannot scroll",
+    "artists-1440: bottom control is clipped or cannot scroll",
+    "settings-390: bottom control is clipped or cannot scroll",
+    "artists-390: bottom control is clipped or cannot scroll",
+    "settings-320: bottom control is clipped or cannot scroll",
+    "artists-320: bottom control is clipped or cannot scroll"
+  ],
+  "errors": [],
+  "metrics": [
+    {
+      "width": 1440,
+      "icons": [
+        {
+          "x": 6.599998474121094,
+          "y": 4.999999046325684,
+          "width": 14.100000381469727,
+          "height": 14.70000171661377,
+          "centerX": 13.649998664855957,
+          "centerY": 12.349999904632568
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "route": "settings",
+      "before": {
+        "client": 1401,
+        "scroll": 1401,
+        "top": 0
+      },
+      "after": {
+        "client": 1401,
+        "scroll": 1401,
+        "top": 0
+      },
+      "bottom_reachable": false,
+      "horizontal_fit": true
+    },
+    {
+      "width": 1440,
+      "route": "artists",
+      "before": {
+        "client": 2760,
+        "scroll": 2760,
+        "top": 0
+      },
+      "after": {
+        "client": 2760,
+        "scroll": 2760,
+        "top": 0
+      },
+      "bottom_reachable": false,
+      "horizontal_fit": true
+    },
+    {
+      "width": 390,
+      "route": "settings",
+      "before": {
+        "client": 1669,
+        "scroll": 1669,
+        "top": 0
+      },
+      "after": {
+        "client": 1669,
+        "scroll": 1669,
+        "top": 0
+      },
+      "bottom_reachable": false,
+      "horizontal_fit": true
+    },
+    {
+      "width": 390,
+      "route": "artists",
+      "before": {
+        "client": 5790,
+        "scroll": 5790,
+        "top": 0
+      },
+      "after": {
+        "client": 5790,
+        "scroll": 5790,
+        "top": 0
+      },
+      "bottom_reachable": false,
+      "horizontal_fit": true
+    },
+    {
+      "width": 320,
+      "route": "settings",
+      "before": {
+        "client": 1783,
+        "scroll": 1783,
+        "top": 0
+      },
+      "after": {
+        "client": 1783,
+        "scroll": 1783,
+        "top": 0
+      },
+      "bottom_reachable": false,
+      "horizontal_fit": true
+    },
+    {
+      "width": 320,
+      "route": "artists",
+      "before": {
+        "client": 5790,
+        "scroll": 5790,
+        "top": 0
+      },
+      "after": {
+        "client": 5790,
+        "scroll": 5790,
+        "top": 0
+      },
+      "bottom_reachable": false,
+      "horizontal_fit": true
+    }
+  ],
+  "real_library_used": false,
+  "real_account_used": false,
+  "real_phone_tested": false
+}

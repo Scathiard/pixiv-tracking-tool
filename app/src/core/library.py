@@ -271,8 +271,15 @@ class Library:
             for view in views:
                 thumb = thumbnails.get(view["id"])
                 preview = animations.get(view["id"]) if view["type"] == "ugoira" else first_pages.get(view["id"])
-                view["preview"] = media_url(preview.relative_path) if preview else None
-                # Large originals are deliberately not the card fallback.
+                view["preview"] = readable_page_url(preview, animation=view["type"] == "ugoira")
+                if view["preview"]:
+                    view["preview_status"] = "ready"
+                elif preview and preview.state == "failed":
+                    view["preview_status"] = "failed"
+                elif preview and preview.state in ("invalid", "mismatch"):
+                    view["preview_status"] = "unavailable"
+                else:
+                    view["preview_status"] = "pending"
                 view["thumbnail"] = media_url(thumb.relative_path) if thumb else None
                 if view["thumbnail"] and thumb.sha256:
                     view["thumbnail"] += "?v=" + thumb.sha256[:16]
@@ -373,7 +380,10 @@ class Library:
             ids = [row["work_id"] for row in rows]
             works = {work.id: work for work in session.scalars(select(Work).options(
                 load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title, Work.type, Work.x_restrict),
-                selectinload(Work.artist).load_only(Artist.name)).where(Work.id.in_(ids)))}
+                selectinload(Work.artist).load_only(Artist.name), selectinload(Work.bookmark)).where(Work.id.in_(ids)))}
+            operations = self._bookmark_operations(session, ids)
+            bookmark_views = {work_id: self._bookmark_view(work, operations.get(work_id))
+                              for work_id, work in works.items()}
             bounds = [and_(Asset.work_id == row["work_id"], Asset.role == "image",
                 Asset.page_index >= max(0, offset - row["page_start"]),
                 Asset.page_index < min(row["page_count"], offset + limit - row["page_start"])) for row in rows]
@@ -391,6 +401,7 @@ class Library:
                         "artist_name": work.artist.name, "artist_id": work.artist_id, "pixiv_id": work.pixiv_illust_id,
                         "type": work.type, "x_restrict": work.x_restrict,
                         "next_work_index": row["page_start"] + row["page_count"],
+                        "bookmark": bookmark_views[work.id],
                         "src": readable_page_url(media, animation=work.type == "ugoira"),
                         "width": media.width if media else None, "height": media.height if media else None,
                         "state": media.state if media else "missing"})

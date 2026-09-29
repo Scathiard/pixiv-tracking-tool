@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 import { api, write } from '../api'
 import type { BookmarkState } from '../types'
-import { acceptsBookmarkUpdate } from './bookmarkRules'
+import { acceptsBookmarkUpdate, nextBookmarkIntent } from './bookmarkRules'
 import { requestId } from './requestId'
 
 const states = reactive(new Map<number, BookmarkState>())
@@ -10,6 +10,7 @@ const polling = new Map<number, number>()
 const inFlight = reactive(new Set<number>())
 const lastRefresh = new Map<number, number>()
 let lastRemoteRefresh = 0, refreshTimer = 0, queuedRefresh = 0
+let latestAccountEpoch = 0
 type Incoming = Partial<BookmarkState> & {work_id?: number}
 
 function isState(value: unknown): value is Incoming {
@@ -33,22 +34,43 @@ function trim() {
     if (state.status !== 'pending' && !inFlight.has(id)) { states.delete(id); lastRead.delete(id); lastRefresh.delete(id) }
   }
 }
-export function ingestBookmark(id: number, incoming: unknown) {
+export function ingestBookmark(id: number, incoming: unknown, schedulePolling = true) {
   const state = unwrap(incoming)
   if (!state) return states.get(id)
   const version = Number(state.version)
   if (!Number.isSafeInteger(version) || version < 0) return states.get(id)
+  const accountEpoch = Number(state.account_epoch ?? 0)
+  if (!Number.isSafeInteger(accountEpoch) || accountEpoch < 0) return states.get(id)
+  const currentAccountId = typeof state.current_account_id === 'string' ? state.current_account_id : null
+  if (accountEpoch < latestAccountEpoch) return states.get(id)
+  if (accountEpoch > latestAccountEpoch) {
+    latestAccountEpoch = accountEpoch
+    lastRead.clear(); lastRefresh.clear()
+    clearTimeout(refreshTimer); queuedRefresh = 0; lastRemoteRefresh = 0
+    for (const [workId, previousState] of states) {
+      stopPoll(workId)
+      if (workId === id) continue
+      states.set(workId, {...previousState, current_account_id: currentAccountId,
+        account_epoch: accountEpoch, cached: true, operation_id: null, desired: null,
+        status: previousState.verified ? 'confirmed' : 'idle'})
+    }
+  }
   const previous = states.get(id)
-  if (!acceptsBookmarkUpdate(previous, {version, status: state.status || 'idle', operation_id: state.operation_id})) return previous
+  if (!acceptsBookmarkUpdate(previous, {version, status: state.status || 'idle', operation_id: state.operation_id,
+    account_epoch: accountEpoch, current_account_id: currentAccountId})) return previous
   const value = typeof state.value === 'boolean' ? state.value : null
   const normalized: BookmarkState = {
     work_id: id, operation_id: typeof state.operation_id === 'string' ? state.operation_id : null,
     status: state.status || 'idle', desired: typeof state.desired === 'boolean' ? state.desired : null,
     value, confirmed_at: state.confirmed_at || null, error: state.error || null,
-    version, cached: !!state.cached,
+    version, cached: !!state.cached, verified: state.verified === true,
+    fact_account_id: typeof state.fact_account_id === 'string' ? state.fact_account_id : null,
+    current_account_id: currentAccountId, account_epoch: accountEpoch,
   }
   states.delete(id); states.set(id, normalized); trim()
-  if (normalized.status === 'pending' && normalized.operation_id) poll(id, normalized.operation_id)
+  if (normalized.status === 'pending' && normalized.operation_id) {
+    if (schedulePolling) poll(id, normalized.operation_id)
+  }
   else stopPoll(id)
   return normalized
 }
@@ -65,7 +87,7 @@ function poll(id: number, operationId: string, attempt = 0) {
       const response = await api<unknown>(`/api/bookmark-operations/${encodeURIComponent(operationId)}`)
       const current = states.get(id)
       if (current?.operation_id !== operationId) return
-      const state = ingestBookmark(id, response)
+      const state = ingestBookmark(id, response, false)
       if (state?.status === 'pending') poll(id, operationId, attempt + 1)
     } catch {
       const current = states.get(id)
@@ -82,11 +104,11 @@ export async function readBookmark(id: number, force = false) {
   try { return ingestBookmark(id, await api<unknown>(`/api/works/${id}/bookmark`)) }
   finally { inFlight.delete(id) }
 }
-export async function syncBookmark(id: number) {
+export async function syncBookmark(id: number, automatic = false) {
   if (inFlight.has(id)) throw new Error('正在核对收藏状态，请稍后再试')
   lastRead.set(id, Date.now())
   inFlight.add(id)
-  try { return ingestBookmark(id, await write<unknown>(`/api/works/${id}/bookmark/refresh`, {})) }
+  try { return ingestBookmark(id, await write<unknown>(`/api/works/${id}/bookmark/refresh${automatic ? '?automatic=1' : ''}`, {})) }
   finally { inFlight.delete(id) }
 }
 export function refreshBookmark(id: number) {
@@ -98,16 +120,18 @@ export function refreshBookmark(id: number) {
     const current = queuedRefresh
     queuedRefresh = 0
     lastRemoteRefresh = Date.now(); lastRefresh.set(current, lastRemoteRefresh)
-    void syncBookmark(current).catch(() => undefined)
+    void syncBookmark(current, true).catch(() => undefined)
   }, delay)
 }
 export async function toggleBookmark(id: number) {
   const state = states.get(id)
   if (inFlight.has(id) || state?.status === 'pending') throw new Error('正在核对收藏状态，请稍后再试')
+  if (!state?.current_account_id) throw new Error('请先连接 Pixiv，再核对当前账号的收藏状态')
+  const desired = nextBookmarkIntent(state)
   inFlight.add(id)
   try {
     const result = ingestBookmark(id, await write<unknown>(`/api/works/${id}/bookmark`, {
-      desired: typeof state?.value === 'boolean' ? !state.value : true, request_id: requestId(),
+      desired, request_id: requestId(), expected_account_id: state.current_account_id,
     }))
     if (result?.status === 'pending' && result.operation_id) poll(id, result.operation_id)
     return result

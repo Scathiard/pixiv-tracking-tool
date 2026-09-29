@@ -2,7 +2,8 @@ export type Mode = 'gallery' | 'reader' | 'feed'
 export interface BookmarkState {
   work_id: number; operation_id: string | null; status: 'idle' | 'pending' | 'confirmed' | 'failed' | 'unconfirmed'
   desired: boolean | null; value: boolean | null; confirmed_at: string | null; error: string | null
-  version: number; cached: boolean
+  version: number; cached: boolean; verified: boolean
+  fact_account_id: string | null; current_account_id: string | null; account_epoch: number
 }
 export interface WorkSummary {
   id: number; pixiv_id: string; title: string; artist_id: number; artist_name: string
@@ -15,6 +16,7 @@ export interface PageData {
   index: number; work_id: number; work_index: number; page: number; page_count: number
   title: string; artist_name: string; artist_id: number; pixiv_id: string; type: string; x_restrict: number | null
   next_work_index: number; src: string | null; width: number | null; height: number | null; state: string
+  bookmark?: BookmarkState
 }
 export interface WorkDetail extends WorkSummary {
   display_page_count: number
@@ -23,7 +25,10 @@ export interface WorkDetail extends WorkSummary {
   legacy_variants: {page: number; files: {src: string | null; name: string; default: boolean}[]}[]
 }
 export interface PageBatch {items: PageData[]; total: number; offset: number; ceiling?: number}
-export type WorkCard = Pick<WorkSummary, 'id' | 'pixiv_id' | 'title' | 'artist_id' | 'artist_name' | 'type' | 'page_count' | 'x_restrict' | 'thumbnail' | 'is_hidden' | 'posted_at' | 'bookmark'>
+export type WorkCard = Pick<WorkSummary, 'id' | 'pixiv_id' | 'title' | 'artist_id' | 'artist_name' | 'type' | 'page_count' | 'x_restrict' | 'thumbnail' | 'is_hidden' | 'posted_at' | 'bookmark'> & {
+  preview?: string | null
+  preview_status?: 'ready' | 'pending' | 'failed' | 'unavailable'
+}
 export interface GalleryBatch {items: WorkCard[]; total: number; offset: number; ceiling: number; as_of: string}
 export interface Anchor {work_id: number; page: number; offset: number; index: number; work_index: number}
 export interface Artist {id: number; pixiv_id: string; name: string; mode: 'active' | 'paused' | 'stopped'; biography?: string | null; avatar?: string | null; profile_refreshed_at?: string | null; work_count?: number; recent_works?: WorkCard[]}

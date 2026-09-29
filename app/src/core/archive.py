@@ -271,9 +271,14 @@ class ArchiveHandler:
                     kind = "download"
                 specs.append(ItemSpec(key, kind, target, "downloading", "assets"))
         if self.kind == "thumbnails" and work.type != "ugoira":
+            first_page_ready = False
             for asset in assets:
                 if asset.page_index == 0 and asset.role == "image":
-                    self._inspect_asset(asset)
+                    first_page_ready = self._inspect_asset(asset)
+            if not first_page_ready:
+                # A local-only request cannot fetch the first page. A later
+                # check/repair round will retain its download -> thumbnail edge.
+                return specs
         if work.type == "ugoira":
             if not defer_originals and self.kind != "thumbnails":
                 if required and not local_only:

@@ -91,6 +91,12 @@ def main():
             settings = page.request.get(origin + "/api/settings").json()
             assert settings["version"] == __version__ and settings["build"] == __build__
             page.get_by_text(f"版本 {__version__} · 内部构建 {__build__}", exact=True).wait_for()
+            page.mouse.move(1100, 600)
+            page.mouse.wheel(0, 10000)
+            page.wait_for_function("""() => {const pane=document.querySelector('.settings-page');
+                const bottom=document.querySelector('.settings-version').getBoundingClientRect();
+                return pane.scrollTop > 0 && bottom.bottom <= innerHeight && bottom.top > 0;}""")
+            checks.append("exe-settings-bottom-reachable-by-wheel")
             page.get_by_role("button", name="查看日志", exact=True).click()
             page.locator(".settings-log pre").wait_for()
             assert page.request.get(origin + "/api/logs").ok
@@ -117,6 +123,13 @@ def main():
             mobile.get_by_role("navigation", name="主导航").get_by_role("button", name="设置", exact=True).tap()
             mobile.locator(".settings-page").wait_for()
             assert mobile.get_by_role("button", name="打开菜单", exact=True).is_visible()
+            mobile.mouse.move(270, 650)
+            mobile.mouse.wheel(0, 10000)
+            mobile.wait_for_function("""() => {const pane=document.querySelector('.settings-page');
+                const bottom=document.querySelector('.settings-version')?.getBoundingClientRect();
+                return pane.scrollTop > 0 && bottom && bottom.bottom <= innerHeight && bottom.top > 50;}""")
+            mobile.screenshot(path=str(artifacts / "exe-mobile-settings-bottom.png"))
+            checks.append("exe-mobile-settings-scroll-container-reaches-bottom")
             checks.append("exe-mobile-drawer-navigation")
             if page_errors:
                 raise AssertionError(page_errors)

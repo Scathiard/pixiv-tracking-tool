@@ -15,6 +15,7 @@ import SettingsView from './views/SettingsView.vue'
 import BookmarkButton from './components/BookmarkButton.vue'
 import RestrictionBadge from './components/RestrictionBadge.vue'
 import Icon from './components/Icon.vue'
+import BrandMark from './components/BrandMark.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import { ingestBookmark, refreshBookmark, resumeBookmarkPolling, syncBookmark } from './state/bookmarks'
 
@@ -216,6 +217,7 @@ const loader = computed<PageLoader>(() => {
 })
 function focused(page: PageData, anchor: Anchor) {
   const changedWork = activePage.value?.work_id !== page.work_id
+  if (page.bookmark) ingestBookmark(page.work_id, page.bookmark)
   activePage.value = page; currentAnchor.value = anchor
   if (changedWork) refreshBookmark(page.work_id)
   if (Date.now() - saveTime > 400) { saveTime = Date.now(); savePosition(scope.value, mode.value === 'feed' ? 'feed' : 'reader', anchor) }
@@ -366,10 +368,10 @@ function updated() { newContent.value = true; window.dispatchEvent(new Event('ar
 <template>
   <div class="app-shell" :class="{'sidebar-collapsed': sidebarCollapsed}" :inert="zoomPage ? true : undefined">
     <header class="app-header" :class="{'is-collapsed': sidebarCollapsed, 'is-open': mobileMenuOpen}">
-      <div class="mobile-head"><button ref="mobileMenuButton" class="menu-toggle" :aria-expanded="mobileMenuOpen" aria-controls="app-sidebar" :aria-label="mobileMenuOpen ? '关闭菜单' : '打开菜单'" @click="mobileMenuOpen ? closeMobileMenu() : mobileMenuOpen = true"><Icon :name="mobileMenuOpen ? 'close' : 'menu'" /></button><button class="brand" @click="navHome" aria-label="返回我的图库"><span class="brand-mark">P</span><span><span class="brand-pixiv">Pixiv</span>Tracker</span></button><span class="mobile-head-spacer" /></div>
+      <div class="mobile-head"><button ref="mobileMenuButton" class="menu-toggle" :aria-expanded="mobileMenuOpen" aria-controls="app-sidebar" :aria-label="mobileMenuOpen ? '关闭菜单' : '打开菜单'" @click="mobileMenuOpen ? closeMobileMenu() : mobileMenuOpen = true"><Icon :name="mobileMenuOpen ? 'close' : 'menu'" /></button><button class="brand" @click="navHome" aria-label="返回我的图库"><BrandMark /><span><span class="brand-pixiv">Pixiv</span>Tracker</span></button><span class="mobile-head-spacer" /></div>
       <button v-if="mobileMenuOpen" class="sidebar-scrim" aria-label="关闭菜单" @click="closeMobileMenu" />
       <div id="app-sidebar" class="sidebar-body">
-        <div class="sidebar-head"><button class="brand" @click="navHome" aria-label="返回我的图库" title="返回我的图库"><span class="brand-mark">P</span><span class="sidebar-label"><span class="brand-pixiv">Pixiv</span>Tracker</span></button><button class="sidebar-toggle" :aria-label="sidebarCollapsed ? '展开侧栏' : '收起侧栏'" :title="sidebarCollapsed ? '展开侧栏' : '收起侧栏'" @click="toggleSidebar"><Icon :name="sidebarCollapsed ? 'right' : 'left'" /></button><button class="mobile-close" aria-label="关闭菜单" @click="closeMobileMenu"><Icon name="close" /></button></div>
+        <div class="sidebar-head"><button class="brand" @click="navHome" aria-label="返回我的图库" title="返回我的图库"><BrandMark /><span class="sidebar-label"><span class="brand-pixiv">Pixiv</span>Tracker</span></button><button class="sidebar-toggle" :aria-label="sidebarCollapsed ? '展开侧栏' : '收起侧栏'" :title="sidebarCollapsed ? '展开侧栏' : '收起侧栏'" @click="toggleSidebar"><Icon :name="sidebarCollapsed ? 'right' : 'left'" /></button><button class="mobile-close" aria-label="关闭菜单" @click="closeMobileMenu"><Icon name="close" /></button></div>
         <label v-if="!sidebarCollapsed || mobileMenuOpen" class="search-field side-search"><Icon name="search" /><input v-model="searchText" type="search" placeholder="搜索作品、画师或标签" aria-label="搜索作品、画师或标签" @compositionstart="composing = true" @compositionend="composing = false; search()" @input="search"></label><button v-else class="side-search-trigger" aria-label="展开侧栏并搜索" title="搜索" @click="toggleSidebar"><Icon name="search" /></button>
         <nav class="sidebar-nav" aria-label="主导航"><button :class="{selected: section === 'library' && mode !== 'feed'}" title="作品" @click="navHome"><Icon name="grid" /><span class="sidebar-label">作品</span></button><button :class="{selected: section === 'artists'}" title="画师" @click="navArtists"><Icon name="artists" /><span class="sidebar-label">画师</span></button><button :class="{selected: section === 'library' && mode === 'feed'}" title="流式阅览" :disabled="section === 'library' && !total" @click="navFeed"><Icon name="flow" /><span class="sidebar-label">流式阅览</span></button><button :class="{selected: section === 'settings'}" title="设置" @click="navSettings"><Icon name="settings" /><span class="sidebar-label">设置</span></button></nav>
         <div class="sidebar-divider" /><div class="sidebar-group-label sidebar-label">图库范围</div><nav class="sidebar-nav sidebar-scopes" aria-label="图库范围"><button :class="{selected: section === 'library' && currentRail() === 'all'}" :aria-pressed="currentRail() === 'all'" title="全部作品" @click="navRail('all')"><Icon name="grid" /><span class="sidebar-label">全部作品</span><small class="sidebar-label">{{ railCounts.all }}</small></button><button :class="{selected: section === 'library' && currentRail() === 'recent'}" :aria-pressed="currentRail() === 'recent'" title="最近存入" @click="navRail('recent')"><Icon name="clock" /><span class="sidebar-label">最近存入</span><small class="sidebar-label">{{ railCounts.recent }}</small></button><button :class="{selected: section === 'library' && currentRail() === 'favorites'}" :aria-pressed="currentRail() === 'favorites'" title="收藏" @click="navRail('favorites')"><Icon name="heart" /><span class="sidebar-label">收藏</span><small class="sidebar-label">{{ railCounts.favorites }}</small></button></nav>

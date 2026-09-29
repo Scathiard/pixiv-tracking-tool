@@ -4,15 +4,16 @@ import { useVirtualizer } from '@tanstack/vue-virtual'
 import { api, url, write } from './api'
 import { LatestIntent } from './interaction'
 import type { GalleryBatch, WorkCard } from './types'
-import MediaImage from './MediaImage.vue'
+import GalleryCardImage from './GalleryCardImage.vue'
 import BookmarkButton from './components/BookmarkButton.vue'
 import RestrictionBadge from './components/RestrictionBadge.vue'
 const props = defineProps<{query: string; startIndex: number; pageSize: number; continuous: boolean}>()
 const emit = defineEmits<{open: [index: number]; artist: [id: number]; message: [text: string]; anchor: [index: number, workId: number]; total: [count: number]; page: [index: number]}>()
 const viewport = ref<HTMLDivElement | null>(null), works = ref<WorkCard[]>([]), total = ref(0)
 const page = ref(0), start = ref(0), columns = ref(5), width = ref(1000), loading = ref(false), error = ref('')
-const request = new LatestIntent(), thumbs = new Set<number>()
-let observer: ResizeObserver | null = null, restoreIndex = 0, refreshTimer = 0, refreshes = 0, restoring = false, scrollFrame = 0
+const thumbnailNotice = ref('')
+const request = new LatestIntent(), thumbs = new Set<number>(), seen = new Set<number>()
+let observer: ResizeObserver | null = null, restoreIndex = 0, refreshTimer = 0, refreshes = 0, restoring = false, scrollFrame = 0, thumbnailGeneration = 0
 const rowHeight = computed(() => ((width.value - 16 * (columns.value - 1)) / columns.value) * 1.225 + 84)
 const virtual = useVirtualizer(computed(() => ({count: Math.ceil(works.value.length / columns.value),
   getScrollElement: () => viewport.value, estimateSize: () => rowHeight.value, overscan: 2})))
@@ -27,15 +28,37 @@ async function restore(anchor: number, pixel = 0) {
   restoring = false
 }
 async function thumbnails(items: WorkCard[]) {
-  const missing = items.filter(work => !work.thumbnail && !thumbs.has(work.id)).map(work => work.id)
+  const generationAtStart = thumbnailGeneration
+  const eligible = items.filter(work => !work.thumbnail && work.preview_status === 'ready')
+  const missing = eligible.filter(work => !thumbs.has(work.id)).map(work => work.id)
   if (missing.length) {
-    missing.forEach(id => thumbs.add(id))
+    if (missing.some(id => !seen.has(id))) refreshes = 0
+    missing.forEach(id => { thumbs.add(id); seen.add(id) })
     while (thumbs.size > 1000) thumbs.delete(thumbs.values().next().value!)
-    await write('/api/tasks', {kind: 'thumbnails', work_ids: missing})
+    while (seen.size > 1000) seen.delete(seen.values().next().value!)
+    try {
+      await write('/api/tasks', {kind: 'thumbnails', work_ids: missing})
+      if (generationAtStart === thumbnailGeneration) thumbnailNotice.value = ''
+    } catch {
+      if (generationAtStart === thumbnailGeneration) {
+        missing.forEach(id => thumbs.delete(id))
+        thumbnailNotice.value = '缩略图任务未能提交；已载入的作品仍可浏览。'
+      }
+    }
   }
-  if (items.some(work => !work.thumbnail) && refreshes++ < 6) {
+  if (generationAtStart !== thumbnailGeneration) return
+  if (eligible.length && refreshes++ < 6) {
     clearTimeout(refreshTimer); refreshTimer = window.setTimeout(refresh, 5000)
+  } else if (eligible.length) {
+    thumbnailNotice.value ||= '缩略图尚未就绪，可重试生成。'
+  } else if (!works.value.some(work => !work.thumbnail && work.preview_status === 'ready')) {
+    clearTimeout(refreshTimer)
+    thumbnailNotice.value = ''
   }
+}
+function retryThumbnails() {
+  thumbs.clear(); seen.clear(); refreshes = 0; thumbnailNotice.value = ''
+  void thumbnails(works.value)
 }
 async function fetchRange(offset: number, limit: number, anchor: number, background = false) {
   const ticket = request.begin(); loading.value = true; error.value = ''
@@ -43,9 +66,14 @@ async function fetchRange(offset: number, limit: number, anchor: number, backgro
     const data = await api<GalleryBatch>(url('/api/library', props.query, {offset, limit, compact: 1}), {signal: ticket.signal})
     if (!ticket.current()) return
     start.value = offset; total.value = data.total; works.value = data.items; emit('total', data.total)
-    if (!background) { restoreIndex = anchor; await restore(anchor); if (!props.continuous) emit('page', page.value) }
-    await thumbnails(data.items)
-  } catch (failure) { if (ticket.current()) error.value = failure instanceof Error ? failure.message : '图库未能载入' }
+    if (!background) { restoreIndex = anchor; await restore(anchor); if (!ticket.current()) return; if (!props.continuous) emit('page', page.value) }
+    void thumbnails(data.items)
+  } catch (failure) {
+    if (ticket.current()) {
+      if (background && works.value.length) emit('message', '图库暂时无法刷新，已载入的作品仍可浏览')
+      else error.value = failure instanceof Error ? failure.message : '图库未能载入'
+    }
+  }
   finally { if (ticket.current()) loading.value = false }
 }
 function load(index: number, anchor = index * props.pageSize) {
@@ -53,13 +81,16 @@ function load(index: number, anchor = index * props.pageSize) {
   return fetchRange(index * props.pageSize, props.pageSize, anchor)
 }
 function restart() {
-  thumbs.clear(); refreshes = 0; clearTimeout(refreshTimer)
+  thumbnailGeneration++; thumbs.clear(); seen.clear(); refreshes = 0; thumbnailNotice.value = ''; clearTimeout(refreshTimer)
   if (props.continuous) {
     const offset = Math.floor(Math.max(0, props.startIndex - columns.value * 12) / columns.value) * columns.value
     void fetchRange(offset, Math.min(480, columns.value * 48), props.startIndex)
   } else void load(Math.floor(props.startIndex / props.pageSize), props.startIndex)
 }
-function refresh() { if (!loading.value && works.value.length) void fetchRange(start.value, works.value.length, restoreIndex, true) }
+function refresh() {
+  if (loading.value) { refreshTimer = window.setTimeout(refresh, 1000); return }
+  if (works.value.length) void fetchRange(start.value, works.value.length, restoreIndex, true)
+}
 async function extend(direction: number) {
   if (loading.value || restoring || !props.continuous) return
   const amount = Math.floor(192 / columns.value) * columns.value
@@ -82,7 +113,7 @@ async function extend(direction: number) {
       else items = items.slice(0, items.length - trim)
     }
     start.value = first; works.value = items; total.value = data.total
-    await restore(anchor, pixel); await thumbnails(data.items)
+    await restore(anchor, pixel); if (!ticket.current()) return; void thumbnails(data.items)
   } catch (failure) { if (ticket.current()) error.value = failure instanceof Error ? failure.message : '更多作品暂时无法载入' }
   finally { if (ticket.current()) loading.value = false }
 }
@@ -118,17 +149,18 @@ onMounted(() => {
   window.addEventListener('archive-updated', refresh)
   restart()
 })
-onBeforeUnmount(() => { request.cancel(); observer?.disconnect(); clearTimeout(refreshTimer); cancelAnimationFrame(scrollFrame); window.removeEventListener('archive-updated', refresh) })
+onBeforeUnmount(() => { thumbnailGeneration++; request.cancel(); observer?.disconnect(); clearTimeout(refreshTimer); cancelAnimationFrame(scrollFrame); window.removeEventListener('archive-updated', refresh) })
 </script>
 <template>
   <section class="gallery-view" aria-label="本地图库">
     <div v-if="error" class="notice error" role="alert">{{ error }} <button @click="restart">重试</button></div>
+    <div v-if="thumbnailNotice" class="notice" role="status">{{ thumbnailNotice }} <button @click="retryThumbnails">重试缩略图</button></div>
     <div ref="viewport" class="gallery-viewport" @scroll.passive="scroll" :aria-busy="loading">
       <div class="gallery-window" :data-window-size="works.length" :data-start="start" :style="{height: `${virtual.getTotalSize()}px`}">
         <div v-for="row in rows" :key="String(row.key)" class="gallery-row" :style="{transform: `translateY(${row.start}px)`, gridTemplateColumns: `repeat(${columns},minmax(0,1fr))`}">
           <article v-for="(work, col) in works.slice(row.index * columns, (row.index + 1) * columns)" :key="work.id"
             class="work-card" :class="{'is-hidden': work.is_hidden}" :data-work-id="work.id">
-            <button class="card-open" :aria-label="`查看 ${work.title}${work.x_restrict === 2 ? '，R-18G' : work.x_restrict === 1 ? '，R-18' : ''}`" @click="emit('open', start + row.index * columns + col)"><div class="card-picture"><MediaImage :src="work.thumbnail" :label="work.title" thumbnail /><RestrictionBadge :value="work.x_restrict" /><span v-if="work.type === 'ugoira' || work.page_count > 1" class="card-count">{{ work.type === 'ugoira' ? '动图' : work.page_count + ' 页' }}</span></div><strong>{{ work.title }}</strong></button>
+            <button class="card-open" :aria-label="`查看 ${work.title}${work.x_restrict === 2 ? '，R-18G' : work.x_restrict === 1 ? '，R-18' : ''}`" @click="emit('open', start + row.index * columns + col)"><div class="card-picture"><GalleryCardImage :thumbnail="work.thumbnail" :preview="work.type === 'ugoira' ? null : work.preview || null" :preview-status="work.preview_status || 'pending'" :animation="work.type === 'ugoira'" :label="work.title" /><RestrictionBadge :value="work.x_restrict" /><span v-if="work.type === 'ugoira' || work.page_count > 1" class="card-count">{{ work.type === 'ugoira' ? '动图' : work.page_count + ' 页' }}</span></div><strong>{{ work.title }}</strong></button>
             <button class="card-artist" @click="emit('artist', work.artist_id)">{{ work.artist_name }}<span v-if="work.is_hidden"> · 已隐藏</span></button>
             <BookmarkButton :work-id="work.id" :initial="work.bookmark" @message="emit('message', $event)" />
           </article>

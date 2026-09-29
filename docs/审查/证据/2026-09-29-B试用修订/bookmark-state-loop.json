@@ -1,0 +1,15 @@
+{
+  "account_switch_kept_new_pending": true,
+  "older_response_rejected": true,
+  "other_work_invalidated": true,
+  "pending_poll_delays_ms": [
+    900,
+    1600,
+    2300,
+    3000,
+    3700,
+    4400
+  ],
+  "real_account_used": false,
+  "real_library_used": false
+}

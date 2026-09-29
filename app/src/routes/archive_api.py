@@ -35,6 +35,7 @@ class BookmarkEdit(BaseModel):
     model_config = ConfigDict(extra="forbid")
     desired: bool
     request_id: UUID
+    expected_account_id: str = Field(min_length=1)
 
 
 class DeleteRequest(BaseModel):
@@ -158,7 +159,8 @@ def create_router(get_runtime):
     @router.post("/api/works/{work_id}/bookmark")
     def bookmark(work_id: int, edit: BookmarkEdit):
         try:
-            return runtime().bookmarks.submit(work_id, edit.desired, str(edit.request_id))
+            return runtime().bookmarks.submit(work_id, edit.desired, str(edit.request_id),
+                                              expected_account_id=edit.expected_account_id)
         except LookupError as exc:
             raise HTTPException(404, "作品不存在") from exc
         except ValueError as exc:
@@ -167,9 +169,9 @@ def create_router(get_runtime):
             raise HTTPException(503, safe_failure(exc)["message"]) from exc
 
     @router.post("/api/works/{work_id}/bookmark/refresh")
-    def refresh_bookmark(work_id: int):
+    def refresh_bookmark(work_id: int, automatic: bool = False):
         try:
-            return runtime().bookmarks.refresh(work_id)
+            return runtime().bookmarks.refresh(work_id, automatic=automatic)
         except LookupError as exc:
             raise HTTPException(404, "作品不存在") from exc
         except Exception as exc:

@@ -1,6 +1,6 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
-import {acceptsBookmarkUpdate} from '../src/state/bookmarkRules.ts'
+import {acceptsBookmarkUpdate, nextBookmarkIntent, showsBookmarkFact} from '../src/state/bookmarkRules.ts'
 import {requestId} from '../src/state/requestId.ts'
 
 test('request IDs use secure random bytes when randomUUID is unavailable', () => {
@@ -32,4 +32,29 @@ test('late responses cannot roll a terminal state back or replace another operat
   assert.equal(acceptsBookmarkUpdate(done, {version: 8, status: 'failed', operation_id: 'operation-b'}), false)
   assert.equal(acceptsBookmarkUpdate(done, {version: 7, status: 'confirmed', operation_id: 'old'}), false)
   assert.equal(acceptsBookmarkUpdate(done, {version: 9, status: 'pending', operation_id: 'operation-c'}), true)
+})
+
+test('account changes and server restarts outrank older work versions', () => {
+  const first = {version: 8, status: 'confirmed', operation_id: null,
+    account_epoch: 1_000_000, current_account_id: 'account-a'}
+  const switched = {version: 1, status: 'idle', operation_id: null,
+    account_epoch: 1_000_001, current_account_id: 'account-b'}
+  const restarted = {version: 1, status: 'confirmed', operation_id: null,
+    account_epoch: 1_100_000, current_account_id: 'account-b'}
+  assert.equal(acceptsBookmarkUpdate(first, switched), true)
+  assert.equal(acceptsBookmarkUpdate(switched, first), false)
+  assert.equal(acceptsBookmarkUpdate(first, restarted), true)
+  assert.equal(acceptsBookmarkUpdate(restarted, switched), false)
+  assert.equal(acceptsBookmarkUpdate(first, {...first, current_account_id: 'account-b'}), false)
+})
+
+test('a stored same-account fact stays visible while stale or pending; another account cannot infer cancel', () => {
+  const fact = {value: true, verified: true, fact_account_id: 'account-a', current_account_id: 'account-a'}
+  assert.equal(showsBookmarkFact(fact), true)
+  assert.equal(nextBookmarkIntent(fact), false)
+  assert.equal(showsBookmarkFact({...fact, current_account_id: null}), true)
+  assert.equal(showsBookmarkFact({...fact, current_account_id: 'account-b'}), false)
+  assert.equal(nextBookmarkIntent({...fact, current_account_id: 'account-b'}), true)
+  assert.equal(showsBookmarkFact({...fact, verified: false}), false)
+  assert.equal(nextBookmarkIntent({...fact, verified: false}), true)
 })
