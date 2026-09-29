@@ -13,7 +13,7 @@ const viewport = ref<HTMLDivElement | null>(null), works = ref<WorkCard[]>([]), 
 const page = ref(0), start = ref(0), columns = ref(5), width = ref(1000), loading = ref(false), error = ref('')
 const request = new LatestIntent(), thumbs = new Set<number>()
 let observer: ResizeObserver | null = null, restoreIndex = 0, refreshTimer = 0, refreshes = 0, restoring = false, scrollFrame = 0
-const rowHeight = computed(() => ((width.value - 16 * (columns.value - 1)) / columns.value) * 1.15 + 77)
+const rowHeight = computed(() => ((width.value - 16 * (columns.value - 1)) / columns.value) * 1.225 + 84)
 const virtual = useVirtualizer(computed(() => ({count: Math.ceil(works.value.length / columns.value),
   getScrollElement: () => viewport.value, estimateSize: () => rowHeight.value, overscan: 2})))
 const rows = computed(() => virtual.value.getVirtualItems())
@@ -21,7 +21,8 @@ const maxPage = computed(() => Math.max(0, Math.ceil(total.value / props.pageSiz
 async function restore(anchor: number, pixel = 0) {
   restoring = true
   await nextTick()
-  virtual.value.scrollToOffset(Math.floor(Math.max(0, anchor - start.value) / columns.value) * rowHeight.value + pixel)
+  virtual.value.measure()
+  virtual.value.scrollToOffset(Math.floor(Math.max(0, anchor - start.value) / columns.value) * rowHeight.value + Math.min(pixel, rowHeight.value - 1))
   await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
   restoring = false
 }
@@ -104,7 +105,14 @@ watch(() => [props.query, props.pageSize, props.continuous], restart)
 onMounted(() => {
   observer = new ResizeObserver(entries => {
     const rect = entries[0]?.contentRect
-    if (rect) { width.value = rect.width; columns.value = Math.max(2, Math.floor((rect.width + 16) / 260)) }
+    if (rect && Math.abs(rect.width - width.value) > 1) {
+      const anchor = restoreIndex
+      const currentRow = rows.value.find(row => row.end > (viewport.value?.scrollTop || 0))
+      const pixel = (viewport.value?.scrollTop || 0) - (currentRow?.start || 0)
+      width.value = rect.width
+      columns.value = Math.max(2, Math.floor((rect.width + 16) / 220))
+      if (works.value.length) void restore(anchor, Math.max(0, pixel))
+    }
   })
   if (viewport.value) observer.observe(viewport.value)
   window.addEventListener('archive-updated', refresh)
@@ -129,6 +137,6 @@ onBeforeUnmount(() => { request.cancel(); observer?.disconnect(); clearTimeout(r
       <div v-if="!works.length" class="empty"><h2>{{ loading ? '正在读取本地图库' : '这个范围里还没有作品' }}</h2><p>{{ loading ? '图片不会重新从 Pixiv 下载。' : '调整筛选，或从画师管理添加想要存档的画师。' }}</p><a v-if="!loading" href="/artists">前往画师管理</a></div>
     </div>
     <nav v-if="!continuous" class="pagination" aria-label="图库页码"><button :disabled="page <= 0 || loading" @click="load(page - 1)">上一页</button><label>第 <input aria-label="图库页码" type="number" min="1" :max="maxPage + 1" :value="page + 1" @change="load(Math.max(0, Math.min(maxPage, Number(($event.target as HTMLInputElement).value) - 1)))"> / {{ maxPage + 1 }} 页</label><button :disabled="page >= maxPage || loading" @click="load(page + 1)">下一页</button><span class="muted">{{ total }} 件作品</span></nav>
-    <div v-if="continuous" class="pagination"><span>连续滚动 · {{ total }} 件作品</span><button :disabled="loading" @click="fetchRange(0, 240, 0)">回到开头</button><span v-if="loading" class="muted">正在载入更多作品…</span></div>
+    <button v-if="continuous && startIndex > 0" class="gallery-jump" :disabled="loading" aria-label="回到开头" title="回到开头" @click="fetchRange(0, 240, 0)">↑</button>
   </section>
 </template>

@@ -56,6 +56,7 @@ def _quit_app(icon: pystray.Icon):
 
 
 def _create_icon():
+    from src.version import DISPLAY_VERSION
     icon_path = _resource_path("static/icon.png")
     img = Image.open(icon_path)
     # pystray 需要合适尺寸的图标，保持宽高比缩放
@@ -71,7 +72,7 @@ def _create_icon():
     return pystray.Icon(
         "pixiv_tracker",
         img,
-        "Pixiv Tracking Tool",
+        f"PixivTracker {DISPLAY_VERSION}",
         menu,
     )
 
@@ -79,12 +80,12 @@ def _create_icon():
 def run_tray(*, offline=False):
     """系统托盘入口。在主线程运行 pystray，Web 服务在 daemon 线程启动。"""
     from src.config import PORT, DATA_DIR
-    from src.version import __version__
+    from src.version import DISPLAY_VERSION
 
     # 日志重定向（必须在任何 print 之前）
     _redirect_stdio(DATA_DIR)
 
-    print(f"[tray] Pixiv Tracking Tool v{__version__} 启动")
+    print(f"[tray] PixivTracker {DISPLAY_VERSION} 启动")
     print(f"[tray] 端口: {PORT}")
     if offline:
         print("[tray] 离线模式：不登录 Pixiv，不启动自动检查")

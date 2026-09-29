@@ -22,6 +22,7 @@ def main():
     artifacts = args.artifacts.resolve()
     artifacts.mkdir(parents=True, exist_ok=False)
     exe = args.exe.resolve(strict=True)
+    os.environ["DATA_ROOT"] = str(artifacts / "driver-root")
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from playwright.sync_api import sync_playwright
     from src.auth import _find_system_browser
@@ -63,6 +64,11 @@ def main():
             page.locator('.work-card[data-work-id="1"]').wait_for()
             assert '.webp' in page.locator('.card-picture img').first.get_attribute('src').split('?')[0]
             checks.append("exe-opens-new-local-gallery-and-thumbnail")
+            page.get_by_role("button", name="收起侧栏", exact=True).click()
+            page.locator(".app-shell.sidebar-collapsed").wait_for()
+            page.get_by_role("button", name="展开侧栏", exact=True).click()
+            page.get_by_role("button", name="检查新作品", exact=True).wait_for()
+            checks.append("exe-b-sidebar-and-manual-check-entry")
             page.locator('.work-card[data-work-id="1"] .card-picture').click()
             page.locator('.image-page img').first.wait_for()
             page.wait_for_function("document.querySelector('.image-page img').complete")
@@ -81,6 +87,14 @@ def main():
             page.locator(".settings-page").wait_for()
             page.get_by_text("离线，本地图库仍可阅读", exact=True).wait_for()
             checks.append("exe-real-settings-remain-usable-offline")
+            from src.version import __version__, __build__
+            settings = page.request.get(origin + "/api/settings").json()
+            assert settings["version"] == __version__ and settings["build"] == __build__
+            page.get_by_text(f"版本 {__version__} · 内部构建 {__build__}", exact=True).wait_for()
+            page.get_by_role("button", name="查看日志", exact=True).click()
+            page.locator(".settings-log pre").wait_for()
+            assert page.request.get(origin + "/api/logs").ok
+            checks.append("exe-public-version-build-and-read-only-log")
             for label in ("浅色", "深色", "浅色", "深色"):
                 page.get_by_role("button", name=label, exact=True).click()
                 assert page.locator("body").get_attribute("data-theme") == ("light" if label == "浅色" else "dark")
@@ -99,6 +113,11 @@ def main():
             assert mobile.evaluate("document.documentElement.scrollWidth <= innerWidth")
             mobile.screenshot(path=str(artifacts / "exe-mobile.png"))
             checks.append("exe-mobile-viewport-fits-reader")
+            mobile.get_by_role("button", name="打开菜单", exact=True).tap()
+            mobile.get_by_role("navigation", name="主导航").get_by_role("button", name="设置", exact=True).tap()
+            mobile.locator(".settings-page").wait_for()
+            assert mobile.get_by_role("button", name="打开菜单", exact=True).is_visible()
+            checks.append("exe-mobile-drawer-navigation")
             if page_errors:
                 raise AssertionError(page_errors)
             phone.close(); desktop.close(); browser.close()

@@ -4,7 +4,7 @@ from PyInstaller.utils.hooks import collect_submodules
 
 version_namespace = {}
 exec(Path('src/version.py').read_text(encoding='utf-8'), version_namespace)
-EXE_NAME = f"PixivTracker_v{version_namespace['__version__']}"
+EXE_NAME = version_namespace['EXE_NAME']
 
 a = Analysis(
     ['run.py'],

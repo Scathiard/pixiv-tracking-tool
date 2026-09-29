@@ -1,4 +1,4 @@
-"""R4 production UI checks with real Chromium input and generated local media."""
+"""Production reader regression with real Chromium input and generated local media."""
 from __future__ import annotations
 
 import argparse
@@ -78,8 +78,9 @@ def main():
         assert page.locator(".work-card").count() < 80
         assert page.get_by_role("navigation", name="主导航").get_by_role("button", name="阅览", exact=True).count() == 0
         assert not page.locator(".task-track").is_visible()
+        page.wait_for_function("[...document.querySelectorAll('.work-card img')].slice(0,5).every(i=>i.complete&&i.naturalWidth>0)")
         page.screenshot(path=str(artifacts / "desktop-gallery.png"))
-        passed("desktop-gallery-r4-idle-progress-hidden")
+        passed("desktop-gallery-b-idle-progress-hidden")
 
         page.get_by_role("navigation", name="主导航").get_by_role("button", name="设置", exact=True).click()
         page.get_by_label("图库浏览方式").select_option("scroll")
@@ -215,6 +216,8 @@ def main():
                 mobile.goto(origin + path)
                 mobile.locator({"gallery": ".work-card", "detail": ".image-page", "artists": ".artist-profile", "settings": ".settings-card"}[label]).first.wait_for()
                 fit(mobile)
+                if label == "gallery":
+                    mobile.wait_for_function("[...document.querySelectorAll('.work-card img')].slice(0,4).every(i=>i.complete&&i.naturalWidth>0)")
                 mobile.screenshot(path=str(artifacts / f"phone-{width}-{label}.png"))
             light = mobile.get_by_role("button", name="浅色", exact=True)
             dark = mobile.get_by_role("button", name="深色", exact=True)

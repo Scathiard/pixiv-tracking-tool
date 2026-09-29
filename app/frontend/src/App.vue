@@ -27,6 +27,8 @@ const router = useRouter(), browserRoute = useRoute()
 let internalRoute = '', searchTimer = 0
 const composing = ref(false)
 const filterOpen = ref(false), infoOpen = ref(false), notification = ref(''), error = ref(''), newContent = ref(false)
+const sidebarCollapsed = ref(false), mobileMenuOpen = ref(false), notificationError = ref(false)
+const mobileMenuButton = ref<HTMLButtonElement | null>(null)
 const removePrompt = ref(false)
 const galleryAnchor = ref(0), galleryWorkId = ref<number | null>(null), pageSize = ref(100), ordinaryIndex = ref(0), desiredIndex = ref(0)
 const continuous = ref(false)
@@ -57,14 +59,30 @@ async function updateRailCounts(query: string, ticket: ReturnType<LatestIntent['
     if (ticket.current()) railCounts.value = {all: batches[0]!.total, recent: batches[1]!.total, favorites: batches[2]!.total}
   } catch { /* Counters are optional while the library itself remains usable. */ }
 }
-function message(text: string, persistent = false) { notification.value = text; clearTimeout(toastTimer); if (!persistent) toastTimer = window.setTimeout(() => { notification.value = '' }, 6500) }
+function message(text: string, isError = false) {
+  notification.value = text; notificationError.value = isError; clearTimeout(toastTimer)
+  toastTimer = window.setTimeout(() => { notification.value = '' }, notificationError.value ? 9000 : 5000)
+}
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+  try { localStorage.setItem('pixiv-local-sidebar-collapsed', sidebarCollapsed.value ? '1' : '0') } catch { /* optional preference */ }
+}
+function closeMobileMenu() { const wasOpen = mobileMenuOpen.value; mobileMenuOpen.value = false; if (wasOpen) void nextTick(() => mobileMenuButton.value?.focus()) }
+function navHome() { closeMobileMenu(); brandHome() }
+function navArtists() { closeMobileMenu(); showArtists() }
+function navFeed() {
+  closeMobileMenu()
+  if (section.value !== 'library') void initialize(homeScope.value, '/flow', true, true)
+  else void enterFeed()
+}
+function navSettings() { closeMobileMenu(); showSettings() }
+function navRail(rail: 'all' | 'recent' | 'favorites') { closeMobileMenu(); changeRail(rail) }
 function remember() {
   if (mode.value === 'gallery') { savePosition(scope.value, 'gallery', galleryWorkId.value ? {work_id: galleryWorkId.value, index: galleryAnchor.value} : galleryAnchor.value); return }
   const anchor = reader.value?.readAnchor() || currentAnchor.value
   if (anchor) { savePosition(scope.value, mode.value, anchor); galleryAnchor.value = anchor.work_index; galleryWorkId.value = anchor.work_id; savePosition(scope.value, 'gallery', {work_id: anchor.work_id, index: anchor.work_index}) }
 }
 function route(push: boolean) {
-  stopThemeTransition()
   const path = section.value === 'settings' ? '/settings' : section.value === 'artists' ? artistId.value ? `/artist/${artistId.value}` : '/artists' :
     mode.value === 'gallery' ? '/' : mode.value === 'feed' ? '/flow' : '/illust/' + currentWork.value!.id
   const params = section.value === 'library' ? new URLSearchParams(scope.value) : new URLSearchParams()
@@ -119,7 +137,7 @@ async function initialize(query: string, path = '/', push = false, restoreHistor
       const id = Number(match[1]), saved = positions(scope.value).reader
       const position = await api<Anchor>(url('/api/library/locate', scope.value, {work_id: id}), {signal: ticket.signal})
       if (ticket.current()) await openWork(position.work_index, saved?.work_id === id ? saved : null, false)
-    } else if (path === '/flow') await enterFeed(false)
+    } else if (path === '/flow') { if (total.value) await enterFeed(push); else route(push) }
     else route(push)
   } catch (failure) {
     if (ticket.current()) { error.value = failure instanceof Error ? failure.message : '图库未能载入'; pending.value = false; ready.value = true }
@@ -211,7 +229,8 @@ async function loadInfo(id: number) {
 async function task(kind: string, workId?: number) {
   try {
     const result = await write<{operation_id: string; created: boolean}>('/api/tasks', {kind, ...(workId ? {work_ids: [workId]} : {})})
-    message(result.created ? '操作已排队，可在任务记录中查看' : '已有同类任务，已定位对应记录')
+    const label = ({check: '检查新作品', repair: '补下载', verify: '全量核验本地文件', backfill: '补回动图原包', metadata: '刷新作品信息', bookmarks: '同步收藏状态'} as Record<string, string>)[kind] || '任务'
+    message(result.created ? `${label}已提交` : `已有相同的${label}任务`)
     await taskPanel.value?.showTask(result.operation_id)
   } catch (failure) { message(failure instanceof Error ? failure.message : '任务未能提交', true) }
 }
@@ -230,6 +249,7 @@ async function remove() {
   } catch (failure) { message(failure instanceof Error ? failure.message : '删除未成功', true) }
 }
 function key(event: KeyboardEvent) {
+  if (event.key === 'Escape' && mobileMenuOpen.value) { closeMobileMenu(); return }
   if (section.value !== 'library' || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || zoomPage.value ||
       (event.target as Element).closest('input,textarea,select,[contenteditable],[role="dialog"],[data-no-navigation]')) return
   if (event.key === 'Escape') { if (infoOpen.value) infoOpen.value = false; else if (filterOpen.value) filterOpen.value = false; else if (mode.value !== 'gallery') gallery(); return }
@@ -310,36 +330,7 @@ function backFromDetail() {
 }
 function brandHome() { remember(); detailOrigin.value = 'gallery'; void initialize(homeScope.value, '/', true, true) }
 function foreground() { resumeBookmarkPolling(); if (section.value === 'library' && mode.value !== 'gallery') { const id = activePage.value?.work_id || currentWork.value?.id; if (id) refreshBookmark(id) } }
-let themeOverlay: HTMLElement | null = null
-function stopThemeTransition() { themeOverlay?.remove(); themeOverlay = null }
-function chooseTheme(theme: 'dark' | 'light', event: MouseEvent) {
-  const old = document.body.dataset.theme === 'light' ? 'light' : 'dark'
-  if (old === theme) return
-  stopThemeTransition()
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
-  if (!reduce) {
-    const panel = document.querySelector('.settings-page')
-    if (panel instanceof HTMLElement) {
-      const overlay = document.createElement('div')
-      overlay.className = 'theme-snapshot'; overlay.dataset.theme = old; overlay.inert = true
-      overlay.setAttribute('aria-hidden', 'true')
-      const clone = panel.cloneNode(true) as HTMLElement
-      clone.style.marginTop = `${panel.getBoundingClientRect().top}px`
-      for (const element of [clone, ...clone.querySelectorAll<HTMLElement>('*')]) {
-        for (const attribute of [...element.attributes]) if (attribute.name === 'id' || attribute.name.startsWith('data-') || attribute.name === 'href') element.removeAttribute(attribute.name)
-        if (element instanceof HTMLInputElement) { element.value = ''; element.removeAttribute('value') }
-      }
-      overlay.append(clone)
-      const target = event.currentTarget as HTMLElement
-      const rect = target.getBoundingClientRect()
-      overlay.style.setProperty('--theme-x', `${rect.left + rect.width / 2}px`)
-      overlay.style.setProperty('--theme-y', `${rect.top + rect.height / 2}px`)
-      document.body.append(overlay); themeOverlay = overlay
-      const diagonal = Math.hypot(innerWidth, innerHeight) * 1.5
-      const animation = overlay.animate([{'--theme-radius': '0px'}, {'--theme-radius': `${diagonal}px`}], {duration: 280, easing: 'ease-out'})
-      animation.onfinish = () => { overlay.remove(); if (themeOverlay === overlay) themeOverlay = null }
-    }
-  }
+function chooseTheme(theme: 'dark' | 'light', _event: MouseEvent) {
   document.body.dataset.theme = theme
   try { localStorage.setItem('pixiv-local-theme', theme) } catch { /* optional */ }
 }
@@ -349,6 +340,7 @@ watch(() => browserRoute.fullPath, path => {
 })
 onMounted(async () => {
   try { document.body.dataset.theme = localStorage.getItem('pixiv-local-theme') === 'light' ? 'light' : 'dark' } catch { document.body.dataset.theme = 'dark' }
+  try { sidebarCollapsed.value = localStorage.getItem('pixiv-local-sidebar-collapsed') === '1' } catch { /* optional preference */ }
   try { setHomeScope(localStorage.getItem('pixiv-local-home-scope') || '') } catch { /* optional */ }
   if (location.pathname === '/') setHomeScope(location.search.replace(/^\?/, ''))
   try {
@@ -362,9 +354,8 @@ onMounted(async () => {
   void initialize(location.search, location.pathname, false, true)
   window.addEventListener('keydown', key); window.addEventListener('pagehide', remember)
   window.addEventListener('focus', foreground)
-  window.addEventListener('scroll', stopThemeTransition, true); window.addEventListener('resize', stopThemeTransition)
 })
-onBeforeUnmount(() => { remember(); navigation.cancel(); infoRequest.cancel(); clearTimeout(toastTimer); clearTimeout(searchTimer); stopThemeTransition(); window.removeEventListener('keydown', key); window.removeEventListener('pagehide', remember); window.removeEventListener('focus', foreground); window.removeEventListener('scroll', stopThemeTransition, true); window.removeEventListener('resize', stopThemeTransition) })
+onBeforeUnmount(() => { remember(); navigation.cancel(); infoRequest.cancel(); clearTimeout(toastTimer); clearTimeout(searchTimer); window.removeEventListener('keydown', key); window.removeEventListener('pagehide', remember); window.removeEventListener('focus', foreground) })
 function changePageSize(value: string) {
   continuous.value = value === 'scroll'
   if (!continuous.value) pageSize.value = Number(value)
@@ -373,22 +364,29 @@ function changePageSize(value: string) {
 function updated() { newContent.value = true; window.dispatchEvent(new Event('archive-updated')) }
 </script>
 <template>
-  <div class="app-shell" :inert="zoomPage ? true : undefined">
-    <header class="app-header"><button class="brand" @click="brandHome" aria-label="返回我的图库"><span class="brand-mark">P</span><span><span class="brand-pixiv">Pixiv</span>Tracker</span></button><nav aria-label="主导航"><button :class="{selected: section === 'library' && mode !== 'feed'}" @click="brandHome"><Icon name="grid" />作品</button><button :class="{selected: section === 'artists'}" @click="showArtists()"><Icon name="artists" />画师</button><button :class="{selected: section === 'library' && mode === 'feed'}" :disabled="!total" @click="enterFeed()"><Icon name="flow" />流式</button><button :class="{selected: section === 'settings'}" @click="showSettings"><Icon name="settings" />设置</button></nav></header>
+  <div class="app-shell" :class="{'sidebar-collapsed': sidebarCollapsed}" :inert="zoomPage ? true : undefined">
+    <header class="app-header" :class="{'is-collapsed': sidebarCollapsed, 'is-open': mobileMenuOpen}">
+      <div class="mobile-head"><button ref="mobileMenuButton" class="menu-toggle" :aria-expanded="mobileMenuOpen" aria-controls="app-sidebar" :aria-label="mobileMenuOpen ? '关闭菜单' : '打开菜单'" @click="mobileMenuOpen ? closeMobileMenu() : mobileMenuOpen = true"><Icon :name="mobileMenuOpen ? 'close' : 'menu'" /></button><button class="brand" @click="navHome" aria-label="返回我的图库"><span class="brand-mark">P</span><span><span class="brand-pixiv">Pixiv</span>Tracker</span></button><span class="mobile-head-spacer" /></div>
+      <button v-if="mobileMenuOpen" class="sidebar-scrim" aria-label="关闭菜单" @click="closeMobileMenu" />
+      <div id="app-sidebar" class="sidebar-body">
+        <div class="sidebar-head"><button class="brand" @click="navHome" aria-label="返回我的图库" title="返回我的图库"><span class="brand-mark">P</span><span class="sidebar-label"><span class="brand-pixiv">Pixiv</span>Tracker</span></button><button class="sidebar-toggle" :aria-label="sidebarCollapsed ? '展开侧栏' : '收起侧栏'" :title="sidebarCollapsed ? '展开侧栏' : '收起侧栏'" @click="toggleSidebar"><Icon :name="sidebarCollapsed ? 'right' : 'left'" /></button><button class="mobile-close" aria-label="关闭菜单" @click="closeMobileMenu"><Icon name="close" /></button></div>
+        <label v-if="!sidebarCollapsed || mobileMenuOpen" class="search-field side-search"><Icon name="search" /><input v-model="searchText" type="search" placeholder="搜索作品、画师或标签" aria-label="搜索作品、画师或标签" @compositionstart="composing = true" @compositionend="composing = false; search()" @input="search"></label><button v-else class="side-search-trigger" aria-label="展开侧栏并搜索" title="搜索" @click="toggleSidebar"><Icon name="search" /></button>
+        <nav class="sidebar-nav" aria-label="主导航"><button :class="{selected: section === 'library' && mode !== 'feed'}" title="作品" @click="navHome"><Icon name="grid" /><span class="sidebar-label">作品</span></button><button :class="{selected: section === 'artists'}" title="画师" @click="navArtists"><Icon name="artists" /><span class="sidebar-label">画师</span></button><button :class="{selected: section === 'library' && mode === 'feed'}" title="流式阅览" :disabled="section === 'library' && !total" @click="navFeed"><Icon name="flow" /><span class="sidebar-label">流式阅览</span></button><button :class="{selected: section === 'settings'}" title="设置" @click="navSettings"><Icon name="settings" /><span class="sidebar-label">设置</span></button></nav>
+        <div class="sidebar-divider" /><div class="sidebar-group-label sidebar-label">图库范围</div><nav class="sidebar-nav sidebar-scopes" aria-label="图库范围"><button :class="{selected: section === 'library' && currentRail() === 'all'}" :aria-pressed="currentRail() === 'all'" title="全部作品" @click="navRail('all')"><Icon name="grid" /><span class="sidebar-label">全部作品</span><small class="sidebar-label">{{ railCounts.all }}</small></button><button :class="{selected: section === 'library' && currentRail() === 'recent'}" :aria-pressed="currentRail() === 'recent'" title="最近存入" @click="navRail('recent')"><Icon name="clock" /><span class="sidebar-label">最近存入</span><small class="sidebar-label">{{ railCounts.recent }}</small></button><button :class="{selected: section === 'library' && currentRail() === 'favorites'}" :aria-pressed="currentRail() === 'favorites'" title="收藏" @click="navRail('favorites')"><Icon name="heart" /><span class="sidebar-label">收藏</span><small class="sidebar-label">{{ railCounts.favorites }}</small></button></nav>
+      </div>
+    </header>
     <TaskPanel ref="taskPanel" @updated="updated" />
     <template v-if="section === 'library'">
       <template v-if="mode === 'gallery'">
-        <div class="gallery-layout"><aside class="gallery-rail"><div class="rail-overline">我的图库</div><nav aria-label="图库范围"><button :class="{active: currentRail() === 'all'}" :aria-pressed="currentRail() === 'all'" @click="changeRail('all')">全部作品 <span>{{ railCounts.all }}</span></button><button :class="{active: currentRail() === 'recent'}" :aria-pressed="currentRail() === 'recent'" @click="changeRail('recent')">最近存入 <span>{{ railCounts.recent }}</span></button><button :class="{active: currentRail() === 'favorites'}" :aria-pressed="currentRail() === 'favorites'" @click="changeRail('favorites')">收藏 <span>{{ railCounts.favorites }}</span></button></nav><p>作品保存在本地<br>离线也能继续阅读</p></aside>
-          <main class="gallery-main"><div class="gallery-intro"><div><h1>{{ heading }}</h1><p>本地存档 · {{ total }} 件作品</p></div></div>
-            <div class="library-tabs" aria-label="图库范围"><button :class="{active: currentRail() === 'all'}" @click="changeRail('all')">全部</button><button :class="{active: currentRail() === 'recent'}" @click="changeRail('recent')">最近</button><button :class="{active: currentRail() === 'favorites'}" @click="changeRail('favorites')">收藏</button></div>
-            <div class="gallery-controls"><label class="search-field"><Icon name="search" /><input v-model="searchText" type="search" placeholder="搜索作品、画师或标签" aria-label="搜索作品、画师或标签" @compositionstart="composing = true" @compositionend="composing = false; search()" @input="search"></label><select v-model="sortChoice" aria-label="图库排序" @change="sort"><option value="newest">最新投稿</option><option value="oldest">最早投稿</option><option value="added">最近存入</option><option value="title">作品名称</option></select><button class="softbtn" :aria-expanded="filterOpen" @click="filterOpen = true"><Icon name="filter" />筛选</button></div>
-            <div class="filter-summary-line"><span>{{ filterSummary }}</span><span>{{ total }} 件作品</span></div>
+        <div class="gallery-layout" :inert="mobileMenuOpen ? true : undefined">
+          <main class="gallery-main"><div class="gallery-controls"><div class="gallery-heading"><h1>{{ heading }}</h1><span>{{ total }} 件</span></div><div class="gallery-control-actions"><select v-model="sortChoice" aria-label="图库排序" @change="sort"><option value="newest">最新投稿</option><option value="oldest">最早投稿</option><option value="added">最近存入</option><option value="title">作品名称</option></select><button class="softbtn" :aria-expanded="filterOpen" :title="filterSummary" @click="filterOpen = true"><Icon name="filter" />筛选</button><button class="check-button" @click="task('check')"><Icon name="refresh" /><span>检查新作品</span></button></div></div>
+            <div v-if="filterSummary !== '全部画师 · 全部类型'" class="active-filters"><span>{{ filterSummary }}</span><button class="text-link" @click="filterOpen = true">调整</button></div>
             <div v-if="newContent" class="update-notice"><span>后台任务已结束，当前位置已保留。</span><button @click="refresh">刷新图库</button><button class="quiet" @click="newContent = false">关闭</button></div>
             <div v-if="error" class="notice error" role="alert">{{ error }} <button @click="retryNavigation">重试</button></div>
             <GalleryView v-if="ready" :query="scope" :start-index="galleryAnchor" :page-size="pageSize" :continuous="continuous" @open="openFromGallery" @artist="showArtists" @message="message($event, true)" @anchor="galleryFocused" @total="total = $event" @page="galleryAnchor = $event * pageSize; route(false)" /><div v-else class="empty">正在打开本地图库…</div>
           </main></div>
       </template>
-      <template v-else><main class="reader-layout">
+      <template v-else><main class="reader-layout" :inert="mobileMenuOpen ? true : undefined">
         <div v-if="error" class="notice error" role="alert">{{ error }} <button @click="retryNavigation">重试</button><button class="quiet" @click="error = ''">关闭</button></div>
         <div class="reader-stage"><Transition name="work"><PageReader :key="sessionKey" ref="reader" :mode="mode === 'feed' ? 'feed' : 'reader'" :loader="loader" :session-key="sessionKey" :initial="initialAnchor" :inactive="!!zoomPage" @focus="focused" @navigate="navigate" @zoom="zoomPage = $event">
           <template #before><div v-if="mode === 'reader' && currentWork" class="detail-head"><div class="detail-nav"><button class="detail-back" @click="backFromDetail"><Icon name="left" />{{ detailOrigin === 'artists' ? '返回画师' : detailOrigin === 'feed' ? '返回流式阅览' : '返回图库' }}</button><span>{{ ordinaryIndex + 1 }} / {{ total }}</span></div><div class="detail-title-row"><h1>{{ currentWork.title }}</h1><RestrictionBadge :value="currentWork.x_restrict" /><span class="detail-badge">{{ currentWork.type === 'ugoira' ? '动图' : currentWork.type === 'manga' ? '漫画' : '插画' }}</span><span v-if="currentWork.display_page_count > 1" class="detail-badge">{{ currentWork.display_page_count }} 页</span></div><div class="detail-meta"><span>画师：<button class="text-link" @click="showArtists(currentWork.artist_id)">{{ currentWork.artist_name }}</button></span><span v-if="currentWork.posted_at">发布于 {{ currentWork.posted_at.slice(0, 10) }}</span></div><div class="detail-tags"><button v-for="tag in currentWork.tags" :key="tag" class="tag" @click="tagFilter(tag)">#{{ tag }}</button></div><div class="detail-actions"><a class="text-link" :href="`https://www.pixiv.net/artworks/${currentWork.pixiv_id}`" target="_blank" rel="noopener noreferrer">在 Pixiv 查看 <Icon name="external" /></a><button class="softbtn" @click="openFolder(currentWork.id)"><Icon name="folder" />本地文件</button><div class="detail-action-right"><button class="softbtn" @click="infoOpen = true; loadInfo(currentWork.id)">整理作品</button></div></div></div><div v-else class="stream-head"><div><h1>流式阅览</h1><p>当前图库范围 · {{ total }} 件作品</p></div><button class="softbtn" @click="gallery()"><Icon name="grid" />返回图库</button></div></template>
@@ -398,10 +396,10 @@ function updated() { newContent.value = true; window.dispatchEvent(new Event('ar
         <footer class="reading-toolbar"><div class="reading-toolbar-inner"><template v-if="mode === 'reader'"><button class="softbtn" :disabled="desiredIndex <= 0" @click="navigate(-1)"><Icon name="left" />上一件</button><div class="reading-counter"><strong>{{ currentWork?.title }}</strong><small>{{ ordinaryIndex + 1 }} / {{ total }} 件 · 第 {{ (activePage?.page ?? 0) + 1 }} / {{ currentWork?.display_page_count || 1 }} 页</small></div><button class="primary" :disabled="desiredIndex >= total - 1" @click="navigate(1)">下一件<Icon name="right" /></button></template><template v-else><div class="reading-counter"><strong>{{ activePage?.title || '流式阅览' }}</strong><small>{{ (activePage?.work_index ?? 0) + 1 }} / {{ total }} 件 · 第 {{ (activePage?.page ?? 0) + 1 }} / {{ activePage?.page_count || 1 }} 页</small></div><BookmarkButton v-if="activePage" :key="activePage.work_id" :work-id="activePage.work_id" @message="message($event, true)" /><button class="primary" :disabled="!activePage || activePage.work_index >= total - 1" @click="reader?.jump(activePage!.next_work_index)">跳过作品<Icon name="down" /></button></template></div></footer>
       </main></template>
     </template>
-    <ArtistsView v-else-if="section === 'artists'" :artist-id="artistId" @works="artistWorks" @work="artistWork" @message="message($event, true)" />
-    <SettingsView v-else :gallery-mode="continuous ? 'scroll' : String(pageSize)" @gallery-mode="changePageSize" @task="task" @history="taskPanel?.openHistory()" @theme="chooseTheme" @message="message($event, true)" />
+    <ArtistsView v-else-if="section === 'artists'" :inert="mobileMenuOpen ? true : undefined" :artist-id="artistId" @works="artistWorks" @work="artistWork" @message="message" />
+    <SettingsView v-else :inert="mobileMenuOpen ? true : undefined" :gallery-mode="continuous ? 'scroll' : String(pageSize)" @gallery-mode="changePageSize" @task="task" @theme="chooseTheme" @message="message" />
     <FilterPanel v-if="filterOpen && section === 'library' && mode === 'gallery'" :key="scope" :query="scope" @apply="filter" @close="filterOpen = false" />
-    <div v-if="notification" class="toast" role="status">{{ notification }}<button @click="notification = ''" aria-label="关闭提示"><Icon name="close" /></button></div>
+    <div v-if="notification" class="toast" :class="{error: notificationError}" :role="notificationError ? 'alert' : 'status'">{{ notification }}<button @click="notification = ''" aria-label="关闭提示"><Icon name="close" /></button></div>
   </div>
   <ZoomView v-if="zoomPage" :page="zoomPage" @close="zoomPage = null" />
   <ConfirmDialog v-if="removePrompt" title="永久删除作品" description="这会删除作品和本地文件，并阻止旧任务再次下载。" action="永久删除" danger @cancel="removePrompt = false" @confirm="remove" />

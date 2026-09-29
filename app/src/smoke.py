@@ -66,7 +66,7 @@ def run_smoke_test() -> int:
     from .config import resource_path
     from .core.runtime import Runtime
     from .core.models import ArchiveIntent, Artist, Asset, Work
-    from .version import __version__
+    from .version import __version__, __build__
     from .web import create_app
     from PIL import Image
 
@@ -135,7 +135,7 @@ def run_smoke_test() -> int:
         if expired.is_set() or not server.started:
             raise RuntimeError("隔离浏览器服务未正常完成")
         checks["packaged_browser_service"] = 200
-    report = {"status": "SMOKE_OK", "version": __version__, "fixture": str(root), "checks": checks,
+    report = {"status": "SMOKE_OK", "version": __version__, "build": __build__, "fixture": str(root), "checks": checks,
               "real_account_used": False, "real_library_used": False, "reading_ui": reading_ui}
     destination = args.smoke_output or root / "smoke-result.json"
     with destination.open("x", encoding="utf-8") as output:

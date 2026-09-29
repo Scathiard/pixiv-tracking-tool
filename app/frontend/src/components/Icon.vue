@@ -1,5 +1,5 @@
 <script setup lang="ts">
-defineProps<{name: 'grid' | 'book' | 'flow' | 'artists' | 'settings' | 'heart' | 'search' | 'filter' | 'left' | 'right' | 'down' | 'close' | 'plus' | 'folder' | 'external' | 'refresh' | 'check' | 'pause' | 'list' | 'zoom'}>()
+defineProps<{name: 'grid' | 'book' | 'flow' | 'artists' | 'settings' | 'heart' | 'search' | 'filter' | 'left' | 'right' | 'down' | 'close' | 'plus' | 'folder' | 'external' | 'refresh' | 'check' | 'pause' | 'list' | 'zoom' | 'menu' | 'clock'}>()
 const paths: Record<string, string> = {
   grid: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
   book: 'M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 1 4 17.5zM4 17.5A2.5 2.5 0 0 1 6.5 15H20',
@@ -14,6 +14,7 @@ const paths: Record<string, string> = {
   refresh: 'M20 6v5h-5M4 18v-5h5M5.2 9a7 7 0 0 1 12.5-2L20 11M4 13l2.3 4a7 7 0 0 0 12.5-2',
   check: 'm4 12 5 5L20 6', pause: 'M7 4v16M17 4v16', list: 'M8 5h13M8 12h13M8 19h13M3 5h1M3 12h1M3 19h1',
   zoom: 'M10.8 18.1a7.3 7.3 0 1 0 0-14.6 7.3 7.3 0 0 0 0 14.6zM16.2 16.2 21 21M10.8 7v7M7.3 10.5h7',
+  menu: 'M4 6h16M4 12h16M4 18h16', clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2',
 }
 </script>
 <template><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="icon"><path :d="paths[name]" /></svg></template>

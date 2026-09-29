@@ -173,7 +173,7 @@ def main():
                 current = runtime.queue.snapshot()["round"]
                 frozen_total = current["total"]
                 assert frozen_total and frozen_total > 0
-                page.get_by_role("progressbar", name="本轮处理进度").wait_for()
+                page.get_by_role("progressbar").wait_for()
                 page.wait_for_function("document.querySelector('[role=progressbar]')?.hasAttribute('aria-valuenow')")
                 response = context.request.post(origin + "/api/tasks", headers={"Origin": origin}, data={"kind": "verify", "work_ids": [4999]})
                 next_id = response.json()["operation_id"]
@@ -209,7 +209,7 @@ def main():
         result = runtime.queue.details(operation_id)
         assert result["state"] == "finished" and result["result"]["outcome"] == "partial_failure"
         metrics["download_result"] = {"counts": result["counts"], "outcome": result["result"]["outcome"], "calls": len(download.calls)}
-        page.get_by_role("progressbar", name="本轮处理进度").wait_for(state="hidden")
+        page.get_by_role("progressbar").wait_for(state="hidden")
         assert page.evaluate("window.documentMarker") == "download-preserved"
         passed("partial-failure-persists-progress-retracts-without-reader-refresh")
 
@@ -227,10 +227,10 @@ def main():
             page.wait_for_timeout(150)
         assert runtime.queue.details(automatic["operation_id"])["state"] == "finished"
         page.get_by_role("navigation", name="主导航").get_by_role("button", name="设置", exact=True).click()
-        page.get_by_role("button", name="任务记录", exact=True).click()
-        page.locator(".task-list").get_by_text("部分失败", exact=True).wait_for()
+        page.get_by_role("button", name="查看日志", exact=True).click()
+        page.locator(".settings-log pre").filter(has_text="部分失败").wait_for()
         page.screenshot(path=str(artifacts / "retained-failure.png"))
-        passed("settings-task-history-retains-earlier-failed-round")
+        passed("settings-processing-log-retains-earlier-failed-round")
 
         runtime.client = None
         page.reload()

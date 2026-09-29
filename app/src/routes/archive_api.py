@@ -46,7 +46,7 @@ class ArtistAdd(BaseModel):
     pixiv_id: str = Field(pattern=r"^[0-9]+$", max_length=32)
 
 
-LABELS = {"check": "检查更新", "metadata": "刷新信息", "bookmarks": "同步收藏状态", "repair": "补下载", "verify": "核验本地存档",
+LABELS = {"check": "检查新作品", "metadata": "刷新信息", "bookmarks": "同步收藏状态", "repair": "补下载", "verify": "全量核验本地文件",
           "backfill": "补回所选动图原包", "thumbnails": "生成缩略图"}
 
 

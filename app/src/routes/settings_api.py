@@ -8,6 +8,8 @@ from sqlalchemy import func, select
 from .. import config
 from ..auth import get_pending_login_url
 from ..core.models import Artist, Asset, Work
+from ..core.activity_log import processing_log
+from ..version import __version__, __build__
 
 
 class SettingsEdit(BaseModel):
@@ -36,7 +38,8 @@ def create_settings_router(get_runtime):
             "pending" if get_pending_login_url() else "offline")
         # A GET must not contact Pixiv just to retrieve the current account ID.
         account_id = getattr(current, "account_id", None)
-        return {"login": {"status": status, "account_id": account_id},
+        return {"version": __version__, "build": __build__,
+            "login": {"status": status, "account_id": account_id},
             "automatic_paused": current.queue.automatic_paused(),
             "current_port": config.LISTENING_PORT, "next_port": config.PORT,
             "data_root": str(config.DATA_ROOT),
@@ -46,6 +49,10 @@ def create_settings_router(get_runtime):
     @router.get("/api/settings")
     def settings():
         return snapshot()
+
+    @router.get("/api/logs")
+    def logs():
+        return processing_log(runtime().database)
 
     @router.patch("/api/settings")
     def edit_settings(edit: SettingsEdit):

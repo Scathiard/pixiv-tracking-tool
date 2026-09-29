@@ -7,7 +7,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import MediaImage from '../MediaImage.vue'
 import RestrictionBadge from '../components/RestrictionBadge.vue'
 const props = defineProps<{artistId?: number | null}>()
-const emit = defineEmits<{works: [id: number]; work: [artistId: number, workId: number]; message: [text: string]}>()
+const emit = defineEmits<{works: [id: number]; work: [artistId: number, workId: number]; message: [text: string, isError?: boolean]}>()
 const artists = ref<Artist[]>([]), total = ref(0), offset = ref(0), query = ref(''), draft = ref('')
 const layout = ref<'grid' | 'row'>('grid'), loading = ref(false), error = ref(''), busy = ref(false)
 const adding = ref(false), newPixivId = ref('')
@@ -33,24 +33,24 @@ async function load(reset = false) {
 function search() { clearTimeout(timer); timer = window.setTimeout(() => { query.value = draft.value; void load(true) }, 280) }
 async function addArtist() {
   const pixivId = newPixivId.value.trim()
-  if (!/^\d+$/.test(pixivId)) { emit('message', '请输入画师的数字 Pixiv 用户 ID'); return }
+  if (!/^\d+$/.test(pixivId)) { emit('message', '请输入画师的数字 Pixiv 用户 ID', true); return }
   busy.value = true
   try { await write('/api/artists', {pixiv_id: pixivId}); newPixivId.value = ''; adding.value = false; emit('message', '画师已加入，正在更新列表'); await load(true) }
-  catch (failure) { emit('message', failure instanceof Error ? failure.message : '未能添加画师') }
+  catch (failure) { emit('message', failure instanceof Error ? failure.message : '未能添加画师', true) }
   finally { busy.value = false }
 }
 async function track(artist: Artist, mode: Artist['mode']) {
   busy.value = true
   try { await write(`/api/artists/${artist.id}/tracking`, {mode}, 'PATCH'); artist.mode = mode; emit('message', mode === 'active' ? '已恢复追踪' : '已暂停追踪') }
-  catch (failure) { emit('message', failure instanceof Error ? failure.message : '画师状态未能更改') }
+  catch (failure) { emit('message', failure instanceof Error ? failure.message : '画师状态未能更改', true) }
   finally { busy.value = false }
 }
 async function deleteArtist() {
   const artist = deleteTarget.value
   if (!artist) return
   deleteTarget.value = null; busy.value = true
-  try { await api(`/api/artists/${artist.id}?delete_files=true`, {method: 'DELETE'}); emit('message', `${artist.name} 的删除任务已提交，可在任务记录查看`); await load(true) }
-  catch (failure) { emit('message', failure instanceof Error ? failure.message : '画师存档未能删除') }
+  try { await api(`/api/artists/${artist.id}?delete_files=true`, {method: 'DELETE'}); emit('message', `${artist.name} 的删除任务已提交，结果可在设置的处理日志查看`); await load(true) }
+  catch (failure) { emit('message', failure instanceof Error ? failure.message : '画师存档未能删除', true) }
   finally { busy.value = false }
 }
 function stripDown(event: PointerEvent) {

@@ -287,6 +287,7 @@ def main():
             assert abs(zoom_browser_scale_after - zoom_browser_scale_before) < .02
             passed("zoom-toolbar-pan-pinch-and-close-preserve-reader-position")
 
+            page.get_by_role("button", name="打开菜单", exact=True).click()
             page.get_by_role("navigation", name="主导航").get_by_role("button", name="流式").click()
             page.locator(".page-viewport.feed").wait_for()
             page.locator(".page-viewport.feed .image-page").first.wait_for()
