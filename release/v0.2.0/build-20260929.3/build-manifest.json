@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "build": "20260929.3",
+  "exe_file": "PixivTracker_v0.2.0_build20260929.3.exe",
+  "exe_size_bytes": 75131462,
+  "exe_sha256": "5ce226b13176045797999c635070a1a6664fa4a3c1e5ad792564948a42ae0ea5",
+  "source_commit": "b8708619bc7c8517ddfb8392395067f3c644aa45",
+  "source_branch": "codex/v0.2.0-build20260929.3",
+  "source_dirty": false,
+  "database_schema": "0002_client",
+  "database_upgrade_required": false,
+  "build_environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "pyinstaller": "6.20.0"
+  },
+  "published": false,
+  "user_acceptance": false,
+  "validation": {
+    "bookmarks_and_library_tests": 27,
+    "bookmark_and_scale_tests": 2,
+    "request_policy_tests": 22,
+    "core_regression_tests": 20,
+    "maintenance_regression_tests": 25,
+    "frontend_tests": 14,
+    "gallery_browser_checks": 7,
+    "reader_recovery_checks": 3,
+    "wheel_positions_and_touch": 20,
+    "large_library_browser_checks": 11,
+    "packaged_browser_checks": 12,
+    "packaged_smoke": "SMOKE_OK",
+    "bundled_frontend_matches": true,
+    "real_phone_tested": false,
+    "real_account_used": false,
+    "real_library_used": false,
+    "note": "Test groups overlap; not a full-suite total."
+  }
+}

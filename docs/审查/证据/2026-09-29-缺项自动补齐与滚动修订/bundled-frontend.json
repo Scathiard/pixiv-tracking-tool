@@ -1,0 +1,24 @@
+{
+  "exe_sha256": "5ce226b13176045797999c635070a1a6664fa4a3c1e5ad792564948a42ae0ea5",
+  "files": [
+    {
+      "path": "index.html",
+      "sha256": "6bc44734e5bf8ea04ede96c549f81b0d211090ed5e2a7648e84c7a15368e597b",
+      "matches": true
+    },
+    {
+      "path": "assets/index-BVF7ND75.js",
+      "sha256": "eb84765017b0f6ab39690cd61d7ba9807759ed5794d71a5ba4101ec1875b1242",
+      "matches": true
+    },
+    {
+      "path": "assets/index-BnnHOc4L.css",
+      "sha256": "f27d6b514147ea8f300c97e1fc977349595c781bfd83e6c8ee5412a4042182d6",
+      "matches": true
+    }
+  ],
+  "included_modules": [
+    "src.core.maintenance",
+    "src.request_policy"
+  ]
+}
