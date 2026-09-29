@@ -1,0 +1,303 @@
+{
+  "scope": "synthetic HTTP responses, existing app/frontend/dist, desktop Chromium mobile viewport",
+  "widths": {
+    "390": {
+      "initial": {
+        "screen_height": 844,
+        "scroll_top": 0,
+        "horizontal_overflow": false,
+        "boxes": {
+          "header": {
+            "top": 0,
+            "bottom": 64,
+            "height": 64,
+            "width": 390
+          },
+          "title": {
+            "top": 80,
+            "bottom": 113,
+            "height": 33,
+            "width": 370
+          },
+          "ranges": {
+            "top": 122,
+            "bottom": 164,
+            "height": 42,
+            "width": 247
+          },
+          "sort": {
+            "top": 122,
+            "bottom": 164,
+            "height": 42,
+            "width": 114
+          },
+          "search": {
+            "top": 173,
+            "bottom": 217,
+            "height": 44,
+            "width": 288
+          },
+          "filter": {
+            "top": 173,
+            "bottom": 217,
+            "height": 44,
+            "width": 74
+          },
+          "summary": {
+            "top": 226,
+            "bottom": 242,
+            "height": 16,
+            "width": 370
+          },
+          "viewport": {
+            "top": 251,
+            "bottom": 784,
+            "height": 533,
+            "width": 370
+          },
+          "pagination": {
+            "top": 784,
+            "bottom": 844,
+            "height": 60,
+            "width": 370
+          },
+          "first_picture": {
+            "top": 251,
+            "bottom": 457,
+            "height": 206,
+            "width": 179
+          }
+        },
+        "picture_count_in_dom": 8,
+        "pictures_with_visible_pixels": 4,
+        "most_visible_picture_px": 206
+      },
+      "after_scroll": {
+        "screen_height": 844,
+        "scroll_top": 300,
+        "horizontal_overflow": false,
+        "boxes": {
+          "header": {
+            "top": 0,
+            "bottom": 64,
+            "height": 64,
+            "width": 390
+          },
+          "title": {
+            "top": 80,
+            "bottom": 113,
+            "height": 33,
+            "width": 370
+          },
+          "ranges": {
+            "top": 122,
+            "bottom": 164,
+            "height": 42,
+            "width": 247
+          },
+          "sort": {
+            "top": 122,
+            "bottom": 164,
+            "height": 42,
+            "width": 114
+          },
+          "search": {
+            "top": 173,
+            "bottom": 217,
+            "height": 44,
+            "width": 288
+          },
+          "filter": {
+            "top": 173,
+            "bottom": 217,
+            "height": 44,
+            "width": 74
+          },
+          "summary": {
+            "top": 226,
+            "bottom": 242,
+            "height": 16,
+            "width": 370
+          },
+          "viewport": {
+            "top": 251,
+            "bottom": 784,
+            "height": 533,
+            "width": 370
+          },
+          "pagination": {
+            "top": 784,
+            "bottom": 844,
+            "height": 60,
+            "width": 370
+          },
+          "first_picture": {
+            "top": -49,
+            "bottom": 157,
+            "height": 206,
+            "width": 179
+          }
+        },
+        "picture_count_in_dom": 10,
+        "pictures_with_visible_pixels": 4,
+        "most_visible_picture_px": 206
+      },
+      "gallery_check_button_count": 0,
+      "settings_nav_count": 1
+    },
+    "320": {
+      "initial": {
+        "screen_height": 844,
+        "scroll_top": 0,
+        "horizontal_overflow": false,
+        "boxes": {
+          "header": {
+            "top": 0,
+            "bottom": 64,
+            "height": 64,
+            "width": 320
+          },
+          "title": {
+            "top": 80,
+            "bottom": 113,
+            "height": 33,
+            "width": 300
+          },
+          "ranges": {
+            "top": 122,
+            "bottom": 164,
+            "height": 42,
+            "width": 177
+          },
+          "sort": {
+            "top": 122,
+            "bottom": 164,
+            "height": 42,
+            "width": 114
+          },
+          "search": {
+            "top": 173,
+            "bottom": 217,
+            "height": 44,
+            "width": 218
+          },
+          "filter": {
+            "top": 173,
+            "bottom": 217,
+            "height": 44,
+            "width": 74
+          },
+          "summary": {
+            "top": 226,
+            "bottom": 242,
+            "height": 16,
+            "width": 300
+          },
+          "viewport": {
+            "top": 251,
+            "bottom": 784,
+            "height": 533,
+            "width": 300
+          },
+          "pagination": {
+            "top": 784,
+            "bottom": 844,
+            "height": 60,
+            "width": 300
+          },
+          "first_picture": {
+            "top": 251,
+            "bottom": 417,
+            "height": 166,
+            "width": 144
+          }
+        },
+        "picture_count_in_dom": 10,
+        "pictures_with_visible_pixels": 6,
+        "most_visible_picture_px": 166
+      },
+      "after_scroll": {
+        "screen_height": 844,
+        "scroll_top": 300,
+        "horizontal_overflow": false,
+        "boxes": {
+          "header": {
+            "top": 0,
+            "bottom": 64,
+            "height": 64,
+            "width": 320
+          },
+          "title": {
+            "top": 80,
+            "bottom": 113,
+            "height": 33,
+            "width": 300
+          },
+          "ranges": {
+            "top": 122,
+            "bottom": 164,
+            "height": 42,
+            "width": 177
+          },
+          "sort": {
+            "top": 122,
+            "bottom": 164,
+            "height": 42,
+            "width": 114
+          },
+          "search": {
+            "top": 173,
+            "bottom": 217,
+            "height": 44,
+            "width": 218
+          },
+          "filter": {
+            "top": 173,
+            "bottom": 217,
+            "height": 44,
+            "width": 74
+          },
+          "summary": {
+            "top": 226,
+            "bottom": 242,
+            "height": 16,
+            "width": 300
+          },
+          "viewport": {
+            "top": 251,
+            "bottom": 784,
+            "height": 533,
+            "width": 300
+          },
+          "pagination": {
+            "top": 784,
+            "bottom": 844,
+            "height": 60,
+            "width": 300
+          },
+          "first_picture": {
+            "top": -49,
+            "bottom": 117,
+            "height": 166,
+            "width": 144
+          }
+        },
+        "picture_count_in_dom": 12,
+        "pictures_with_visible_pixels": 6,
+        "most_visible_picture_px": 166
+      },
+      "gallery_check_button_count": 0,
+      "settings_nav_count": 1
+    }
+  },
+  "toast": {
+    "immediate": "后续自动检查已暂停",
+    "after_8_2s": "后续自动检查已暂停"
+  },
+  "errors": [],
+  "settings_patches": [
+    {
+      "automatic_paused": true
+    }
+  ]
+}

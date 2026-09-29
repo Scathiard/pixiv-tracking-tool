@@ -1,0 +1,84 @@
+[
+  {
+    "case": "clean",
+    "fixture": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\v025-task-audit-20260928\\fixtures\\round-clean-1de4e9de",
+    "round": {
+      "id": "a6cd1cb3353042cfaea76c09564bc1bc",
+      "state": "finished",
+      "counts": {},
+      "total": 0,
+      "settled": 0,
+      "ratio": null,
+      "outcome": "empty",
+      "created_at": "2026-09-28T16:02:09.747611"
+    },
+    "operation_state": "finished",
+    "operation_result": {
+      "phase_snapshots": {
+        "inventory:works": {
+          "phase": "inventory",
+          "unit": "works",
+          "done": 1,
+          "total": 1
+        }
+      },
+      "inventory_complete": true,
+      "inventory": {
+        "phase": "inventory",
+        "unit": "works",
+        "done": 1,
+        "total": 1
+      },
+      "outcome": "empty"
+    },
+    "operation_phase": {
+      "name": "inventory",
+      "unit": "works",
+      "done": 1,
+      "total": 1
+    },
+    "item_counts": {},
+    "gif_state": null
+  },
+  {
+    "case": "missing_gif",
+    "fixture": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\v025-task-audit-20260928\\fixtures\\round-missing_gif-cv1tbu6b",
+    "round": {
+      "id": "72755c7049344b2499603fa8c59a87ab",
+      "state": "finished",
+      "counts": {},
+      "total": 0,
+      "settled": 0,
+      "ratio": null,
+      "outcome": "empty",
+      "created_at": "2026-09-28T16:02:18.928369"
+    },
+    "operation_state": "finished",
+    "operation_result": {
+      "phase_snapshots": {
+        "inventory:works": {
+          "phase": "inventory",
+          "unit": "works",
+          "done": 1,
+          "total": 1
+        }
+      },
+      "inventory_complete": true,
+      "inventory": {
+        "phase": "inventory",
+        "unit": "works",
+        "done": 1,
+        "total": 1
+      },
+      "outcome": "empty"
+    },
+    "operation_phase": {
+      "name": "inventory",
+      "unit": "works",
+      "done": 1,
+      "total": 1
+    },
+    "item_counts": {},
+    "gif_state": "invalid"
+  }
+]
