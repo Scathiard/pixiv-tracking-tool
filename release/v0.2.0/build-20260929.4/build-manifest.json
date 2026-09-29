@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+  "build": "20260929.4",
+  "exe_file": "PixivTracker_v0.2.0_build20260929.4.exe",
+  "exe_size_bytes": 74986917,
+  "exe_sha256": "bad886f99adc97c20b042211e2a1caf8bca846ba72b8ea785c41b35bca58029a",
+  "source_commit": "7a42688c1004cbd58dd274eb543439a2f4b6bb38",
+  "source_branch": "codex/v0.2.0-build20260929.4",
+  "source_dirty": false,
+  "database_schema": "0002_client",
+  "database_upgrade_required": false,
+  "build_environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "pyinstaller": "6.20.0"
+  },
+  "published": false,
+  "user_acceptance": false,
+  "validation": {
+    "source_grouped_tests": {
+      "passed": 142,
+      "failed": 0,
+      "full_test_directory_run": false
+    },
+    "frontend_tests": 18,
+    "frontend_typecheck_and_build": "passed",
+    "source_browser": {
+      "availability_checks": 9,
+      "final_gallery_followup_checks": 4,
+      "reader_recovery_checks": 3,
+      "viewports": [
+        1440,
+        390,
+        320
+      ],
+      "application_errors": 0,
+      "known_resource_warning": "automatic favicon.ico request returns 404"
+    },
+    "packaged_browser_checks": 12,
+    "packaged_smoke": "SMOKE_OK",
+    "packaged_exit_code": 0,
+    "frontend_bundle_exact_match": true,
+    "frontend_index_sha256": "49ca5d5afa263d6e4f35189695d15e7d67502605af597793af1cf7758ecad4a9",
+    "real_read_only_metadata_requests": 11,
+    "real_account_writes": false,
+    "real_downloads": false,
+    "real_library_migration": false,
+    "real_phone_tested": false,
+    "evidence": "docs/审查/证据/2026-09-29-删稿确认与补齐修订",
+    "limits": [
+      "404 does not establish deletion",
+      "earlier image CDN 401/403 causes unresolved",
+      "user acceptance pending"
+    ]
+  },
+  "daily_copy": {
+    "path": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20260929.4.exe",
+    "sha256_verified": true,
+    "started_automatically": false
+  }
+}
