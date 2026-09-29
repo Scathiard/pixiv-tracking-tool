@@ -1,0 +1,20 @@
+{
+  "source_commit": "4ba2f2bace7720133225835075a875854e5ec71a",
+  "files": [
+    {
+      "path": "frontend/dist/index.html",
+      "same_bytes": true,
+      "sha256": "bea3a1e626e897fafd6a42f1fc838d71f3304c617816c64fa883357309e99458"
+    },
+    {
+      "path": "frontend/dist/assets/index-SACxxLWa.js",
+      "same_bytes": true,
+      "sha256": "a05c0f9860b95b81fe987c6dcc9087bb0ab6d829f795b16a2024755af7b8ff1a"
+    },
+    {
+      "path": "frontend/dist/assets/index-CzTUqLoE.css",
+      "same_bytes": true,
+      "sha256": "b6f72f8bdaf10beff9e984dbffc90a7ea4c9040718624e7778458cf927c51fa0"
+    }
+  ]
+}
