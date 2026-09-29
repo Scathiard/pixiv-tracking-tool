@@ -71,7 +71,8 @@ def main():
             checks.append("exe-b-sidebar-and-manual-check-entry")
             page.locator('.work-card[data-work-id="1"] .card-picture').click()
             page.locator('.image-page img').first.wait_for()
-            page.wait_for_function("document.querySelector('.image-page img').complete")
+            page.wait_for_function("() => { const img = document.querySelector('.image-page img'); return img.complete && img.naturalWidth > 0; }")
+            assert page.locator('.image-page img').first.evaluate("img => [img.naturalWidth, img.naturalHeight]") == [32, 48]
             assert page.locator('.image-page img').first.get_attribute('src').endswith('/images/1_p0.png')
             page.screenshot(path=str(artifacts / "exe-ordinary.png"))
             checks.append("exe-ordinary-reader-loads-original")
@@ -116,6 +117,8 @@ def main():
             mobile.on("pageerror", lambda error: page_errors.append(str(error)))
             mobile.goto(origin + "/illust/1", wait_until="domcontentloaded")
             mobile.locator('.image-page img').first.wait_for()
+            mobile.wait_for_function("() => { const img = document.querySelector('.image-page img'); return img.complete && img.naturalWidth > 0; }")
+            assert mobile.locator('.image-page img').first.evaluate("img => [img.naturalWidth, img.naturalHeight]") == [32, 48]
             assert mobile.evaluate("document.documentElement.scrollWidth <= innerWidth")
             mobile.screenshot(path=str(artifacts / "exe-mobile.png"))
             checks.append("exe-mobile-viewport-fits-reader")
