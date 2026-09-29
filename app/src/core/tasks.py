@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import threading
 from collections import Counter
 from dataclasses import dataclass, field
@@ -52,7 +53,20 @@ def outcome(counts: dict) -> str:
 def safe_failure(exc: Exception) -> dict:
     # Requests exception strings can contain URLs or authorization-related data.
     # Domain messages are supplied as explicit ItemResult details, not arbitrary exception reprs.
-    return {"code": type(exc).__name__, "message": getattr(exc, "user_message", "此项未完成，请重试")}
+    failure = {"code": type(exc).__name__, "message": getattr(exc, "user_message", "此项未完成，请重试")}
+    status = getattr(exc, "status", None)
+    if type(status) is int and 100 <= status <= 599:
+        failure["status"] = status
+    retry_after = getattr(exc, "retry_after", None)
+    if type(retry_after) in (int, float) and 0 <= retry_after <= 86400:
+        failure["retry_after"] = retry_after
+    retryable = getattr(exc, "retryable", None)
+    if type(retryable) is bool:
+        failure["retryable"] = retryable
+    code = getattr(exc, "failure_code", None)
+    if isinstance(code, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", code):
+        failure["failure_code"] = code
+    return failure
 
 
 class TaskContext:
@@ -96,6 +110,8 @@ class TaskQueue:
         self._thread = None
         self._accepting = True
         self.worker_error = None
+        self.maintenance = None
+        self.maintenance_error = None
 
     def accept_submissions(self, accepting):
         with self.database.write():
@@ -169,7 +185,18 @@ class TaskQueue:
         while not self._stop.is_set():
             self._wake.wait(1)
             self._wake.clear()
+            if self._stop.is_set():
+                break
             try:
+                if self.maintenance is not None:
+                    try:
+                        self.maintenance.tick()
+                        self.maintenance_error = None
+                    except Exception as exc:
+                        # Catalogue maintenance is optional work; a broken scan
+                        # must not stop user-submitted archive operations.
+                        self.maintenance_error = type(exc).__name__
+                        log.error("后台补齐清点失败，本轮稍后重试", exc_info=False)
                 while not self._stop.is_set() and self.run_round():
                     pass
             except Exception as exc:
@@ -198,6 +225,8 @@ class TaskQueue:
             waiting = list(session.scalars(select(Operation).where(
                 *eligible).order_by(
                     Operation.created_at, Operation.id)))
+            if any(operation.source != "maintenance" for operation in waiting):
+                waiting = [operation for operation in waiting if operation.source != "maintenance"]
             if not waiting:
                 return None
             current = TaskRound()
@@ -257,6 +286,7 @@ class TaskQueue:
             with self.database.read() as session:
                 operations = list(session.scalars(select(Operation).where(
                     Operation.round_id == round_id).order_by(Operation.created_at, Operation.id)))
+            operations.sort(key=lambda operation: operation.source == "maintenance")
             included = []
             for operation in operations:
                 if self._stop.is_set():

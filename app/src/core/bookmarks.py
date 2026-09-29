@@ -31,6 +31,11 @@ def bookmark_snapshot(bookmark, operation=None, account_id=None, work_id=None,
          operation.account_id == account_id))
     status = (operation.status if operation_is_current else
               "confirmed" if verified else "idle")
+    error = operation.error if operation_is_current else bookmark.error if bookmark else None
+    if operation_is_current and error == "写入结果不确定，回读未确认":
+        action = "收藏" if operation.desired else "取消收藏"
+        error = (f"{action}失败；旧记录未保存具体原因" if status == "failed" else
+                 "暂时无法确认 Pixiv 上的收藏状态，已保留上次确认的状态")
     return {
         "work_id": work_id if work_id is not None else (
             bookmark.work_id if bookmark else operation.work_id if operation else None),
@@ -39,7 +44,7 @@ def bookmark_snapshot(bookmark, operation=None, account_id=None, work_id=None,
         "desired": operation.desired if operation_is_current else None,
         "value": bookmark.value if bookmark else None,
         "confirmed_at": bookmark.confirmed_at.isoformat() + "Z" if verified and bookmark.confirmed_at else None,
-        "error": operation.error if operation_is_current else bookmark.error if bookmark else None,
+        "error": error,
         "version": bookmark.version if bookmark else operation.version if operation else 0,
         "cached": cached,
         "verified": verified,
@@ -427,8 +432,9 @@ class BookmarkService:
                 item.write_started_at = utcnow()
             else:
                 item.phase = "readback"
-        write_error = False
         rejected = False
+        write_reason = None
+        write_rate_limited = False
         if kind == "write" and not readback_only:
             try:
                 if self._is_suppressed(pixiv_id):
@@ -443,9 +449,14 @@ class BookmarkService:
                 else:
                     self.remote.delete_bookmark(pixiv_id)
             except Exception as exc:
-                write_error = True
                 status = getattr(exc, "status", None)
-                rejected = isinstance(status, int) and 400 <= status < 500
+                rejected = isinstance(status, int) and 400 <= status < 500 and status not in (408, 429)
+                write_rate_limited = status == 429 or getattr(exc, "failure_code", None) == "api_rate_limit"
+                # Only the request layer's deliberately safe message is kept;
+                # raw exceptions may contain request URLs or credentials.
+                write_reason = getattr(exc, "user_message", None)
+                if not isinstance(write_reason, str) or not write_reason:
+                    write_reason = f"请求未成功（{status}）" if rejected else None
         last_read = None
         rate_limited = False
         for attempt in range(1, 4):
@@ -469,7 +480,8 @@ class BookmarkService:
             except Exception as exc:
                 if readback_only and not self._is_available():
                     return
-                if getattr(exc, "status", None) == 429:
+                if (getattr(exc, "status", None) == 429 or
+                        getattr(exc, "failure_code", None) == "api_rate_limit"):
                     rate_limited = True
                     break
                 value = None
@@ -482,9 +494,17 @@ class BookmarkService:
             # A mismatch may be propagation delay. All three reads are bounded.
         if last_read is not None:
             self._record_readback(operation_id, last_read, account)
-        self._finish(operation_id, "failed" if rejected and not rate_limited else "unconfirmed",
-                     "Pixiv 限流，请稍后手动核对" if rate_limited else
-                     "远端状态尚未确认" if not write_error else "写入结果不确定，回读未确认")
+        action = "收藏" if desired else "取消收藏"
+        if rejected:
+            # A later unavailable read does not make a definite write rejection
+            # ambiguous. A matching read above can still confirm the intent.
+            self._finish(operation_id, "failed", f"{action}失败：{write_reason}")
+        elif rate_limited or write_rate_limited:
+            self._finish(operation_id, "unconfirmed",
+                         "Pixiv 暂时限制请求，收藏状态待确认；已保留上次确认的状态")
+        else:
+            self._finish(operation_id, "unconfirmed",
+                         "暂时无法确认 Pixiv 上的收藏状态，已保留上次确认的状态")
 
     def _is_suppressed(self, pixiv_id):
         with self.database.read() as session:

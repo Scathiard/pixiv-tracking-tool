@@ -14,8 +14,11 @@ const before = ref<HTMLDivElement | null>(null), beforeHeight = ref(0)
 const size = ref({width: 1000, height: 760}), loading = ref(false), error = ref('')
 const gesture = new DirectionGesture(), intent = new LatestIntent()
 let observer: ResizeObserver | null = null, restoring = false, frame = 0, lastAnchor: Anchor | null = null
+let refreshTimer = 0, refreshController: AbortController | null = null, refreshing = false
 let failedAction: (() => void) | null = null
 const MAX_PAGES = 120, CHUNK = 40
+const REFRESH_MS = 12000, REFRESH_LIMIT = 24
+const RECOVERABLE_STATES = new Set(['failed', 'missing', 'invalid', 'mismatch'])
 function height(page: PageData | undefined) {
   const padding = props.mode === 'feed' ? (size.value.width <= 760 ? 28 : 44) : (size.value.width < 600 ? 16 : 56)
   const availableWidth = Math.max(1, Math.min(props.mode === 'feed' ? 690 : 1100, size.value.width - padding))
@@ -59,6 +62,7 @@ async function restore(anchor: Anchor | null) {
   await paint()
 }
 async function jump(index: number, offset = 0) {
+  stopRefresh()
   const request = intent.begin()
   loading.value = true; restoring = true; error.value = ''
   failedAction = () => { void jump(index, offset) }
@@ -76,13 +80,14 @@ async function jump(index: number, offset = 0) {
   } catch (failure) {
     if (request.current()) error.value = failure instanceof Error ? failure.message : '图片页未能载入'
   } finally {
-    if (request.current()) { loading.value = false; restoring = false; report() }
+    if (request.current()) { loading.value = false; restoring = false; report(); queueRefresh() }
   }
 }
 async function extend(direction: number) {
   if (loading.value || restoring || !pages.value.length) return
   const first = pages.value[0]!.index, end = pages.value.at(-1)!.index + 1
   if (direction < 0 && first === 0 || direction > 0 && end >= total.value) return
+  stopRefresh()
   const request = intent.begin()
   loading.value = true; error.value = ''
   failedAction = () => { void extend(direction) }
@@ -99,7 +104,7 @@ async function extend(direction: number) {
   } catch (failure) {
     if (request.current()) error.value = failure instanceof Error ? failure.message : '暂时无法载入更多图片'
   } finally {
-    if (request.current()) { loading.value = false; restoring = false; report() }
+    if (request.current()) { loading.value = false; restoring = false; report(); queueRefresh() }
   }
 }
 function report() {
@@ -112,7 +117,7 @@ function report() {
 function scroll() {
   if (frame) return
   frame = requestAnimationFrame(() => {
-    frame = 0; report()
+    frame = 0; report(); queueRefresh()
     if (loading.value || restoring || error.value || !rows.value.length) return
     const visible = current()
     const local = pages.value.findIndex(page => page.index === visible?.anchor.index)
@@ -120,6 +125,80 @@ function scroll() {
     else if (local < 8 && (pages.value[0]?.index || 0) > 0) void extend(-1)
   })
 }
+function visibleMissing() {
+  const top = viewport.value?.scrollTop || 0, bottom = top + (viewport.value?.clientHeight || 0)
+  const visible = rows.value.filter(row => row.end >= top && row.start <= bottom)
+  const indices = visible.length ? visible.map(row => row.index)
+    : Array.from({length: Math.min(pages.value.length, 6)}, (_, index) => index)
+  return indices.filter(index => {
+    const page = pages.value[index]
+    return !!page && (!page.src || RECOVERABLE_STATES.has(page.state) ||
+      page.recovery?.status === 'queued' || page.recovery?.status === 'waiting')
+  })
+}
+function stopRefresh() {
+  clearTimeout(refreshTimer); refreshTimer = 0
+  refreshController?.abort(); refreshController = null
+}
+function queueRefresh() {
+  if (document.visibilityState !== 'visible' || !visibleMissing().length) {
+    clearTimeout(refreshTimer); refreshTimer = 0; return
+  }
+  if (!refreshTimer && !refreshing) refreshTimer = window.setTimeout(() => {
+    refreshTimer = 0; void refreshMissing()
+  }, REFRESH_MS)
+}
+async function refreshMissing() {
+  if (document.visibilityState !== 'visible' || !visibleMissing().length) return
+  if (loading.value || restoring || refreshing) { queueRefresh(); return }
+  const missing = visibleMissing()
+  const first = pages.value[missing[0]!]!.index
+  const offset = Math.max(pages.value[0]!.index, first - 2)
+  const limit = Math.min(REFRESH_LIMIT, pages.value.at(-1)!.index - offset + 1)
+  const session = props.sessionKey
+  const controller = new AbortController()
+  refreshController = controller; refreshing = true
+  try {
+    const batch = await props.loader(offset, limit, controller.signal)
+    if (controller.signal.aborted || session !== props.sessionKey) return
+    const latest = new Map(batch.items.map(page => [page.index, page]))
+    const anchor = readAnchor()
+    const previousTop = viewport.value?.scrollTop || 0
+    const inHeader = previousTop < beforeHeight.value
+    let changed = false
+    const updated = pages.value.map(page => {
+      const replacement = latest.get(page.index)
+      if (!replacement || replacement.work_id !== page.work_id) return page
+      if (replacement.src !== page.src || replacement.state !== page.state ||
+          replacement.recovery?.status !== page.recovery?.status ||
+          replacement.recovery?.next_retry_at !== page.recovery?.next_retry_at) {
+        changed = true; return replacement
+      }
+      return page
+    })
+    if (changed) {
+      restoring = true
+      try {
+        pages.value = updated
+        if (inHeader) { await nextTick(); if (viewport.value) viewport.value.scrollTop = previousTop }
+        else await restore(anchor)
+      } finally { restoring = false }
+      report()
+    }
+  } catch {
+    // The background repair may still be offline; keep the current pages visible.
+  } finally {
+    if (refreshController === controller) refreshController = null
+    refreshing = false
+    queueRefresh()
+  }
+}
+function visibilityChanged() {
+  if (document.visibilityState === 'visible' && visibleMissing().length) {
+    clearTimeout(refreshTimer); refreshTimer = 0; void refreshMissing()
+  } else stopRefresh()
+}
+function archiveUpdated() { if (visibleMissing().length) void refreshMissing() }
 function down(event: PointerEvent) {
   const blocked = props.mode === 'feed' || props.inactive || event.pointerType === 'mouse' ||
     !!(event.target as Element).closest('button,a,input,select,textarea,[contenteditable]') || (window.visualViewport?.scale || 1) > 1.01
@@ -134,9 +213,11 @@ onMounted(() => {
   observer = new ResizeObserver(entries => { for (const entry of entries) { const rect = entry.contentRect; if (entry.target === viewport.value) size.value = {width: rect.width, height: rect.height}; else if (entry.target === before.value) beforeHeight.value = rect.height } })
   if (viewport.value) observer.observe(viewport.value)
   if (before.value) observer.observe(before.value)
+  document.addEventListener('visibilitychange', visibilityChanged)
+  window.addEventListener('archive-updated', archiveUpdated)
   void jump(props.initial?.index || 0, props.initial?.offset || 0)
 })
-onBeforeUnmount(() => { intent.cancel(); observer?.disconnect(); cancelAnimationFrame(frame) })
+onBeforeUnmount(() => { intent.cancel(); stopRefresh(); observer?.disconnect(); cancelAnimationFrame(frame); document.removeEventListener('visibilitychange', visibilityChanged); window.removeEventListener('archive-updated', archiveUpdated) })
 defineExpose({readAnchor, jump, scrollBy: (delta: number) => viewport.value?.scrollBy({top: delta, behavior: 'auto'})})
 </script>
 <template>
@@ -154,7 +235,7 @@ defineExpose({readAnchor, jump, scrollBy: (delta: number) => viewport.value?.scr
             <button class="quiet" :disabled="!pages[row.index]!.src" @click="emit('zoom', pages[row.index]!)" aria-label="放大此页">放大</button>
           </figcaption>
           <div class="page-picture" :style="mode === 'reader' ? {height: `${height(pages[row.index])}px`} : undefined">
-            <MediaImage :src="pages[row.index]!.src" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
+            <MediaImage :src="pages[row.index]!.src" :recovery="pages[row.index]!.recovery" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
               :width="mode === 'feed' ? pages[row.index]!.width || 1000 : undefined"
               :height="mode === 'feed' ? pages[row.index]!.height || 1350 : undefined"
               @size="(width, height) => dimensions(pages[row.index]!, width, height)" @zoom="emit('zoom', pages[row.index]!)" />

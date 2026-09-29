@@ -12,7 +12,7 @@ from sqlalchemy.orm import selectinload
 from .download import AssetDownloader
 from .media import InvalidMedia, Publisher, SuppressedWork, build_gif, build_thumbnail, contained_path, verify_media, verify_ugoira_pair
 from .models import (
-    ArchiveIntent, Artist, Asset, Derivative, LocalPreference, RemoteBookmark,
+    ArchiveIntent, Artist, Asset, Derivative, LocalPreference, Operation, RemoteBookmark,
     TrackingPolicy, Work, WorkTag, utcnow,
 )
 from .tasks import ItemResult, ItemSpec, safe_failure
@@ -223,8 +223,12 @@ class ArchiveHandler:
         except (InvalidMedia, OSError, ValueError) as exc:
             with self.database.write() as session:
                 stored = session.get(Asset, asset.id)
-                stored.state = "invalid" if asset.relative_path else "missing"
-                stored.error = getattr(exc, "user_message", "原件缺失或无法读取")
+                # A thumbnail inventory may observe the same absent path after a
+                # download failed. Keep the last download result until a new
+                # attempt succeeds or produces a newer failure.
+                if stored.state != "failed":
+                    stored.state = "invalid" if asset.relative_path else "missing"
+                    stored.error = getattr(exc, "user_message", "原件缺失或无法读取")
             return False
 
     def _plan_work(self, work_id, parameters, context):
@@ -236,12 +240,17 @@ class ArchiveHandler:
             revision = intent.revision
             directory = work.artist.directory or f"artist_{work.artist.pixiv_user_id}"
             assets = list(work.assets)
+            maintenance = session.get(Operation, context.operation_id).source == "maintenance"
         specs, required = [], []
         defer_originals = work.source_metadata.get("original_backfill_requires_selection") and self.kind != "backfill"
         local_only = self.kind in ("verify", "thumbnails")
         if self.kind != "thumbnails" and not defer_originals:
             context.detail(f"正在核验 {work.title} · {len(assets)} 项原件")
-            missing = [asset for asset in assets if not self._inspect_asset(asset, force=self.kind == "verify")]
+            # Routine maintenance trusts recorded verified siblings. It only
+            # inspects the explicit gap; full-file verification is a separate
+            # user action and must not be hidden in an automatic repair.
+            inspected = (asset for asset in assets if asset.state in ("missing", "failed", "invalid", "mismatch")) if maintenance else assets
+            missing = [asset for asset in inspected if not self._inspect_asset(asset, force=self.kind == "verify")]
             metadata = None
             if missing and not local_only:
                 if work.type == "ugoira":

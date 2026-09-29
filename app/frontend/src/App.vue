@@ -212,7 +212,8 @@ const loader = computed<PageLoader>(() => {
     const detail = await api<WorkDetail>(`/api/works/${work.id}?page_offset=${offset}&page_limit=${limit}`, {signal})
     return {offset, total: detail.display_page_count, items: detail.pages.map(page => ({...page, work_id: work.id, work_index: workIndex,
       page: page.index, page_count: detail.display_page_count, title: detail.title, artist_name: detail.artist_name,
-      artist_id: detail.artist_id, pixiv_id: detail.pixiv_id, type: detail.type, x_restrict: detail.x_restrict, next_work_index: detail.display_page_count}))}
+      artist_id: detail.artist_id, pixiv_id: detail.pixiv_id, type: detail.type, x_restrict: detail.x_restrict,
+      recovery: detail.recovery, next_work_index: detail.display_page_count}))}
   }
 })
 function focused(page: PageData, anchor: Anchor) {

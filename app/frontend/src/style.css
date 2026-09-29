@@ -63,8 +63,9 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
 .mobile-head,.mobile-close,.sidebar-scrim{display:none}
 
 .gallery-layout{display:flex;min-width:0;min-height:0}
-.gallery-main{display:flex;flex-direction:column;flex:1;align-self:stretch;min-width:0;min-height:0;height:100%;max-width:1450px;margin:0 auto;padding:0 33px;overflow:hidden;background:var(--bg)}
-.gallery-controls{height:69px;min-height:69px;display:flex;justify-content:space-between;align-items:center;gap:14px;margin:0}
+.gallery-main{--gallery-gutter:33px;display:flex;flex-direction:column;flex:1;align-self:stretch;min-width:0;min-height:0;height:100%;overflow:hidden;background:var(--bg)}
+.gallery-controls,.active-filters,.update-notice,.gallery-window,.gallery-view>.notice,.gallery-view>.empty,.pagination{width:calc(100% - 2 * var(--gallery-gutter));max-width:1384px;margin-inline:auto}
+.gallery-controls{height:69px;min-height:69px;display:flex;justify-content:space-between;align-items:center;gap:14px}
 .gallery-heading{display:flex;align-items:baseline;gap:13px;min-width:0;white-space:nowrap}
 .gallery-heading h1{font-size:15px;font-weight:650;line-height:1.3;letter-spacing:0}
 .gallery-heading span{color:var(--muted);font-size:12px}
@@ -77,9 +78,9 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
 .active-filters>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .active-filters .text-link{flex:none;font-size:12px}
 .gallery-view{position:relative;display:flex;flex:1;flex-direction:column;min-width:0;min-height:0}
-.gallery-jump{position:absolute;z-index:5;bottom:16px;right:16px;width:38px;height:38px;padding:0;background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:6px;font-size:20px;box-shadow:0 3px 12px var(--shadow)}
+.gallery-jump{position:absolute;z-index:5;bottom:16px;right:max(16px,calc((100% - 1384px)/2));width:38px;height:38px;padding:0;background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:6px;font-size:20px;box-shadow:0 3px 12px var(--shadow)}
 .gallery-viewport{flex:1;min-height:0;overflow:auto;overflow-anchor:none;scrollbar-gutter:stable;scrollbar-color:var(--muted) transparent}
-.gallery-window{position:relative;width:100%}
+.gallery-window{position:relative}
 .gallery-row{position:absolute;left:0;top:0;width:100%;display:grid;gap:16px}
 .work-card{position:relative;min-width:0;white-space:normal}
 .card-open{display:block;width:100%;min-height:0;padding:0;border:0;background:none;text-align:left}
@@ -176,7 +177,7 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
   .sidebar-collapsed .sidebar-nav small{display:block}
   .sidebar-head .sidebar-toggle{display:none}
   .mobile-close{display:inline-flex;margin-left:auto}
-  .gallery-main{padding:0 13px}
+  .gallery-main{--gallery-gutter:13px}
   .gallery-controls{height:58px;min-height:58px;gap:5px}
   .gallery-heading{gap:5px}
   .gallery-heading h1{font-size:13px}
@@ -230,7 +231,7 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
   .zoom-canvas{inset:45px 0 80px}
 }
 @media(max-width:390px){
-  .gallery-main{padding-inline:10px}
+  .gallery-main{--gallery-gutter:10px}
   .gallery-heading span{display:none}
   .gallery-row{gap:9px}
   .detail-action-right{margin-left:0}

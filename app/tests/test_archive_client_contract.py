@@ -12,18 +12,31 @@ class Response:
         return self.body
 
 
-@pytest.mark.parametrize("method", ["get", "post"])
 @pytest.mark.parametrize("status", [200, 400, 401])
-def test_expired_auth_is_refreshed_at_most_once_without_real_tokens(monkeypatch, method, status):
+def test_expired_auth_is_refreshed_at_most_once_without_real_tokens(monkeypatch, status):
     client = PixivClient()
     responses = iter([Response(status, {"error": "oauth invalid_grant"}), Response(200, {"ok": True})])
     refreshes = []
     monkeypatch.setattr(client_module, "_get_auth_header", lambda: {})
     monkeypatch.setattr(client, "_throttle", lambda: None)
-    monkeypatch.setattr(client, "_do_" + method, lambda *_: next(responses))
+    monkeypatch.setattr(client, "_do_get", lambda *_: next(responses))
     monkeypatch.setattr(auth, "_try_refresh_token", lambda: refreshes.append("called") or True)
-    result = client._get("/test") if method == "get" else client._post("/test")
+    result = client._get("/test")
     assert result == {"ok": True} and refreshes == ["called"]
+
+
+def test_legacy_write_does_not_replay_after_auth_failure(monkeypatch):
+    client = PixivClient()
+    sends, refreshes = [], []
+    monkeypatch.setattr(client_module, "_get_auth_header", lambda: {})
+    monkeypatch.setattr(client, "_throttle", lambda: None)
+    monkeypatch.setattr(client, "_do_post", lambda *_: sends.append(1) or
+                        Response(401, {"error": "oauth invalid_grant"}))
+    monkeypatch.setattr(auth, "_try_refresh_token", lambda: refreshes.append(1) or True)
+    with pytest.raises(PixivRequestError) as caught:
+        client._post("/v2/illust/bookmark/add")
+    assert caught.value.status == 401
+    assert sends == [1] and refreshes == []
 
 
 def test_failed_refresh_does_not_loop_or_claim_success(monkeypatch):

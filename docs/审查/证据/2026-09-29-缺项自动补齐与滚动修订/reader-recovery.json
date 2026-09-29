@@ -1,0 +1,20 @@
+{
+  "checks": [
+    "detail-visible-missing-page-auto-recovers-in-place",
+    "same-url-failed-image-auto-retries-after-recovery",
+    "flow-visible-missing-page-refreshes-on-archive-event"
+  ],
+  "errors": [],
+  "metrics": {
+    "detail_scroll": {
+      "before": 0,
+      "after": 0
+    },
+    "requests": {
+      "detail": 6,
+      "flow": 2
+    }
+  },
+  "real_library_used": false,
+  "real_account_used": false
+}

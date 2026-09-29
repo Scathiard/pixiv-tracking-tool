@@ -49,6 +49,19 @@ def test_dedupe_preserves_purpose_and_scope(tasks):
     assert queue.snapshot()["next_round_count"] == 4
 
 
+def test_user_work_claims_a_round_before_waiting_maintenance(tasks):
+    queue, handler, _ = tasks
+    maintenance = queue.submit("repair", {"count": 1, "who": "maintenance"}, "自动补齐",
+                               source="maintenance")
+    manual = queue.submit("check", {"count": 1, "who": "manual"}, "手动检查")
+    assert queue.run_round()
+    assert handler.planned == [{"count": 1, "who": "manual"}]
+    assert queue.details(manual["operation_id"])["state"] == "finished"
+    assert queue.details(maintenance["operation_id"])["state"] == "queued"
+    assert queue.run_round()
+    assert handler.planned[-1] == {"count": 1, "who": "maintenance"}
+
+
 def test_new_submission_does_not_change_frozen_denominator(tasks):
     queue, handler, _ = tasks
     queue.submit("check", {"count": 2}, "本轮")

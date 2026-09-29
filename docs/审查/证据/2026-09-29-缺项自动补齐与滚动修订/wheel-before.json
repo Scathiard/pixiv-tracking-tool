@@ -1,0 +1,216 @@
+{
+  "results": [
+    {
+      "route": "/",
+      "position": "image",
+      "scrollTop": 500,
+      "hit": {
+        "className": "",
+        "inViewport": true
+      },
+      "x": 797,
+      "y": 174
+    },
+    {
+      "route": "/",
+      "position": "left",
+      "scrollTop": 500,
+      "hit": {
+        "className": "",
+        "inViewport": true
+      },
+      "x": 695,
+      "y": 174
+    },
+    {
+      "route": "/",
+      "position": "right",
+      "scrollTop": 500,
+      "hit": {
+        "className": "gallery-viewport",
+        "inViewport": true
+      },
+      "x": 2066,
+      "y": 174
+    },
+    {
+      "route": "/",
+      "position": "outer-left",
+      "scrollTop": 0,
+      "hit": {
+        "className": "gallery-layout",
+        "inViewport": false
+      },
+      "x": 212,
+      "y": 174
+    },
+    {
+      "route": "/",
+      "position": "outer-right",
+      "scrollTop": 0,
+      "hit": {
+        "className": "gallery-layout",
+        "inViewport": false
+      },
+      "x": 2552,
+      "y": 174
+    },
+    {
+      "route": "/illust/80",
+      "position": "image",
+      "scrollTop": 500,
+      "hit": {
+        "className": "",
+        "inViewport": true
+      },
+      "x": 1382,
+      "y": 495
+    },
+    {
+      "route": "/illust/80",
+      "position": "left",
+      "scrollTop": 500,
+      "hit": {
+        "className": "image-page",
+        "inViewport": true
+      },
+      "x": 209,
+      "y": 495
+    },
+    {
+      "route": "/illust/80",
+      "position": "right",
+      "scrollTop": 500,
+      "hit": {
+        "className": "image-page",
+        "inViewport": true
+      },
+      "x": 2552,
+      "y": 495
+    },
+    {
+      "route": "/illust/80",
+      "position": "header-left",
+      "scrollTop": 500,
+      "hit": {
+        "className": "reader-before",
+        "inViewport": true
+      },
+      "x": 209,
+      "y": 45
+    },
+    {
+      "route": "/illust/80",
+      "position": "header-right",
+      "scrollTop": 500,
+      "hit": {
+        "className": "reader-before",
+        "inViewport": true
+      },
+      "x": 2552,
+      "y": 45
+    },
+    {
+      "route": "/illust/80",
+      "position": "lower-left",
+      "scrollTop": 500,
+      "hit": {
+        "className": "image-page",
+        "inViewport": true
+      },
+      "x": 209,
+      "y": 865
+    },
+    {
+      "route": "/illust/80",
+      "position": "lower-right",
+      "scrollTop": 500,
+      "hit": {
+        "className": "image-page",
+        "inViewport": true
+      },
+      "x": 2552,
+      "y": 865
+    },
+    {
+      "route": "/flow",
+      "position": "image",
+      "scrollTop": 500,
+      "hit": {
+        "className": "",
+        "inViewport": true
+      },
+      "x": 1382,
+      "y": 495
+    },
+    {
+      "route": "/flow",
+      "position": "left",
+      "scrollTop": 500,
+      "hit": {
+        "className": "image-page",
+        "inViewport": true
+      },
+      "x": 209,
+      "y": 495
+    },
+    {
+      "route": "/flow",
+      "position": "right",
+      "scrollTop": 500,
+      "hit": {
+        "className": "image-page",
+        "inViewport": true
+      },
+      "x": 2552,
+      "y": 495
+    },
+    {
+      "route": "/flow",
+      "position": "header-left",
+      "scrollTop": 500,
+      "hit": {
+        "className": "reader-before",
+        "inViewport": true
+      },
+      "x": 209,
+      "y": 45
+    },
+    {
+      "route": "/flow",
+      "position": "header-right",
+      "scrollTop": 500,
+      "hit": {
+        "className": "reader-before",
+        "inViewport": true
+      },
+      "x": 2552,
+      "y": 45
+    },
+    {
+      "route": "/flow",
+      "position": "lower-left",
+      "scrollTop": 500,
+      "hit": {
+        "className": "image-page",
+        "inViewport": true
+      },
+      "x": 209,
+      "y": 865
+    },
+    {
+      "route": "/flow",
+      "position": "lower-right",
+      "scrollTop": 500,
+      "hit": {
+        "className": "image-page",
+        "inViewport": true
+      },
+      "x": 2552,
+      "y": 865
+    }
+  ],
+  "errors": [],
+  "real_library_used": false,
+  "real_account_used": false
+}

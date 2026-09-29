@@ -1,0 +1,25 @@
+{
+  "checks": [
+    "cached-confirmed-heart-renders-without-remote-request",
+    "original-fallback-visible-only-and-missing-original-card-retained",
+    "existing-card-observes-updated-confirmed-cache-without-remount",
+    "failed-background-refresh-retains-visible-cards",
+    "automatic-visible-refresh-replaces-original-fallback",
+    "continuous-browse-past-240-through-601-without-thumbnail-posts",
+    "cold-feed-has-batched-local-hearts-and-no-redundant-remote-read"
+  ],
+  "errors": [],
+  "metrics": {
+    "initial_originals": {
+      "count": 14,
+      "outside": 0
+    },
+    "max_window": 476,
+    "max_images": 20,
+    "thumbnail_submissions": 0
+  },
+  "remote_reads": 0,
+  "real_account_used": false,
+  "real_library_used": false,
+  "real_phone_tested": false
+}

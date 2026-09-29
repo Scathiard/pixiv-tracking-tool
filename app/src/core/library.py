@@ -12,7 +12,7 @@ from sqlalchemy.orm import load_only, selectinload
 from ..security import sanitize_caption
 
 from .models import (
-    ArchiveIntent, Artist, Asset, BookmarkOperation, Derivative, LocalPreference, RemoteBookmark,
+    ApplicationState, ArchiveIntent, Artist, Asset, BookmarkOperation, Derivative, LocalPreference, RemoteBookmark,
     TrackingPolicy, Work, WorkTag, utcnow,
 )
 
@@ -50,6 +50,13 @@ def readable_page_url(record, *, animation=False):
     if record.state == "missing" and not animation:
         return None
     return media_url(record.relative_path)
+
+
+def presented_recovery(recovery, *, readable):
+    """Finished visible media wins over an older retry ledger, without writing it."""
+    if recovery and readable:
+        return {**recovery, "status": "ready", "reason": None, "next_retry_at": None}
+    return recovery
 
 
 class Library:
@@ -122,6 +129,30 @@ class Library:
             return self.bookmarks.snapshot(work.bookmark, operation, work_id=work.id)
         return bookmark_snapshot(work.bookmark, operation,
                                  account_id=self.account_id, work_id=work.id)
+
+    @staticmethod
+    def _recovery_views(session, ids):
+        """Read only the requested window's maintenance state, in one query."""
+        if not ids:
+            return {}
+        keys = {f"maintenance_work:{work_id}": work_id for work_id in ids}
+        result = {}
+        for record in session.scalars(select(ApplicationState).where(ApplicationState.key.in_(keys))):
+            value = record.value
+            if not isinstance(value, dict) or value.get("status") not in ("queued", "waiting", "ready"):
+                continue
+            retry_at = value.get("next_retry_at")
+            if isinstance(retry_at, str):
+                try:
+                    parsed = datetime.fromisoformat(retry_at)
+                    retry_at = parsed.isoformat() + ("Z" if parsed.tzinfo is None else "")
+                except ValueError:
+                    retry_at = None
+            else:
+                retry_at = None
+            result[keys[record.key]] = {"status": value["status"], "kind": value.get("kind"),
+                "next_retry_at": retry_at, "reason": value.get("reason")}
+        return result
 
     def _work_view(self, work, operation=None):
         bookmark = self._bookmark_view(work, operation)
@@ -261,6 +292,7 @@ class Library:
                 for view in views:
                     view["is_bookmarked"] = bool(view["bookmark"]["value"])
             ids = [work.id for work in works]
+            recoveries = self._recovery_views(session, ids)
             thumbnails = {row.work_id: row for row in session.scalars(select(Derivative).where(
                 Derivative.work_id.in_(ids), Derivative.kind == "thumbnail", Derivative.page_index == 0,
                 Derivative.spec_key == "v1", Derivative.state == "verified"))}
@@ -269,6 +301,7 @@ class Library:
             animations = {row.work_id: row for row in session.scalars(select(Derivative).where(
                 Derivative.work_id.in_(ids), Derivative.kind == "gif", Derivative.spec_key == "v1"))}
             for view in views:
+                view["recovery"] = recoveries.get(view["id"])
                 thumb = thumbnails.get(view["id"])
                 preview = animations.get(view["id"]) if view["type"] == "ugoira" else first_pages.get(view["id"])
                 view["preview"] = readable_page_url(preview, animation=view["type"] == "ugoira")
@@ -283,6 +316,8 @@ class Library:
                 view["thumbnail"] = media_url(thumb.relative_path) if thumb else None
                 if view["thumbnail"] and thumb.sha256:
                     view["thumbnail"] += "?v=" + thumb.sha256[:16]
+                view["recovery"] = presented_recovery(view["recovery"],
+                    readable=bool(view["thumbnail"] and view["preview_status"] == "ready"))
             return {"items": views, "total": total, "offset": offset, "has_more": offset + len(views) < total,
                     "ceiling": ceiling}
 
@@ -294,6 +329,7 @@ class Library:
             if work is None:
                 raise KeyError(work_id)
             view = self._work_view(work, self._bookmark_operations(session, [work.id]).get(work.id))
+            view["recovery"] = self._recovery_views(session, [work_id]).get(work_id)
             count = 1 if work.type == "ugoira" else work.page_count
             assets = list(session.scalars(select(Asset).where(Asset.work_id == work_id,
                 Asset.page_index >= page_offset, Asset.page_index < page_offset + page_limit)))
@@ -306,6 +342,8 @@ class Library:
                 view["pages"].append({"index": index, "src": readable_page_url(record, animation=work.type == "ugoira"),
                     "width": record.width if record else None, "height": record.height if record else None,
                     "state": record.state if record else "missing", "error": record.error if record else None})
+            view["recovery"] = presented_recovery(view["recovery"], readable=bool(view["pages"]) and
+                all(page["src"] and page["state"] in ("verified", "unknown") for page in view["pages"]))
             view["assets"] = [{"id": asset.id, "role": asset.role, "page": asset.page_index,
                                "state": asset.state, "error": asset.error} for asset in assets]
             alternates = list(session.scalars(select(Derivative).where(
@@ -382,6 +420,7 @@ class Library:
                 load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title, Work.type, Work.x_restrict),
                 selectinload(Work.artist).load_only(Artist.name), selectinload(Work.bookmark)).where(Work.id.in_(ids)))}
             operations = self._bookmark_operations(session, ids)
+            recoveries = self._recovery_views(session, ids)
             bookmark_views = {work_id: self._bookmark_view(work, operations.get(work_id))
                               for work_id, work in works.items()}
             bounds = [and_(Asset.work_id == row["work_id"], Asset.role == "image",
@@ -402,6 +441,9 @@ class Library:
                         "type": work.type, "x_restrict": work.x_restrict,
                         "next_work_index": row["page_start"] + row["page_count"],
                         "bookmark": bookmark_views[work.id],
+                        "recovery": presented_recovery(recoveries.get(work.id), readable=bool(media and
+                            readable_page_url(media, animation=work.type == "ugoira") and
+                            media.state in ("verified", "unknown"))),
                         "src": readable_page_url(media, animation=work.type == "ugoira"),
                         "width": media.width if media else None, "height": media.height if media else None,
                         "state": media.state if media else "missing"})

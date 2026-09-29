@@ -10,6 +10,7 @@ from .bookmarks import BookmarkService
 from .database import ArchiveDatabase
 from .library import Library
 from .media import Publisher, contained_path
+from .maintenance import MissingMediaMaintenance
 from .models import ArchiveIntent, Artist, Asset, Derivative, Operation, PublicationJournal, TrackingPolicy, Work, utcnow
 from .ownership import LibraryLease
 from .profiles import ArtistProfiles
@@ -70,6 +71,9 @@ class Runtime:
             kind: ArchiveHandler(kind, self.database, self.publisher, remote, downloader,
                                  bookmarks=self.bookmarks, profiles=self.profiles)
             for kind in ("check", "metadata", "bookmarks", "repair", "verify", "backfill", "thumbnails", "delete")})
+        self.maintenance = MissingMediaMaintenance(self.database, self.queue,
+                                                    remote_available=lambda: self.client is not None)
+        self.queue.maintenance = self.maintenance
 
     def start(self):
         self.publisher.recover()

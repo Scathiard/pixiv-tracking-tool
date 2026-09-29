@@ -54,7 +54,6 @@ def main():
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     checks, errors, metrics, thumbnail_posts = [], [], {}, []
-    reject_tasks = [True]
     reject_library = [False]
     origin = f"http://127.0.0.1:{port}"
     page = browser = None
@@ -70,12 +69,10 @@ def main():
             page.on("pageerror", lambda error: errors.append(str(error)))
             def tasks(route):
                 body = route.request.post_data_json or {}
-                if body.get("kind") != "thumbnails":
-                    raise AssertionError("unexpected task submission")
-                thumbnail_posts.append(body)
-                route.fulfill(status=503 if reject_tasks[0] else 200, content_type="application/json",
-                    body=json.dumps({"detail":"synthetic thumbnail service unavailable"} if reject_tasks[0]
-                                    else {"operation_id":"synthetic-thumbnail","created":True}))
+                if body.get("kind") == "thumbnails":
+                    thumbnail_posts.append(body)
+                route.fulfill(status=503, content_type="application/json",
+                    body=json.dumps({"detail":"synthetic task service unavailable"}))
             def library(route):
                 if reject_library[0]:
                     route.fulfill(status=503, content_type="application/json", body='{"detail":"synthetic refresh failed"}')
@@ -90,8 +87,9 @@ def main():
             page.wait_for_timeout(500)
             assert not remote_reads, "gallery cache must not require remote readback"
             checks.append("cached-confirmed-heart-renders-without-remote-request")
-            expect(page.locator(".work-card[data-work-id='599'] .media-placeholder")).to_contain_text("原图")
-            assert thumbnail_posts and all(599 not in post["work_ids"] for post in thumbnail_posts)
+            expect(page.locator(".work-card[data-work-id='599'] .media-placeholder")).to_contain_text(
+                re.compile("原图|已排队补齐|等待自动重试"))
+            assert not thumbnail_posts, "gallery must not submit thumbnail tasks while opening"
             assert page.locator(".gallery-view>.notice.error").count() == 0
             original_metrics = page.evaluate("""()=>{const area=document.querySelector('.gallery-viewport').getBoundingClientRect();
               const images=[...document.querySelectorAll('.card-picture img[data-media-source="original"]')];
@@ -115,17 +113,13 @@ def main():
             reject_library[0] = False
             checks.append("failed-background-refresh-retains-visible-cards")
 
-            reject_tasks[0] = False
-            page.get_by_role("button", name="重试缩略图", exact=True).click()
-            page.wait_for_timeout(250)
             with runtime.database.write() as session:
                 session.execute(update(Derivative).where(Derivative.work_id == 601).values(
                     state="verified", relative_path="100601-thumb.webp"))
-            page.evaluate("window.dispatchEvent(new Event('archive-updated'))")
-            expect(page.locator(".work-card[data-work-id='601'] img")).to_have_attribute("data-media-source", "thumbnail")
-            checks.append("thumbnail-retry-and-refresh-replace-original-fallback")
+            expect(page.locator(".work-card[data-work-id='601'] img")).to_have_attribute(
+                "data-media-source", "thumbnail", timeout=20000)
+            checks.append("automatic-visible-refresh-replaces-original-fallback")
 
-            reject_tasks[0] = True
             page.mouse.move(1100, 550)
             windows, image_counts = [], []
             for _ in range(24):
@@ -135,11 +129,12 @@ def main():
                 image_counts.append(page.locator(".card-picture img").count())
                 if page.locator(".work-card[data-work-id='1']").count():
                     break
-            assert page.locator(".work-card[data-work-id='1']").count(), "failed thumbnail task blocked continuous library"
+            assert page.locator(".work-card[data-work-id='1']").count(), "missing thumbnails blocked continuous library"
             assert max(windows) <= 480 and max(image_counts) <= 40
             assert not page.locator(".gallery-view>.notice.error").count()
+            assert not thumbnail_posts, "scrolling must not submit thumbnail tasks"
             metrics.update(max_window=max(windows), max_images=max(image_counts), thumbnail_submissions=len(thumbnail_posts))
-            checks.append("continuous-browse-past-240-through-601-despite-thumbnail-errors")
+            checks.append("continuous-browse-past-240-through-601-without-thumbnail-posts")
 
             feed = browser.new_context(viewport={"width":390,"height":844},is_mobile=True,has_touch=True)
             flow = feed.new_page()

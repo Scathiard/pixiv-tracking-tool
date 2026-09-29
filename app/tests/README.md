@@ -22,10 +22,14 @@
 - `test_v022_api.py`、`test_v022_integration.py`：统一筛选、画师资料、设置与暂停、跨模块收藏竞争及登录就绪后的恢复。
 - `test_v022_scale.py`：5,000 件作品和 2,000 页单作品，检查接口窗口、批量查询和末端定位。
 - `test_gallery_card_fallback.py`：合成首图缺失与可读场景，检查卡片保留、修复后派生生成及流式窗口收藏状态。
+- `test_missing_media_maintenance.py`：已知缺项的自动补齐、失败记录保留、独立重试、暂停／离线、重启、去重、删除阻止及旧动图边界；仅合成图库。
+- `test_request_policy.py`：HTTP／正文限流、API／图片独立冷却、服务端等待信息与准确拒绝分类；使用模拟时钟和请求，不连接 Pixiv。
 - `test_processing_log.py`：隔离任务数据的只读日志、敏感字段隔离、数量上限，以及公开版本／内部构建标识；不读取真实日志或令牌。
 - `client_fixture.py`、`client_browser.py`：正式界面回归、5,000 / 2,000 合成图库、桌面与 390 / 320px、主题连点与收藏跨作品响应。
 - `client_b_browser.py`：B 侧栏收放与锚点、手机菜单与搜索、首页检查入口、进度各状态、通知自动消失与只读日志；任务接口使用浏览器替身，`--remaining-only` 可独立复测导航与手机。
 - `client_display_browser.py`：桌面滚轮与 390/320px CDP 触摸实际滚到设置、画师页底部；保存图标几何与截图，不以元素存在替代可达性。
+- `client_reader_wheel_browser.py`：2560px 下图库／详情／流式的图片与外侧留白真实滚轮，以及 390px CDP 触摸；要求全内容区能滚动。
+- `client_reader_recovery_browser.py`：详情可见缺页持续轮询、同 URL 图片加载失败后自动恢复、流式存档更新事件与位置保留；使用模拟接口，无账号操作。
 - `client_cache_browser.py`：合成已确认收藏的首次显示、同卡片刷新和流式冷启动；缺原图与缺缩略图区分、可见原图兜底、503 后保留卡片并连续浏览 601 件；不访问真实账号。
 - `client_touch_browser.py`：实际 CDP 触点、方向锁、缩放、中文输入、返回位置及无 randomUUID 环境；手机尺寸模拟不等于实机验收。
 - `client_load_browser.py`：故障图片重试、第 5,000 件定位、下载中的长流阅览、固定总量与下一轮、部分失败记录、暂停队列和离线浏览。

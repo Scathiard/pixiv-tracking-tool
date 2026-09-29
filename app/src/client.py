@@ -2,6 +2,7 @@ import threading
 import time
 import requests
 from . import config as _cfg
+from .request_policy import is_rate_limit, retry_after_seconds
 
 
 def _token_file():
@@ -12,15 +13,32 @@ _MIN_INTERVAL = 1.0  # 请求最小间隔（秒）
 
 
 class PixivRequestError(RuntimeError):
-    def __init__(self, status, message):
+    def __init__(self, status, message, *, retry_after=None, retryable=None,
+                 failure_code=None):
         super().__init__(message)
         self.status, self.user_message = status, message
+        self.retry_after = retry_after
+        self.retryable = (status in (408, 429) or status is not None and status >= 500
+                          if retryable is None else retryable)
+        self.failure_code = failure_code or (
+            "api_rate_limit" if status == 429 else
+            "api_unauthorized" if status == 401 else
+            "api_forbidden" if status == 403 else
+            "api_unavailable" if status is not None and status >= 500 else
+            "api_error")
 
 
 def _checked_response(response):
     # A parseable error body (including {}) is never evidence of HTTP success.
     if not 200 <= response.status_code < 300:
-        raise PixivRequestError(response.status_code, f"Pixiv 请求未成功（{response.status_code}）")
+        status = response.status_code
+        message = ("Pixiv 请求受限，请稍后重试" if status == 429 else
+                   "Pixiv 登录未通过（401）" if status == 401 else
+                   "Pixiv 拒绝访问（403），原因待核查" if status == 403 else
+                   "Pixiv 服务暂时不可用" if status >= 500 else
+                   f"Pixiv 请求未成功（{status}）")
+        raise PixivRequestError(status, message,
+            retry_after=retry_after_seconds(getattr(response, "headers", None)))
     try:
         value = response.json()
     except ValueError as exc:
@@ -33,6 +51,8 @@ def _checked_response(response):
 def _token_expired(response):
     if response.status_code == 401:
         return True
+    if response.status_code == 429:
+        return False
     try:
         body = response.json()
         error = str(body.get("error", "")).lower() if isinstance(body, dict) else ""
@@ -52,6 +72,7 @@ def _get_auth_header():
 class PixivClient:
     _last_request = 0.0
     _lock = threading.Lock()
+    _api_cooldown_until = 0.0
     _bookmark_cooldown_until = 0.0
 
     def __init__(self):
@@ -92,34 +113,30 @@ class PixivClient:
         headers["App-Version"] = "7.19.1"
         headers["User-Agent"] = "PixivIOSApp/7.19.1 (iOS 16.7.2; iPhone14,2)"
 
-        r = self._do_get(endpoint, headers, params)
+        try:
+            r = self._do_get(endpoint, headers, params)
+        except requests.RequestException as exc:
+            raise PixivRequestError(None, "Pixiv 网络连接失败，请稍后重试",
+                retryable=True, failure_code="api_network") from exc
+        self._note_api_limit(r)
         if retry_token and _token_expired(r):
             from .auth import _try_refresh_token
             if _try_refresh_token():
                 return self._request(endpoint, params, retry_token=False)
         data = _checked_response(r)
+        self._note_api_limit(r, data)
         if "error" not in data:
             return data
 
-        err_msg = str(data["error"])
-        err_lower = err_msg.lower()
-
-        # 限流——等待后重试（最多 3 次）
-        if "rate" in err_lower:
-            for attempt in range(3):
-                wait = 60 * (attempt + 1)
-                time.sleep(wait)
-                self._last_request = time.time()
-                r = self._do_get(endpoint, headers, params)
-                data = _checked_response(r)
-                if "error" not in data:
-                    return data
-                err_msg = str(data["error"])
-
-        raise PixivRequestError(r.status_code, "Pixiv 拒绝了此次请求，请检查登录状态或稍后重试")
+        if is_rate_limit(data):
+            raise PixivRequestError(r.status_code, "Pixiv 请求受限，请稍后重试",
+                retry_after=max(60, retry_after_seconds(getattr(r, "headers", None)) or 0),
+                retryable=True, failure_code="api_rate_limit")
+        raise PixivRequestError(r.status_code, "Pixiv 拒绝了此次请求，原因待核查",
+            retryable=False, failure_code="api_response_error")
 
     def _post(self, endpoint, data=None, retry_token=True):
-        """带节流的 POST 请求（用于收藏等写操作）。"""
+        """Send a remote write once; its outcome may be uncertain on failure."""
         self._throttle()
 
         headers = _get_auth_header()
@@ -130,16 +147,22 @@ class PixivClient:
         headers["User-Agent"] = "PixivIOSApp/7.19.1 (iOS 16.7.2; iPhone14,2)"
         headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-        r = self._do_post(endpoint, headers, data)
-        if retry_token and _token_expired(r):
-            from .auth import _try_refresh_token
-            if _try_refresh_token():
-                return self._post(endpoint, data, retry_token=False)
+        try:
+            r = self._do_post(endpoint, headers, data)
+        except requests.RequestException as exc:
+            raise PixivRequestError(None, "Pixiv 操作结果未确认，请稍后核对",
+                retryable=False, failure_code="api_write_unconfirmed") from exc
+        self._note_api_limit(r)
         resp = _checked_response(r)
+        self._note_api_limit(r, resp)
         if "error" not in resp:
             return resp
-
-        raise PixivRequestError(r.status_code, "Pixiv 拒绝了此次操作，远端结果尚未确认")
+        if is_rate_limit(resp):
+            raise PixivRequestError(r.status_code, "Pixiv 请求受限，请稍后核对操作结果",
+                retry_after=max(60, retry_after_seconds(getattr(r, "headers", None)) or 0),
+                retryable=True, failure_code="api_rate_limit")
+        raise PixivRequestError(r.status_code, "Pixiv 拒绝了此次操作，远端结果尚未确认",
+            retryable=False, failure_code="api_write_unconfirmed")
 
     def get_account_id(self):
         """Use the identity returned with OAuth tokens, refreshing old tokens once."""
@@ -185,10 +208,20 @@ class PixivClient:
         if desired:
             data["restrict"] = "public"
         self._bookmark_throttle()
-        response = self._do_post(endpoint, headers, data)
+        try:
+            response = self._do_post(endpoint, headers, data)
+        except requests.RequestException as exc:
+            raise PixivRequestError(None, "Pixiv 收藏结果未确认，请稍后核对",
+                retryable=False, failure_code="api_write_unconfirmed") from exc
         self._note_bookmark_limit(response)
+        self._note_api_limit(response)
         result = _checked_response(response)
+        self._note_api_limit(response, result)
         if "error" in result:
+            if is_rate_limit(result):
+                raise PixivRequestError(response.status_code, "Pixiv 收藏请求受限，请稍后手动核对",
+                    retry_after=max(60, retry_after_seconds(getattr(response, "headers", None)) or 0),
+                    retryable=True, failure_code="api_rate_limit")
             raise PixivRequestError(response.status_code, "Pixiv 拒绝了此次收藏操作")
         return result
 
@@ -196,15 +229,25 @@ class PixivClient:
         """One throttled read using the captured account's token."""
         headers = self._bound_headers(account_id)
         self._bookmark_throttle()
-        response = requests.get(f"{API_HOST}/v1/illust/detail", headers=headers,
-                                params={"illust_id": illust_id}, timeout=30)
+        try:
+            response = requests.get(f"{API_HOST}/v1/illust/detail", headers=headers,
+                                    params={"illust_id": illust_id}, timeout=30)
+        except requests.RequestException as exc:
+            raise PixivRequestError(None, "Pixiv 收藏核对连接失败，请稍后重试",
+                retryable=True, failure_code="api_network") from exc
         self._note_bookmark_limit(response)
+        self._note_api_limit(response)
         if _token_expired(response):
             from .auth import _try_refresh_token
             _try_refresh_token()
             raise PixivRequestError(response.status_code, "收藏核对登录已更新，请重试回读")
         result = _checked_response(response)
+        self._note_api_limit(response, result)
         if "error" in result:
+            if is_rate_limit(result):
+                raise PixivRequestError(response.status_code, "Pixiv 收藏核对受限，请稍后重试",
+                    retry_after=max(60, retry_after_seconds(getattr(response, "headers", None)) or 0),
+                    retryable=True, failure_code="api_rate_limit")
             raise PixivRequestError(response.status_code, "Pixiv 拒绝了此次收藏核对")
         illust = result.get("illust")
         if not isinstance(illust, dict) or str(illust.get("id", "")) != str(illust_id):
@@ -215,22 +258,29 @@ class PixivClient:
     def _bookmark_throttle(self):
         with type(self)._lock:
             if time.monotonic() < type(self)._bookmark_cooldown_until:
-                raise PixivRequestError(429, "Pixiv 收藏请求受限，请稍后手动核对")
+                raise PixivRequestError(None, "Pixiv 收藏请求受限，请稍后手动核对",
+                    retry_after=max(0, int(type(self)._bookmark_cooldown_until - time.monotonic() + 0.999)),
+                    retryable=True, failure_code="api_rate_limit")
         self._throttle()
 
     @classmethod
     def _note_bookmark_limit(cls, response):
         if response.status_code != 429:
             return
-        headers = getattr(response, "headers", {})
-        raw = headers.get("Retry-After", "60") if headers else "60"
-        try:
-            seconds = max(1, min(int(raw), 600))
-        except (TypeError, ValueError):
-            seconds = 60
+        seconds = max(60, retry_after_seconds(getattr(response, "headers", None)) or 0)
         with cls._lock:
             cls._bookmark_cooldown_until = max(
                 cls._bookmark_cooldown_until, time.monotonic() + seconds)
+
+    @classmethod
+    def _note_api_limit(cls, response, body=None):
+        if response.status_code != 429 and not is_rate_limit(body):
+            return
+        seconds = max(60, retry_after_seconds(getattr(response, "headers", None)) or 0)
+        # Local recovery timing is an engineering default, not a Pixiv quota.
+        with cls._lock:
+            cls._api_cooldown_until = max(cls._api_cooldown_until,
+                                          time.monotonic() + seconds)
 
     def add_bookmark(self, illust_id, restrict="public"):
         """收藏作品。restrict: 'public'=公开, 'private'=私有。"""
@@ -246,11 +296,15 @@ class PixivClient:
     def _throttle(cls):
         """线程安全的请求节流——确保两次请求至少间隔 _MIN_INTERVAL 秒。"""
         with cls._lock:
-            now = time.time()
+            now = time.monotonic()
+            if now < cls._api_cooldown_until:
+                raise PixivRequestError(None, "Pixiv 请求受限，请稍后重试",
+                    retry_after=max(0, int(cls._api_cooldown_until - now + 0.999)),
+                    retryable=True, failure_code="api_rate_limit")
             wait = cls._last_request + _MIN_INTERVAL - now
             if wait > 0:
                 time.sleep(wait)
-            cls._last_request = time.time()
+            cls._last_request = time.monotonic()
 
     def search_artist(self, keyword):
         """搜索画师。"""

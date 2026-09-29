@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.core.bookmarks import BookmarkService
+from src.core.bookmarks import BookmarkService, bookmark_snapshot
 from src.core.database import ArchiveDatabase
 from src.core.models import ArchiveIntent, Artist, BookmarkOperation, RemoteBookmark, Work, utcnow
 from src.client import PixivRequestError
@@ -450,5 +450,113 @@ def test_explicit_rejection_with_opposite_readback_is_failed_fact(database):
         final = wait_result(service, receipt["operation_id"])
         assert final["status"] == "failed" and final["value"] is False
         assert final["confirmed_at"] is not None and remote.writes == 1
+    finally:
+        assert service.stop()
+
+
+@pytest.mark.parametrize("desired", [True, False])
+def test_rejected_write_with_unknown_read_has_clear_failure_reason(database, desired):
+    remote = Remote()
+    remote.unknown = True
+    with database.write() as session:
+        session.add(RemoteBookmark(work_id=2, value=not desired, source="readback",
+                                   account_id="123", confirmed_at=utcnow(), version=1))
+
+    def reject(*_args):
+        remote.writes += 1
+        raise PixivRequestError(403, "Pixiv 请求未成功（403）")
+
+    remote.write_bookmark = reject
+    service = BookmarkService(database, remote)
+    service.start()
+    try:
+        receipt = service.submit(2, desired, str(uuid4()))
+        final = wait_result(service, receipt["operation_id"])
+        assert final["status"] == "failed"
+        assert final["value"] is not desired
+        assert ("收藏失败" if desired else "取消收藏失败") in final["error"]
+        assert "403" in final["error"]
+        assert "不确定" not in final["error"] and "未确认" not in final["error"]
+        assert remote.writes == 1 and remote.reads == 3
+    finally:
+        assert service.stop()
+
+
+def test_lost_write_response_can_confirm_without_repeating_write(database):
+    remote = Remote()
+
+    def response_lost(_id, desired, _account):
+        remote.writes += 1
+        remote.value = desired
+        raise TimeoutError("synthetic transport failure")
+
+    remote.write_bookmark = response_lost
+    service = BookmarkService(database, remote)
+    service.start()
+    try:
+        receipt = service.submit(2, True, str(uuid4()))
+        final = wait_result(service, receipt["operation_id"])
+        assert final["status"] == "confirmed" and final["value"] is True
+        assert remote.writes == remote.reads == 1
+    finally:
+        assert service.stop()
+
+
+@pytest.mark.parametrize("status", [408, 429, 503, None])
+def test_uncertain_write_preserves_fact_and_avoids_technical_wording(database, status):
+    remote = Remote()
+    remote.unknown = True
+    with database.write() as session:
+        session.add(RemoteBookmark(work_id=2, value=False, source="readback",
+                                   account_id="123", confirmed_at=utcnow(), version=1))
+
+    def uncertain(*_args):
+        remote.writes += 1
+        raise PixivRequestError(status, "synthetic uncertainty")
+
+    remote.write_bookmark = uncertain
+    service = BookmarkService(database, remote)
+    service.start()
+    try:
+        receipt = service.submit(2, True, str(uuid4()))
+        final = wait_result(service, receipt["operation_id"])
+        assert final["status"] == "unconfirmed" and final["value"] is False
+        assert "上次确认" in final["error"]
+        assert "回读" not in final["error"] and "写入" not in final["error"]
+        assert remote.writes == 1 and remote.reads == 3
+    finally:
+        assert service.stop()
+
+
+def test_historical_ambiguous_failure_is_presented_without_rewriting_record():
+    fact = RemoteBookmark(work_id=2, value=False, source="readback", account_id="123", version=1)
+    operation = BookmarkOperation(id="old", work_id=2, desired=True, version=1, account_id="123",
+        status="failed", error="写入结果不确定，回读未确认")
+    snapshot = bookmark_snapshot(fact, operation, account_id="123")
+    assert snapshot["error"] == "收藏失败；旧记录未保存具体原因"
+    assert snapshot["value"] is False
+    assert operation.error == "写入结果不确定，回读未确认"
+
+
+def test_body_rate_limit_stops_bookmark_reads_and_preserves_fact(database):
+    remote = Remote()
+    with database.write() as session:
+        session.add(RemoteBookmark(work_id=2, value=False, source="readback",
+                                   account_id="123", confirmed_at=utcnow(), version=1))
+
+    def limited(*_args):
+        remote.reads += 1
+        raise PixivRequestError(200, "Pixiv 请求受限", retryable=True,
+                                retry_after=300, failure_code="api_rate_limit")
+
+    remote.read_bookmark_bound = limited
+    service = BookmarkService(database, remote)
+    service.start()
+    try:
+        receipt = service.submit(2, True, str(uuid4()))
+        final = wait_result(service, receipt["operation_id"])
+        assert final["status"] == "unconfirmed" and final["value"] is False
+        assert "限制请求" in final["error"]
+        assert remote.writes == 1 and remote.reads == 1
     finally:
         assert service.stop()
