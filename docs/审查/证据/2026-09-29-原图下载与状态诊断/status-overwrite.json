@@ -1,0 +1,65 @@
+{
+  "after_download_refusal": {
+    "asset_state": "failed",
+    "asset_error": "图片来源拒绝访问，请检查登录状态后重试",
+    "card_status": "failed"
+  },
+  "after_thumbnail_followup": {
+    "asset_state": "missing",
+    "asset_error": "缺少原件",
+    "card_status": "pending"
+  },
+  "download_task_result": {
+    "phase_snapshots": {
+      "inventory:works": {
+        "phase": "inventory",
+        "unit": "works",
+        "done": 1,
+        "total": 1
+      },
+      "downloading:assets": {
+        "phase": "downloading",
+        "unit": "assets",
+        "done": 1,
+        "total": 1
+      },
+      "thumbnails:previews": {
+        "phase": "thumbnails",
+        "unit": "previews",
+        "done": 1,
+        "total": 1
+      }
+    },
+    "inventory_complete": true,
+    "inventory": {
+      "phase": "inventory",
+      "unit": "works",
+      "done": 1,
+      "total": 1
+    },
+    "failed": 1,
+    "not_executed": 1,
+    "outcome": "failed"
+  },
+  "thumbnail_task_result": {
+    "phase_snapshots": {
+      "inventory:works": {
+        "phase": "inventory",
+        "unit": "works",
+        "done": 1,
+        "total": 1
+      }
+    },
+    "inventory_complete": true,
+    "inventory": {
+      "phase": "inventory",
+      "unit": "works",
+      "done": 1,
+      "total": 1
+    },
+    "outcome": "empty"
+  },
+  "pass_download_failure_remains_visible": false,
+  "network_calls": 0,
+  "real_library_access": false
+}
