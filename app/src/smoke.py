@@ -1,8 +1,11 @@
-"""发布 EXE 的无浏览器、无网络冒烟入口。"""
+"""发布 EXE 的隔离冒烟入口，仅连接本机合成图片服务。"""
 from __future__ import annotations
 
 import asyncio
 import argparse
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
 import json
 import os
 from pathlib import Path
@@ -10,6 +13,44 @@ import re
 import tempfile
 import threading
 import time
+
+
+@contextmanager
+def _image_source():
+    """Make packaged validation exercise the real downloader, not a prepared file."""
+    from PIL import Image
+
+    data = BytesIO()
+    with Image.new("RGB", (32, 48), "navy") as picture:
+        picture.save(data, format="PNG")
+    payload = data.getvalue()
+    received = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *_):
+            pass
+
+        def do_GET(self):
+            accepted = (self.path == "/1_p0.png"
+                        and self.headers.get("User-Agent", "").startswith("PixivIOSApp/")
+                        and self.headers.get("Referer") == "https://www.pixiv.net/"
+                        and not self.headers.get("Authorization"))
+            received.append(accepted)
+            self.send_response(200 if accepted else 403)
+            self.send_header("Content-Length", str(len(payload) if accepted else 0))
+            self.end_headers()
+            if accepted:
+                self.wfile.write(payload)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    worker = threading.Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}/1_p0.png", received
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join()
 
 
 async def _request_status(app, path):
@@ -65,26 +106,32 @@ def run_smoke_test() -> int:
     os.environ["DATA_ROOT"] = str(root)
     from .config import resource_path
     from .core.runtime import Runtime
+    from .core.download import AssetDownloader
     from .core.models import ArchiveIntent, Artist, Asset, Work
     from .version import __version__, __build__
     from .web import create_app
-    from PIL import Image
+    import requests
 
     for relative in ("src/templates/base.html", "static/style.css", "static/task-panel.js"):
         if not Path(resource_path(relative)).is_file():
             raise RuntimeError(f"缺少打包资源: {relative}")
-    runtime = Runtime(root / "data/pixiv_tracker.db", root / "images", create=True)
-    with Image.new("RGB", (32, 48), "navy") as picture:
-        picture.save(root / "images/1_p0.png")
-    with runtime.database.write() as session:
-        work = Work(id=1, pixiv_illust_id="1", artist=Artist(pixiv_user_id="1", name="smoke"), title="isolated")
-        work.assets = [Asset(role="image", relative_path="1_p0.png")]
-        session.add_all([work, ArchiveIntent(pixiv_illust_id="1")])
-    # Exercise the bundled task core without starting a real-account path.
-    runtime.queue.submit("repair", {"work_ids": [1]}, "smoke")
-    runtime.queue.run_round()
+    transport = requests.Session()
+    transport.trust_env = False  # Synthetic loopback must never use a proxy or account.
+    runtime = Runtime(root / "data/pixiv_tracker.db", root / "images", create=True,
+        downloader=AssetDownloader(session=transport, allowed_hosts=("127.0.0.1",), allow_http=True))
+    with _image_source() as (source_url, received):
+        with runtime.database.write() as session:
+            work = Work(id=1, pixiv_illust_id="1", artist=Artist(pixiv_user_id="1", name="smoke"), title="isolated")
+            work.assets = [Asset(role="image", relative_path="1_p0.png", state="failed", source_url=source_url,
+                                error="图片来源拒绝访问（403），原因待核查")]
+            session.add_all([work, ArchiveIntent(pixiv_illust_id="1")])
+        runtime.queue.submit("repair", {"work_ids": [1]}, "smoke")
+        runtime.queue.run_round()
+        if received != [True]:
+            raise RuntimeError("打包程序的图片下载请求未通过兼容性验证")
+    transport.close()
     if runtime.queue.snapshot()["round"]["outcome"] != "succeeded":
-        raise RuntimeError("打包程序的原件核验和缩略图生成失败")
+        raise RuntimeError("打包程序的下载、原件核验或缩略图生成失败")
     index = Path(resource_path("frontend/dist/index.html"))
     reading_ui = index.is_file()
     if not reading_ui:
@@ -109,6 +156,7 @@ def run_smoke_test() -> int:
         return result
 
     checks = asyncio.run(exercise())
+    checks["original_download_verified_and_thumbnail_published"] = 200
     if args.smoke_serve_port is not None:
         import uvicorn
         # The ASGI checks closed their runtime; serve the same synthetic files

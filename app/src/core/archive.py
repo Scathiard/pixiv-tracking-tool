@@ -243,8 +243,14 @@ class ArchiveHandler:
                         except Exception as exc:
                             specs.append(ItemSpec(f"profile-error-{artist_id}", "error", safe_failure(exc), "metadata", "artists"))
                     versions, account = self._bookmark_scope(artist_id)
-                    for data in self.client.get_all_artist_illusts(remote_id):
-                        work_id = self._save_remote_work(artist_id, data)
+                    for discovery_index, data in enumerate(self.client.get_all_artist_illusts(remote_id)):
+                        try:
+                            work_id = self._save_remote_work(artist_id, data)
+                        except WorkMetadataConflict as exc:
+                            failure = {**safe_failure(exc), "pixiv_id": str(data["illust_id"])}
+                            specs.append(ItemSpec(f"work-conflict-{artist_id}-{discovery_index}",
+                                "error", failure, "checking", "works"))
+                            continue
                         # New works begin at version zero; any newer user action
                         # wins before this older discovery response is applied.
                         self._apply_bookmark(work_id, data, versions.get(str(data["illust_id"]), 0), account)

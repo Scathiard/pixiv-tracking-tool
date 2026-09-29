@@ -12,7 +12,7 @@
 - `test_archive_api.py`、`test_archive_pages.py`：新核心接口、旧界面适配、离线可用性、请求边界与端口反馈。
 - `test_archive_relocation.py`：连续目录切换、复制被破坏和配置提交失败时保留原运行实例。
 - `test_archive_client_contract.py`：模拟 Pixiv 响应，验证鉴权重试、原件地址与错误结果；不访问真实账号。
-- `run.py --smoke-test --smoke-output NEW_JSON_PATH`：源码与 EXE 共用的隔离冒烟，自动生成独立测试库和媒体，保留结果，不启动登录或托盘。
+- `run.py --smoke-test --smoke-output NEW_JSON_PATH`：源码与 EXE 共用的隔离冒烟，仅从本机合成图片服务下载，验证真实下载器、原件核验、文件发布与缩略图；保留独立测试库和结果，不启动登录或托盘。
 - `archive_browser.py`：新核心的桌面与手机尺寸浏览器验证；`--artifacts` 必须指定新的隔离目录，保留结果和截图；不是手机实机验收。
 - `reading_browser.py`：生成大型合成图库，用实际 Chromium 验证普通／流式阅览、真实触控事件、乱序请求、长时间滚动与后台下载；`--artifacts` 每次用新目录。
 - `reading_deep_browser.py`：复用前项生成的 `.devtools/test-runs/` 合成图库，验证第 5000 件作品、流式末端及浏览器返回位置；拒绝真实图库路径。

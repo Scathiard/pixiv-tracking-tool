@@ -1,0 +1,33 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+________ test_verified_copy_switches_runtime_and_keeps_original_files _________
+
+relocation = (<starlette.testclient.TestClient object at 0x0000017ACA3C1DF0>, <src.core.runtime.Runtime object at 0x0000017ACA26143...ixiv-tracking-tool/.devtools/test-runs/b5-baseline-relocation-20260930-1/test_verified_copy_switches_ru0/fixture.env'))
+
+    def test_verified_copy_switches_runtime_and_keeps_original_files(relocation):
+        client, runtime, source, target, env = relocation
+        before = (source / "images/10_p0.png").read_bytes()
+        response = client.post("/settings/change-path", data={"new_path": str(target)}, headers={"Origin": "http://localhost"})
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"ok":false,"error":"请等待当前队列完成，再切换数据目录"}
+E       assert 500 == 200
+E        +  where 500 = <Response [500 Internal Server Error]>.status_code
+
+tests\test_archive_relocation.py:38: AssertionError
+============================== warnings summary ===============================
+..\.devtools\v012-env\Lib\site-packages\starlette\testclient.py:45
+  D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+..\.devtools\v012-env\Lib\site-packages\_pytest\cacheprovider.py:469
+  D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: could not create cache path D:\claude_sandbox\pixiv-tracking-tool\app\.pytest_cache\v\cache\nodeids: [WinError 5] 拒绝访问。: 'D:\\claude_sandbox\\pixiv-tracking-tool\\app\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+..\.devtools\v012-env\Lib\site-packages\_pytest\cacheprovider.py:423
+  D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\cacheprovider.py:423: PytestCacheWarning: could not create cache path D:\claude_sandbox\pixiv-tracking-tool\app\.pytest_cache\v\cache\lastfailed: [WinError 5] 拒绝访问。: 'D:\\claude_sandbox\\pixiv-tracking-tool\\app\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/lastfailed", self.lastfailed)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_archive_relocation.py::test_verified_copy_switches_runtime_and_keeps_original_files
+1 failed, 3 warnings in 11.57s

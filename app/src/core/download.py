@@ -69,8 +69,11 @@ class AssetDownloader:
             for _ in range(4):
                 self._check_url(url)
                 self._before_request()
+                # The CDN rejects Requests' default UA. Keep the Pixiv client
+                # identity without sharing API credentials with image requests.
                 response = self.session.get(url, stream=True, allow_redirects=False,
-                    headers={"Referer": "https://www.pixiv.net/", "Accept-Encoding": "identity"},
+                    headers={"User-Agent": "PixivIOSApp/7.19.1 (iOS 16.6; iPhone14,5)",
+                             "Referer": "https://www.pixiv.net/", "Accept-Encoding": "identity"},
                     timeout=(10, 60))
                 self._note_limit(response)
                 if response.status_code not in (301, 302, 303, 307, 308):

@@ -291,3 +291,77 @@ def test_requests_transport_complete_auth_partial_and_redirect_contracts(tmp_pat
             downloader.download(image_server + "/" + name, tmp_path / (name + ".part"))
         assert caught.value.code == code
     assert not (tmp_path / "unauthorized.part").exists()
+
+
+@pytest.fixture
+def pixiv_header_server():
+    expected_agent = "PixivIOSApp/7.19.1 (iOS 16.6; iPhone14,5)"
+    animation = io.BytesIO()
+    with zipfile.ZipFile(animation, "w") as archive:
+        archive.writestr("000000.png", png())
+    payloads = {"/original.png": png(), "/original.zip": animation.getvalue()}
+    received = []
+
+    class ServerHandler(BaseHTTPRequestHandler):
+        def log_message(self, *_):
+            pass
+
+        def do_GET(self):
+            received.append((self.path, self.headers.get("User-Agent"),
+                             self.headers.get("Referer"), self.headers.get("Authorization")))
+            if (self.headers.get("User-Agent") != expected_agent
+                    or self.headers.get("Referer") != "https://www.pixiv.net/"
+                    or self.headers.get("Authorization")):
+                self.send_response(403)
+                self.end_headers()
+                return
+            if self.path == "/redirect":
+                self.send_response(302)
+                self.send_header("Location", "/original.png")
+                self.end_headers()
+                return
+            if self.path == "/unapproved":
+                self.send_response(302)
+                self.send_header("Location", "http://unapproved.invalid/original.png")
+                self.end_headers()
+                return
+            body = payloads[self.path]
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), ServerHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield f"http://127.0.0.1:{server.server_port}", payloads, received
+    server.shutdown()
+    server.server_close()
+    thread.join()
+
+
+@pytest.mark.parametrize("path", ["/original.png", "/original.zip"])
+def test_pixiv_image_headers_fetch_original_image_and_ugoira_zip(tmp_path, pixiv_header_server, path):
+    base_url, payloads, received = pixiv_header_server
+    destination = tmp_path / path[1:]
+    result = AssetDownloader(allowed_hosts=("127.0.0.1",), allow_http=True).download(
+        base_url + path, destination)
+    assert result["bytes"] == len(payloads[path])
+    assert destination.read_bytes() == payloads[path]
+    assert received[-1][0] == path
+    if path.endswith(".zip"):
+        with zipfile.ZipFile(destination) as archive:
+            assert archive.namelist() == ["000000.png"]
+
+
+def test_pixiv_image_headers_survive_redirect_without_allowing_other_hosts(tmp_path, pixiv_header_server):
+    base_url, payloads, received = pixiv_header_server
+    downloader = AssetDownloader(allowed_hosts=("127.0.0.1",), allow_http=True)
+    destination = tmp_path / "redirected.png"
+    downloader.download(base_url + "/redirect", destination)
+    assert destination.read_bytes() == payloads["/original.png"]
+    assert [request[0] for request in received] == ["/redirect", "/original.png"]
+    with pytest.raises(DownloadFailure) as caught:
+        downloader.download(base_url + "/unapproved", tmp_path / "unapproved.png")
+    assert caught.value.code == "invalid_source"
+    assert [request[0] for request in received] == ["/redirect", "/original.png", "/unapproved"]

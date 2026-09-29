@@ -4,10 +4,12 @@ from datetime import datetime
 from sqlalchemy import select
 
 from src.core.archive import ArchiveHandler
+from src.core.activity_log import processing_log
 from src.core.library import Library
-from src.core.models import ApplicationState, Asset, Derivative, Operation, Work
+from src.core.models import ApplicationState, Asset, Derivative, Operation, OperationItem, Work
 from src.core.maintenance import LEDGER_PREFIX, MissingMediaMaintenance
 from src.core.tasks import TaskContext
+from src.client import PixivClient
 from test_missing_media_maintenance import archive, png
 
 
@@ -33,6 +35,110 @@ class RestoredClient:
         return {"illust_id": str(remote_id), "title": "restored", "type": "manga",
                 "page_count": self.count, "urls": [{"original": f"https://i.pximg.net/{i}.png"}
                                            for i in range(self.count)]}
+
+
+def _listed_work(remote_id, pages=1):
+    return {"illust_id": str(remote_id), "title": f"work {remote_id}", "type": "manga",
+            "page_count": pages, "urls": [{"original": f"https://i.pximg.net/{remote_id}_p{i}.png"}
+                                          for i in range(pages)]}
+
+
+def test_check_continues_after_one_work_conflicts_across_artist_pages(tmp_path):
+    db, root, queue, downloader, _, _ = archive(tmp_path)
+    try:
+        with db.write() as session:
+            old = session.get(Work, 1)
+            old.type, old.page_count = "manga", 6
+            for page in range(6):
+                relative = f"old_p{page}.png"
+                (root / relative).write_bytes(png())
+                asset = old.assets[0] if page == 0 else Asset(work_id=old.id, role="image", page_index=page)
+                asset.state, asset.relative_path = "verified", relative
+                if page:
+                    session.add(asset)
+
+        class PagedClient:
+            get_all_artist_illusts = PixivClient.get_all_artist_illusts
+
+            def __init__(self):
+                self.pages = []
+
+            def _get(self, _, params):
+                self.pages.append((params["type"], params.get("offset")))
+                if params["type"] == "manga":
+                    return {"illusts": [], "next_url": None}
+                if params.get("offset") == "1":
+                    return {"illusts": [_listed_work(202)], "next_url": None}
+                return {"illusts": [_listed_work(101, 2), _listed_work(201)],
+                        "next_url": "https://app-api.pixiv.net/v1/user/illusts?user_id=1&type=illust&offset=1"}
+
+            def _parse_illust(self, data):
+                return data
+
+        client = PagedClient()
+        repair = queue.handlers["repair"]
+        queue.handlers["check"] = ArchiveHandler("check", db, repair.publisher, client, downloader)
+        submitted = queue.submit("check", {"artist_ids": [1]}, "检查新作品")
+        assert queue.run_round()
+
+        with db.read() as session:
+            old = session.get(Work, 1)
+            assert old.page_count == 6 and len(old.assets) == 6
+            for remote_id in ("201", "202"):
+                work = session.scalar(select(Work).where(Work.pixiv_illust_id == remote_id))
+                assert work is not None
+                assert work.assets[0].state == "verified"
+                assert (root / work.assets[0].relative_path).read_bytes() == png()
+        assert client.pages == [("illust", None), ("illust", "1"), ("manga", None)]
+        assert downloader.calls == ["https://i.pximg.net/201_p0.png", "https://i.pximg.net/202_p0.png"]
+        details = queue.details(submitted["operation_id"])
+        assert details["result"]["outcome"] == "partial_failure"
+        assert details["result"]["inventory_complete"] is False
+        assert any(item["result"].get("failure_code") == "work_metadata_conflict"
+                   for item in details["items"] if item["state"] == "failed")
+        assert any("作品 101：主站当前 2 页，本地记录 6 页" in line
+                   for line in processing_log(db)["lines"])
+        with db.write() as session:
+            session.add_all([
+                OperationItem(operation_id=submitted["operation_id"], item_key="unsafe-id",
+                              position=999, kind="error", target={}, phase="checking", state="failed",
+                              result={"failure_code": "work_metadata_conflict", "pixiv_id": "101\nSECRET",
+                                      "message": "主站当前 2 页，本地记录 6 页；已有存档保留，需核对"}),
+                OperationItem(operation_id=submitted["operation_id"], item_key="unsafe-message",
+                              position=1000, kind="error", target={}, phase="checking", state="failed",
+                              result={"failure_code": "work_metadata_conflict", "pixiv_id": "101",
+                                      "message": "SECRET remote response"}),
+            ])
+        assert "SECRET" not in "\n".join(processing_log(db)["lines"])
+    finally:
+        db.close()
+
+
+def test_check_still_fails_when_artist_pagination_breaks(tmp_path):
+    db, root, queue, downloader, _, _ = archive(tmp_path)
+    try:
+        class BrokenPage(Exception):
+            user_message = "画师分页请求失败"
+
+        class BrokenClient:
+            def get_all_artist_illusts(self, _):
+                yield _listed_work(201)
+                raise BrokenPage()
+
+        repair = queue.handlers["repair"]
+        queue.handlers["check"] = ArchiveHandler("check", db, repair.publisher, BrokenClient(), downloader)
+        submitted = queue.submit("check", {"artist_ids": [1]}, "检查新作品")
+        assert queue.run_round()
+        with db.read() as session:
+            assert session.scalar(select(Work).where(Work.pixiv_illust_id == "201")) is not None
+            assert session.get(Work, 1).artist.last_checked_at is None
+        details = queue.details(submitted["operation_id"])
+        assert details["result"]["outcome"] == "partial_failure"
+        assert details["result"]["inventory_complete"] is False
+        assert any(item["key"] == "artist-error-1" and item["state"] == "failed"
+                   for item in details["items"])
+    finally:
+        db.close()
 
 
 def test_404_preserves_page_and_builds_local_thumbnail_with_attention(tmp_path):

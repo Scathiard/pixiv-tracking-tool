@@ -1,0 +1,50 @@
+{
+  "build": "20260929.4",
+  "case": "old-archive",
+  "real_account_used": false,
+  "real_library_used": false,
+  "network_scope": "150192548 p0 only",
+  "operation": {
+    "phase_snapshots": {
+      "inventory:works": {
+        "phase": "inventory",
+        "unit": "works",
+        "done": 1,
+        "total": 1
+      },
+      "downloading:assets": {
+        "phase": "downloading",
+        "unit": "assets",
+        "done": 1,
+        "total": 1
+      },
+      "thumbnails:previews": {
+        "phase": "thumbnails",
+        "unit": "previews",
+        "done": 1,
+        "total": 1
+      }
+    },
+    "inventory_complete": true,
+    "inventory": {
+      "phase": "inventory",
+      "unit": "works",
+      "done": 1,
+      "total": 1
+    },
+    "failed": 1,
+    "not_executed": 1,
+    "outcome": "failed"
+  },
+  "original": {
+    "state": "failed",
+    "bytes": null,
+    "dimensions": [
+      null,
+      null
+    ],
+    "sha256": null
+  },
+  "thumbnail_state": "missing",
+  "first_page_readable": false
+}

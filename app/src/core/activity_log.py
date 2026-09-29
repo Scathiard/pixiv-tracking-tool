@@ -56,6 +56,9 @@ def failure_reason(result: dict) -> str:
     failure_code = result.get("failure_code")
     if (failure_code == "work_metadata_conflict" and isinstance(message, str)
             and re.fullmatch(r"主站当前 [0-9]{1,7} 页，本地记录 [0-9]{1,7} 页；已有存档保留，需核对", message)):
+        pixiv_id = result.get("pixiv_id")
+        if isinstance(pixiv_id, str) and re.fullmatch(r"[0-9]{1,20}", pixiv_id):
+            return f"作品 {pixiv_id}：{message}"
         return message
     if isinstance(failure_code, str) and failure_code in FAILURE_CODES:
         return FAILURE_CODES[failure_code]

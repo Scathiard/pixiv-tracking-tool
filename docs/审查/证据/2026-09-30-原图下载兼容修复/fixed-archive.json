@@ -1,0 +1,59 @@
+{
+  "build": "20260929.4",
+  "case": "fixed-archive",
+  "real_account_used": false,
+  "real_library_used": false,
+  "network_scope": "150192548 p0 only",
+  "operation": {
+    "phase_snapshots": {
+      "inventory:works": {
+        "phase": "inventory",
+        "unit": "works",
+        "done": 1,
+        "total": 1
+      },
+      "downloading:assets": {
+        "phase": "downloading",
+        "unit": "assets",
+        "done": 1,
+        "total": 1
+      },
+      "thumbnails:previews": {
+        "phase": "thumbnails",
+        "unit": "previews",
+        "done": 1,
+        "total": 1
+      }
+    },
+    "inventory_complete": true,
+    "inventory": {
+      "phase": "inventory",
+      "unit": "works",
+      "done": 1,
+      "total": 1
+    },
+    "succeeded": 2,
+    "outcome": "succeeded"
+  },
+  "original": {
+    "state": "verified",
+    "bytes": 724682,
+    "dimensions": [
+      1350,
+      2000
+    ],
+    "sha256": "22f07fcb9730852b94cf23442d5e6d252643073f5797460e2f09530a13bbca65"
+  },
+  "thumbnail_state": "verified",
+  "first_page_readable": true,
+  "serving": {
+    "/api/works/1": {
+      "status": 200,
+      "bytes": 1016
+    },
+    "/images/artist_50838746/150192548_p0.png": {
+      "status": 200,
+      "bytes": 724682
+    }
+  }
+}
