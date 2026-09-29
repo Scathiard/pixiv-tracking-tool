@@ -54,9 +54,18 @@ def readable_page_url(record, *, animation=False):
 
 def presented_recovery(recovery, *, readable):
     """Finished visible media wins over an older retry ledger, without writing it."""
-    if recovery and readable:
+    if recovery and readable and recovery.get("status") != "attention":
         return {**recovery, "status": "ready", "reason": None, "next_retry_at": None}
     return recovery
+
+
+def remote_availability(work):
+    value = (work.source_metadata or {}).get("remote_availability")
+    if (isinstance(value, dict) and value.get("state") in ("available", "unavailable", "private")
+            and isinstance(value.get("checked_at"), str)):
+        return {"state": value["state"], "checked_at": value["checked_at"],
+                "reason": value.get("reason") if isinstance(value.get("reason"), str) else None}
+    return None
 
 
 class Library:
@@ -139,7 +148,7 @@ class Library:
         result = {}
         for record in session.scalars(select(ApplicationState).where(ApplicationState.key.in_(keys))):
             value = record.value
-            if not isinstance(value, dict) or value.get("status") not in ("queued", "waiting", "ready"):
+            if not isinstance(value, dict) or value.get("status") not in ("queued", "waiting", "ready", "attention"):
                 continue
             retry_at = value.get("next_retry_at")
             if isinstance(retry_at, str):
@@ -168,6 +177,7 @@ class Library:
             "bookmark_count": work.bookmark_count, "view_count": work.view_count,
             "posted_at": work.posted_at.isoformat() if work.posted_at else None,
             "time_basis": work.time_basis, "x_restrict": work.x_restrict,
+            "availability": remote_availability(work),
             "restriction_verified": work.restriction_verified}
 
     def artists(self):
@@ -278,7 +288,7 @@ class Library:
             statement = self._statement(filters, ceiling)
             total = session.scalar(select(func.count()).select_from(statement.subquery()))
             related = statement.options(load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title,
-                Work.type, Work.page_count, Work.posted_at, Work.x_restrict), selectinload(Work.artist).load_only(Artist.name),
+                Work.type, Work.page_count, Work.posted_at, Work.x_restrict, Work.source_metadata), selectinload(Work.artist).load_only(Artist.name),
                 selectinload(Work.preference), selectinload(Work.bookmark)) if compact else self._related(statement)
             works = list(session.scalars(related.order_by(*self._order(filters)).offset(offset).limit(limit)))
             operations = self._bookmark_operations(session, [work.id for work in works])
@@ -287,7 +297,8 @@ class Library:
                       "page_count": work.page_count, "x_restrict": work.x_restrict,
                       "is_hidden": bool(work.preference and work.preference.is_hidden),
                       "posted_at": work.posted_at.isoformat() if work.posted_at else None,
-                      "bookmark": self._bookmark_view(work, operations.get(work.id))} for work in works] if compact else [self._work_view(work, operations.get(work.id)) for work in works]
+                      "bookmark": self._bookmark_view(work, operations.get(work.id)),
+                      "availability": remote_availability(work)} for work in works] if compact else [self._work_view(work, operations.get(work.id)) for work in works]
             if compact:
                 for view in views:
                     view["is_bookmarked"] = bool(view["bookmark"]["value"])
@@ -417,7 +428,8 @@ class Library:
                 ranges.c.page_start + ranges.c.page_count > offset).order_by(ranges.c.page_start)).mappings())
             ids = [row["work_id"] for row in rows]
             works = {work.id: work for work in session.scalars(select(Work).options(
-                load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title, Work.type, Work.x_restrict),
+                load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title, Work.type, Work.x_restrict,
+                          Work.source_metadata),
                 selectinload(Work.artist).load_only(Artist.name), selectinload(Work.bookmark)).where(Work.id.in_(ids)))}
             operations = self._bookmark_operations(session, ids)
             recoveries = self._recovery_views(session, ids)
@@ -441,6 +453,7 @@ class Library:
                         "type": work.type, "x_restrict": work.x_restrict,
                         "next_work_index": row["page_start"] + row["page_count"],
                         "bookmark": bookmark_views[work.id],
+                        "availability": remote_availability(work),
                         "recovery": presented_recovery(recoveries.get(work.id), readable=bool(media and
                             readable_page_url(media, animation=work.type == "ugoira") and
                             media.state in ("verified", "unknown"))),

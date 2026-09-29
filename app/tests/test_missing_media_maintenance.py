@@ -117,7 +117,7 @@ def test_maintenance_is_bounded_deduped_and_restart_respects_rejection(tmp_path)
         queue.run_round()
         maintenance.tick(force=True)
         with database.read() as session:
-            ledger = session.get(ApplicationState, LEDGER_PREFIX + "1").value
+            ledger = session.get(ApplicationState, LEDGER_PREFIX + "12").value
             assert ledger["status"] == "waiting"
             assert ledger["http_status"] == 403
             assert ledger["next_retry_at"] > clock[0].isoformat()
@@ -187,7 +187,7 @@ def test_rate_limit_sets_remote_hold(tmp_path, failure, expected_status):
         queue.run_round()
         assert maintenance.tick(force=True) == []
         with database.read() as session:
-            ledger = session.get(ApplicationState, LEDGER_PREFIX + "1").value
+            ledger = session.get(ApplicationState, LEDGER_PREFIX + "3").value
             assert ledger["http_status"] == expected_status
             assert ledger["failure_code"] == failure.failure_code
             assert ledger["next_retry_at"] >= (clock[0] + timedelta(minutes=15)).isoformat()
@@ -213,17 +213,12 @@ def test_remote_denial_does_not_delay_local_thumbnail(tmp_path):
         assert len(maintenance.tick(force=True)) == 1
         queue.run_round()
         local = maintenance.tick(force=True)
-        assert len(local) == 1
-        with database.read() as session:
-            assert session.get(Operation, local[0]["operation_id"]).kind == "thumbnails"
-            ledger = session.get(ApplicationState, LEDGER_PREFIX + "1").value
-            assert ledger["tracks"]["remote"]["status"] == "waiting"
-            assert ledger["tracks"]["local"]["status"] == "queued"
-        queue.run_round()
-        maintenance.tick(force=True)
+        assert local == []
         with database.read() as session:
             assert session.scalar(select(Derivative)).state == "verified"
-            assert session.get(ApplicationState, LEDGER_PREFIX + "1").value["status"] == "waiting"
+            ledger = session.get(ApplicationState, LEDGER_PREFIX + "1").value
+            assert ledger["tracks"]["remote"]["status"] == "waiting"
+            assert ledger["status"] == "waiting"
     finally:
         database.close()
 
@@ -336,7 +331,15 @@ def test_remote_cursor_reaches_due_work_after_128_waiting_with_high_local_id(tmp
                 "status": "waiting", "tracks": {"local": {
                     "status": "waiting", "kind": "thumbnails", "next_retry_at": future}}}))
         (root / "local.png").write_bytes(png())
-        assert maintenance.tick(force=True) == []
+        first = maintenance.tick(force=True)
+        assert len(first) == 1
+        with database.read() as session:
+            assert session.get(Operation, first[0]["operation_id"]).parameters == {"work_ids": [130]}
+        queue.run_round()
+        later = maintenance.tick(force=True)
+        assert later == []  # remote cadence is independent of forced inventory scans
+        clock[0] += timedelta(minutes=2)
+        maintenance._next_remote = -1
         later = maintenance.tick(force=True)
         assert len(later) == 1
         with database.read() as session:

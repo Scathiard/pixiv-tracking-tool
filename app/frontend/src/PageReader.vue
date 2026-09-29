@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
-import type { Anchor, PageData, PageLoader } from './types'
+import { needsPageRefresh, sourceNotice, type Anchor, type PageData, type PageLoader } from './types'
 import { DirectionGesture, LatestIntent } from './interaction'
 import { prepareImage } from './api'
 import MediaImage from './MediaImage.vue'
@@ -14,11 +14,10 @@ const before = ref<HTMLDivElement | null>(null), beforeHeight = ref(0)
 const size = ref({width: 1000, height: 760}), loading = ref(false), error = ref('')
 const gesture = new DirectionGesture(), intent = new LatestIntent()
 let observer: ResizeObserver | null = null, restoring = false, frame = 0, lastAnchor: Anchor | null = null
-let refreshTimer = 0, refreshController: AbortController | null = null, refreshing = false
+let refreshTimer = 0, refreshController: AbortController | null = null, refreshing = false, forceRefreshPending = false
 let failedAction: (() => void) | null = null
 const MAX_PAGES = 120, CHUNK = 40
 const REFRESH_MS = 12000, REFRESH_LIMIT = 24
-const RECOVERABLE_STATES = new Set(['failed', 'missing', 'invalid', 'mismatch'])
 function height(page: PageData | undefined) {
   const padding = props.mode === 'feed' ? (size.value.width <= 760 ? 28 : 44) : (size.value.width < 600 ? 16 : 56)
   const availableWidth = Math.max(1, Math.min(props.mode === 'feed' ? 690 : 1100, size.value.width - padding))
@@ -132,8 +131,7 @@ function visibleMissing() {
     : Array.from({length: Math.min(pages.value.length, 6)}, (_, index) => index)
   return indices.filter(index => {
     const page = pages.value[index]
-    return !!page && (!page.src || RECOVERABLE_STATES.has(page.state) ||
-      page.recovery?.status === 'queued' || page.recovery?.status === 'waiting')
+    return !!page && needsPageRefresh(page)
   })
 }
 function stopRefresh() {
@@ -141,6 +139,9 @@ function stopRefresh() {
   refreshController?.abort(); refreshController = null
 }
 function queueRefresh() {
+  if (forceRefreshPending && document.visibilityState === 'visible' && !loading.value && !restoring && !refreshing) {
+    forceRefreshPending = false; void refreshMissing(true); return
+  }
   if (document.visibilityState !== 'visible' || !visibleMissing().length) {
     clearTimeout(refreshTimer); refreshTimer = 0; return
   }
@@ -148,11 +149,14 @@ function queueRefresh() {
     refreshTimer = 0; void refreshMissing()
   }, REFRESH_MS)
 }
-async function refreshMissing() {
-  if (document.visibilityState !== 'visible' || !visibleMissing().length) return
-  if (loading.value || restoring || refreshing) { queueRefresh(); return }
+async function refreshMissing(force = false) {
+  if (!pages.value.length) return
+  if (force && document.visibilityState !== 'visible') { forceRefreshPending = true; return }
+  if (document.visibilityState !== 'visible' || (!force && !visibleMissing().length)) return
+  if (loading.value || restoring || refreshing) { if (force) forceRefreshPending = true; else queueRefresh(); return }
   const missing = visibleMissing()
-  const first = pages.value[missing[0]!]!.index
+  if (!force && !missing.length) return
+  const first = force ? (current()?.page.index ?? pages.value[0]!.index) : pages.value[missing[0]!]!.index
   const offset = Math.max(pages.value[0]!.index, first - 2)
   const limit = Math.min(REFRESH_LIMIT, pages.value.at(-1)!.index - offset + 1)
   const session = props.sessionKey
@@ -171,7 +175,10 @@ async function refreshMissing() {
       if (!replacement || replacement.work_id !== page.work_id) return page
       if (replacement.src !== page.src || replacement.state !== page.state ||
           replacement.recovery?.status !== page.recovery?.status ||
-          replacement.recovery?.next_retry_at !== page.recovery?.next_retry_at) {
+          replacement.recovery?.next_retry_at !== page.recovery?.next_retry_at ||
+          replacement.recovery?.reason !== page.recovery?.reason ||
+          replacement.availability?.state !== page.availability?.state ||
+          replacement.availability?.reason !== page.availability?.reason) {
         changed = true; return replacement
       }
       return page
@@ -194,11 +201,12 @@ async function refreshMissing() {
   }
 }
 function visibilityChanged() {
-  if (document.visibilityState === 'visible' && visibleMissing().length) {
-    clearTimeout(refreshTimer); refreshTimer = 0; void refreshMissing()
+  if (document.visibilityState === 'visible' && (forceRefreshPending || visibleMissing().length)) {
+    clearTimeout(refreshTimer); refreshTimer = 0
+    const force = forceRefreshPending; forceRefreshPending = false; void refreshMissing(force)
   } else stopRefresh()
 }
-function archiveUpdated() { if (visibleMissing().length) void refreshMissing() }
+function archiveUpdated() { if (pages.value.length) void refreshMissing(true) }
 function down(event: PointerEvent) {
   const blocked = props.mode === 'feed' || props.inactive || event.pointerType === 'mouse' ||
     !!(event.target as Element).closest('button,a,input,select,textarea,[contenteditable]') || (window.visualViewport?.scale || 1) > 1.01
@@ -233,9 +241,10 @@ defineExpose({readAnchor, jump, scrollBy: (delta: number) => viewport.value?.scr
             <RestrictionBadge v-if="mode === 'feed' && pages[row.index]!.page === 0" :value="pages[row.index]!.x_restrict" />
             <span class="page-number">{{ pages[row.index]!.page + 1 }} / {{ pages[row.index]!.page_count }}</span>
             <button class="quiet" :disabled="!pages[row.index]!.src" @click="emit('zoom', pages[row.index]!)" aria-label="放大此页">放大</button>
+            <span v-if="mode === 'feed' && pages[row.index]!.page === 0 && sourceNotice(pages[row.index]!.availability, pages[row.index]!.recovery)" class="page-source">{{ sourceNotice(pages[row.index]!.availability, pages[row.index]!.recovery) }}</span>
           </figcaption>
           <div class="page-picture" :style="mode === 'reader' ? {height: `${height(pages[row.index])}px`} : undefined">
-            <MediaImage :src="pages[row.index]!.src" :recovery="pages[row.index]!.recovery" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
+            <MediaImage :src="pages[row.index]!.src" :state="pages[row.index]!.state" :recovery="pages[row.index]!.recovery" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
               :width="mode === 'feed' ? pages[row.index]!.width || 1000 : undefined"
               :height="mode === 'feed' ? pages[row.index]!.height || 1350 : undefined"
               @size="(width, height) => dimensions(pages[row.index]!, width, height)" @zoom="emit('zoom', pages[row.index]!)" />

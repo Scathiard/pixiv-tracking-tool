@@ -23,6 +23,26 @@ REMOTE_BATCH = 1
 LEDGER_PREFIX = "maintenance_work:"
 REMOTE_HOLD_KEY = "maintenance_remote_hold"
 SCAN_WINDOW = 128
+ATTENTION_CODES = frozenset(("work_unavailable", "work_private",
+    "ugoira_metadata_unavailable", "work_metadata_conflict"))
+
+
+def _legacy_attention(track, failure=None, *, work_type=None):
+    """Recognize only prior known 404 and metadata-shape evidence."""
+    failure = failure if isinstance(failure, dict) else {}
+    code = track.get("failure_code") or failure.get("failure_code")
+    if code in ATTENTION_CODES:
+        return code, track.get("reason") or failure.get("message")
+    status = track.get("http_status") or failure.get("status")
+    if status == 404 and code in (None, "api_error"):
+        if work_type == "ugoira" and track.get("kind") == "repair":
+            return "ugoira_metadata_unavailable", "动图时序资料暂时无法获取，已有存档保留"
+        return "work_unavailable", "主站暂时无法获取此作品，尚不能确认是否删除；已有存档保留"
+    old_conflict = "远端作品的归属、类型或页数发生变化，已有存档保留待核对"
+    if (code in (None, "InvalidMedia") and
+            (track.get("reason") == old_conflict or failure.get("message") == old_conflict)):
+        return "work_metadata_conflict", old_conflict
+    return None, None
 
 
 def _parse_time(value):
@@ -41,6 +61,9 @@ def _project(ledger):
     if chosen is None:
         chosen = next((tracks.get(name) for name in ("remote", "local")
                        if tracks.get(name, {}).get("status") == "waiting"), None)
+    if chosen is None:
+        chosen = next((tracks.get(name) for name in ("remote", "local")
+                       if tracks.get(name, {}).get("status") == "attention"), None)
     if chosen is None:
         chosen = next((tracks.get(name) for name in ("remote", "local") if tracks.get(name)), {})
     return {**ledger, "status": chosen.get("status", "ready"), "kind": chosen.get("kind"),
@@ -62,12 +85,35 @@ class MissingMediaMaintenance:
         with self.database.write() as session:
             pending = list(session.scalars(select(ApplicationState).where(
                 ApplicationState.key.like(LEDGER_PREFIX + "%"),
-                ApplicationState.value["status"].as_string() == "queued")))
+                ApplicationState.value["status"].as_string().in_(("queued", "waiting")))))
             for setting in pending:
                 ledger = dict(setting.value) if isinstance(setting.value, dict) else {}
                 tracks = {name: dict(value) for name, value in ledger.get("tracks", {}).items()}
+                if not tracks and ledger.get("kind"):
+                    name = "local" if ledger["kind"] == "thumbnails" else "remote"
+                    tracks[name] = {key: ledger.get(key) for key in (
+                        "status", "kind", "operation_id", "attempts", "last_attempt_at",
+                        "next_retry_at", "reason", "failure_code", "http_status")}
                 changed = False
                 for name, track in tracks.items():
+                    if name == "remote" and track.get("status") == "waiting":
+                        prior = None
+                        if track.get("operation_id"):
+                            prior = session.scalar(select(OperationItem.result).where(
+                                OperationItem.operation_id == track["operation_id"],
+                                OperationItem.state == "failed").order_by(OperationItem.position).limit(1))
+                        try:
+                            work_id = int(setting.key.removeprefix(LEDGER_PREFIX))
+                        except ValueError:
+                            work_id = None
+                        work = session.get(Work, work_id) if work_id is not None else None
+                        code, reason = _legacy_attention(track, prior,
+                            work_type=work.type if work else None)
+                        if code:
+                            track.update(status="attention", next_retry_at=None,
+                                         failure_code=code, reason=reason)
+                            changed = True
+                            continue
                     if track.get("status") != "queued" or not track.get("operation_id"):
                         continue
                     operation = session.get(Operation, track["operation_id"])
@@ -85,6 +131,12 @@ class MissingMediaMaintenance:
                         rate_limited = status == 429 or failure.get("failure_code") in (
                             "api_rate_limit", "image_rate_limit")
                         rejected = status in (401, 403) or failure.get("retryable") is False
+                        if name == "remote" and failure.get("failure_code") in ATTENTION_CODES:
+                            track.update(status="attention", next_retry_at=None,
+                                reason=failure.get("message") or "来源资料暂时无法核对，已有存档保留",
+                                failure_code=failure.get("failure_code"), http_status=status)
+                            changed = True
+                            continue
                         if rejected or rate_limited:
                             delay = (900, 3600, 21600, 86400)[min(attempts - 1, 3)]
                         else:
@@ -115,12 +167,13 @@ class MissingMediaMaintenance:
     def _candidates(self):
         with self.database.read() as session:
             eligible = and_(ArchiveIntent.mode == "keep", ArchiveIntent.pixiv_illust_id == Work.pixiv_illust_id)
+            windows = {}
             def page(statement, name):
                 cursor = self._cursors[name]
-                rows = list(session.execute(statement.where(Work.id > cursor).order_by(Work.id).limit(SCAN_WINDOW)))
-                if not rows and cursor:
-                    rows = list(session.execute(statement.where(Work.id > 0).order_by(Work.id).limit(SCAN_WINDOW)))
-                self._cursors[name] = max((row.id for row in rows), default=0)
+                rows = list(session.execute(statement.where(Work.id < cursor).order_by(Work.id.desc()).limit(SCAN_WINDOW))) if cursor else []
+                if not rows:
+                    rows = list(session.execute(statement.order_by(Work.id.desc()).limit(SCAN_WINDOW)))
+                windows[name] = [row.id for row in rows]
                 return rows
 
             missing_assets = page(select(Work.id, Work.type, Work.source_metadata).join(
@@ -158,12 +211,12 @@ class MissingMediaMaintenance:
                 gif, and_(gif.work_id == Work.id, gif.kind == "gif", gif.spec_key == "v1")).where(
                 Work.type == "ugoira", or_(gif.id.is_(None), gif.state.in_(
                     ("missing", "failed", "invalid", "outdated")))), "pair")]
-            local = sorted(set(image_ready + gif_ready + gif_from_pair))
+            local = sorted(set(image_ready + gif_ready + gif_from_pair), reverse=True)
             candidate_ids = set(remote) | set(local)
             ledgers = {row.key: row.value for row in session.scalars(select(ApplicationState).where(
                 ApplicationState.key.in_([LEDGER_PREFIX + str(work_id) for work_id in candidate_ids])))}
             hold = session.get(ApplicationState, REMOTE_HOLD_KEY)
-            return remote, local, set(gif_from_pair), ledgers, hold.value if hold else {}
+            return remote, local, set(gif_from_pair), ledgers, hold.value if hold else {}, windows
 
     def tick(self, *, force=False):
         clock = self.monotonic()
@@ -172,7 +225,7 @@ class MissingMediaMaintenance:
         self._next_scan = clock + SCAN_SECONDS
         now = self.now()
         self._reconcile(now)
-        remote, local, gif_from_pair, ledgers, hold = self._candidates()
+        remote, local, gif_from_pair, ledgers, hold, windows = self._candidates()
         for work_id in set(remote) | set(local):
             key = LEDGER_PREFIX + str(work_id)
             ledger = ledgers.get(key)
@@ -215,11 +268,14 @@ class MissingMediaMaintenance:
             if any(track.get("status") == "queued" for track in tracks.values()):
                 return False
             track = tracks.get(name, {})
+            if track.get("status") == "attention":
+                return False
             retry_at = _parse_time(track.get("next_retry_at"))
             return retry_at is None or retry_at <= now
 
-        if (clock >= self._next_remote and self.remote_available()
-                and (_parse_time(hold.get("until")) or now) <= now):
+        remote_open = (clock >= self._next_remote and self.remote_available()
+                       and (_parse_time(hold.get("until")) or now) <= now)
+        if remote_open:
             for work_id in remote:
                 if due(work_id, "remote"):
                     submitted.append((work_id, "repair", "remote"))
@@ -236,6 +292,23 @@ class MissingMediaMaintenance:
                 local_count += 1
         if len(local) > local_count:
             self._next_scan = clock + BACKLOG_SECONDS
+
+        # Advance only past submitted entries or a window with no due entry.
+        # Busy work and remote cooldown leave the windows untouched.
+        selected_remote = [work_id for work_id, _, name in submitted if name == "remote"]
+        selected_local = [work_id for work_id, _, name in submitted if name == "local"]
+        if remote_open:
+            if selected_remote:
+                self._cursors["remote"] = min(selected_remote)
+            elif windows["remote"] and not any(due(work_id, "remote") for work_id in remote):
+                self._cursors["remote"] = min(windows["remote"])
+        for name in ("image", "gif", "pair"):
+            window = windows[name]
+            chosen = [work_id for work_id in selected_local if work_id in window]
+            if chosen:
+                self._cursors[name] = min(chosen)
+            elif window and not any(due(work_id, "local") for work_id in window):
+                self._cursors[name] = min(window)
 
         results = []
         for work_id, kind, name in submitted:

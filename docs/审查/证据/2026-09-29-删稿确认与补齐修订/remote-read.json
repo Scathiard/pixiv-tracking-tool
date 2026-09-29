@@ -1,0 +1,148 @@
+[
+  {
+    "work_id": 15411,
+    "pixiv_id": "150192548",
+    "endpoint": "/v1/illust/detail",
+    "at": "2026-09-29T13:52:05.679668+00:00",
+    "http_status": 200,
+    "error": null,
+    "illust": {
+      "id": 150192548,
+      "type": "illust",
+      "page_count": 7,
+      "visible": true,
+      "is_muted": false
+    },
+    "local_shape": {
+      "type": "illust",
+      "page_count": 7
+    }
+  },
+  {
+    "work_id": 1664,
+    "pixiv_id": "114772685",
+    "endpoint": "/v1/illust/detail",
+    "at": "2026-09-29T13:52:08.451127+00:00",
+    "http_status": 404,
+    "error": {
+      "user_message": "尚无此页",
+      "message": "",
+      "reason": ""
+    }
+  },
+  {
+    "work_id": 13891,
+    "pixiv_id": "74933612",
+    "endpoint": "/v1/illust/detail",
+    "at": "2026-09-29T13:52:10.605450+00:00",
+    "http_status": 404,
+    "error": {
+      "user_message": "尚无此页",
+      "message": "",
+      "reason": ""
+    }
+  },
+  {
+    "work_id": 1839,
+    "pixiv_id": "144774182",
+    "endpoint": "/v1/illust/detail",
+    "at": "2026-09-29T13:52:12.726703+00:00",
+    "http_status": 200,
+    "error": null,
+    "illust": {
+      "id": 144774182,
+      "type": "manga",
+      "page_count": 2,
+      "visible": true,
+      "is_muted": false
+    },
+    "local_shape": {
+      "type": "manga",
+      "page_count": 6
+    }
+  },
+  {
+    "work_id": 13892,
+    "pixiv_id": "74823511",
+    "endpoint": "/v1/illust/detail",
+    "at": "2026-09-29T13:52:14.860520+00:00",
+    "http_status": 404,
+    "error": {
+      "user_message": "尚无此页",
+      "message": "",
+      "reason": ""
+    }
+  },
+  {
+    "work_id": 6158,
+    "pixiv_id": "135465278",
+    "endpoint": "/v1/illust/detail",
+    "at": "2026-09-29T13:52:16.989530+00:00",
+    "http_status": 404,
+    "error": {
+      "user_message": "尚无此页",
+      "message": "",
+      "reason": ""
+    }
+  },
+  {
+    "work_id": 6158,
+    "pixiv_id": "135465278",
+    "endpoint": "/v1/ugoira/metadata",
+    "at": "2026-09-29T13:52:19.117508+00:00",
+    "http_status": 404,
+    "error": {
+      "user_message": "尚无此页",
+      "message": "",
+      "reason": ""
+    }
+  },
+  {
+    "work_id": 13893,
+    "pixiv_id": "74713864",
+    "endpoint": "/v1/illust/detail",
+    "at": "2026-09-29T13:52:21.243010+00:00",
+    "http_status": 404,
+    "error": {
+      "user_message": "尚无此页",
+      "message": "",
+      "reason": ""
+    }
+  },
+  {
+    "work_id": 6159,
+    "pixiv_id": "135465209",
+    "endpoint": "/v1/illust/detail",
+    "at": "2026-09-29T13:52:23.360417+00:00",
+    "http_status": 404,
+    "error": {
+      "user_message": "尚无此页",
+      "message": "",
+      "reason": ""
+    }
+  },
+  {
+    "work_id": 6159,
+    "pixiv_id": "135465209",
+    "endpoint": "/v1/ugoira/metadata",
+    "at": "2026-09-29T13:52:25.484942+00:00",
+    "http_status": 404,
+    "error": {
+      "user_message": "尚无此页",
+      "message": "",
+      "reason": ""
+    }
+  },
+  {
+    "work_id": 13894,
+    "pixiv_id": "74600721",
+    "endpoint": "/v1/illust/detail",
+    "at": "2026-09-29T13:52:27.603123+00:00",
+    "http_status": 404,
+    "error": {
+      "user_message": "尚无此页",
+      "message": "",
+      "reason": ""
+    }
+  }
+]

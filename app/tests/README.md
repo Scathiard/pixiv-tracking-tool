@@ -25,6 +25,9 @@
 - `test_missing_media_maintenance.py`：已知缺项的自动补齐、失败记录保留、独立重试、暂停／离线、重启、去重、删除阻止及旧动图边界；仅合成图库。
 - `test_request_policy.py`：HTTP／正文限流、API／图片独立冷却、服务端等待信息与准确拒绝分类；使用模拟时钟和请求，不连接 Pixiv。
 - `test_processing_log.py`：隔离任务数据的只读日志、敏感字段隔离、数量上限，以及公开版本／内部构建标识；不读取真实日志或令牌。
+- `test_remote_error_evidence.py`：重放合成 404、明确非公开、动图子接口、鉴权与限流回应；没有删除证据不得判删，日志保留安全原因而不输出任意远端消息。
+- `test_remote_availability.py`：来源不可获取与本地存档独立、资料冲突、停止无效重试及恢复；只用合成图库。
+- `client_availability_browser.py`：来源不可获取时的本地图、缺页原因、桌面／手机排版、停止轮询及任务完成后的原位恢复；只用合成图库与本机服务。
 - `client_fixture.py`、`client_browser.py`：正式界面回归、5,000 / 2,000 合成图库、桌面与 390 / 320px、主题连点与收藏跨作品响应。
 - `client_b_browser.py`：B 侧栏收放与锚点、手机菜单与搜索、首页检查入口、进度各状态、通知自动消失与只读日志；任务接口使用浏览器替身，`--remaining-only` 可独立复测导航与手机。
 - `client_display_browser.py`：桌面滚轮与 390/320px CDP 触摸实际滚到设置、画师页底部；保存图标几何与截图，不以元素存在替代可达性。

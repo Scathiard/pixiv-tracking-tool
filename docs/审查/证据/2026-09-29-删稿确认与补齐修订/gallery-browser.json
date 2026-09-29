@@ -1,0 +1,36 @@
+{
+  "checks": [
+    "full-local-art-remains-in-gallery-with-private-or-unavailable-source",
+    "gallery-cards-show-distinct-attention-private-and-unavailable-markers",
+    "gallery-markers-remain-visible-at-390-and-320-without-overflow",
+    "latest-build-detail-source-and-image-recover-in-place"
+  ],
+  "errors": [],
+  "metrics": {
+    "http_errors": [],
+    "ignored_browser_resource_errors": [
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found) @ {'url': 'http://127.0.0.1:64313/favicon.ico', 'line': 0, 'column': 0, 'lineNumber': 0, 'columnNumber': 0}"
+    ],
+    "desktop_card_heights": [
+      297.5625,
+      297.59375,
+      297.59375,
+      297.59375
+    ],
+    "gallery_mobile_390_overflow": {
+      "scroll": 390,
+      "client": 390
+    },
+    "gallery_mobile_320_overflow": {
+      "scroll": 320,
+      "client": 320
+    },
+    "detail_scroll_after_repair": {
+      "before": 120,
+      "after": 120
+    }
+  },
+  "frontend_index_sha256": "49ca5d5afa263d6e4f35189695d15e7d67502605af597793af1cf7758ecad4a9",
+  "real_library_used": false,
+  "real_account_used": false
+}

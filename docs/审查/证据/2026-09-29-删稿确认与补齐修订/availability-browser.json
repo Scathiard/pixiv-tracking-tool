@@ -1,0 +1,42 @@
+{
+  "checks": [
+    "full-local-art-remains-in-gallery-with-private-or-unavailable-source",
+    "full-local-art-and-caption-remain-available-in-detail",
+    "private-source-is-distinct-from-deletion",
+    "attention-reason-is-visible-without-hover-on-desktop",
+    "attention-reason-is-visible-at-390-and-320-without-horizontal-overflow",
+    "feed-multipage-source-and-title-only-on-first-page-with-bounded-window",
+    "attention-does-not-poll-library-or-detail-after-12-seconds",
+    "synthetic-database-repair-restores-image-and-source-in-place",
+    "feed-remains-bounded-after-repair"
+  ],
+  "errors": [],
+  "metrics": {
+    "http_errors": [],
+    "ignored_browser_resource_errors": [
+      "console: Failed to load resource: the server responded with a status of 404 (Not Found) @ {'url': 'http://127.0.0.1:58872/favicon.ico', 'line': 0, 'column': 0, 'lineNumber': 0, 'columnNumber': 0}"
+    ],
+    "mobile_390_overflow": {
+      "scroll": 390,
+      "client": 390
+    },
+    "mobile_320_overflow": {
+      "scroll": 320,
+      "client": 320
+    },
+    "flow_window_size_with_attention": "64",
+    "requests_during_attention_13s": {
+      "library": 0,
+      "detail": 0,
+      "feed": 0
+    },
+    "detail_scroll_after_repair": {
+      "before": 120,
+      "after": 120
+    },
+    "flow_window_size": "64"
+  },
+  "frontend_index_sha256": "253f50bc67bfbb4b78783423fe3ba5275f31d597bb0fd3b74fd68f4309c0761b",
+  "real_library_used": false,
+  "real_account_used": false
+}

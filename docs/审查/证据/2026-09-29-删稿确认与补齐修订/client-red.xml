@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="9" skipped="0" tests="13" time="3.349" timestamp="2026-09-29T21:56:25.804704+08:00" hostname="Baseline"><testcase classname="tests.test_remote_error_evidence" name="test_ambiguous_404_never_claims_deletion[\u5c1a\u65e0\u6b64\u9875]" time="0.040"><failure message="AssertionError: assert 'api_error' == 'work_unavailable'&#10;  &#10;  - work_unavailable&#10;  + api_error">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x00000205387748F0&gt;
+message = '尚无此页'
+
+    @pytest.mark.parametrize("message", ["尚无此页", "Page not found", "Deleted or private", ""])
+    def test_ambiguous_404_never_claims_deletion(monkeypatch, message):
+        client, calls = request_client(monkeypatch, 404, {"error": {"user_message": message, "reason": ""}})
+        for _ in range(2):
+            with pytest.raises(PixivRequestError) as caught:
+                client.get_illust_detail("74933612")
+            detail = safe_failure(caught.value)
+&gt;           assert detail["failure_code"] == "work_unavailable"
+E           AssertionError: assert 'api_error' == 'work_unavailable'
+E             
+E             - work_unavailable
+E             + api_error
+
+tests\test_remote_error_evidence.py:37: AssertionError</failure></testcase><testcase classname="tests.test_remote_error_evidence" name="test_ambiguous_404_never_claims_deletion[Page not found]" time="0.002"><failure message="AssertionError: assert 'api_error' == 'work_unavailable'&#10;  &#10;  - work_unavailable&#10;  + api_error">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002053BC71640&gt;
+message = 'Page not found'
+
+    @pytest.mark.parametrize("message", ["尚无此页", "Page not found", "Deleted or private", ""])
+    def test_ambiguous_404_never_claims_deletion(monkeypatch, message):
+        client, calls = request_client(monkeypatch, 404, {"error": {"user_message": message, "reason": ""}})
+        for _ in range(2):
+            with pytest.raises(PixivRequestError) as caught:
+                client.get_illust_detail("74933612")
+            detail = safe_failure(caught.value)
+&gt;           assert detail["failure_code"] == "work_unavailable"
+E           AssertionError: assert 'api_error' == 'work_unavailable'
+E             
+E             - work_unavailable
+E             + api_error
+
+tests\test_remote_error_evidence.py:37: AssertionError</failure></testcase><testcase classname="tests.test_remote_error_evidence" name="test_ambiguous_404_never_claims_deletion[Deleted or private]" time="0.002"><failure message="AssertionError: assert 'api_error' == 'work_unavailable'&#10;  &#10;  - work_unavailable&#10;  + api_error">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002053BC727E0&gt;
+message = 'Deleted or private'
+
+    @pytest.mark.parametrize("message", ["尚无此页", "Page not found", "Deleted or private", ""])
+    def test_ambiguous_404_never_claims_deletion(monkeypatch, message):
+        client, calls = request_client(monkeypatch, 404, {"error": {"user_message": message, "reason": ""}})
+        for _ in range(2):
+            with pytest.raises(PixivRequestError) as caught:
+                client.get_illust_detail("74933612")
+            detail = safe_failure(caught.value)
+&gt;           assert detail["failure_code"] == "work_unavailable"
+E           AssertionError: assert 'api_error' == 'work_unavailable'
+E             
+E             - work_unavailable
+E             + api_error
+
+tests\test_remote_error_evidence.py:37: AssertionError</failure></testcase><testcase classname="tests.test_remote_error_evidence" name="test_ambiguous_404_never_claims_deletion[]" time="0.004"><failure message="AssertionError: assert 'api_error' == 'work_unavailable'&#10;  &#10;  - work_unavailable&#10;  + api_error">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002053BC730E0&gt;
+message = ''
+
+    @pytest.mark.parametrize("message", ["尚无此页", "Page not found", "Deleted or private", ""])
+    def test_ambiguous_404_never_claims_deletion(monkeypatch, message):
+        client, calls = request_client(monkeypatch, 404, {"error": {"user_message": message, "reason": ""}})
+        for _ in range(2):
+            with pytest.raises(PixivRequestError) as caught:
+                client.get_illust_detail("74933612")
+            detail = safe_failure(caught.value)
+&gt;           assert detail["failure_code"] == "work_unavailable"
+E           AssertionError: assert 'api_error' == 'work_unavailable'
+E             
+E             - work_unavailable
+E             + api_error
+
+tests\test_remote_error_evidence.py:37: AssertionError</failure></testcase><testcase classname="tests.test_remote_error_evidence" name="test_explicit_private_is_distinct_from_unknown_404[200]" time="0.026"><failure message="AssertionError: assert 'api_response_error' == 'work_private'&#10;  &#10;  - work_private&#10;  + api_response_error">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002053BC73AD0&gt;
+status = 200
+
+    @pytest.mark.parametrize("status", [200, 404])
+    def test_explicit_private_is_distinct_from_unknown_404(monkeypatch, status):
+        client, _ = request_client(monkeypatch, status, {"error": {"user_message": "Artist has made their work private."}})
+        with pytest.raises(PixivRequestError) as caught:
+            client.get_illust_detail("11")
+&gt;       assert caught.value.failure_code == "work_private"
+E       AssertionError: assert 'api_response_error' == 'work_private'
+E         
+E         - work_private
+E         + api_response_error
+
+tests\test_remote_error_evidence.py:49: AssertionError</failure></testcase><testcase classname="tests.test_remote_error_evidence" name="test_explicit_private_is_distinct_from_unknown_404[404]" time="0.005"><failure message="AssertionError: assert 'api_error' == 'work_private'&#10;  &#10;  - work_private&#10;  + api_error">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002053BD0B5F0&gt;
+status = 404
+
+    @pytest.mark.parametrize("status", [200, 404])
+    def test_explicit_private_is_distinct_from_unknown_404(monkeypatch, status):
+        client, _ = request_client(monkeypatch, status, {"error": {"user_message": "Artist has made their work private."}})
+        with pytest.raises(PixivRequestError) as caught:
+            client.get_illust_detail("11")
+&gt;       assert caught.value.failure_code == "work_private"
+E       AssertionError: assert 'api_error' == 'work_private'
+E         
+E         - work_private
+E         + api_error
+
+tests\test_remote_error_evidence.py:49: AssertionError</failure></testcase><testcase classname="tests.test_remote_error_evidence" name="test_ugoira_subresource_404_does_not_declare_whole_work_gone" time="0.003"><failure message="AssertionError: assert 'api_error' == 'ugoira_metadata_unavailable'&#10;  &#10;  - ugoira_metadata_unavailable&#10;  + api_error">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002053BD0BFB0&gt;
+
+    def test_ugoira_subresource_404_does_not_declare_whole_work_gone(monkeypatch):
+        client, calls = request_client(monkeypatch, 404, {"error": {"user_message": "尚无此页"}})
+        with pytest.raises(PixivRequestError) as caught:
+            client.get_ugoira_metadata("22")
+&gt;       assert caught.value.failure_code == "ugoira_metadata_unavailable"
+E       AssertionError: assert 'api_error' == 'ugoira_metadata_unavailable'
+E         
+E         - ugoira_metadata_unavailable
+E         + api_error
+
+tests\test_remote_error_evidence.py:58: AssertionError</failure></testcase><testcase classname="tests.test_remote_error_evidence" name="test_auth_throttle_and_service_errors_are_not_work_availability[401-api_unauthorized]" time="0.004" /><testcase classname="tests.test_remote_error_evidence" name="test_auth_throttle_and_service_errors_are_not_work_availability[403-api_forbidden]" time="0.001" /><testcase classname="tests.test_remote_error_evidence" name="test_auth_throttle_and_service_errors_are_not_work_availability[429-api_rate_limit]" time="0.001" /><testcase classname="tests.test_remote_error_evidence" name="test_auth_throttle_and_service_errors_are_not_work_availability[503-api_unavailable]" time="0.001" /><testcase classname="tests.test_remote_error_evidence" name="test_log_reports_safe_reason_without_echoing_arbitrary_remote_message" time="0.014"><failure message="AssertionError: assert '无法获取' in '此项未完成，请重试'&#10; +  where '此项未完成，请重试' = failure_reason({'code': 'PixivRequestError', 'status': 404, 'message': 'private-token=synthetic-dont-show', 'failure_code': 'work_unavailable'})">def test_log_reports_safe_reason_without_echoing_arbitrary_remote_message():
+        secret = "private-token=synthetic-dont-show"
+&gt;       assert "无法获取" in failure_reason({"code": "PixivRequestError", "status": 404, "message": secret, "failure_code": "work_unavailable"})
+E       AssertionError: assert '无法获取' in '此项未完成，请重试'
+E        +  where '此项未完成，请重试' = failure_reason({'code': 'PixivRequestError', 'status': 404, 'message': 'private-token=synthetic-dont-show', 'failure_code': 'work_unavailable'})
+
+tests\test_remote_error_evidence.py:73: AssertionError</failure></testcase><testcase classname="tests.test_remote_error_evidence" name="test_wrong_or_missing_illust_id_is_not_available" time="0.003"><failure message="Failed: DID NOT RAISE PixivRequestError">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002053BD09640&gt;
+
+    def test_wrong_or_missing_illust_id_is_not_available(monkeypatch):
+        client, _ = request_client(monkeypatch, 200, {"illust": {"id": 999, "title": "synthetic", "image_urls": {}}})
+&gt;       with pytest.raises(PixivRequestError) as caught:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE PixivRequestError
+
+tests\test_remote_error_evidence.py:84: Failed</failure></testcase></testsuite></testsuites>

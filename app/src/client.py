@@ -28,10 +28,29 @@ class PixivRequestError(RuntimeError):
             "api_error")
 
 
+def _explicit_private(body):
+    """Only a witnessed, unambiguous API message counts as private evidence.
+
+    A 404 / 'Page not found', including repeated responses, is not deletion
+    evidence. Unknown messages remain unknown rather than guessed by keywords.
+    """
+    error = body.get("error") if isinstance(body, dict) else None
+    message = error.get("user_message") if isinstance(error, dict) else None
+    return isinstance(message, str) and message.strip().casefold() == "artist has made their work private."
+
+
 def _checked_response(response):
     # A parseable error body (including {}) is never evidence of HTTP success.
     if not 200 <= response.status_code < 300:
         status = response.status_code
+        if status in (400, 404):
+            try:
+                private = _explicit_private(response.json())
+            except ValueError:
+                private = False
+            if private:
+                raise PixivRequestError(status, "主站明确提示作品已设为非公开",
+                    retryable=False, failure_code="api_private")
         message = ("Pixiv 请求受限，请稍后重试" if status == 429 else
                    "Pixiv 登录未通过（401）" if status == 401 else
                    "Pixiv 拒绝访问（403），原因待核查" if status == 403 else
@@ -132,6 +151,9 @@ class PixivClient:
             raise PixivRequestError(r.status_code, "Pixiv 请求受限，请稍后重试",
                 retry_after=max(60, retry_after_seconds(getattr(r, "headers", None)) or 0),
                 retryable=True, failure_code="api_rate_limit")
+        if _explicit_private(data):
+            raise PixivRequestError(r.status_code, "主站明确提示作品已设为非公开",
+                retryable=False, failure_code="api_private")
         raise PixivRequestError(r.status_code, "Pixiv 拒绝了此次请求，原因待核查",
             retryable=False, failure_code="api_response_error")
 
@@ -353,11 +375,48 @@ class PixivClient:
 
     def get_illust_detail(self, illust_id):
         """获取单个作品详情。"""
-        data = self._get("/v1/illust/detail", {"illust_id": illust_id})
-        return self._parse_illust(data["illust"])
+        try:
+            data = self._get("/v1/illust/detail", {"illust_id": illust_id})
+        except PixivRequestError as exc:
+            if exc.failure_code == "api_private":
+                raise PixivRequestError(exc.status, "主站明确提示作品已设为非公开；已有本地内容保留",
+                    retryable=False, failure_code="work_private") from exc
+            if exc.status == 404:
+                raise PixivRequestError(404, "主站暂时无法获取此作品，未确认删除；已有本地内容保留",
+                    retryable=False, failure_code="work_unavailable") from exc
+            raise
+        illust = data.get("illust")
+        if not isinstance(illust, dict) or str(illust.get("id", "")) != str(illust_id):
+            raise PixivRequestError(200, "主站未返回对应作品的有效资料，已有信息保留",
+                retryable=False, failure_code="api_invalid_response")
+        try:
+            return self._parse_illust(illust)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise PixivRequestError(200, "主站作品资料不完整，已有信息保留",
+                retryable=False, failure_code="api_invalid_response") from exc
 
     def get_ugoira_metadata(self, illust_id):
-        return self._get("/v1/ugoira/metadata", {"illust_id": illust_id})["ugoira_metadata"]
+        try:
+            data = self._get("/v1/ugoira/metadata", {"illust_id": illust_id})
+        except PixivRequestError as exc:
+            if exc.status == 404 or exc.failure_code == "api_private":
+                raise PixivRequestError(exc.status, "主站暂时无法提供动图原包或播放时序；已有本地内容保留",
+                    retryable=False, failure_code="ugoira_metadata_unavailable") from exc
+            raise
+        metadata = data.get("ugoira_metadata")
+        frames = metadata.get("frames") if isinstance(metadata, dict) else None
+        zip_urls = metadata.get("zip_urls") if isinstance(metadata, dict) else None
+        zip_url = (zip_urls.get("original") or zip_urls.get("medium")) if isinstance(zip_urls, dict) else None
+        # A partial 200 response is not proof that the stopped input is usable.
+        # File safety and archive/frame matching are checked again before publish.
+        if (not isinstance(zip_url, str) or not zip_url.strip()
+                or not isinstance(frames, list) or not frames
+                or any(not isinstance(frame, dict) or not isinstance(frame.get("file"), str)
+                       or not frame["file"] or type(frame.get("delay")) is not int
+                       or frame["delay"] <= 0 for frame in frames)):
+            raise PixivRequestError(200, "主站未返回有效的动图资料，已有内容保留",
+                retryable=False, failure_code="api_invalid_response")
+        return metadata
 
     @staticmethod
     def _parse_illust(illust):

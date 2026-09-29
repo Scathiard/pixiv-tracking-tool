@@ -18,6 +18,9 @@ watch(() => [props.thumbnail, props.preview], () => {
   thumbnailFailed.value = false
   previewFailed.value = false
 })
+watch(() => props.previewStatus, (status, previous) => {
+  if (status === 'ready' && previous !== 'ready') previewFailed.value = false
+})
 watch(() => props.recovery?.status, (status, previous) => {
   if (status === 'ready' && previous && previous !== 'ready') {
     if (thumbnailFailed.value) thumbnailFailed.value = false
@@ -32,6 +35,7 @@ const source = computed(() => {
 const placeholder = computed(() => {
   if (props.recovery?.status === 'queued') return '已排队补齐'
   if (props.recovery?.status === 'waiting') return '等待自动重试'
+  if (props.recovery?.status === 'attention') return '主站暂时无法补齐'
   if (props.animation) {
     if (props.previewStatus === 'failed') return '动图预览生成失败'
     if (props.previewStatus === 'unavailable') return '动图预览不可用'
@@ -62,6 +66,6 @@ onBeforeUnmount(() => { observer?.disconnect(); image.value?.removeAttribute('sr
   <div ref="host" class="media-image media-thumbnail">
     <img v-if="source" :key="source.kind + source.url" ref="image" :src="source.url" :alt="label"
       :data-media-source="source.kind" draggable="false" decoding="async" loading="lazy" @error="failed">
-    <div v-else class="media-placeholder" :title="recovery?.status === 'waiting' ? recovery.reason || undefined : undefined"><span>{{ placeholder }}</span></div>
+    <div v-else class="media-placeholder"><span>{{ placeholder }}</span><span v-if="recovery?.status === 'attention' && recovery.reason" class="placeholder-reason">{{ recovery.reason }}</span></div>
   </div>
 </template>

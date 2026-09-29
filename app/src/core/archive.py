@@ -12,10 +12,15 @@ from sqlalchemy.orm import selectinload
 from .download import AssetDownloader
 from .media import InvalidMedia, Publisher, SuppressedWork, build_gif, build_thumbnail, contained_path, verify_media, verify_ugoira_pair
 from .models import (
-    ArchiveIntent, Artist, Asset, Derivative, LocalPreference, Operation, RemoteBookmark,
+    ApplicationState, ArchiveIntent, Artist, Asset, Derivative, LocalPreference, Operation, RemoteBookmark,
     TrackingPolicy, Work, WorkTag, utcnow,
 )
 from .tasks import ItemResult, ItemSpec, safe_failure
+
+
+class WorkMetadataConflict(InvalidMedia):
+    failure_code = "work_metadata_conflict"
+    retryable = False
 
 
 class ArchiveHandler:
@@ -54,12 +59,63 @@ class ArchiveHandler:
     def _refresh_work(self, artist_id, remote_id, work_id):
         account = self._bookmark_account()
         version = self.bookmarks.begin_observation(work_id) if account is not None else None
-        data = self.client.get_illust_detail(remote_id)
+        try:
+            data = self.client.get_illust_detail(remote_id)
+        except Exception as exc:
+            if getattr(exc, "failure_code", None) in ("work_unavailable", "work_private"):
+                state = "private" if exc.failure_code == "work_private" else "unavailable"
+                reason = ("主站提示作品不可公开获取，已有存档保留" if state == "private" else
+                          "主站暂时无法获取此作品，尚不能确认是否删除；已有存档保留")
+                self._record_availability(work_id, state, reason)
+            raise
         if str(data.get("illust_id", "")) != str(remote_id):
             raise InvalidMedia("主站返回的作品编号与请求不符，已有信息保留")
+        self._record_availability(work_id, "available", None)
         result = self._save_remote_work(artist_id, data)
         self._apply_bookmark(result, data, version, account)
         return result
+
+    def _record_availability(self, work_id, state, reason):
+        if work_id is None:
+            return
+        with self.database.write() as session:
+            work = session.get(Work, work_id)
+            if work is not None:
+                work.source_metadata = {**(work.source_metadata or {}), "remote_availability": {
+                    "state": state, "checked_at": utcnow().replace(tzinfo=timezone.utc).isoformat(),
+                    "reason": reason}}
+
+    def _clear_remote_attention_if_complete(self, work_id):
+        with self.database.write() as session:
+            missing = session.scalar(select(Asset.id).where(Asset.work_id == work_id,
+                Asset.state.in_(("missing", "failed", "invalid", "mismatch", "source_changed"))).limit(1))
+            setting = session.get(ApplicationState, f"maintenance_work:{work_id}")
+            if missing or setting is None or not isinstance(setting.value, dict):
+                return
+            ledger = dict(setting.value)
+            tracks = {name: dict(value) for name, value in ledger.get("tracks", {}).items()}
+            remote = tracks.get("remote")
+            if (remote and remote.get("status") in ("attention", "waiting") and
+                    remote.get("failure_code") != "work_metadata_conflict"):
+                remote.update(status="ready", next_retry_at=None, reason=None,
+                              failure_code=None, http_status=None)
+                from .maintenance import _project
+                setting.value = _project({**ledger, "tracks": tracks})
+
+    def _resume_ugoira_attention(self, work_id):
+        with self.database.write() as session:
+            setting = session.get(ApplicationState, f"maintenance_work:{work_id}")
+            if setting is None or not isinstance(setting.value, dict):
+                return
+            ledger = dict(setting.value)
+            tracks = {name: dict(value) for name, value in ledger.get("tracks", {}).items()}
+            remote = tracks.get("remote")
+            if (remote and remote.get("status") == "attention" and
+                    remote.get("failure_code") == "ugoira_metadata_unavailable"):
+                remote.update(status="waiting", next_retry_at=None, reason="动图资料已恢复，等待继续补齐",
+                              failure_code=None, http_status=None)
+                from .maintenance import _project
+                setting.value = _project({**ledger, "tracks": tracks})
 
     def _artist_ids(self, parameters, context):
         if "started_artist_ids" in parameters:
@@ -102,7 +158,10 @@ class ArchiveHandler:
                 session.add(work)
             elif work.artist_id != artist_id or work.type != data["type"] or work.page_count != count:
                 # Never silently discard archived pages when remote metadata changes shape.
-                raise InvalidMedia("远端作品的归属、类型或页数发生变化，已有存档保留待核对")
+                if work.page_count != count:
+                    raise WorkMetadataConflict(
+                        f"主站当前 {count} 页，本地记录 {work.page_count} 页；已有存档保留，需核对")
+                raise WorkMetadataConflict("主站资料与本地作品类型或画师不一致；已有存档保留，需核对")
             work.title = data["title"]
             if data.get("caption") is not None:
                 work.caption, work.caption_state = data["caption"], "available" if data["caption"] else "empty"
@@ -114,7 +173,9 @@ class ArchiveHandler:
             work.tags = [existing_tags[tag] if tag in existing_tags else WorkTag(tag=tag) for tag in sorted(remote_tags)]
             if work.bookmark is None:
                 work.bookmark = RemoteBookmark()
-            work.source_metadata = {**(work.source_metadata or {}), "urls": data.get("urls", [])}
+            work.source_metadata = {**(work.source_metadata or {}), "urls": data.get("urls", []),
+                "remote_availability": {"state": "available",
+                    "checked_at": utcnow().replace(tzinfo=timezone.utc).isoformat(), "reason": None}}
             session.flush()
             existing_assets = {(asset.role, asset.page_index): asset for asset in work.assets}
             roles = [("ugoira_zip", 0), ("ugoira_timing", 0)] if work.type == "ugoira" else [("image", page) for page in range(count)]
@@ -128,6 +189,21 @@ class ArchiveHandler:
                     if asset.source_url and urlsplit(asset.source_url).path != urlsplit(urls[page]["original"]).path:
                         asset.state, asset.error = "source_changed", "远端原件地址已改变，旧文件保留至补下载成功"
                     asset.source_url = urls[page]["original"]
+            session.flush()
+            setting = session.get(ApplicationState, f"maintenance_work:{work.id}")
+            if setting and isinstance(setting.value, dict):
+                ledger = dict(setting.value)
+                tracks = {name: dict(value) for name, value in ledger.get("tracks", {}).items()}
+                remote = tracks.get("remote")
+                if (remote and remote.get("status") == "attention" and
+                        remote.get("failure_code") != "ugoira_metadata_unavailable"):
+                    missing = session.scalar(select(Asset.id).where(Asset.work_id == work.id,
+                        Asset.state.in_(("missing", "failed", "invalid", "mismatch", "source_changed"))).limit(1))
+                    remote.update(status="waiting" if missing else "ready", next_retry_at=None,
+                                  reason="主站资料已恢复，等待继续补齐" if missing else None,
+                                  failure_code=None, http_status=None)
+                    from .maintenance import _project
+                    setting.value = _project({**ledger, "tracks": tracks})
             return work.id
 
     def plan(self, parameters, context):
@@ -241,7 +317,12 @@ class ArchiveHandler:
             directory = work.artist.directory or f"artist_{work.artist.pixiv_user_id}"
             assets = list(work.assets)
             maintenance = session.get(Operation, context.operation_id).source == "maintenance"
+            ledger = session.get(ApplicationState, f"maintenance_work:{work_id}")
+            remote_track = ((ledger.value.get("tracks", {}).get("remote", {})
+                if ledger and isinstance(ledger.value, dict) else {}))
+            blocked_remote = remote_track if self.kind == "check" and remote_track.get("status") == "attention" else None
         specs, required = [], []
+        remote_failure = None
         defer_originals = work.source_metadata.get("original_backfill_requires_selection") and self.kind != "backfill"
         local_only = self.kind in ("verify", "thumbnails")
         if self.kind != "thumbnails" and not defer_originals:
@@ -252,14 +333,32 @@ class ArchiveHandler:
             inspected = (asset for asset in assets if asset.state in ("missing", "failed", "invalid", "mismatch")) if maintenance else assets
             missing = [asset for asset in inspected if not self._inspect_asset(asset, force=self.kind == "verify")]
             metadata = None
-            if missing and not local_only:
-                if work.type == "ugoira":
-                    metadata = self.client.get_ugoira_metadata(work.pixiv_illust_id)
-                elif any(not asset.source_url for asset in missing):
-                    self._refresh_work(work.artist_id, work.pixiv_illust_id, work_id)
-                    with self.database.read() as session:
-                        missing = [session.get(Asset, asset.id) for asset in missing]
+            if missing and not local_only and blocked_remote:
+                remote_failure = {"message": blocked_remote.get("reason") or "来源缺项等待手动核对",
+                    "failure_code": blocked_remote.get("failure_code"), "retryable": False}
+                specs.append(ItemSpec(f"remote-error-{work_id}", "error", remote_failure,
+                                      "downloading", "assets"))
+            if missing and not local_only and not remote_failure:
+                try:
+                    if work.type == "ugoira":
+                        metadata = self.client.get_ugoira_metadata(work.pixiv_illust_id)
+                        self._resume_ugoira_attention(work_id)
+                    elif any(not asset.source_url for asset in missing):
+                        self._refresh_work(work.artist_id, work.pixiv_illust_id, work_id)
+                        with self.database.read() as session:
+                            missing = [session.get(Asset, asset.id) for asset in missing]
+                except Exception as exc:
+                    remote_failure = safe_failure(exc)
+                    with self.database.write() as session:
+                        for asset in missing:
+                            stored = session.get(Asset, asset.id)
+                            if stored is not None and stored.state in ("missing", "failed", "invalid", "mismatch"):
+                                stored.error = remote_failure["message"]
+                    specs.append(ItemSpec(f"remote-error-{work_id}", "error", remote_failure,
+                                          "downloading", "assets"))
             for asset in missing:
+                if remote_failure:
+                    break
                 key = f"asset-{asset.id}"
                 required.append(key)
                 if local_only:
@@ -295,12 +394,14 @@ class ArchiveHandler:
                     specs.append(ItemSpec(key, "ugoira_pair", {"work_id": work_id, "revision": revision},
                         "verifying", "works", tuple(required)))
                     required = [key]
-                elif not required:
+                elif not required and not remote_failure:
                     self._verify_pair(work_id)
             with self.database.read() as session:
                 preview = session.scalar(select(Derivative).where(Derivative.work_id == work_id, Derivative.kind == "gif", Derivative.spec_key == "v1"))
             usable = self._derivative_usable(preview, "gif")
-            if not usable and not defer_originals and not local_only:
+            pair_ready = all(asset.state == "verified" for asset in assets
+                             if asset.role in ("ugoira_zip", "ugoira_timing")) and len(assets) >= 2
+            if not usable and not defer_originals and not local_only and (not remote_failure or pair_ready):
                 preview_id = self._ensure_derivative(work_id, "gif")
                 key = f"preview-{preview_id}"
                 specs.append(ItemSpec(key, "gif", {"work_id": work_id, "record_id": preview_id,
@@ -317,10 +418,16 @@ class ArchiveHandler:
                 # Later missing pages must not prevent a usable first-page card.
                 first_asset = next((asset for asset in assets if asset.role == "image" and asset.page_index == 0), None)
                 required = [key for key in required if first_asset and key == f"asset-{first_asset.id}"]
+                if remote_failure and (first_asset is None or not self._inspect_asset(first_asset)):
+                    return specs
+            elif remote_failure and not (usable or pair_ready):
+                return specs
             thumbnail_id = self._ensure_derivative(work_id, "thumbnail")
             specs.append(ItemSpec(f"thumbnail-{thumbnail_id}", "thumbnail", {
                 "work_id": work_id, "record_id": thumbnail_id, "revision": revision,
                 "path": f".thumbnails/{work.pixiv_illust_id}_p0_v1.webp"}, "thumbnails", "previews", tuple(required)))
+        if self.kind in ("repair", "verify", "backfill") and not maintenance:
+            self._clear_remote_attention_if_complete(work_id)
         return specs
 
     def _verify_pair(self, work_id):
@@ -462,6 +569,8 @@ class ArchiveHandler:
                 derivative=derivative, item_id=context.item_id, expected_revision=target["revision"],
                 source_version=self._source_version(record) if derivative else None)
             state = self.publisher.publish(journal_id)
+            if state == "committed" and not derivative:
+                self._clear_remote_attention_if_complete(work.id)
             return ItemResult("succeeded" if state == "committed" else "skipped")
         except SuppressedWork:
             return ItemResult("skipped", {"message": "作品已删除，旧任务不再发布文件"})
