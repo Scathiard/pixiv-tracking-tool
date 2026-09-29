@@ -1,0 +1,21 @@
+{
+  "checks": [
+    "exe-opens-new-local-gallery-and-thumbnail",
+    "exe-b-sidebar-and-manual-check-entry",
+    "exe-ordinary-reader-loads-original",
+    "exe-zoom-and-feed-share-synthetic-library",
+    "exe-real-settings-remain-usable-offline",
+    "exe-public-version-build-and-read-only-log",
+    "exe-theme-rapid-clicks-and-reload",
+    "exe-direct-artist-route-and-local-profile",
+    "exe-mobile-viewport-fits-reader",
+    "exe-mobile-drawer-navigation"
+  ],
+  "page_errors": [],
+  "exe_exit_code": 0,
+  "package_report": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20260929-1-exe\\exe-smoke.json",
+  "exe_sha256": "b9de047ef2112b3717fb254753197eac12c55d5c994cc890047271f3f51b4533",
+  "real_account_used": false,
+  "real_library_used": false,
+  "real_phone_tested": false
+}

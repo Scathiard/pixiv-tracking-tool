@@ -1,0 +1,70 @@
+{
+  "checks": [
+    "desktop-gallery-b-idle-progress-hidden",
+    "continuous-gallery-bounded-window-and-dom",
+    "two-thousand-page-work-virtualized-by-page",
+    "keyboard-navigation-and-logo-position-without-refresh",
+    "filter-drawer-and-shared-text-search",
+    "feed-heart-before-skip-and-entire-work-skipping",
+    "bookmark-waits-for-fact-and-response-stays-with-original-work",
+    "local-artist-profiles-and-draggable-recent-works",
+    "trusted-rapid-theme-clicks-and-reload-persistence",
+    "mobile-390-layout-and-rapid-theme-taps",
+    "mobile-320-layout-and-rapid-theme-taps"
+  ],
+  "errors": [],
+  "metrics": {
+    "works": 5000,
+    "long_work_pages": 2000,
+    "frontend_index_sha256": "1606fce758c4104a331bd819e521c230fb722ff35805a0ca17b5f8de56511b95",
+    "gallery_samples": [
+      {
+        "step": 0,
+        "window": 240,
+        "dom": 511,
+        "heap": 5782780,
+        "image_requests": 40
+      },
+      {
+        "step": 6,
+        "window": 240,
+        "dom": 511,
+        "heap": 7452064,
+        "image_requests": 125
+      },
+      {
+        "step": 12,
+        "window": 430,
+        "dom": 459,
+        "heap": 9812496,
+        "image_requests": 210
+      },
+      {
+        "step": 18,
+        "window": 430,
+        "dom": 459,
+        "heap": 11584268,
+        "image_requests": 295
+      },
+      {
+        "step": 24,
+        "window": 430,
+        "dom": 459,
+        "heap": 11238976,
+        "image_requests": 380
+      },
+      {
+        "step": 30,
+        "window": 480,
+        "dom": 459,
+        "heap": 14357580,
+        "image_requests": 505
+      }
+    ],
+    "reader_last_page": "64",
+    "elapsed_seconds": 51.64
+  },
+  "real_account_used": false,
+  "real_library_used": false,
+  "real_phone_tested": false
+}

@@ -1,0 +1,19 @@
+{
+  "checks": [
+    "direct-settings-route-can-enter-flow",
+    "mobile-390-drawer-escape-scrim-inert-search",
+    "mobile-320-drawer-escape-scrim-inert-search"
+  ],
+  "errors": [],
+  "metrics": {
+    "works": 500,
+    "frontend_index_sha256": "1fd5a8794a654dd7819465687d94822bfd267cdfad8585c3d1aaa750b8807e1d",
+    "direct_settings_scripts": [
+      "/reader/assets/index-Cz7J7Fch.js"
+    ],
+    "elapsed_seconds": 21.69
+  },
+  "real_account_used": false,
+  "real_library_used": false,
+  "real_phone_tested": false
+}
