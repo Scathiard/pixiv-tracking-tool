@@ -1,0 +1,28 @@
+........................................................................ [ 20%]
+........................................................................ [ 40%]
+........................................................................ [ 60%]
+........................................................................ [ 80%]
+.......................................................................  [100%]
+============================== warnings summary ===============================
+..\..\..\.devtools\v012-env\Lib\site-packages\starlette\testclient.py:45
+  D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_file_index.py: 2 warnings
+tests/test_filter_routes.py: 168 warnings
+tests/test_tombstones.py: 2 warnings
+  D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\sql\schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/test_filter_routes.py::test_explicit_empty_artist_filter_means_no_results
+tests/test_filter_routes.py::test_detail_and_pagination_links_keep_encoded_filter_context
+tests/test_filter_routes.py::test_detail_navigation_applies_type_tag_and_hidden_filters
+  D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261001.1\app\tests\test_filter_routes.py:38: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_filter_routes.py::test_detail_and_pagination_links_keep_encoded_filter_context
+  D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261001.1\app\src\routes\works.py:83: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+359 passed, 177 warnings in 469.20s (0:07:49)

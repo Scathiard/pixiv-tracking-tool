@@ -118,8 +118,8 @@
   "cache_browser_checks": 7,
   "frontend_tests": 38,
   "source_smoke_checks": 18,
-  "backend_full": "pending final rerun",
-  "packaged_validation": "pending",
+  "backend_full": "passed",
+  "packaged_validation": "passed",
   "real_library_metadata": {
     "read_only_aggregate": true,
     "gif_records": 1413,
@@ -133,5 +133,11 @@
   "real_phone_tested": false,
   "cpu_definition": "sum Chromium browser renderer GPU CPU seconds / wall-clock seconds; not host CPU percentage",
   "synthetic_fixture": "80 works using one synthetic GIF; conversion publication separately tested by backend and smoke",
-  "raw_private_root": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs"
+  "raw_private_root": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs",
+  "backend_tests": 359,
+  "backend_warnings": 177,
+  "packaged_browser_checks": 28,
+  "packaged_smoke_checks": 19,
+  "source_commit": "17ab469a06acc5517e854a7c61ff680fdb9f14a2",
+  "exe_sha256": "c3ac5de10b0c51a5e07a1857ff4c65b29105e2ce47dd1e1f32482a03f8820ad6"
 }

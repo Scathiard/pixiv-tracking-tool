@@ -1,0 +1,48 @@
+{
+  "version": "0.2.0",
+  "build": "20261001.1",
+  "exe_file": "PixivTracker_v0.2.0_build20261001.1.exe",
+  "exe_size_bytes": 75224129,
+  "exe_sha256": "c3ac5de10b0c51a5e07a1857ff4c65b29105e2ce47dd1e1f32482a03f8820ad6",
+  "source_commit": "17ab469a06acc5517e854a7c61ff680fdb9f14a2",
+  "source_branch": "codex/v0.2.0-build20261001.1",
+  "source_dirty": false,
+  "database_schema": "0002_client",
+  "database_upgrade_required": false,
+  "build_environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "pyinstaller": "6.20.0"
+  },
+  "published": false,
+  "user_acceptance": false,
+  "validation": {
+    "backend_passed": 359,
+    "backend_warnings": 177,
+    "frontend_passed": 38,
+    "animation_browser_checks": 29,
+    "cache_browser_checks": 7,
+    "packaged_browser_checks": 28,
+    "packaged_smoke_checks": 19,
+    "performance_widths": [
+      1440,
+      390,
+      320
+    ],
+    "performance_budget_violations": 0,
+    "synthetic_desktop_cpu_reduction_percent_range": [
+      82.81,
+      85.58
+    ],
+    "real_library_metadata_read_only": true,
+    "real_library_written": false,
+    "real_account_used": false,
+    "real_phone_tested": false,
+    "physical_background_tested": false,
+    "cache_batch_peak_memory_tested": false
+  },
+  "daily_copy": {
+    "path": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261001.1.exe",
+    "sha256_verified": true
+  }
+}
