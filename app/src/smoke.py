@@ -25,9 +25,13 @@ def _image_source():
     data = BytesIO()
     with Image.new("RGB", (32, 48), "navy") as picture:
         picture.save(data, format="PNG")
+    second = BytesIO()
+    with Image.new("RGB", (32, 48), "gold") as picture:
+        picture.save(second, format="PNG")
     animation = BytesIO()
     with zipfile.ZipFile(animation, "w") as archive:
         archive.writestr("000000.png", data.getvalue())
+        archive.writestr("000001.png", second.getvalue())
     payloads = {"/1_p0.png": data.getvalue(), "/2.zip": animation.getvalue()}
     received = []
 
@@ -125,17 +129,27 @@ def run_smoke_test() -> int:
     transport.trust_env = False  # Synthetic loopback must never use a proxy or account.
     with _image_source() as (source_url, received):
         from PIL import Image
+        from .client import PixivRequestError
         metadata_reads = []
+        detail_reads = []
 
         def animation_metadata(remote_id):
             metadata_reads.append(remote_id)
+            if remote_id == "3":
+                raise PixivRequestError(404, "动图资料暂时无法获取", failure_code="ugoira_metadata_unavailable", retryable=False)
             if remote_id != "2":
-                raise RuntimeError("隔离验证请求了未选择的动图原包")
+                raise RuntimeError("隔离验证请求了其他作品的动图原包")
             return {"zip_urls": {"original": source_url.rsplit("/", 1)[0] + "/2.zip"},
-                    "frames": [{"file": "000000.png", "delay": 80}]}
+                    "frames": [{"file": "000000.png", "delay": 100}, {"file": "000001.png", "delay": 200}]}
+
+        def work_detail(remote_id):
+            detail_reads.append(remote_id)
+            if remote_id == "3":
+                raise PixivRequestError(404, "主站暂时无法获取此作品，尚不能确认是否删除；已有存档保留", failure_code="work_unavailable", retryable=False)
+            raise RuntimeError("隔离验证核对了不需要的作品")
 
         runtime = Runtime(root / "data/pixiv_tracker.db", root / "images", create=True,
-            client=SimpleNamespace(get_ugoira_metadata=animation_metadata, get_account_id=lambda: None),
+            client=SimpleNamespace(get_ugoira_metadata=animation_metadata, get_illust_detail=work_detail, get_account_id=lambda: None),
             downloader=AssetDownloader(session=transport, allowed_hosts=("127.0.0.1",), allow_http=True))
         with runtime.database.write() as session:
             work = Work(id=1, pixiv_illust_id="1", artist=Artist(pixiv_user_id="1", name="smoke"), title="isolated")
@@ -146,8 +160,8 @@ def run_smoke_test() -> int:
             session.flush()
             for work_id in (2, 3):
                 relative = f"{work_id}.gif"
-                with Image.new("RGB", (32, 48), "red") as image:
-                    image.save(runtime.images / relative)
+                with Image.new("RGB", (32, 48), "red") as image, Image.new("RGB", (32, 48), "lime") as next_frame:
+                    image.save(runtime.images / relative, save_all=True, append_images=[next_frame], duration=[120,160], loop=0)
                 legacy = Work(id=work_id, pixiv_illust_id=str(work_id), artist_id=work.artist_id,
                     title=f"legacy animation {work_id}", type="ugoira",
                     source_metadata={"original_backfill_requires_selection": True})
@@ -155,22 +169,34 @@ def run_smoke_test() -> int:
                 legacy.derivatives = [Derivative(kind="gif", relative_path=relative)]
                 legacy.tags = [WorkTag(tag="本地动图")]
                 session.add_all([legacy, ArchiveIntent(pixiv_illust_id=str(work_id))])
-        unselected_gif = (runtime.images / "3.gif").read_bytes()
+        unavailable_gif = (runtime.images / "3.gif").read_bytes()
         runtime.queue.submit("repair", {"work_ids": [1]}, "smoke")
         runtime.queue.run_round()
         if runtime.queue.snapshot()["round"]["outcome"] != "succeeded":
             raise RuntimeError("打包程序的原图下载、核验或缩略图生成失败")
-        runtime.queue.submit("repair", {"work_ids": [2]}, "smoke selected animation")
+        first_batch = runtime.queue.submit("repair", {}, "smoke manual animation scope")
         runtime.queue.run_round()
+        first_result = runtime.queue.details(first_batch["operation_id"])
+        if first_result["result"]["outcome"] != "partial_failure":
+            raise RuntimeError("打包程序将不可获取的原包误报为已补齐")
         with runtime.database.read() as session:
             selected = session.get(Work, 2)
             if (not all(asset.state == "verified" for asset in selected.assets)
                     or selected.source_metadata.get("original_backfill_requires_selection")):
-                raise RuntimeError("打包程序未补齐所选动图原包与时序")
+                raise RuntimeError("打包程序未通过普通补下载补齐可获取的动图原包与时序")
             if not session.get(Work, 3).source_metadata.get("original_backfill_requires_selection"):
-                raise RuntimeError("打包程序擅自选择了另一件动图原包")
-        if metadata_reads != ["2"] or (runtime.images / "3.gif").read_bytes() != unselected_gif:
-            raise RuntimeError("打包程序修改了未选动图或请求了其他原包")
+                raise RuntimeError("打包程序将无法获取的动图原包标成已存档")
+            if session.get(Work, 3).source_metadata.get("remote_availability", {}).get("state") != "unavailable":
+                raise RuntimeError("打包程序未保留核实的作品来源状态")
+        retry_batch = runtime.queue.submit("repair", {}, "smoke skip unavailable animation")
+        runtime.queue.run_round()
+        if runtime.queue.details(retry_batch["operation_id"])["counts"].get("skipped") != 1:
+            raise RuntimeError("打包程序未在批量补下载中跳过已知无法获取的原包")
+        if metadata_reads != ["2", "3"] or detail_reads != ["3"] or (runtime.images / "3.gif").read_bytes() != unavailable_gif:
+            raise RuntimeError("打包程序修改了不可获取动图或重复请求其来源")
+        with Image.open(runtime.images / "2.gif") as preview:
+            if preview.n_frames != 2:
+                raise RuntimeError("打包程序的动图原包未生成可播放预览")
         if received != [True, True]:
             raise RuntimeError("打包程序的图片下载请求未通过兼容性验证")
     transport.close()
@@ -201,8 +227,8 @@ def run_smoke_test() -> int:
 
     checks = asyncio.run(exercise())
     checks["original_download_verified_and_thumbnail_published"] = 200
-    checks["selected_animation_originals_downloaded_and_verified"] = 200
-    checks["unselected_legacy_animation_remains_deferred"] = 200
+    checks["manual_scope_animation_originals_downloaded_and_verified"] = 200
+    checks["unavailable_animation_skipped_without_repeated_requests_gif_retained"] = 200
     if args.smoke_serve_port is not None:
         import uvicorn
         # The ASGI checks closed their runtime; serve the same synthetic files

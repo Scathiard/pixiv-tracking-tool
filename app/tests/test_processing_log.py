@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.core.database import ArchiveDatabase
+from src.core.activity_log import processing_log
 from src.core.models import Operation, OperationItem
 from src.core.tasks import TaskQueue
 from src.routes.settings_api import create_settings_router
@@ -61,3 +62,23 @@ def test_log_is_bounded_and_empty_archive_is_usable(tmp_path):
         result = client.get("/api/logs").json()
         assert len(result["lines"]) == 100 and result["truncated"] is True
     database.close()
+
+
+def test_unavailable_skip_log_keeps_count_unit_and_safe_reason(tmp_path):
+    database = ArchiveDatabase.create(tmp_path / "skip.db")
+    try:
+        with database.write() as session:
+            operation = Operation(kind="repair", dedupe_key="skip", label="补下载", state="finished",
+                phase="downloading", phase_unit="works", phase_done=1, phase_total=1,
+                result={"outcome": "succeeded", "counts": {"skipped": 1}})
+            session.add(operation)
+            session.flush()
+            session.add(OperationItem(operation_id=operation.id, item_key="skip", kind="skip", target={},
+                phase="downloading", state="skipped", result={"failure_code": "work_unavailable",
+                    "message": "synthetic-private-message-must-not-show"}))
+        lines = processing_log(database)["lines"]
+        assert lines[0].endswith("补下载 · 处理完成 · 下载 1 / 1 件作品，跳过 1 项")
+        assert "已跳过" in lines[1] and "未确认删除" in lines[1]
+        assert "synthetic-private-message-must-not-show" not in "\n".join(lines)
+    finally:
+        database.close()

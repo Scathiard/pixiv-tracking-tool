@@ -292,6 +292,35 @@ def test_ugoira_subresource_404_does_not_label_work_unavailable(tmp_path):
         db.close()
 
 
+def test_known_unavailable_without_ledger_only_schedules_local_preview(tmp_path):
+    db, root, queue, downloader, maintenance, clock = archive(tmp_path)
+    try:
+        (root / "first.png").write_bytes(png())
+        with db.write() as session:
+            work = session.get(Work, 1)
+            work.type, work.page_count = "manga", 2
+            work.source_metadata = {"remote_availability": {"state": "unavailable",
+                "checked_at": "2026-09-30T00:00:00+00:00", "reason": "原作已无法访问"}}
+            first = session.scalar(select(Asset))
+            first.state, first.relative_path = "verified", "first.png"
+            session.add(Asset(work_id=1, role="image", page_index=1, state="missing"))
+
+        class NoRemote:
+            def get_illust_detail(self, remote_id):
+                raise AssertionError("known unavailable work must not be polled")
+
+        queue.handlers["repair"].client = NoRemote()
+        assert len(maintenance.tick(force=True)) == 1
+        queue.run_round()
+        assert maintenance.tick(force=True) == []
+        with db.read() as session:
+            assert session.scalar(select(Derivative).where(Derivative.kind == "thumbnail")).state == "verified"
+            assert session.get(Work, 1).source_metadata["remote_availability"]["state"] == "unavailable"
+        assert downloader.calls == []
+    finally:
+        db.close()
+
+
 def test_foreground_work_allows_independent_local_and_remote_maintenance_windows(tmp_path):
     db, root, queue, downloader, maintenance, clock = archive(tmp_path, count=140)
     try:

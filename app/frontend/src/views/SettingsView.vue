@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { api, write } from '../api'
+import { RouterLink } from 'vue-router'
+import type { ArchiveProjection } from '../types'
 import Icon from '../components/Icon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 defineProps<{galleryMode: string}>()
@@ -14,9 +16,11 @@ const emit = defineEmits<{task: [kind: string, workId?: number]; theme: [theme: 
 const settings = ref<Settings | null>(null), loading = ref(true), error = ref(''), port = ref(''), pendingPath = ref(''), busy = ref(false)
 const theme = ref<'dark' | 'light'>('dark')
 const auth = ref<{logged_in: boolean; login_url: string | null; login_error: string | null} | null>(null)
-const oauthCode = ref(''), confirmPath = ref(false), missing = ref<{id: number; title: string}[]>([]), missingOffset = ref(0)
+interface MissingOriginal extends ArchiveProjection {id: number; title: string}
+const oauthCode = ref(''), confirmPath = ref(false), missing = ref<MissingOriginal[]>([]), missingOffset = ref(0)
+const missingLoading = ref(false), missingLoaded = ref(false), missingError = ref('')
 const logsOpen = ref(false), logsLoading = ref(false), logsError = ref(''), logs = ref<{lines: string[]; truncated: boolean} | null>(null)
-let statusTimer = 0, stopped = false
+let statusTimer = 0, stopped = false, missingAgain = false
 async function loadLogs() {
   logsLoading.value = true
   logsError.value = ''
@@ -72,9 +76,38 @@ async function pollStatus() {
   if (!stopped) statusTimer = window.setTimeout(pollStatus, 3000)
 }
 async function loadMissing() {
-  try { missing.value = (await api<{items: {id: number; title: string}[]}>(`/api/library/missing-originals?offset=${missingOffset.value}&limit=100`)).items }
-  catch (failure) { emit('message', failure instanceof Error ? failure.message : '缺少原包的作品暂时无法读取', true) }
+  if (stopped) return
+  if (missingLoading.value) { missingAgain = true; return }
+  const offset = missingOffset.value
+  missingLoading.value = true
+  try {
+    const data = await api<{items: MissingOriginal[]}>(`/api/library/missing-originals?offset=${offset}&limit=100`)
+    if (stopped || offset !== missingOffset.value) return
+    missing.value = data.items; missingLoaded.value = true; missingError.value = ''
+    if (!data.items.length && offset > 0) { missingOffset.value = Math.max(0, offset - 100); missingAgain = true }
+  } catch (failure) {
+    if (!stopped && offset === missingOffset.value) missingError.value = failure instanceof Error ? failure.message : '缺少原包的作品暂时无法读取'
+  } finally {
+    missingLoading.value = false
+    if (missingAgain && !stopped) { missingAgain = false; void loadMissing() }
+  }
 }
+function sourceUnavailable(work: MissingOriginal) { return work.availability?.state === 'unavailable' || work.availability?.state === 'private' }
+function originalStatus(work: MissingOriginal) {
+  if (sourceUnavailable(work)) return '原作已无法访问'
+  if (work.processing?.state === 'running') return '正在补齐'
+  if (work.processing?.state === 'queued' || work.recovery?.status === 'queued') return '已排队补齐'
+  if (work.processing?.state === 'waiting' || work.recovery?.status === 'waiting') return '等待重试'
+  if (work.processing?.state === 'attention' || work.recovery?.status === 'attention') return '原包尚未补齐'
+  return '缺少原包或播放时序'
+}
+function originalReason(work: MissingOriginal) { return sourceUnavailable(work) ? work.availability?.reason : work.processing?.reason || work.recovery?.reason }
+function checkedAt(work: MissingOriginal) {
+  const date = new Date(work.availability?.checked_at || '')
+  return Number.isFinite(date.getTime()) ? date.toLocaleString('zh-CN', {hour12: false}) : null
+}
+function refreshMissing() { void loadMissing() }
+function visibilityChanged() { if (document.visibilityState === 'visible') refreshMissing() }
 async function browsePath() {
   try { const result = await api<{path: string}>('/settings/browse-path', {method: 'POST'}); if (result.path) pendingPath.value = result.path }
   catch (failure) { emit('message', failure instanceof Error ? failure.message : '未能打开目录选择器', true) }
@@ -90,8 +123,8 @@ async function changePath() {
   } catch (failure) { emit('message', failure instanceof Error ? failure.message : '数据目录未能更新', true) }
   finally { busy.value = false }
 }
-onMounted(() => { theme.value = document.body.dataset.theme === 'light' ? 'light' : 'dark'; void load(); void pollStatus(); void loadMissing() })
-onBeforeUnmount(() => { stopped = true; clearTimeout(statusTimer) })
+onMounted(() => { theme.value = document.body.dataset.theme === 'light' ? 'light' : 'dark'; void load(); void pollStatus(); void loadMissing(); window.addEventListener('archive-updated', refreshMissing); document.addEventListener('visibilitychange', visibilityChanged) })
+onBeforeUnmount(() => { stopped = true; clearTimeout(statusTimer); window.removeEventListener('archive-updated', refreshMissing); document.removeEventListener('visibilitychange', visibilityChanged) })
 </script>
 <template>
   <section class="settings-page"><div class="settings-heading"><h1>设置</h1><p class="sublead">管理连接、自动检查和本地存储。</p></div>
@@ -101,8 +134,8 @@ onBeforeUnmount(() => { stopped = true; clearTimeout(statusTimer) })
       <h2 class="settings-section-title">账号与检查</h2>
       <div class="settings-card settings-stack"><div class="setting-top"><div><h3>Pixiv 连接</h3><p>{{ settings.login.status === 'logged_in' || auth?.logged_in ? `已连接${settings.login.account_id ? ` · ${settings.login.account_id}` : ''}` : settings.login.status === 'pending' || auth?.login_url ? '登录进行中' : '离线，本地图库仍可阅读' }}</p></div><button v-if="settings.login.status !== 'logged_in' && !auth?.logged_in" :disabled="busy" @click="login">{{ auth?.login_url ? '重新连接' : '连接 Pixiv' }}</button></div><div v-if="auth?.login_url" class="auth-flow"><a class="softbtn" :href="auth.login_url" target="_blank" rel="noopener noreferrer">打开 Pixiv 授权页面 <Icon name="external" /></a><p>授权后复制浏览器中的 callback 地址，粘贴到下面完成登录。</p><form @submit.prevent="submitCode"><input v-model="oauthCode" type="text" autocomplete="off" spellcheck="false" aria-label="授权回调地址或 code" placeholder="粘贴 callback 地址或 code"><button class="primary" :disabled="busy || !oauthCode.trim()" type="submit">提交回调</button></form></div><p v-if="auth?.login_error" class="error">{{ auth.login_error }}</p></div>
       <div class="settings-card"><div><h3>自动检查</h3><p>{{ settings.automatic_paused ? '已暂停后续自动检查；当前任务会继续。' : `每 ${settings.check_interval_minutes} 分钟检查一次；当前任务不会中断。` }}</p></div><button :disabled="busy" :aria-pressed="settings.automatic_paused" @click="pause"><Icon :name="settings.automatic_paused ? 'check' : 'pause'" />{{ settings.automatic_paused ? '恢复自动检查' : '暂停自动检查' }}</button></div>
-      <div class="settings-card settings-stack"><div><h3>手动管理</h3><p>按需检查画师、补齐缺失文件或刷新信息。全量核验会检查本地文件缺失或损坏，不会自动补下载。</p></div><div class="settings-controls wrap"><button @click="emit('task', 'check')">检查新作品</button><button @click="emit('task', 'repair')">补下载</button><button @click="emit('task', 'metadata')">刷新作品信息</button><button @click="emit('task', 'bookmarks')">同步收藏状态</button><button @click="emit('task', 'verify')">全量核验本地文件</button></div></div>
-      <div class="settings-card settings-stack"><div><h3>缺少动图原包</h3><p>选择需要补齐的作品；处理结果及失败原因可在下方日志查看。</p></div><div v-if="missing.length" class="missing-list"><button v-for="work in missing" :key="work.id" @click="emit('task', 'backfill', work.id)">{{ work.title }} · 补回原包</button></div><p v-else class="muted">当前没有列出的缺失原包。</p><div v-if="missing.length === 100 || missingOffset" class="button-row"><button :disabled="missingOffset === 0" @click="missingOffset = Math.max(0, missingOffset - 100); loadMissing()">上一页</button><button :disabled="missing.length < 100" @click="missingOffset += 100; loadMissing()">下一页</button></div></div>
+      <div class="settings-card settings-stack"><div><h3>手动管理</h3><p>补下载会补齐缺失文件，包括仍可获取的动图原包；已有 GIF 保留。全量核验只检查本地文件，不会自动补下载。</p></div><div class="settings-controls wrap"><button @click="emit('task', 'check')">检查新作品</button><button @click="emit('task', 'repair')">补下载</button><button @click="emit('task', 'metadata')">刷新作品信息</button><button @click="emit('task', 'bookmarks')">同步收藏状态</button><button @click="emit('task', 'verify')">全量核验本地文件</button></div></div>
+      <div class="settings-card settings-stack"><div><h3>缺少动图原包</h3><p>上方“补下载”会处理可补齐的原包。无法访问的作品保留在这里，已有 GIF 仍可看；也可以逐件重新核对。</p></div><p v-if="missingError" class="error missing-originals-error" role="alert">{{ missingError }} <button :disabled="missingLoading" @click="loadMissing">重读缺失清单</button></p><div v-if="missing.length" class="missing-list" :aria-busy="missingLoading"><div v-for="work in missing" :key="work.id" class="missing-work" :data-work-id="work.id"><div class="missing-copy"><RouterLink :to="`/illust/${work.id}`">{{ work.title }}</RouterLink><p class="missing-status">{{ originalStatus(work) }}</p><p v-if="originalReason(work)" class="missing-reason">{{ originalReason(work) }}</p><small v-if="sourceUnavailable(work) && checkedAt(work)">上次核对 {{ checkedAt(work) }}</small></div><button :disabled="work.processing?.state === 'queued' || work.processing?.state === 'running' || work.recovery?.status === 'queued'" @click="emit('task', 'backfill', work.id)">{{ sourceUnavailable(work) ? '重新核对' : '补回原包' }}</button></div></div><p v-else-if="!missingLoaded && missingLoading" class="muted">正在读取缺失清单…</p><p v-else-if="missingLoaded && !missingError" class="muted">当前没有缺失原包。</p><div v-if="missing.length === 100 || missingOffset" class="button-row"><button :disabled="missingOffset === 0 || missingLoading" @click="missingOffset = Math.max(0, missingOffset - 100); loadMissing()">上一页</button><button :disabled="missing.length < 100 || missingLoading" @click="missingOffset += 100; loadMissing()">下一页</button></div></div>
       <div class="settings-card settings-stack"><div class="setting-top"><div><h3>处理日志</h3><p>查看最近的后台处理与失败原因，内容只读。</p></div><button :aria-expanded="logsOpen" @click="toggleLogs">{{ logsOpen ? '收起日志' : '查看日志' }}</button></div><div v-if="logsOpen" class="settings-log"><div class="settings-controls"><button :disabled="logsLoading" @click="loadLogs">{{ logsLoading ? '正在读取…' : '刷新日志' }}</button></div><p v-if="logsError" class="error" role="alert">{{ logsError }} <button @click="loadLogs">重试</button></p><p v-else-if="!logs && logsLoading" class="muted">正在读取处理日志…</p><template v-else-if="logs"><pre v-if="logs.lines.length">{{ logs.lines.join('\n') }}</pre><p v-else class="muted">暂无处理记录。</p><p v-if="logs.truncated" class="muted">仅显示最近的记录。</p></template></div></div>
       <h2 class="settings-section-title">本地存储</h2>
       <div class="settings-card settings-stack"><div><h3>图库位置</h3><p>{{ settings.stats.artists }} 位画师 · {{ settings.stats.works }} 件作品 · {{ settings.stats.downloaded_pages }} 页已下载</p></div><div class="path-display">{{ settings.data_root }}</div><div class="settings-controls"><button @click="browsePath"><Icon name="folder" />选择目录</button><span v-if="pendingPath" class="muted">{{ pendingPath }}</span><button v-if="pendingPath" :disabled="busy" @click="confirmPath = true">迁移到这里</button></div></div>

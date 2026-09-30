@@ -40,6 +40,13 @@ def main():
         session.execute(update(RemoteBookmark).values(value=True, source="readback", account_id="90001",
             confirmed_at=utcnow() - timedelta(minutes=2), version=1))
     remote.values = {str(100000 + work): True for work in range(1, 602)}
+    # A recorded missing original may be picked up by maintenance before the
+    # first render. Model the temporary remote failure explicitly; an absent
+    # method on SyntheticRemote was an unrelated fixture programming error.
+    def get_illust_detail(remote_id):
+        from src.client import PixivRequestError
+        raise PixivRequestError(503, "Pixiv 服务暂时不可用")
+    remote.get_illust_detail = get_illust_detail
     remote_reads = []
     original_read = remote.read_bookmark
     def read_bookmark(remote_id):

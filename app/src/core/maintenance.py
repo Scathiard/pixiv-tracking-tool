@@ -167,6 +167,8 @@ class MissingMediaMaintenance:
     def _candidates(self):
         with self.database.read() as session:
             eligible = and_(ArchiveIntent.mode == "keep", ArchiveIntent.pixiv_illust_id == Work.pixiv_illust_id)
+            remote_eligible = and_(eligible, func.coalesce(
+                Work.source_metadata["remote_availability"]["state"].as_string(), "").not_in(("unavailable", "private")))
             windows = {}
             def page(statement, name):
                 cursor = self._cursors[name]
@@ -177,13 +179,13 @@ class MissingMediaMaintenance:
                 return rows
 
             missing_assets = page(select(Work.id, Work.type, Work.source_metadata).join(
-                Asset, Asset.work_id == Work.id).join(ArchiveIntent, eligible).where(
+                Asset, Asset.work_id == Work.id).join(ArchiveIntent, remote_eligible).where(
                     Asset.state.in_(("missing", "failed", "invalid", "mismatch", "source_changed"))).distinct(), "remote")
             # Imported catalogues may omit required page rows entirely.
             asset_count = select(func.count()).select_from(Asset).where(Asset.work_id == Work.id).correlate(Work).scalar_subquery()
-            incomplete = page(select(Work.id, Work.type, Work.source_metadata).join(ArchiveIntent, eligible).where(
+            incomplete = page(select(Work.id, Work.type, Work.source_metadata).join(ArchiveIntent, remote_eligible).where(
                 asset_count < case((Work.type == "ugoira", 2), else_=Work.page_count)), "incomplete")
-            pending_sources = page(select(Work.id, Work.type, Work.source_metadata).join(ArchiveIntent, eligible).where(
+            pending_sources = page(select(Work.id, Work.type, Work.source_metadata).join(ArchiveIntent, remote_eligible).where(
                 func.json_extract(Work.source_metadata, "$.source_updates").is_not(None),
                 func.json_extract(Work.source_metadata, "$.source_updates") != "{}"), "source")
             missing_assets = list({row.id: row for row in missing_assets + incomplete + pending_sources}.values())

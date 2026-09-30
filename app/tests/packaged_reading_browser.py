@@ -36,7 +36,7 @@ def main():
     env = os.environ.copy()
     env["TEMP"] = env["TMP"] = str(artifacts)
     env["PYTHONIOENCODING"] = "utf-8"
-    checks, page_errors = [], []
+    checks, page_errors, animation_metrics = [], [], {}
     output = (artifacts / "exe-output.txt").open("xb")
     process = subprocess.Popen([str(exe), "--smoke-test", "--smoke-output", str(package_report),
         "--smoke-serve-port", str(port), "--smoke-stop-file", str(stop)], cwd=artifacts,
@@ -57,6 +57,17 @@ def main():
             raise TimeoutError("打包程序未启动隔离服务")
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True, executable_path=_find_system_browser())
+            def animation_frames(target_page, width):
+                card = target_page.locator('.work-card[data-work-id="2"] .card-picture')
+                card.scroll_into_view_if_needed()
+                target_page.wait_for_function("() => {const img=document.querySelector('.work-card[data-work-id=\"2\"] img[data-media-source=\"animation\"]'); return img?.complete && img.naturalWidth > 0}")
+                frames = []
+                for index in range(6):
+                    frames.append(hashlib.sha256(card.screenshot(path=str(artifacts / f'exe-animation-{width}-{index}.png'))).hexdigest())
+                    target_page.wait_for_timeout(90)
+                animation_metrics[str(width)] = {"unique_frames":len(set(frames)),"sample_count":len(frames)}
+                assert len(set(frames)) >= 2, f"frozen gallery animation stayed static at {width}px"
+                checks.append(f'exe-gallery-animation-changes-actual-frame-{width}')
             desktop = browser.new_context(viewport={"width": 1440, "height": 1000})
             page = desktop.new_page()
             page.on("pageerror", lambda error: page_errors.append(str(error)))
@@ -77,12 +88,29 @@ def main():
                 "detail": detail, "progress": progress}, ensure_ascii=False, indent=2), encoding="utf-8")
             checks.append("exe-whole-work-facts-catalogue-revision-and-bounded-progress")
             selected = page.request.get(origin + "/api/works/2?page_limit=1").json()
-            unselected = page.request.get(origin + "/api/works/3?page_limit=1").json()
+            unavailable = page.request.get(origin + "/api/works/3?page_limit=1").json()
             assert selected['archive'] == {'state':'complete','total':2,'verified':2,'missing':0,'unknown':0}
-            assert unselected['archive']['state'] == 'partial'
-            assert unselected['pages'][0]['src'] == '/images/3.gif'
+            assert unavailable['archive']['state'] == 'partial'
+            assert unavailable['pages'][0]['src'] == '/images/3.gif'
+            assert unavailable['availability']['state'] == 'unavailable'
             assert [work['id'] for work in page.request.get(origin + '/api/library/missing-originals').json()['items']] == [3]
-            checks.append('exe-selected-animation-originals-filled-and-other-gif-preserved')
+            checks.append('exe-manual-scope-animation-originals-filled-and-unavailable-gif-preserved')
+            animation_frames(page, 1440)
+            for width in (390,320):
+                animation_phone = browser.new_context(viewport={"width":width,"height":844}, is_mobile=True, has_touch=True)
+                animation_page = animation_phone.new_page()
+                animation_page.on("pageerror", lambda error:page_errors.append(str(error)))
+                animation_page.goto(origin, wait_until="domcontentloaded")
+                animation_frames(animation_page, width)
+                animation_page.goto(origin + '/settings', wait_until='domcontentloaded')
+                source = animation_page.locator('.missing-work[data-work-id="3"]')
+                source.scroll_into_view_if_needed()
+                assert '原作已无法访问' in source.inner_text() and '上次核对' in source.inner_text()
+                assert '已删除' not in source.inner_text()
+                assert animation_page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                animation_page.screenshot(path=str(artifacts / f'exe-originals-unavailable-{width}.png'))
+                checks.append(f'exe-missing-originals-availability-readable-{width}')
+                animation_phone.close()
             page.get_by_role("button", name="收起侧栏", exact=True).click()
             page.locator(".app-shell.sidebar-collapsed").wait_for()
             page.get_by_role("button", name="展开侧栏", exact=True).click()
@@ -124,6 +152,9 @@ def main():
             checks.append("exe-zoom-and-feed-share-synthetic-library")
             page.goto(origin + "/settings", wait_until="domcontentloaded")
             page.locator(".settings-page").wait_for()
+            source = page.locator('.missing-work[data-work-id="3"]')
+            assert '原作已无法访问' in source.inner_text() and source.locator('button').inner_text() == '重新核对'
+            checks.append('exe-unavailable-originals-retained-with-explicit-recheck')
             page.get_by_text("离线，本地图库仍可阅读", exact=True).wait_for()
             checks.append("exe-real-settings-remain-usable-offline")
             from src.version import __version__, __build__
@@ -163,6 +194,10 @@ def main():
             page.set_viewport_size({'width':1440,'height':900})
             page.goto(origin + "/artist/1")
             page.locator(".artist-profile").wait_for()
+            link = page.get_by_role('link', name='在 Pixiv 查看 smoke', exact=True)
+            assert link.is_visible() and link.get_attribute('href') == 'https://www.pixiv.net/users/1'
+            assert link.get_attribute('target') == '_blank'
+            checks.append('exe-artist-main-site-profile-link')
             checks.append("exe-direct-artist-route-and-local-profile")
             phone = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
             mobile = phone.new_page()
@@ -200,7 +235,7 @@ def main():
             code = process.wait(timeout=10)
         output.close()
         (artifacts / "result.json").write_text(json.dumps({"checks": checks,
-            "page_errors": page_errors, "exe_exit_code": code, "package_report": str(package_report),
+            "page_errors": page_errors, "animation_metrics": animation_metrics, "exe_exit_code": code, "package_report": str(package_report),
             "exe_sha256": hashlib.sha256(exe.read_bytes()).hexdigest(),
             "real_account_used": False, "real_library_used": False, "real_phone_tested": False},
             ensure_ascii=False, indent=2), encoding="utf-8")

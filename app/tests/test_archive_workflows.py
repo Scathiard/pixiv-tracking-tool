@@ -39,6 +39,11 @@ class FakePixiv:
                 "frames": [{"file": "first.png", "delay": 100}, {"file": "second.png", "delay": 200}]}
 
 
+    def get_illust_detail(self, remote_id):
+        self.calls.append("detail-" + remote_id)
+        return {"illust_id": remote_id, "title": "legacy", "type": "ugoira", "page_count": 1}
+
+
 class Download:
     def __init__(self):
         self.urls = []
@@ -122,7 +127,7 @@ def test_gif_only_archive_does_not_silently_backfill(setup_archive):
         work.assets = [Asset(role="ugoira_zip", state="missing_deferred"), Asset(role="ugoira_timing")]
         work.derivatives = [Derivative(kind="gif", relative_path="200.gif", state="unknown")]
         session.add_all([work, ArchiveIntent(pixiv_illust_id="200")])
-    queue.submit("repair", {}, "普通补下载")
+    queue.submit("repair", {}, "后台补下载", source="maintenance")
     queue.run_round()
     assert client.calls == [] and download.urls == []
     assert [work["id"] for work in Library(database).missing_originals()] == [1]
@@ -166,7 +171,7 @@ def test_selected_repair_fills_gif_only_originals_without_backfilling_other_work
     assert Library(database).detail(1)["pages"][0]["src"] == "/images/200.gif"
 
 
-@pytest.mark.parametrize("parameters,source", [({}, "manual"), ({"artist_ids": [1]}, "manual"),
+@pytest.mark.parametrize("parameters,source", [({}, "maintenance"), ({"artist_ids": [1]}, "automatic"),
     ({"work_ids": [1]}, "maintenance"), ({"work_ids": [1]}, "automatic")])
 def test_unselected_repair_keeps_legacy_animation_originals_deferred(setup_archive, parameters, source):
     database, root, queue, client, download = setup_archive
@@ -177,6 +182,130 @@ def test_unselected_repair_keeps_legacy_animation_originals_deferred(setup_archi
     assert client.calls == [] and download.urls == []
     assert (root / "200.gif").read_bytes() == original_gif
     assert [work["id"] for work in Library(database).missing_originals()] == [1]
+
+
+@pytest.mark.parametrize("parameters,expected", [({}, ["ugoira-200", "ugoira-201"]),
+    ({"artist_ids": [1]}, ["ugoira-200"])])
+def test_manual_scope_repairs_legacy_animation_originals(setup_archive, parameters, expected):
+    database, root, queue, client, download = setup_archive
+    for work_id in (1, 2):
+        add_gif_only_work(database, root, work_id)
+    with database.write() as session:
+        session.get(Work, 2).artist_id = 2
+    before = [(root / f"{remote_id}.gif").read_bytes() for remote_id in (200, 201)]
+    queue.submit("repair", parameters, "补下载", source="manual")
+    queue.run_round()
+    assert client.calls == expected
+    assert len(download.urls) == len(expected)
+    for index, remote_id in enumerate((200, 201)):
+        with Image.open(root / f"{remote_id}.gif") as preview:
+            assert preview.format == "GIF"
+            preview.load()
+            if "ugoira-" + str(remote_id) in expected:
+                assert preview.n_frames == 2
+                assert preview.info["duration"] == 100
+                preview.seek(1)
+                assert preview.info["duration"] == 200
+            else:
+                assert (root / f"{remote_id}.gif").read_bytes() == before[index]
+    with database.read() as session:
+        assert all(asset.state == "verified" for asset in session.get(Work, 1).assets)
+        assert all(asset.state == "verified" for asset in session.get(Work, 2).assets) == (not parameters)
+
+
+@pytest.mark.parametrize("detail_state", ["unavailable", "private", "available", "api_network", "api_unauthorized", "api_rate_limit"])
+def test_missing_ugoira_metadata_checks_work_fact_and_preserves_local_preview(setup_archive, detail_state):
+    from src.client import PixivRequestError
+
+    database, root, queue, client, download = setup_archive
+    add_gif_only_work(database, root)
+    before = (root / "200.gif").read_bytes()
+
+    def missing_metadata(remote_id):
+        client.calls.append("ugoira-" + remote_id)
+        raise PixivRequestError(404, "主站暂时无法提供动图原包或播放时序；已有本地内容保留",
+                                retryable=False, failure_code="ugoira_metadata_unavailable")
+
+    def detail(remote_id):
+        client.calls.append("detail-" + remote_id)
+        if detail_state == "available":
+            return {"illust_id": remote_id, "title": "legacy", "type": "ugoira", "page_count": 1}
+        code = {"unavailable": "work_unavailable", "private": "work_private"}.get(detail_state, detail_state)
+        status = {"unavailable": 404, "private": 403, "api_unauthorized": 401, "api_rate_limit": 429}.get(detail_state)
+        raise PixivRequestError(status, "受控的失败原因", retryable=detail_state.startswith("api_"), failure_code=code)
+
+    client.get_ugoira_metadata, client.get_illust_detail = missing_metadata, detail
+    queue.submit("repair", {"work_ids": [1]}, "补下载此作品")
+    queue.run_round()
+    assert client.calls == ["ugoira-200", "detail-200"]
+    assert download.urls == []
+    assert (root / "200.gif").read_bytes() == before
+    item = Library(database).missing_originals()[0]
+    availability = item["availability"]
+    if detail_state in ("unavailable", "private", "available"):
+        assert availability["state"] == detail_state
+    else:
+        assert availability is None
+    assert item["recovery"]["reason"]
+    assert Library(database).detail(1)["pages"][0]["src"] == "/images/200.gif"
+    with database.read() as session:
+        assert session.scalar(select(Derivative).where(Derivative.kind == "thumbnail")).state == "verified"
+    assert queue.snapshot()["round"]["outcome"] in ("failed", "partial_failure")
+
+
+@pytest.mark.parametrize("parameters", [{}, {"artist_ids": [1]}])
+def test_scope_repair_skips_known_unavailable_work_and_continues(setup_archive, parameters):
+    from src.core.activity_log import processing_log
+    database, root, queue, client, download = setup_archive
+    for work_id in (1, 2):
+        add_gif_only_work(database, root, work_id)
+    with database.write() as session:
+        work = session.get(Work, 1)
+        work.source_metadata = {**work.source_metadata, "remote_availability": {
+            "state": "unavailable", "checked_at": "2026-09-30T00:00:00+00:00",
+            "reason": "主站暂时无法获取此作品，尚不能确认是否删除；已有存档保留"}}
+    submitted = queue.submit("repair", parameters, "补下载")
+    queue.run_round()
+    assert client.calls == ["ugoira-201"]
+    assert len(download.urls) == 1
+    details = queue.details(submitted["operation_id"])
+    skipped = [item for item in details["items"] if item["state"] == "skipped"]
+    assert len(skipped) == 1 and skipped[0]["result"]["failure_code"] == "work_unavailable"
+    assert details["counts"]["skipped"] == 1
+    assert queue.snapshot()["round"]["counts"]["skipped"] == 1
+    log = processing_log(database)["lines"]
+    assert any("跳过 1 项" in line for line in log)
+    assert any("已跳过" in line and "未确认删除" in line for line in log)
+    assert [work["id"] for work in Library(database).missing_originals()] == [1]
+    assert Library(database).detail(1)["pages"][0]["src"] == "/images/200.gif"
+    client.calls.clear()
+    queue.submit("repair", {"work_ids": [1]}, "主动重新核对")
+    queue.run_round()
+    assert client.calls == ["detail-200", "ugoira-200"]
+    assert Library(database).missing_originals() == []
+
+
+@pytest.mark.parametrize("code,status", [("api_network", None), ("api_unauthorized", 401), ("api_rate_limit", 429)])
+def test_temporary_animation_error_does_not_probe_work_or_set_unavailable(setup_archive, code, status):
+    from src.client import PixivRequestError
+
+    database, root, queue, client, download = setup_archive
+    add_gif_only_work(database, root)
+    before = (root / "200.gif").read_bytes()
+
+    def failed_metadata(remote_id):
+        client.calls.append("ugoira-" + remote_id)
+        raise PixivRequestError(status, "受控的临时失败", retryable=True, failure_code=code)
+
+    client.get_ugoira_metadata = failed_metadata
+    submitted = queue.submit("repair", {}, "补下载")
+    queue.run_round()
+    assert client.calls == ["ugoira-200"]
+    assert download.urls == []
+    assert Library(database).missing_originals()[0]["availability"] is None
+    failed = [item for item in queue.details(submitted["operation_id"])["items"] if item["state"] == "failed"]
+    assert failed[0]["result"]["failure_code"] == code
+    assert (root / "200.gif").read_bytes() == before
 
 
 @pytest.mark.parametrize("failure", ["network", "invalid_zip"])

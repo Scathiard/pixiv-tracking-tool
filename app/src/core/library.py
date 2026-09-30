@@ -445,4 +445,5 @@ class Library:
             works = session.scalars(self._related(statement).order_by(Work.id).offset(max(0, offset)).limit(min(max(1, limit), 100)))
             works = list(works)
             operations = self._bookmark_operations(session, [work.id for work in works])
-            return [self._work_view(work, operations.get(work.id)) for work in works]
+            states, _ = work_states(session, works)
+            return [{**self._work_view(work, operations.get(work.id)), **states[work.id]} for work in works]

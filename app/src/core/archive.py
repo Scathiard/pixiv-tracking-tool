@@ -481,9 +481,13 @@ class ArchiveHandler:
             assets = list(work.assets)
             operation = session.get(Operation, context.operation_id)
             maintenance = operation.source == "maintenance"
-            # Selecting a work for manual repair also selects its legacy originals.
-            # Global, artist-scoped and background repairs do not grant that consent.
-            selected_originals = self.kind == "repair" and operation.source == "manual" and work_id in parameters.get("work_ids", ())
+            # A manual repair selects the originals of every work in its scope.
+            # Automatic checks and maintenance retain the legacy opt-in boundary.
+            selected_originals = self.kind == "repair" and operation.source == "manual"
+            explicit_recheck = operation.source == "manual" and work_id in parameters.get("work_ids", ())
+            availability = (work.source_metadata or {}).get("remote_availability", {})
+            availability = availability if isinstance(availability, dict) else {}
+            known_unavailable = availability.get("state") in ("unavailable", "private")
             ledger = session.get(ApplicationState, f"maintenance_work:{work_id}")
             remote_track = ((ledger.value.get("tracks", {}).get("remote", {})
                 if ledger and isinstance(ledger.value, dict) else {}))
@@ -510,13 +514,23 @@ class ArchiveHandler:
             inspected = (asset for asset in assets if asset.state in ("missing", "failed", "invalid", "mismatch", "source_changed") or asset.id in updates or not maintenance and self.kind in ("repair", "backfill") or self.kind == "backfill" and asset.state == "missing_deferred")
             missing = [asset for asset in inspected if asset.id in updates or asset.state == "source_changed" or not self._inspect_asset(asset)]
             metadata = None
-            if missing and not local_only and blocked_remote:
+            work_fact_checked = False
+            if missing and not local_only and known_unavailable and not explicit_recheck:
+                remote_failure = {"message": availability.get("reason") or "原作已无法访问，已有本地内容保留",
+                    "failure_code": "work_private" if availability["state"] == "private" else "work_unavailable",
+                    "retryable": False}
+                specs.append(ItemSpec(f"remote-skip-{work_id}", "skip", {**remote_failure, "work_id": work_id},
+                                      "downloading", "works"))
+            if missing and not local_only and blocked_remote and not remote_failure:
                 remote_failure = {"message": blocked_remote.get("reason") or "来源缺项等待手动核对",
                     "failure_code": blocked_remote.get("failure_code"), "retryable": False}
                 specs.append(ItemSpec(f"remote-error-{work_id}", "error", {**remote_failure, "work_id": work_id},
                                       "downloading", "assets"))
             if missing and not local_only and not remote_failure:
                 try:
+                    if known_unavailable and explicit_recheck:
+                        work_fact_checked = True
+                        self._refresh_work(work.artist_id, work.pixiv_illust_id, work_id)
                     if work.type == "ugoira":
                         metadata = self.client.get_ugoira_metadata(work.pixiv_illust_id)
                         requested = metadata.get("zip_urls", {}).get("original") or metadata.get("zip_urls", {}).get("medium")
@@ -541,6 +555,16 @@ class ArchiveHandler:
                         with self.database.read() as session:
                             missing = [session.get(Asset, asset.id) for asset in missing]
                 except Exception as exc:
+                    # Animation subresource failure does not establish a work fact.
+                    # Check detail once for terminal metadata absence; temporary
+                    # network/auth/rate limits retain their own failure cause.
+                    if (work.type == "ugoira" and not work_fact_checked
+                            and getattr(exc, "failure_code", None) == "ugoira_metadata_unavailable"
+                            and callable(getattr(self.client, "get_illust_detail", None))):
+                        try:
+                            self._refresh_work(work.artist_id, work.pixiv_illust_id, work_id)
+                        except Exception as detail_exc:
+                            exc = detail_exc
                     remote_failure = safe_failure(exc)
                     with self.database.write() as session:
                         for asset in missing:

@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "build": "20260930.4",
+  "backend_passed": 336,
+  "backend_warnings": 177,
+  "frontend_passed": 38,
+  "animation_browser_checks": 29,
+  "originals_browser_checks": 9,
+  "static_cache_browser_checks": 7,
+  "source_smoke": "passed",
+  "packaged_validation": "pending",
+  "real_library_used": false,
+  "real_account_used": false,
+  "real_phone_tested": false
+}

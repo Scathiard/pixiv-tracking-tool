@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 
 from .models import Operation, OperationItem
 
@@ -11,7 +11,7 @@ from .models import Operation, OperationItem
 KINDS = {"check": "检查新作品", "metadata": "刷新信息", "bookmarks": "同步收藏状态",
          "repair": "补下载", "verify": "全量核验本地文件", "backfill": "补回动图原包", "thumbnails": "生成缩略图"}
 STATES = {"queued": "已排队", "planning": "正在清点", "ready": "等待执行", "running": "正在执行",
-          "interrupted": "已中断，等待恢复", "finished": "已结束", "failed": "失败", "not_executed": "未执行"}
+          "interrupted": "已中断，等待恢复", "finished": "已结束", "failed": "失败", "not_executed": "未执行", "skipped": "已跳过"}
 OUTCOMES = {"succeeded": "处理完成", "partial_failure": "部分失败", "failed": "失败", "empty": "无需处理"}
 PHASES = {"waiting": "等待", "checking": "检查", "inventory": "清点", "metadata": "画师信息",
           "captions": "作品信息", "bookmarks": "收藏状态", "downloading": "下载", "converting": "生成预览",
@@ -89,7 +89,9 @@ def processing_log(database, limit: int = 100) -> dict:
             return {"lines": ["暂无后台处理记录。"], "truncated": False}
         failures = list(session.scalars(select(OperationItem).where(
             OperationItem.operation_id.in_([op.id for op in operations]),
-            OperationItem.state.in_(("failed", "not_executed"))).order_by(
+            or_(OperationItem.state.in_(("failed", "not_executed")), and_(
+                OperationItem.state == "skipped", OperationItem.result["failure_code"].as_string().in_(
+                    ("work_unavailable", "work_private"))))).order_by(
                 OperationItem.operation_id, OperationItem.position).limit(201)))
         by_operation = {}
         for item in failures[:200]:
@@ -101,8 +103,12 @@ def processing_log(database, limit: int = 100) -> dict:
             stamp = (op.finished_at or op.updated_at).isoformat(timespec="seconds") + "Z"
             status = OUTCOMES.get(result.get("outcome"), STATES.get(op.state, "状态未知"))
             count = f"{op.phase_done} / {op.phase_total}" if op.phase_total is not None else f"已处理 {op.phase_done}"
+            count += f" {UNITS.get(op.phase_unit, '项')}"
+            skipped = result.get("counts", {}).get("skipped") if isinstance(result.get("counts"), dict) else None
+            if type(skipped) is int and skipped > 0:
+                count += f"，跳过 {skipped} 项"
             lines.append(f"{stamp} [{reference}] {KINDS.get(op.kind, '后台处理')} · {status} · "
-                         f"{PHASES.get(op.phase, '处理')} {count} {UNITS.get(op.phase_unit, '项')}")
+                         f"{PHASES.get(op.phase, '处理')} {count}")
             if op.needs_attention:
                 lines.append("  有未完成项，原因见下方；已有本地内容保留，需核对后再决定是否重试。")
             for item in by_operation.get(op.id, []):

@@ -1,0 +1,19 @@
+
+> pixiv-local-reader@0.2.0 build
+> vue-tsc --noEmit && vite build
+
+vite v8.3.1 building client environment for production...
+transforming...
+✓ 76 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:  0.33 kB
+dist/assets/index-COk_ezpa.css   39.29 kB │ gzip:  8.29 kB
+dist/assets/index-DI3pBFZW.js   234.57 kB │ gzip: 81.21 kB
+
+✓ built in 688ms
+npm notice
+npm notice New major version of npm available! 11.12.1 -> 12.1.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.1.0
+npm notice To update run: npm install -g npm@12.1.0
+npm notice
