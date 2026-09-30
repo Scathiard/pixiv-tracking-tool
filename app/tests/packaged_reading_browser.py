@@ -64,6 +64,18 @@ def main():
             page.locator('.work-card[data-work-id="1"]').wait_for()
             assert '.webp' in page.locator('.card-picture img').first.get_attribute('src').split('?')[0]
             checks.append("exe-opens-new-local-gallery-and-thumbnail")
+            gallery = page.request.get(origin + "/api/library?compact=1&limit=1").json()
+            detail = page.request.get(origin + "/api/works/1?page_limit=1").json()
+            progress = page.request.get(origin + "/api/progress").json()
+            expected_archive = {"state": "complete", "total": 1, "verified": 1, "missing": 0, "unknown": 0}
+            assert gallery["items"][0]["archive"] == detail["archive"] == expected_archive
+            assert detail["processing"]["state"] == "idle" and detail["source_update"]["pending"] is False
+            assert type(progress["catalogue_revision"]) is int and progress["catalogue_revision"] > 0
+            assert progress["catalogue_revision"] >= detail["catalogue_revision"]
+            assert progress["worker_error"] is None and len(progress["operations"]) <= 36
+            (artifacts / "exe-archive-contract.json").write_text(json.dumps({"gallery": gallery,
+                "detail": detail, "progress": progress}, ensure_ascii=False, indent=2), encoding="utf-8")
+            checks.append("exe-whole-work-facts-catalogue-revision-and-bounded-progress")
             page.get_by_role("button", name="收起侧栏", exact=True).click()
             page.locator(".app-shell.sidebar-collapsed").wait_for()
             page.get_by_role("button", name="展开侧栏", exact=True).click()

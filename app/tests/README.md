@@ -18,7 +18,7 @@
 - `archive_browser.py`：新核心的桌面与手机尺寸浏览器验证；`--artifacts` 必须指定新的隔离目录，保留结果和截图；不是手机实机验收。
 - `reading_browser.py`：生成大型合成图库，用实际 Chromium 验证普通／流式阅览、真实触控事件、乱序请求、长时间滚动与后台下载；`--artifacts` 每次用新目录。
 - `reading_deep_browser.py`：复用前项生成的 `.devtools/test-runs/` 合成图库，验证第 5000 件作品、流式末端及浏览器返回位置；拒绝真实图库路径。
-- `packaged_reading_browser.py`：让当前 EXE 只在本机启动自己的合成图库服务，验证打包后的图库、详情、流式、画师、设置与主题；`--exe` 与 `--artifacts` 指向交付文件和新证据目录。
+- `packaged_reading_browser.py`：让当前 EXE 只在本机启动自己的合成图库服务，验证实际下载、整件存档事实、目录版本、有界进度及图库、详情、流式、画师、设置与主题；`--exe` 与 `--artifacts` 指向交付文件和新证据目录。
 - `test_bookmarks_v022.py`、`test_bookmark_client_v022.py`：收藏请求只写一次、同账号明确回读、旧响应、限流、未知字段、离线启动与仅回读恢复。
 - `test_upgrade_v022.py`：0001 → 0002 显式转换、源库保留、未知收藏空值及失败回退；仅合成 SQLite。
 - `test_v022_api.py`、`test_v022_integration.py`：统一筛选、画师资料、设置与暂停、跨模块收藏竞争及登录就绪后的恢复。

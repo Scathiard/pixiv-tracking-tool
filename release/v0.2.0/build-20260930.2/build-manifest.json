@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "build": "20260930.2",
+  "exe_file": "PixivTracker_v0.2.0_build20260930.2.exe",
+  "exe_size_bytes": 75204140,
+  "exe_sha256": "06f11023c3b62402757327aba574e5c588f0268f9c577808e9b45e5624549724",
+  "source_commit": "ee25aa5e55982c294eb9022d56b9bc89b83e831a",
+  "source_branch": "codex/v0.2.0-build20260930.2",
+  "source_dirty": false,
+  "database_schema": "0002_client",
+  "database_upgrade_required": false,
+  "build_environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "pyinstaller": "6.20.0"
+  },
+  "published": false,
+  "user_acceptance": false,
+  "validation": "passed source, browser and isolated EXE validation",
+  "validation_results": {
+    "backend_tests": 283,
+    "frontend_unit_tests": 28,
+    "typecheck": true,
+    "frontend_build": true,
+    "browser_check_groups": 31,
+    "large_library_browser_groups": 7,
+    "packaged_checks": 13,
+    "packaged_page_errors": 0,
+    "packaged_exit_code": 0,
+    "real_account_used": false,
+    "real_library_used": false,
+    "real_phone_tested": false,
+    "user_acceptance": false
+  }
+}

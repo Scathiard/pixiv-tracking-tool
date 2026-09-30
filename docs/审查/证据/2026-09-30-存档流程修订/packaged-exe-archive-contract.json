@@ -1,0 +1,221 @@
+{
+  "gallery": {
+    "items": [
+      {
+        "id": 1,
+        "pixiv_id": "1",
+        "artist_id": 1,
+        "artist_name": "smoke",
+        "title": "isolated",
+        "type": "illust",
+        "page_count": 1,
+        "x_restrict": null,
+        "is_hidden": false,
+        "posted_at": null,
+        "bookmark": {
+          "work_id": 1,
+          "operation_id": null,
+          "status": "idle",
+          "desired": null,
+          "value": null,
+          "confirmed_at": null,
+          "error": null,
+          "version": 0,
+          "cached": false,
+          "verified": false,
+          "fact_account_id": null,
+          "current_account_id": null,
+          "account_epoch": 1790753097122401
+        },
+        "availability": null,
+        "is_bookmarked": false,
+        "archive": {
+          "state": "complete",
+          "total": 1,
+          "verified": 1,
+          "missing": 0,
+          "unknown": 0
+        },
+        "processing": {
+          "state": "idle",
+          "operation_id": null,
+          "next_retry_at": null,
+          "reason": null
+        },
+        "source_update": {
+          "pending": false,
+          "reason": null
+        },
+        "recovery": null,
+        "preview": "/images/1_p0.png",
+        "preview_status": "ready",
+        "thumbnail": "/images/.thumbnails/1_p0_v1.webp?v=8defa6793c1dd791"
+      }
+    ],
+    "total": 1,
+    "offset": 0,
+    "has_more": false,
+    "ceiling": 1,
+    "catalogue_revision": 2,
+    "as_of": "2026-09-30T07:25:00.000226"
+  },
+  "detail": {
+    "id": 1,
+    "pixiv_id": "1",
+    "title": "isolated",
+    "artist_id": 1,
+    "artist_name": "smoke",
+    "type": "illust",
+    "page_count": 1,
+    "caption": "",
+    "caption_state": "unknown",
+    "tags": [],
+    "is_hidden": false,
+    "rating": 0,
+    "is_bookmarked": false,
+    "bookmark": {
+      "work_id": 1,
+      "operation_id": null,
+      "status": "idle",
+      "desired": null,
+      "value": null,
+      "confirmed_at": null,
+      "error": null,
+      "version": 0,
+      "cached": false,
+      "verified": false,
+      "fact_account_id": null,
+      "current_account_id": null,
+      "account_epoch": 1790753097122401
+    },
+    "bookmark_confirmed_at": null,
+    "bookmark_count": null,
+    "view_count": null,
+    "posted_at": null,
+    "time_basis": "utc",
+    "x_restrict": null,
+    "availability": null,
+    "restriction_verified": false,
+    "archive": {
+      "state": "complete",
+      "total": 1,
+      "verified": 1,
+      "missing": 0,
+      "unknown": 0
+    },
+    "processing": {
+      "state": "idle",
+      "operation_id": null,
+      "next_retry_at": null,
+      "reason": null
+    },
+    "source_update": {
+      "pending": false,
+      "reason": null
+    },
+    "recovery": null,
+    "catalogue_revision": 2,
+    "pages": [
+      {
+        "index": 0,
+        "src": "/images/1_p0.png",
+        "width": 32,
+        "height": 48,
+        "state": "verified",
+        "error": null
+      }
+    ],
+    "assets": [
+      {
+        "id": "f222795042d8461186dc8cbdbbe9e024",
+        "role": "image",
+        "page": 0,
+        "state": "verified",
+        "error": null
+      }
+    ],
+    "legacy_variants": [],
+    "display_page_count": 1,
+    "has_more_pages": false
+  },
+  "progress": {
+    "active_operation_count": 0,
+    "queued_operation_count": 0,
+    "catalogue_revision": 2,
+    "round": {
+      "id": "d1667b615629412b9061237228a3d067",
+      "state": "finished",
+      "counts": {
+        "succeeded": 2
+      },
+      "total": 2,
+      "settled": 2,
+      "ratio": 1.0,
+      "outcome": "succeeded",
+      "created_at": "2026-09-30T07:24:51.470051"
+    },
+    "next_round_count": 0,
+    "needs_attention_count": 0,
+    "automatic_paused": false,
+    "worker_error": null,
+    "operations": [
+      {
+        "id": "d96fa2ff75e1476fa65571515980c83b",
+        "round_id": "d1667b615629412b9061237228a3d067",
+        "kind": "repair",
+        "label": "smoke",
+        "source": "manual",
+        "lane": null,
+        "state": "finished",
+        "phase": {
+          "name": "thumbnails",
+          "unit": "previews",
+          "done": 1,
+          "total": 1,
+          "detail": "正在处理"
+        },
+        "result": {
+          "planning_complete": true,
+          "phase_snapshots": {
+            "inventory:works": {
+              "phase": "inventory",
+              "unit": "works",
+              "done": 1,
+              "total": 1
+            },
+            "downloading:assets": {
+              "phase": "downloading",
+              "unit": "assets",
+              "done": 1,
+              "total": 1
+            },
+            "thumbnails:previews": {
+              "phase": "thumbnails",
+              "unit": "previews",
+              "done": 1,
+              "total": 1
+            }
+          },
+          "inventory_complete": true,
+          "inventory": {
+            "phase": "inventory",
+            "unit": "works",
+            "done": 1,
+            "total": 1
+          },
+          "lane": null,
+          "current_items": {},
+          "succeeded": 2,
+          "counts": {
+            "succeeded": 2
+          },
+          "outcome": "succeeded"
+        },
+        "needs_attention": false,
+        "created_at": "2026-09-30T07:24:51.176154",
+        "finished_at": "2026-09-30T07:24:56.316189"
+      }
+    ],
+    "recovery_issues": []
+  }
+}
