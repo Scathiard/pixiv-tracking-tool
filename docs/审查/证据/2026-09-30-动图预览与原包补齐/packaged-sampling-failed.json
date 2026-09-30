@@ -1,0 +1,20 @@
+{
+  "checks": [
+    "exe-opens-new-local-gallery-and-thumbnail",
+    "exe-whole-work-facts-catalogue-revision-and-bounded-progress",
+    "exe-manual-scope-animation-originals-filled-and-unavailable-gif-preserved"
+  ],
+  "page_errors": [],
+  "animation_metrics": {
+    "1440": {
+      "unique_frames": 1,
+      "sample_count": 6
+    }
+  },
+  "exe_exit_code": 0,
+  "package_report": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b8-packaged-final-1\\exe-smoke.json",
+  "exe_sha256": "a9994a22858c119a06ef002a126bd306b55b862d417dd02beb735dc3c05c1592",
+  "real_account_used": false,
+  "real_library_used": false,
+  "real_phone_tested": false
+}

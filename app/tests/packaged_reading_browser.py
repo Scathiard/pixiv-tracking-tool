@@ -62,9 +62,11 @@ def main():
                 card.scroll_into_view_if_needed()
                 target_page.wait_for_function("() => {const img=document.querySelector('.work-card[data-work-id=\"2\"] img[data-media-source=\"animation\"]'); return img?.complete && img.naturalWidth > 0}")
                 frames = []
-                for index in range(6):
+                # Unequal intervals avoid repeatedly sampling the same phase of
+                # a short loop (these fixture frames last 100 and 200 ms).
+                for index, delay in enumerate((37,83,149,61,113,47,97,163)):
+                    target_page.wait_for_timeout(delay)
                     frames.append(hashlib.sha256(card.screenshot(path=str(artifacts / f'exe-animation-{width}-{index}.png'))).hexdigest())
-                    target_page.wait_for_timeout(90)
                 animation_metrics[str(width)] = {"unique_frames":len(set(frames)),"sample_count":len(frames)}
                 assert len(set(frames)) >= 2, f"frozen gallery animation stayed static at {width}px"
                 checks.append(f'exe-gallery-animation-changes-actual-frame-{width}')

@@ -8,8 +8,12 @@
   "originals_browser_checks": 9,
   "static_cache_browser_checks": 7,
   "source_smoke": "passed",
-  "packaged_validation": "pending",
+  "packaged_validation": "passed",
   "real_library_used": false,
   "real_account_used": false,
-  "real_phone_tested": false
+  "real_phone_tested": false,
+  "packaged_browser_checks": 23,
+  "packaged_smoke_checks": 18,
+  "source_commit": "79b163d6ad9536920da283b7fe468be371aa2fc4",
+  "exe_sha256": "a9994a22858c119a06ef002a126bd306b55b862d417dd02beb735dc3c05c1592"
 }

@@ -1,0 +1,48 @@
+{
+  "checks": [
+    "exe-opens-new-local-gallery-and-thumbnail",
+    "exe-whole-work-facts-catalogue-revision-and-bounded-progress",
+    "exe-manual-scope-animation-originals-filled-and-unavailable-gif-preserved",
+    "exe-gallery-animation-changes-actual-frame-1440",
+    "exe-gallery-animation-changes-actual-frame-390",
+    "exe-missing-originals-availability-readable-390",
+    "exe-gallery-animation-changes-actual-frame-320",
+    "exe-missing-originals-availability-readable-320",
+    "exe-b-sidebar-and-manual-check-entry",
+    "exe-full-local-filter-candidates-selection-reopen-reset",
+    "exe-ordinary-reader-loads-original",
+    "exe-zoom-and-feed-share-synthetic-library",
+    "exe-unavailable-originals-retained-with-explicit-recheck",
+    "exe-real-settings-remain-usable-offline",
+    "exe-settings-bottom-reachable-by-wheel",
+    "exe-public-version-build-and-read-only-log",
+    "exe-theme-rapid-clicks-and-reload",
+    "exe-wide-settings-both-gutters-and-sidebar-wheel",
+    "exe-artist-main-site-profile-link",
+    "exe-direct-artist-route-and-local-profile",
+    "exe-mobile-viewport-fits-reader",
+    "exe-mobile-settings-scroll-container-reaches-bottom",
+    "exe-mobile-drawer-navigation"
+  ],
+  "page_errors": [],
+  "animation_metrics": {
+    "1440": {
+      "unique_frames": 2,
+      "sample_count": 8
+    },
+    "390": {
+      "unique_frames": 2,
+      "sample_count": 8
+    },
+    "320": {
+      "unique_frames": 2,
+      "sample_count": 8
+    }
+  },
+  "exe_exit_code": 0,
+  "package_report": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b8-packaged-final-2\\exe-smoke.json",
+  "exe_sha256": "a9994a22858c119a06ef002a126bd306b55b862d417dd02beb735dc3c05c1592",
+  "real_account_used": false,
+  "real_library_used": false,
+  "real_phone_tested": false
+}
