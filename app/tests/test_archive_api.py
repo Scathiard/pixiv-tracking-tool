@@ -47,7 +47,12 @@ def test_unlogged_local_browsing_organizing_and_task_feedback(archive_api):
     operation_id = response.json()["operation_id"]
     assert client.get("/api/tasks/" + operation_id).json()["state"] == "queued"
     runtime.queue.run_round()
-    assert client.get("/api/progress").json()["round"]["outcome"] == "empty"
+    progress = client.get("/api/progress").json()["round"]
+    assert progress["outcome"] == "succeeded"
+    assert progress["total"] == progress["settled"] == 3
+    assert progress["counts"] == {"succeeded": 3}
+    assert client.get("/api/works/1").json()["archive"] == {
+        "state": "complete", "total": 3, "verified": 3, "missing": 0, "unknown": 0}
 
 
 def test_paused_and_stopped_artists_remain_filterable(archive_api):

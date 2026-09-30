@@ -11,8 +11,9 @@ from sqlalchemy.orm import load_only, selectinload
 
 from ..security import sanitize_caption
 
+from .archive_state import work_states
 from .models import (
-    ApplicationState, ArchiveIntent, Artist, Asset, BookmarkOperation, Derivative, LocalPreference, RemoteBookmark,
+    ArchiveIntent, Artist, Asset, BookmarkOperation, Derivative, LocalPreference, RemoteBookmark,
     TrackingPolicy, Work, WorkTag, utcnow,
 )
 
@@ -50,13 +51,6 @@ def readable_page_url(record, *, animation=False):
     if record.state == "missing" and not animation:
         return None
     return media_url(record.relative_path)
-
-
-def presented_recovery(recovery, *, readable):
-    """Finished visible media wins over an older retry ledger, without writing it."""
-    if recovery and readable and recovery.get("status") != "attention":
-        return {**recovery, "status": "ready", "reason": None, "next_retry_at": None}
-    return recovery
 
 
 def remote_availability(work):
@@ -138,30 +132,6 @@ class Library:
             return self.bookmarks.snapshot(work.bookmark, operation, work_id=work.id)
         return bookmark_snapshot(work.bookmark, operation,
                                  account_id=self.account_id, work_id=work.id)
-
-    @staticmethod
-    def _recovery_views(session, ids):
-        """Read only the requested window's maintenance state, in one query."""
-        if not ids:
-            return {}
-        keys = {f"maintenance_work:{work_id}": work_id for work_id in ids}
-        result = {}
-        for record in session.scalars(select(ApplicationState).where(ApplicationState.key.in_(keys))):
-            value = record.value
-            if not isinstance(value, dict) or value.get("status") not in ("queued", "waiting", "ready", "attention"):
-                continue
-            retry_at = value.get("next_retry_at")
-            if isinstance(retry_at, str):
-                try:
-                    parsed = datetime.fromisoformat(retry_at)
-                    retry_at = parsed.isoformat() + ("Z" if parsed.tzinfo is None else "")
-                except ValueError:
-                    retry_at = None
-            else:
-                retry_at = None
-            result[keys[record.key]] = {"status": value["status"], "kind": value.get("kind"),
-                "next_retry_at": retry_at, "reason": value.get("reason")}
-        return result
 
     def _work_view(self, work, operation=None):
         bookmark = self._bookmark_view(work, operation)
@@ -303,7 +273,7 @@ class Library:
                 for view in views:
                     view["is_bookmarked"] = bool(view["bookmark"]["value"])
             ids = [work.id for work in works]
-            recoveries = self._recovery_views(session, ids)
+            states, revision = work_states(session, works)
             thumbnails = {row.work_id: row for row in session.scalars(select(Derivative).where(
                 Derivative.work_id.in_(ids), Derivative.kind == "thumbnail", Derivative.page_index == 0,
                 Derivative.spec_key == "v1", Derivative.state == "verified"))}
@@ -312,7 +282,7 @@ class Library:
             animations = {row.work_id: row for row in session.scalars(select(Derivative).where(
                 Derivative.work_id.in_(ids), Derivative.kind == "gif", Derivative.spec_key == "v1"))}
             for view in views:
-                view["recovery"] = recoveries.get(view["id"])
+                view.update(states[view["id"]])
                 thumb = thumbnails.get(view["id"])
                 preview = animations.get(view["id"]) if view["type"] == "ugoira" else first_pages.get(view["id"])
                 view["preview"] = readable_page_url(preview, animation=view["type"] == "ugoira")
@@ -327,10 +297,8 @@ class Library:
                 view["thumbnail"] = media_url(thumb.relative_path) if thumb else None
                 if view["thumbnail"] and thumb.sha256:
                     view["thumbnail"] += "?v=" + thumb.sha256[:16]
-                view["recovery"] = presented_recovery(view["recovery"],
-                    readable=bool(view["thumbnail"] and view["preview_status"] == "ready"))
             return {"items": views, "total": total, "offset": offset, "has_more": offset + len(views) < total,
-                    "ceiling": ceiling}
+                    "ceiling": ceiling, "catalogue_revision": revision}
 
     def detail(self, work_id, *, page_offset=0, page_limit=100):
         if page_offset < 0 or not 1 <= page_limit <= 200:
@@ -340,7 +308,9 @@ class Library:
             if work is None:
                 raise KeyError(work_id)
             view = self._work_view(work, self._bookmark_operations(session, [work.id]).get(work.id))
-            view["recovery"] = self._recovery_views(session, [work_id]).get(work_id)
+            states, revision = work_states(session, [work])
+            view.update(states[work_id])
+            view["catalogue_revision"] = revision
             count = 1 if work.type == "ugoira" else work.page_count
             assets = list(session.scalars(select(Asset).where(Asset.work_id == work_id,
                 Asset.page_index >= page_offset, Asset.page_index < page_offset + page_limit)))
@@ -353,8 +323,6 @@ class Library:
                 view["pages"].append({"index": index, "src": readable_page_url(record, animation=work.type == "ugoira"),
                     "width": record.width if record else None, "height": record.height if record else None,
                     "state": record.state if record else "missing", "error": record.error if record else None})
-            view["recovery"] = presented_recovery(view["recovery"], readable=bool(view["pages"]) and
-                all(page["src"] and page["state"] in ("verified", "unknown") for page in view["pages"]))
             view["assets"] = [{"id": asset.id, "role": asset.role, "page": asset.page_index,
                                "state": asset.state, "error": asset.error} for asset in assets]
             alternates = list(session.scalars(select(Derivative).where(
@@ -428,11 +396,11 @@ class Library:
                 ranges.c.page_start + ranges.c.page_count > offset).order_by(ranges.c.page_start)).mappings())
             ids = [row["work_id"] for row in rows]
             works = {work.id: work for work in session.scalars(select(Work).options(
-                load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title, Work.type, Work.x_restrict,
+                load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title, Work.type, Work.page_count, Work.x_restrict,
                           Work.source_metadata),
                 selectinload(Work.artist).load_only(Artist.name), selectinload(Work.bookmark)).where(Work.id.in_(ids)))}
             operations = self._bookmark_operations(session, ids)
-            recoveries = self._recovery_views(session, ids)
+            states, revision = work_states(session, works.values())
             bookmark_views = {work_id: self._bookmark_view(work, operations.get(work_id))
                               for work_id, work in works.items()}
             bounds = [and_(Asset.work_id == row["work_id"], Asset.role == "image",
@@ -454,14 +422,12 @@ class Library:
                         "next_work_index": row["page_start"] + row["page_count"],
                         "bookmark": bookmark_views[work.id],
                         "availability": remote_availability(work),
-                        "recovery": presented_recovery(recoveries.get(work.id), readable=bool(media and
-                            readable_page_url(media, animation=work.type == "ugoira") and
-                            media.state in ("verified", "unknown"))),
+                        **states[work.id],
                         "src": readable_page_url(media, animation=work.type == "ugoira"),
                         "width": media.width if media else None, "height": media.height if media else None,
                         "state": media.state if media else "missing"})
             return {"items": items, "total": total, "offset": offset, "ceiling": ceiling,
-                    "has_more": offset + len(items) < total}
+                    "has_more": offset + len(items) < total, "catalogue_revision": revision}
 
     def missing_originals(self, offset=0, limit=100):
         with self.database.read() as session:

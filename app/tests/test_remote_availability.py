@@ -293,7 +293,7 @@ def test_ugoira_subresource_404_does_not_label_work_unavailable(tmp_path):
         db.close()
 
 
-def test_busy_scan_keeps_recent_cursor_and_local_and_remote_windows_independent(tmp_path):
+def test_foreground_work_allows_independent_local_and_remote_maintenance_windows(tmp_path):
     db, root, queue, downloader, maintenance, clock = archive(tmp_path, count=140)
     try:
         with db.write() as session:
@@ -302,9 +302,6 @@ def test_busy_scan_keeps_recent_cursor_and_local_and_remote_windows_independent(
                 asset.state, asset.relative_path = "verified", f"{work_id}.png"
                 (root / asset.relative_path).write_bytes(png())
         queue.submit("repair", {"work_ids": [1]}, "manual")
-        assert maintenance.tick(force=True) == []
-        assert all(value == 0 for value in maintenance._cursors.values())
-        queue.run_round()
         submitted = maintenance.tick(force=True)
         assert len(submitted) == 9
         with db.read() as session:
@@ -313,6 +310,10 @@ def test_busy_scan_keeps_recent_cursor_and_local_and_remote_windows_independent(
             assert [operation.parameters["work_ids"][0] for operation in operations[1:]] == list(range(140, 132, -1))
         assert maintenance._cursors["image"] == 133
         assert maintenance._cursors["remote"] == 129
+        queue.run_round()
+        with db.read() as session:
+            assert session.scalar(select(Operation).where(Operation.source == "manual")).state == "finished"
+            assert all(session.get(Operation, item["operation_id"]).state == "queued" for item in submitted)
     finally:
         db.close()
 

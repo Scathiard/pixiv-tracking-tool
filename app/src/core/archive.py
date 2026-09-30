@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from datetime import datetime, timedelta, timezone
 from pathlib import PurePosixPath
 from urllib.parse import urlsplit
@@ -9,6 +10,7 @@ from urllib.parse import urlsplit
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from .catalogue_revision import bump_catalogue_revision
 from .download import AssetDownloader
 from .media import InvalidMedia, Publisher, SuppressedWork, build_gif, build_thumbnail, contained_path, verify_media, verify_ugoira_pair
 from .models import (
@@ -81,9 +83,13 @@ class ArchiveHandler:
         with self.database.write() as session:
             work = session.get(Work, work_id)
             if work is not None:
+                prior = (work.source_metadata or {}).get("remote_availability", {})
+                changed = (prior.get("state"), prior.get("reason")) != (state, reason)
                 work.source_metadata = {**(work.source_metadata or {}), "remote_availability": {
                     "state": state, "checked_at": utcnow().replace(tzinfo=timezone.utc).isoformat(),
                     "reason": reason}}
+                if changed:
+                    bump_catalogue_revision(session)
 
     def _clear_remote_attention_if_complete(self, work_id):
         with self.database.write() as session:
@@ -133,7 +139,7 @@ class ArchiveHandler:
         context.checkpoint_parameters({**parameters, "started_artist_ids": result})
         return result
 
-    def _save_remote_work(self, artist_id, data):
+    def _save_remote_work(self, artist_id, data, *, context=None, metadata=None, metadata_error=None):
         remote_id = str(data["illust_id"])
         if not remote_id.isdigit() or data.get("type") not in ("illust", "manga", "ugoira"):
             raise ValueError("无效作品信息")
@@ -147,6 +153,10 @@ class ArchiveHandler:
             if intent is None:
                 session.add(ArchiveIntent(pixiv_illust_id=remote_id))
             work = session.scalar(select(Work).where(Work.pixiv_illust_id == remote_id))
+            new_work = work is None
+            before = None if new_work else (work.title, work.caption, work.x_restrict, work.bookmark_count, work.view_count,
+                (work.source_metadata or {}).get("remote_availability", {}).get("state"),
+                dict((work.source_metadata or {}).get("source_updates", {})), tuple(sorted(tag.tag for tag in work.tags)))
             if work is None:
                 posted = datetime.fromisoformat(data["posted_at"]) if data.get("posted_at") else None
                 work = Work(pixiv_illust_id=remote_id, artist_id=artist_id,
@@ -182,13 +192,19 @@ class ArchiveHandler:
             urls = data.get("urls", [])
             for role, page in roles:
                 asset = existing_assets.get((role, page))
+                if asset is not None:
+                    self._retain_legacy_source_update(session, asset)
                 if asset is None:
                     asset = Asset(work_id=work.id, role=role, page_index=page, state="missing")
                     session.add(asset)
-                if role == "image" and page < len(urls) and urls[page].get("original"):
-                    if asset.source_url and urlsplit(asset.source_url).path != urlsplit(urls[page]["original"]).path:
-                        asset.state, asset.error = "source_changed", "远端原件地址已改变，旧文件保留至补下载成功"
-                    asset.source_url = urls[page]["original"]
+                requested = urls[page].get("original") if role == "image" and page < len(urls) else (metadata.get("zip_urls", {}).get("original") or metadata.get("zip_urls", {}).get("medium")) if role == "ugoira_zip" and metadata else None
+                if requested:
+                    updates = dict(work.source_metadata.get("source_updates", {}))
+                    changed_source = asset.source_url and urlsplit(asset.source_url).path != urlsplit(requested).path
+                    if changed_source or asset.id in updates and updates[asset.id].get("requested_url") != requested:
+                        updates[asset.id] = {"requested_url": requested, "reason": "来源原件已更新，现有存档保留至保存成功"}
+                        work.source_metadata = {**work.source_metadata, "source_updates": updates}
+                    asset.source_url = requested
             session.flush()
             setting = session.get(ApplicationState, f"maintenance_work:{work.id}")
             if setting and isinstance(setting.value, dict):
@@ -204,7 +220,97 @@ class ArchiveHandler:
                                   failure_code=None, http_status=None)
                     from .maintenance import _project
                     setting.value = _project({**ledger, "tracks": tracks})
+            if metadata is not None and work.type == "ugoira":
+                self._remember_timing_source(session, work, metadata)
+            after = (work.title, work.caption, work.x_restrict, work.bookmark_count, work.view_count,
+                (work.source_metadata or {}).get("remote_availability", {}).get("state"),
+                dict((work.source_metadata or {}).get("source_updates", {})), tuple(sorted(tag.tag for tag in work.tags)))
+            if new_work or before != after:
+                bump_catalogue_revision(session)
+            if context is not None:
+                specs = self._discovery_specs(session, work, metadata)
+                if metadata_error:
+                    specs.append(ItemSpec(f"remote-error-{work.id}", "error", {**metadata_error, "work_id": work.id}, "downloading", "assets"))
+                if specs:
+                    parent = session.get(Operation, context.operation_id)
+                    requests = [{"asset_id": spec.target["asset_id"], "requested_url": spec.target.get("requested_url"), "expected_fingerprint": spec.target.get("expected_fingerprint"), "revision": spec.target.get("revision")} for spec in specs if spec.target.get("asset_id")]
+                    context.queue.enqueue_in_transaction(session, "repair", {"work_ids": [work.id], "asset_requests": requests},
+                        f"保存 {work.title}", parent.source, parent_id=context.operation_id, specs=specs)
             return work.id
+
+    @staticmethod
+    def _timing_fingerprint(metadata):
+        return hashlib.sha256(json.dumps({"frames": metadata["frames"]}, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+    def _remember_timing_source(self, session, work, metadata):
+        timing = session.scalar(select(Asset).where(Asset.work_id == work.id, Asset.role == "ugoira_timing"))
+        if timing is None:
+            return
+        source = f"https://app-api.pixiv.net/v1/ugoira/metadata?illust_id={work.pixiv_illust_id}"
+        fingerprint = self._timing_fingerprint(metadata)
+        updates = dict((work.source_metadata or {}).get("source_updates", {}))
+        if timing.id in updates or timing.state == "verified" and timing.sha256 and timing.sha256 != fingerprint:
+            updates[timing.id] = {"requested_url": source, "expected_fingerprint": fingerprint, "reason": "动图时序资料已更新，现有文件保留至保存成功"}
+            work.source_metadata = {**work.source_metadata, "source_updates": updates}
+        timing.source_url = source
+
+    def _discovery_specs(self, session, work, metadata=None):
+        """Pure catalogue planning: never stat or decode established originals."""
+        if (work.source_metadata or {}).get("original_backfill_requires_selection"):
+            return []
+        intent = session.get(ArchiveIntent, work.pixiv_illust_id)
+        assets = list(session.scalars(select(Asset).where(Asset.work_id == work.id).order_by(Asset.page_index)))
+        directory = work.artist.directory or f"artist_{work.artist.pixiv_user_id}"
+        updates = (work.source_metadata or {}).get("source_updates", {})
+        specs, required = [], []
+        for asset in assets:
+            if asset.state not in ("missing", "failed", "invalid", "mismatch", "source_changed") and asset.id not in updates:
+                continue
+            target = {"work_id": work.id, "asset_id": asset.id, "revision": intent.revision}
+            if asset.role == "ugoira_timing":
+                if not metadata:
+                    continue
+                target.update(frames=metadata["frames"], requested_url=asset.source_url, expected_fingerprint=self._timing_fingerprint(metadata), path=asset.relative_path or f"{directory}/{work.pixiv_illust_id}.frames.json")
+                kind = "timing"
+            else:
+                url = (metadata.get("zip_urls", {}).get("original") or metadata.get("zip_urls", {}).get("medium")) if asset.role == "ugoira_zip" and metadata else asset.source_url
+                if not url:
+                    continue
+                extension = ".zip" if asset.role == "ugoira_zip" else PurePosixPath(urlsplit(url).path).suffix.lower()
+                if extension not in (".jpg", ".jpeg", ".png", ".gif", ".webp", ".zip"):
+                    raise InvalidMedia("原件的文件类型无法识别")
+                target.update(url=url, requested_url=url, path=asset.relative_path or f"{directory}/{work.pixiv_illust_id}_p{asset.page_index}{extension}")
+                kind = "download"
+            key = f"asset-{asset.id}"
+            required.append(key)
+            specs.append(ItemSpec(key, kind, target, "downloading", "assets"))
+        if work.type == "ugoira":
+            if not required and not all(asset.state == "verified" for asset in assets):
+                return specs
+            if required:
+                key = f"pair-{work.id}"
+                specs.append(ItemSpec(key, "ugoira_pair", {"work_id": work.id, "revision": intent.revision}, "verifying", "works", tuple(required)))
+                required = [key]
+            preview = session.scalar(select(Derivative).where(Derivative.work_id == work.id, Derivative.kind == "gif", Derivative.spec_key == "v1"))
+            if required or preview is None or preview.state not in ("verified", "unknown"):
+                if preview is None:
+                    preview = Derivative(work_id=work.id, kind="gif")
+                    session.add(preview); session.flush()
+                key = f"preview-{preview.id}"
+                specs.append(ItemSpec(key, "gif", {"work_id": work.id, "record_id": preview.id, "path": preview.relative_path or f"{directory}/{work.pixiv_illust_id}.gif", "revision": intent.revision, "force": bool(required)}, "converting", "previews", tuple(required)))
+                required = [key]
+        else:
+            first = next((asset for asset in assets if asset.page_index == 0), None)
+            required = [key for key in required if first and key == f"asset-{first.id}"]
+            if not required and (first is None or first.state != "verified"):
+                return specs
+        thumbnail = session.scalar(select(Derivative).where(Derivative.work_id == work.id, Derivative.kind == "thumbnail", Derivative.page_index == 0, Derivative.spec_key == "v1"))
+        if required or thumbnail is None or thumbnail.state not in ("verified", "unknown"):
+            if thumbnail is None:
+                thumbnail = Derivative(work_id=work.id, kind="thumbnail")
+                session.add(thumbnail); session.flush()
+            specs.append(ItemSpec(f"thumbnail-{thumbnail.id}", "thumbnail", {"work_id": work.id, "record_id": thumbnail.id, "revision": intent.revision, "path": f".thumbnails/{work.pixiv_illust_id}_p0_v1.webp", "force": bool(required)}, "thumbnails", "previews", tuple(required)))
+        return specs
 
     def plan(self, parameters, context):
         specs = []
@@ -212,7 +318,7 @@ class ArchiveHandler:
             # The API already commits suppression immediately; repeating it is idempotent.
             for work_id in sorted(set(parameters["work_ids"])):
                 for journal_id in self.publisher.suppress(work_id):
-                    specs.append(ItemSpec(f"delete-{journal_id}", "delete", {"journal_id": journal_id}, "deleting", "files"))
+                    specs.append(ItemSpec(f"delete-{journal_id}", "delete", {"work_id": work_id, "journal_id": journal_id}, "deleting", "files"))
             return specs
         if self.kind in ("metadata", "bookmarks"):
             ids = self._artist_ids(parameters, context)
@@ -236,16 +342,27 @@ class ArchiveHandler:
                             raise KeyError(artist_id)
                         remote_id, name = artist.pixiv_user_id, artist.name
                     context.report("checking", index, len(ids), "artists", f"正在检查 {name}")
-                    if self.profiles is not None and (artist.profile_refreshed_at is None or
-                            artist.profile_refreshed_at < utcnow() - timedelta(days=1)):
-                        try:
-                            self.profiles.refresh(artist_id)
-                        except Exception as exc:
-                            specs.append(ItemSpec(f"profile-error-{artist_id}", "error", safe_failure(exc), "metadata", "artists"))
+                    if self.profiles is not None and (artist.profile_refreshed_at is None or artist.profile_refreshed_at < utcnow() - timedelta(days=1)):
+                        with self.database.write() as session:
+                            parent = session.get(Operation, context.operation_id)
+                            context.queue.enqueue_in_transaction(session, "metadata", {"artist_ids": [artist_id]},
+                                f"刷新 {name} 的资料", parent.source, parent_id=context.operation_id,
+                                specs=[ItemSpec(f"metadata-artist-{artist_id}", "metadata_artist", {"artist_id": artist_id}, "metadata", "artists")])
                     versions, account = self._bookmark_scope(artist_id)
                     for discovery_index, data in enumerate(self.client.get_all_artist_illusts(remote_id)):
                         try:
-                            work_id = self._save_remote_work(artist_id, data)
+                            metadata, metadata_error = None, None
+                            if data.get("type") == "ugoira":
+                                with self.database.read() as session:
+                                    existing = session.scalar(select(Work).where(Work.pixiv_illust_id == str(data["illust_id"])))
+                                    deferred = existing and (existing.source_metadata or {}).get("original_backfill_requires_selection")
+                                    needs_metadata = existing is None or bool(session.scalar(select(Asset.id).where(Asset.work_id == existing.id, Asset.state.in_(("missing", "failed", "invalid", "mismatch", "source_changed"))).limit(1))) or bool(existing and (existing.source_metadata or {}).get("source_updates")) or bool(existing and data.get("urls", []) != (existing.source_metadata or {}).get("urls", []))
+                                if needs_metadata and not deferred:
+                                    try:
+                                        metadata = self.client.get_ugoira_metadata(str(data["illust_id"]))
+                                    except Exception as exc:
+                                        metadata_error = safe_failure(exc)
+                            work_id = self._save_remote_work(artist_id, data, context=context, metadata=metadata, metadata_error=metadata_error)
                         except WorkMetadataConflict as exc:
                             failure = {**safe_failure(exc), "pixiv_id": str(data["illust_id"])}
                             specs.append(ItemSpec(f"work-conflict-{artist_id}-{discovery_index}",
@@ -254,22 +371,26 @@ class ArchiveHandler:
                         # New works begin at version zero; any newer user action
                         # wins before this older discovery response is applied.
                         self._apply_bookmark(work_id, data, versions.get(str(data["illust_id"]), 0), account)
+                    specs.append(ItemSpec(f"checked-artist-{artist_id}", "checked", {"artist_id": artist_id}, "checking", "artists"))
                     with self.database.write() as session:
                         session.get(Artist, artist_id).last_checked_at = utcnow()
                 except Exception as exc:
                     specs.append(ItemSpec(f"artist-error-{artist_id}", "error", safe_failure(exc), "checking", "artists"))
                 context.report("checking", index + 1, len(ids), "artists", "已检查画师")
-            work_ids = self._work_ids({"artist_ids": ids})
+            return specs
         else:
             work_ids = self._work_ids(parameters)
         context.report("inventory", 0, len(work_ids), "works", "正在清点本地文件")
         for index, work_id in enumerate(work_ids):
             try:
-                specs.extend(self._plan_work(work_id, parameters, context))
+                work_specs = self._plan_work(work_id, parameters, context)
+                specs.extend(work_specs)
+                with self.database.write() as session:
+                    context.queue.materialize_in_transaction(session, context.operation_id, work_specs)
             except SuppressedWork:
-                specs.append(ItemSpec(f"suppressed-{work_id}", "skip", {"message": "作品已删除，旧任务不再处理"}, "checking", "works"))
+                specs.append(ItemSpec(f"suppressed-{work_id}", "skip", {"work_id": work_id, "message": "作品已删除，旧任务不再处理"}, "checking", "works"))
             except Exception as exc:
-                specs.append(ItemSpec(f"work-error-{work_id}", "error", safe_failure(exc), "checking", "works"))
+                specs.append(ItemSpec(f"work-error-{work_id}", "error", {**safe_failure(exc), "work_id": work_id}, "checking", "works"))
             context.report("inventory", index + 1, len(work_ids), "works", "已清点作品")
         return specs
 
@@ -282,8 +403,20 @@ class ArchiveHandler:
                 statement = statement.where(Work.artist_id.in_(parameters["artist_ids"]))
             return list(session.scalars(statement.order_by(Work.id)))
 
+    @staticmethod
+    def _retain_legacy_source_update(session, asset):
+        if asset.state != "source_changed":
+            return False
+        work = session.get(Work, asset.work_id)
+        updates = dict((work.source_metadata or {}).get("source_updates", {}))
+        updates.setdefault(asset.id, {"requested_url": asset.source_url, "reason": "历史来源变更尚未补齐，现有文件保留"})
+        work.source_metadata = {**work.source_metadata, "source_updates": updates}
+        asset.state = "unknown" if asset.relative_path else "missing"
+        asset.error = None
+        return True
+
     def _inspect_asset(self, asset, force=False):
-        if asset.state == "source_changed" or asset.state == "mismatch" and not force:
+        if asset.state in ("source_changed", "mismatch") and not force:
             return False
         try:
             if not asset.relative_path:
@@ -297,10 +430,15 @@ class ArchiveHandler:
             verified = verify_media(path, asset.role)
             with self.database.write() as session:
                 stored = session.get(Asset, asset.id)
+                before = (stored.state, stored.error, stored.byte_size, stored.sha256, stored.width, stored.height, stored.file_mtime_ns, stored.file_identity)
+                self._retain_legacy_source_update(session, stored)
                 stored.state, stored.error, stored.verified_at = "verified", None, utcnow()
                 stored.byte_size, stored.sha256 = verified.byte_size, verified.sha256
                 stored.width, stored.height = verified.width, verified.height
                 stored.file_mtime_ns, stored.file_identity = stat.st_mtime_ns, stat.st_ino
+                after = (stored.state, stored.error, stored.byte_size, stored.sha256, stored.width, stored.height, stored.file_mtime_ns, stored.file_identity)
+                if before != after:
+                    bump_catalogue_revision(session)
             return True
         except (InvalidMedia, OSError, ValueError) as exc:
             with self.database.write() as session:
@@ -311,9 +449,28 @@ class ArchiveHandler:
                 if stored.state != "failed":
                     stored.state = "invalid" if asset.relative_path else "missing"
                     stored.error = getattr(exc, "user_message", "原件缺失或无法读取")
+                    bump_catalogue_revision(session)
             return False
 
     def _plan_work(self, work_id, parameters, context):
+        with self.database.write() as session:
+            stored_work = session.get(Work, work_id)
+            if stored_work is None:
+                raise SuppressedWork()
+            intent = session.get(ArchiveIntent, stored_work.pixiv_illust_id)
+            if intent is None or intent.mode != "keep":
+                raise SuppressedWork()
+            legacy_changed = bool([self._retain_legacy_source_update(session, asset) for asset in stored_work.assets if asset.state == "source_changed"])
+            known = {(asset.role, asset.page_index) for asset in stored_work.assets}
+            roles = [("ugoira_zip", 0), ("ugoira_timing", 0)] if stored_work.type == "ugoira" else [("image", index) for index in range(stored_work.page_count)]
+            added = False
+            urls = (stored_work.source_metadata or {}).get("urls", [])
+            for role, index in roles:
+                if (role, index) not in known:
+                    session.add(Asset(work_id=work_id, role=role, page_index=index, state="missing", source_url=urls[index].get("original") if role == "image" and index < len(urls) else None))
+                    added = True
+            if added or legacy_changed:
+                bump_catalogue_revision(session)
         with self.database.read() as session:
             work = session.scalar(select(Work).options(selectinload(Work.assets), selectinload(Work.artist)).where(Work.id == work_id))
             intent = session.get(ArchiveIntent, work.pixiv_illust_id)
@@ -328,6 +485,15 @@ class ArchiveHandler:
                 if ledger and isinstance(ledger.value, dict) else {}))
             blocked_remote = remote_track if self.kind == "check" and remote_track.get("status") == "attention" else None
         specs, required = [], []
+        if self.kind == "verify":
+            for asset in assets:
+                specs.append(ItemSpec(f"verify-{asset.id}", "verify_asset", {"asset_id": asset.id, "work_id": work_id, "revision": revision}, "verifying", "assets"))
+            if work.type == "ugoira":
+                specs.append(ItemSpec(f"verify-pair-{work_id}", "ugoira_pair", {"work_id": work_id, "revision": revision}, "verifying", "works", tuple(spec.key for spec in specs)))
+                with self.database.read() as session:
+                    preview = session.scalar(select(Derivative).where(Derivative.work_id == work_id, Derivative.kind == "gif", Derivative.spec_key == "v1"))
+                specs.append(ItemSpec(f"verify-gif-{work_id}", "verify_derivative", {"work_id": work_id, "record_id": preview.id if preview else None, "role": "gif", "revision": revision}, "verifying", "previews"))
+            return specs
         remote_failure = None
         defer_originals = work.source_metadata.get("original_backfill_requires_selection") and self.kind != "backfill"
         local_only = self.kind in ("verify", "thumbnails")
@@ -336,18 +502,35 @@ class ArchiveHandler:
             # Routine maintenance trusts recorded verified siblings. It only
             # inspects the explicit gap; full-file verification is a separate
             # user action and must not be hidden in an automatic repair.
-            inspected = (asset for asset in assets if asset.state in ("missing", "failed", "invalid", "mismatch")) if maintenance else assets
-            missing = [asset for asset in inspected if not self._inspect_asset(asset, force=self.kind == "verify")]
+            updates = (work.source_metadata or {}).get("source_updates", {})
+            inspected = (asset for asset in assets if asset.state in ("missing", "failed", "invalid", "mismatch", "source_changed") or asset.id in updates or not maintenance and self.kind in ("repair", "backfill") or self.kind == "backfill" and asset.state == "missing_deferred")
+            missing = [asset for asset in inspected if asset.id in updates or asset.state == "source_changed" or not self._inspect_asset(asset)]
             metadata = None
             if missing and not local_only and blocked_remote:
                 remote_failure = {"message": blocked_remote.get("reason") or "来源缺项等待手动核对",
                     "failure_code": blocked_remote.get("failure_code"), "retryable": False}
-                specs.append(ItemSpec(f"remote-error-{work_id}", "error", remote_failure,
+                specs.append(ItemSpec(f"remote-error-{work_id}", "error", {**remote_failure, "work_id": work_id},
                                       "downloading", "assets"))
             if missing and not local_only and not remote_failure:
                 try:
                     if work.type == "ugoira":
                         metadata = self.client.get_ugoira_metadata(work.pixiv_illust_id)
+                        requested = metadata.get("zip_urls", {}).get("original") or metadata.get("zip_urls", {}).get("medium")
+                        with self.database.write() as session:
+                            owner = session.get(Work, work_id)
+                            source_updates = dict((owner.source_metadata or {}).get("source_updates", {}))
+                            for missing_asset in missing:
+                                if missing_asset.role == "ugoira_zip" and requested:
+                                    stored = session.get(Asset, missing_asset.id)
+                                    stored.source_url = requested
+                                    if stored.id in source_updates:
+                                        source_updates[stored.id] = {**source_updates[stored.id], "requested_url": requested}
+                            owner.source_metadata = {**owner.source_metadata, "source_updates": source_updates}
+                            self._remember_timing_source(session, owner, metadata)
+                        with self.database.read() as session:
+                            owner = session.get(Work, work_id)
+                            ids = {asset.id for asset in missing} | set((owner.source_metadata or {}).get("source_updates", {}))
+                            missing = list(session.scalars(select(Asset).where(Asset.work_id == work_id, Asset.id.in_(ids))))
                         self._resume_ugoira_attention(work_id)
                     elif any(not asset.source_url for asset in missing):
                         self._refresh_work(work.artist_id, work.pixiv_illust_id, work_id)
@@ -360,7 +543,7 @@ class ArchiveHandler:
                             stored = session.get(Asset, asset.id)
                             if stored is not None and stored.state in ("missing", "failed", "invalid", "mismatch"):
                                 stored.error = remote_failure["message"]
-                    specs.append(ItemSpec(f"remote-error-{work_id}", "error", remote_failure,
+                    specs.append(ItemSpec(f"remote-error-{work_id}", "error", {**remote_failure, "work_id": work_id},
                                           "downloading", "assets"))
             for asset in missing:
                 if remote_failure:
@@ -368,11 +551,11 @@ class ArchiveHandler:
                 key = f"asset-{asset.id}"
                 required.append(key)
                 if local_only:
-                    specs.append(ItemSpec(key, "error", {"message": "原件缺失或损坏，可选择补下载"}, "verifying", "pages"))
+                    specs.append(ItemSpec(key, "error", {"work_id": work_id, "message": "原件缺失或损坏，可选择补下载"}, "verifying", "pages"))
                     continue
-                target = {"asset_id": asset.id, "revision": revision}
+                target = {"work_id": work_id, "asset_id": asset.id, "revision": revision}
                 if asset.role == "ugoira_timing":
-                    target.update({"frames": metadata["frames"], "path": asset.relative_path or f"{directory}/{work.pixiv_illust_id}.frames.json"})
+                    target.update({"frames": metadata["frames"], "requested_url": asset.source_url, "expected_fingerprint": self._timing_fingerprint(metadata), "path": asset.relative_path or f"{directory}/{work.pixiv_illust_id}.frames.json"})
                     kind = "timing"
                 else:
                     url = (metadata.get("zip_urls", {}).get("original") or metadata["zip_urls"]["medium"]) if asset.role == "ugoira_zip" else asset.source_url
@@ -381,7 +564,7 @@ class ArchiveHandler:
                     extension = ".zip" if asset.role == "ugoira_zip" else PurePosixPath(urlsplit(url).path).suffix.lower()
                     if extension not in (".jpg", ".jpeg", ".png", ".gif", ".webp", ".zip"):
                         raise InvalidMedia("原件的文件类型无法识别")
-                    target.update({"url": url, "path": asset.relative_path or f"{directory}/{work.pixiv_illust_id}_p{asset.page_index}{extension}"})
+                    target.update({"url": url, "requested_url": url, "path": asset.relative_path or f"{directory}/{work.pixiv_illust_id}_p{asset.page_index}{extension}"})
                     kind = "download"
                 specs.append(ItemSpec(key, kind, target, "downloading", "assets"))
         if self.kind == "thumbnails" and work.type != "ugoira":
@@ -407,11 +590,11 @@ class ArchiveHandler:
             usable = self._derivative_usable(preview, "gif")
             pair_ready = all(asset.state == "verified" for asset in assets
                              if asset.role in ("ugoira_zip", "ugoira_timing")) and len(assets) >= 2
-            if not usable and not defer_originals and not local_only and (not remote_failure or pair_ready):
+            if (not usable or required) and not defer_originals and not local_only and (not remote_failure or pair_ready):
                 preview_id = self._ensure_derivative(work_id, "gif")
                 key = f"preview-{preview_id}"
                 specs.append(ItemSpec(key, "gif", {"work_id": work_id, "record_id": preview_id,
-                    "path": f"{directory}/{work.pixiv_illust_id}.gif", "revision": revision},
+                    "path": (preview.relative_path if preview else None) or f"{directory}/{work.pixiv_illust_id}.gif", "revision": revision, "force": bool(required)},
                     "converting", "previews", tuple(required)))
                 required = [key]
             elif not usable:
@@ -419,7 +602,9 @@ class ArchiveHandler:
         with self.database.read() as session:
             thumbnail = session.scalar(select(Derivative).where(Derivative.work_id == work_id,
                 Derivative.kind == "thumbnail", Derivative.page_index == 0, Derivative.spec_key == "v1"))
-        if not self._derivative_usable(thumbnail, "thumbnail") and self.kind != "verify":
+        first_asset = next((asset for asset in assets if asset.role == "image" and asset.page_index == 0), None)
+        relevant_required = required if work.type == "ugoira" else [key for key in required if first_asset and key == f"asset-{first_asset.id}"]
+        if (relevant_required or not self._derivative_usable(thumbnail, "thumbnail")) and self.kind != "verify":
             if work.type != "ugoira":
                 # Later missing pages must not prevent a usable first-page card.
                 first_asset = next((asset for asset in assets if asset.role == "image" and asset.page_index == 0), None)
@@ -431,7 +616,7 @@ class ArchiveHandler:
             thumbnail_id = self._ensure_derivative(work_id, "thumbnail")
             specs.append(ItemSpec(f"thumbnail-{thumbnail_id}", "thumbnail", {
                 "work_id": work_id, "record_id": thumbnail_id, "revision": revision,
-                "path": f".thumbnails/{work.pixiv_illust_id}_p0_v1.webp"}, "thumbnails", "previews", tuple(required)))
+                "path": f".thumbnails/{work.pixiv_illust_id}_p0_v1.webp", "force": bool(required)}, "thumbnails", "previews", tuple(required)))
         if self.kind in ("repair", "verify", "backfill") and not maintenance:
             self._clear_remote_attention_if_complete(work_id)
         return specs
@@ -491,6 +676,7 @@ class ArchiveHandler:
             with self.database.write() as session:
                 stored = session.get(Derivative, record.id)
                 stored.state, stored.error = "outdated", "输入文件已改变，等待重建预览"
+                bump_catalogue_revision(session)
             return False
         try:
             path = contained_path(self.publisher.root, record.relative_path)
@@ -505,14 +691,37 @@ class ArchiveHandler:
                 stored.width, stored.height = verified.width, verified.height
                 stored.byte_size, stored.sha256, stored.verified_at = verified.byte_size, verified.sha256, utcnow()
                 stored.file_mtime_ns, stored.file_identity = stat.st_mtime_ns, stat.st_ino
+                bump_catalogue_revision(session)
             return True
         except (InvalidMedia, OSError, ValueError):
             with self.database.write() as session:
                 stored = session.get(Derivative, record.id)
                 stored.state, stored.error = "invalid", "预览文件缺失或损坏，可以重建"
+                bump_catalogue_revision(session)
             return False
 
     def execute(self, item, context):
+        if item.kind == "checked":
+            return ItemResult()
+        if item.kind == "verify_asset":
+            with self.database.read() as session:
+                record = session.get(Asset, item.target["asset_id"])
+                work = session.get(Work, item.target["work_id"])
+                intent = session.get(ArchiveIntent, work.pixiv_illust_id) if work else None
+                if record is None or intent is None or intent.mode != "keep" or intent.revision != item.target["revision"]:
+                    return ItemResult("skipped", {"message": "保存决定已改变"})
+            valid = self._inspect_asset(record, force=True)
+            if valid:
+                self._clear_remote_attention_if_complete(item.target["work_id"])
+            return ItemResult("succeeded" if valid else "failed", {"message": "原件核验完成"})
+        if item.kind == "verify_derivative":
+            with self.database.read() as session:
+                work = session.get(Work, item.target["work_id"])
+                intent = session.get(ArchiveIntent, work.pixiv_illust_id) if work else None
+                if intent is None or intent.mode != "keep" or intent.revision != item.target["revision"]:
+                    return ItemResult("skipped", {"message": "保存决定已改变"})
+                record = session.get(Derivative, item.target["record_id"]) if item.target.get("record_id") else None
+            return ItemResult("succeeded" if self._derivative_usable(record, item.target["role"]) else "failed", {"message": "预览核验完成" if record else "缺少动图预览"})
         if item.kind in ("metadata_artist", "metadata_work", "bookmark_artist"):
             return self._execute_metadata(item)
         if item.kind == "delete":
@@ -539,9 +748,13 @@ class ArchiveHandler:
             intent = session.get(ArchiveIntent, work.pixiv_illust_id)
             if intent is None or intent.mode != "keep" or intent.revision != target["revision"]:
                 return ItemResult("skipped", {"message": "保存决定已改变，此项不再执行"})
-        if not derivative and self._inspect_asset(record):
+        requested_url = target.get("requested_url", target.get("url"))
+        update = (work.source_metadata or {}).get("source_updates", {}).get(record_id)
+        if requested_url and record.source_url and requested_url != record.source_url:
+            return ItemResult("skipped", {"message": "来源已再次更新，此旧任务不再发布"})
+        if not derivative and not update and self._inspect_asset(record):
             return ItemResult(detail={"message": "原件已核验，无需再次下载"})
-        if derivative and self._derivative_usable(record, item.kind):
+        if derivative and not target.get("force") and self._derivative_usable(record, item.kind):
             return ItemResult(detail={"message": "预览已核验，无需再次生成"})
         relative, staged = self.publisher.staging()
         try:
@@ -573,7 +786,7 @@ class ArchiveHandler:
                 verified = build_gif(source, timing, staged) if item.kind == "gif" else build_thumbnail(source, staged)
             journal_id = self.publisher.prepare(record_id, relative, target["path"], verified,
                 derivative=derivative, item_id=context.item_id, expected_revision=target["revision"],
-                source_version=self._source_version(record) if derivative else None)
+                source_version=self._source_version(record) if derivative else None, requested_url=requested_url, expected_source_fingerprint=target.get("expected_fingerprint"))
             state = self.publisher.publish(journal_id)
             if state == "committed" and not derivative:
                 self._clear_remote_attention_if_complete(work.id)
@@ -584,7 +797,15 @@ class ArchiveHandler:
             with self.database.write() as session:
                 stored = session.get(Derivative if derivative else Asset, record_id)
                 if stored is not None:
-                    stored.state, stored.error = "failed", safe_failure(exc)["message"]
+                    if not derivative and stored.state in ("verified", "unknown", "source_changed") and stored.relative_path:
+                        owner = session.get(Work, stored.work_id)
+                        updates = dict((owner.source_metadata or {}).get("source_updates", {}))
+                        if requested_url and (not updates.get(record_id) or updates[record_id].get("requested_url") == requested_url):
+                            updates[record_id] = {**updates.get(record_id, {}), "requested_url": requested_url, "reason": safe_failure(exc)["message"]}
+                            owner.source_metadata = {**owner.source_metadata, "source_updates": updates}
+                    else:
+                        stored.state, stored.error = "failed", safe_failure(exc)["message"]
+                    bump_catalogue_revision(session)
             raise
 
     def _execute_metadata(self, item):

@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 from datetime import datetime, timedelta
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import aliased
 
 from .models import ApplicationState, ArchiveIntent, Asset, Derivative, Operation, OperationItem, Work, utcnow
@@ -79,7 +79,7 @@ class MissingMediaMaintenance:
         self.remote_available, self.now, self.monotonic = remote_available, now, monotonic
         self._next_scan = 0.0
         self._next_remote = 0.0
-        self._cursors = {"remote": 0, "image": 0, "gif": 0, "pair": 0}
+        self._cursors = {"remote": 0, "incomplete": 0, "source": 0, "image": 0, "gif": 0, "pair": 0}
 
     def _reconcile(self, now):
         with self.database.write() as session:
@@ -178,7 +178,15 @@ class MissingMediaMaintenance:
 
             missing_assets = page(select(Work.id, Work.type, Work.source_metadata).join(
                 Asset, Asset.work_id == Work.id).join(ArchiveIntent, eligible).where(
-                    Asset.state.in_(("missing", "failed", "invalid", "mismatch"))).distinct(), "remote")
+                    Asset.state.in_(("missing", "failed", "invalid", "mismatch", "source_changed"))).distinct(), "remote")
+            # Imported catalogues may omit required page rows entirely.
+            asset_count = select(func.count()).select_from(Asset).where(Asset.work_id == Work.id).correlate(Work).scalar_subquery()
+            incomplete = page(select(Work.id, Work.type, Work.source_metadata).join(ArchiveIntent, eligible).where(
+                asset_count < case((Work.type == "ugoira", 2), else_=Work.page_count)), "incomplete")
+            pending_sources = page(select(Work.id, Work.type, Work.source_metadata).join(ArchiveIntent, eligible).where(
+                func.json_extract(Work.source_metadata, "$.source_updates").is_not(None),
+                func.json_extract(Work.source_metadata, "$.source_updates") != "{}"), "source")
+            missing_assets = list({row.id: row for row in missing_assets + incomplete + pending_sources}.values())
             remote = [row.id for row in missing_assets if not (
                 row.type == "ugoira" and (row.source_metadata or {}).get("original_backfill_requires_selection"))]
 
@@ -246,15 +254,6 @@ class MissingMediaMaintenance:
         if not self.queue._accepting:
             return []
         with self.database.read() as session:
-            # Existing user work always wins. It may also repair these works.
-            paused = self.queue.automatic_paused()
-            busy = [Operation.source != "maintenance", Operation.state.in_(ACTIVE)]
-            if paused:
-                busy.append(~and_(Operation.source == "automatic", Operation.state == "queued",
-                                  Operation.started_at.is_(None)))
-            if session.scalar(select(Operation.id).where(*busy).limit(1)):
-                self._next_scan = clock + BACKLOG_SECONDS
-                return []
             if session.scalar(select(Operation.id).where(Operation.source == "maintenance",
                                                          Operation.state.in_(ACTIVE)).limit(1)):
                 self._next_scan = clock + BACKLOG_SECONDS
@@ -298,10 +297,13 @@ class MissingMediaMaintenance:
         selected_remote = [work_id for work_id, _, name in submitted if name == "remote"]
         selected_local = [work_id for work_id, _, name in submitted if name == "local"]
         if remote_open:
-            if selected_remote:
-                self._cursors["remote"] = min(selected_remote)
-            elif windows["remote"] and not any(due(work_id, "remote") for work_id in remote):
-                self._cursors["remote"] = min(windows["remote"])
+            for name in ("remote", "incomplete", "source"):
+                window = windows[name]
+                chosen = [work_id for work_id in selected_remote if work_id in window]
+                if chosen:
+                    self._cursors[name] = min(chosen)
+                elif window and not any(due(work_id, "remote") for work_id in window):
+                    self._cursors[name] = min(window)
         for name in ("image", "gif", "pair"):
             window = windows[name]
             chosen = [work_id for work_id in selected_local if work_id in window]

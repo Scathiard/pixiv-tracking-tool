@@ -3,7 +3,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { api, url } from './api'
 import { LatestIntent } from './interaction'
-import { cardSourceLabel, cardSourceReason, needsCardRefresh, type GalleryBatch, type WorkCard } from './types'
+import { observeCatalogueData } from './state/catalogue'
+import { cardSourceLabel, cardSourceReason, isOlderCatalogue, needsCardRefresh, type GalleryBatch, type WorkCard } from './types'
 import GalleryCardImage from './GalleryCardImage.vue'
 import BookmarkButton from './components/BookmarkButton.vue'
 import RestrictionBadge from './components/RestrictionBadge.vue'
@@ -14,6 +15,7 @@ const page = ref(0), start = ref(0), columns = ref(5), width = ref(1000), loadin
 const request = new LatestIntent()
 let observer: ResizeObserver | null = null, restoreIndex = 0, refreshTimer = 0, restoring = false, scrollFrame = 0
 const REFRESH_MS = 12000
+let catalogueRevision: number | undefined
 const rowHeight = computed(() => ((width.value - 16 * (columns.value - 1)) / columns.value) * 1.225 + 84)
 const virtual = useVirtualizer(computed(() => ({count: Math.ceil(works.value.length / columns.value),
   getScrollElement: () => viewport.value, estimateSize: () => rowHeight.value, overscan: 2})))
@@ -50,8 +52,10 @@ async function fetchRange(offset: number, limit: number, anchor: number, backgro
   const ticket = request.begin(); loading.value = true; error.value = ''
   try {
     const data = await api<GalleryBatch>(url('/api/library', props.query, {offset, limit, compact: 1}), {signal: ticket.signal})
-    if (!ticket.current()) return
+    if (!ticket.current() || isOlderCatalogue(data.catalogue_revision, catalogueRevision)) return
+    catalogueRevision = data.catalogue_revision ?? catalogueRevision
     start.value = offset; total.value = data.total; works.value = data.items; emit('total', data.total)
+    observeCatalogueData(data.catalogue_revision)
     if (!background) { restoreIndex = anchor; await restore(anchor); if (!ticket.current()) return; if (!props.continuous) emit('page', page.value) }
     await nextTick()
   } catch (failure) {
@@ -68,6 +72,7 @@ function load(index: number, anchor = index * props.pageSize) {
   return fetchRange(index * props.pageSize, props.pageSize, anchor)
 }
 function restart() {
+  catalogueRevision = undefined
   clearTimeout(refreshTimer); refreshTimer = 0
   if (props.continuous) {
     const offset = Math.floor(Math.max(0, props.startIndex - columns.value * 12) / columns.value) * columns.value
@@ -96,7 +101,8 @@ async function extend(direction: number) {
     const offset = direction > 0 ? end : Math.max(0, start.value - amount)
     const limit = direction > 0 ? amount : start.value - offset
     const data = await api<GalleryBatch>(url('/api/library', props.query, {offset, limit, compact: 1}), {signal: ticket.signal})
-    if (!ticket.current()) return
+    if (!ticket.current() || isOlderCatalogue(data.catalogue_revision, catalogueRevision)) return
+    catalogueRevision = data.catalogue_revision ?? catalogueRevision
     const row = rows.value.find(row => row.end > (viewport.value?.scrollTop || 0))
     const anchor = start.value + (row?.index || 0) * columns.value
     const pixel = (viewport.value?.scrollTop || 0) - (row?.start || 0)
@@ -108,6 +114,7 @@ async function extend(direction: number) {
       else items = items.slice(0, items.length - trim)
     }
     start.value = first; works.value = items; total.value = data.total
+    observeCatalogueData(data.catalogue_revision)
     await restore(anchor, pixel); if (!ticket.current()) return
   } catch (failure) { if (ticket.current()) error.value = failure instanceof Error ? failure.message : '更多作品暂时无法载入' }
   finally { if (ticket.current()) { loading.value = false; queueRefresh() } }
@@ -147,6 +154,7 @@ onMounted(() => {
   restart()
 })
 onBeforeUnmount(() => { request.cancel(); observer?.disconnect(); clearTimeout(refreshTimer); cancelAnimationFrame(scrollFrame); window.removeEventListener('archive-updated', archiveUpdated); document.removeEventListener('visibilitychange', visibilityChanged) })
+defineExpose({isAtBeginning: () => (!props.continuous ? page.value === 0 : start.value === 0) && (viewport.value?.scrollTop || 0) < 4})
 </script>
 <template>
   <section class="gallery-view" aria-label="本地图库">
@@ -156,7 +164,7 @@ onBeforeUnmount(() => { request.cancel(); observer?.disconnect(); clearTimeout(r
         <div v-for="row in rows" :key="String(row.key)" class="gallery-row" :style="{transform: `translateY(${row.start}px)`, gridTemplateColumns: `repeat(${columns},minmax(0,1fr))`}">
           <article v-for="(work, col) in works.slice(row.index * columns, (row.index + 1) * columns)" :key="work.id"
             class="work-card" :class="{'is-hidden': work.is_hidden}" :data-work-id="work.id">
-            <button class="card-open" :aria-label="`查看 ${work.title}${work.x_restrict === 2 ? '，R-18G' : work.x_restrict === 1 ? '，R-18' : ''}${cardSourceLabel(work) ? `，${cardSourceLabel(work)}：${cardSourceReason(work) || '详情可查看原因'}` : ''}`" @click="emit('open', start + row.index * columns + col)"><div class="card-picture"><GalleryCardImage :thumbnail="work.thumbnail" :preview="work.type === 'ugoira' ? null : work.preview || null" :preview-status="work.preview_status || 'pending'" :recovery="work.recovery" :animation="work.type === 'ugoira'" :label="work.title" /><RestrictionBadge :value="work.x_restrict" /><span v-if="cardSourceLabel(work)" class="card-source" :title="cardSourceReason(work) || cardSourceLabel(work) || undefined">{{ cardSourceLabel(work) }}</span><span v-if="work.type === 'ugoira' || work.page_count > 1" class="card-count">{{ work.type === 'ugoira' ? '动图' : work.page_count + ' 页' }}</span></div><strong>{{ work.title }}</strong></button>
+            <button class="card-open" :aria-label="`查看 ${work.title}${work.x_restrict === 2 ? '，R-18G' : work.x_restrict === 1 ? '，R-18' : ''}${cardSourceLabel(work) ? `，${cardSourceLabel(work)}：${cardSourceReason(work) || '详情可查看原因'}` : ''}`" @click="emit('open', start + row.index * columns + col)"><div class="card-picture"><GalleryCardImage :thumbnail="work.thumbnail" :preview="work.type === 'ugoira' ? null : work.preview || null" :preview-status="work.preview_status || 'pending'" :recovery="work.recovery" :archive="work.archive" :processing="work.processing" :animation="work.type === 'ugoira'" :label="work.title" /><RestrictionBadge :value="work.x_restrict" /><span v-if="cardSourceLabel(work)" class="card-source" :title="cardSourceReason(work) || cardSourceLabel(work) || undefined">{{ cardSourceLabel(work) }}</span><span v-if="work.type === 'ugoira' || work.page_count > 1" class="card-count">{{ work.type === 'ugoira' ? '动图' : work.page_count + ' 页' }}</span></div><strong>{{ work.title }}</strong></button>
             <button class="card-artist" @click="emit('artist', work.artist_id)">{{ work.artist_name }}<span v-if="work.is_hidden"> · 已隐藏</span></button>
             <BookmarkButton :work-id="work.id" :initial="work.bookmark" @message="emit('message', $event)" />
           </article>

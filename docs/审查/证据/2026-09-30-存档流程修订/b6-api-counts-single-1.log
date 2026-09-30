@@ -1,0 +1,33 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+____________ test_legacy_submit_has_identifiable_persistent_result ____________
+
+pages = (<starlette.testclient.TestClient object at 0x000001FA151E9B50>, <src.core.runtime.Runtime object at 0x000001FA1509AB10>)
+
+    def test_legacy_submit_has_identifiable_persistent_result(pages):
+        client, runtime = pages
+        submission = client.post("/settings/validate-and-fix", headers={"Origin": "http://localhost"})
+        assert submission.status_code == 200
+        task_id = submission.json()["operation_id"]
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            result = client.get("/api/tasks/" + task_id).json()
+            if result["state"] == "finished":
+                break
+            time.sleep(0.05)
+>       assert result["state"] == "finished"
+E       AssertionError: assert 'running' == 'finished'
+E
+E         - finished
+E         + running
+
+tests\test_archive_pages.py:64: AssertionError
+============================== warnings summary ===============================
+..\..\..\.devtools\v012-env\Lib\site-packages\starlette\testclient.py:45
+  D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_archive_pages.py::test_legacy_submit_has_identifiable_persistent_result
+1 failed, 1 warning in 25.52s

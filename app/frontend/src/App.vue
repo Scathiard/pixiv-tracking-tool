@@ -4,7 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { api, prepareImage, url, write } from './api'
 import { LatestIntent } from './interaction'
 import { positions, savePosition } from './positions'
-import { sourceNotice, type Anchor, type GalleryBatch, type Mode, type PageBatch, type PageData, type PageLoader, type WorkDetail } from './types'
+import { archiveNotice, archiveStatus, hasNewWorks, isOlderCatalogue, type Anchor, type GalleryBatch, type Mode, type PageBatch, type PageData, type PageLoader, type WorkDetail } from './types'
+import { observeCatalogueData, queueCatalogueUpdate } from './state/catalogue'
 import FilterPanel from './FilterPanel.vue'
 import GalleryView from './GalleryView.vue'
 import PageReader from './PageReader.vue'
@@ -33,10 +34,13 @@ const mobileMenuButton = ref<HTMLButtonElement | null>(null)
 const removePrompt = ref(false)
 const galleryAnchor = ref(0), galleryWorkId = ref<number | null>(null), pageSize = ref(100), ordinaryIndex = ref(0), desiredIndex = ref(0)
 const continuous = ref(false)
+const galleryView = ref<InstanceType<typeof GalleryView> | null>(null), checkingNewContent = ref(false)
 const currentWork = ref<WorkDetail | null>(null), infoWork = ref<WorkDetail | null>(null), activePage = ref<PageData | null>(null)
 const initialAnchor = ref<Anchor | null>(null), currentAnchor = ref<Anchor | null>(null), zoomPage = ref<PageData | null>(null)
 const reader = ref<InstanceType<typeof PageReader> | null>(null), taskPanel = ref<InstanceType<typeof TaskPanel> | null>(null)
 const navigation = new LatestIntent(), infoRequest = new LatestIntent(), statusRequest = new LatestIntent()
+const newContentRequest = new LatestIntent()
+let newContentAgain = false, revealNewContent = false, hiddenCatalogueUpdate = false
 let saveTime = 0, toastTimer = 0, lastKeyTime = 0, failedNavigation: (() => void) | null = null
 const sessionKey = computed(() => mode.value + ':' + (mode.value === 'reader' ? currentWork.value?.id : '') + ':' + scope.value)
 const heading = computed(() => mode.value === 'gallery' ? new URLSearchParams(scope.value).has('favorites') ? '收藏作品' : new URLSearchParams(scope.value).has('recent') ? '最近存入' : '我的图库' : activePage.value?.title || currentWork.value?.title || '阅览')
@@ -97,6 +101,7 @@ function route(push: boolean) {
   void router[push ? 'push' : 'replace'](target).catch(() => { internalRoute = '' })
 }
 async function initialize(query: string, path = '/', push = false, restoreHistory = false) {
+  newContentRequest.cancel(); checkingNewContent.value = false; newContentAgain = false; revealNewContent = false
   if (path === '/settings' || path === '/artists' || /^\/artist\/\d+$/.test(path)) {
     navigation.cancel(); infoRequest.cancel()
     section.value = path === '/settings' ? 'settings' : 'artists'
@@ -131,7 +136,7 @@ async function initialize(query: string, path = '/', push = false, restoreHistor
     }
     if (!ticket.current()) return
     galleryAnchor.value = Math.min(Math.max(0, batch.total - 1), wantedAnchor)
-    mode.value = 'gallery'; ready.value = true; pending.value = false; newContent.value = false
+    mode.value = 'gallery'; ready.value = true; pending.value = false; newContent.value = restoreHistory && wantedAnchor > 0 && newContent.value
     filterOpen.value = false; infoOpen.value = false; activePage.value = null; currentAnchor.value = null
     const match = path.match(/^\/illust\/(\d+)$/)
     if (match) {
@@ -167,6 +172,7 @@ async function openWork(index: number, saved: Anchor | null = null, push = true)
     activePage.value = null; currentAnchor.value = initialAnchor.value
     if (previousMode === 'feed') detailOrigin.value = 'feed'
     mode.value = 'reader'; section.value = 'library'; filterOpen.value = false; galleryAnchor.value = index; galleryWorkId.value = work.id
+    observeCatalogueData(detail.catalogue_revision)
     route(push && previousMode !== 'reader')
     await nextTick()
   } catch (failure) {
@@ -210,10 +216,10 @@ const loader = computed<PageLoader>(() => {
   const work = currentWork.value!, workIndex = ordinaryIndex.value
   return async (offset, limit, signal) => {
     const detail = await api<WorkDetail>(`/api/works/${work.id}?page_offset=${offset}&page_limit=${limit}`, {signal})
-    return {offset, total: detail.display_page_count, items: detail.pages.map(page => ({...page, work_id: work.id, work_index: workIndex,
+    return {offset, total: detail.display_page_count, catalogue_revision: detail.catalogue_revision, items: detail.pages.map(page => ({...page, work_id: work.id, work_index: workIndex,
       page: page.index, page_count: detail.display_page_count, title: detail.title, artist_name: detail.artist_name,
       artist_id: detail.artist_id, pixiv_id: detail.pixiv_id, type: detail.type, x_restrict: detail.x_restrict,
-      recovery: detail.recovery, availability: detail.availability, next_work_index: detail.display_page_count}))}
+      recovery: detail.recovery, availability: detail.availability, archive: detail.archive, processing: detail.processing, source_update: detail.source_update, next_work_index: detail.display_page_count}))}
   }
 })
 function focused(page: PageData, anchor: Anchor) {
@@ -332,7 +338,7 @@ function backFromDetail() {
   gallery()
 }
 function brandHome() { remember(); detailOrigin.value = 'gallery'; void initialize(homeScope.value, '/', true, true) }
-function foreground() { resumeBookmarkPolling(); if (section.value === 'library' && mode.value !== 'gallery') { const id = activePage.value?.work_id || currentWork.value?.id; if (id) refreshBookmark(id) } }
+function foreground() { resumeBookmarkPolling(); if (hiddenCatalogueUpdate) void checkForNewWorks(); if (section.value === 'library' && mode.value !== 'gallery') { const id = activePage.value?.work_id || currentWork.value?.id; if (id) refreshBookmark(id) } }
 function chooseTheme(theme: 'dark' | 'light', _event: MouseEvent) {
   document.body.dataset.theme = theme
   try { localStorage.setItem('pixiv-local-theme', theme) } catch { /* optional */ }
@@ -357,9 +363,10 @@ onMounted(async () => {
   void initialize(location.search, location.pathname, false, true)
   window.addEventListener('keydown', key); window.addEventListener('pagehide', remember)
   window.addEventListener('focus', foreground)
-  window.addEventListener('archive-updated', refreshCurrentWork)
+  window.addEventListener('archive-updated', archiveUpdated)
+  document.addEventListener('visibilitychange', catalogueVisibilityChanged)
 })
-onBeforeUnmount(() => { remember(); navigation.cancel(); infoRequest.cancel(); statusRequest.cancel(); clearTimeout(toastTimer); clearTimeout(searchTimer); window.removeEventListener('keydown', key); window.removeEventListener('pagehide', remember); window.removeEventListener('focus', foreground); window.removeEventListener('archive-updated', refreshCurrentWork) })
+onBeforeUnmount(() => { remember(); navigation.cancel(); infoRequest.cancel(); statusRequest.cancel(); newContentRequest.cancel(); clearTimeout(toastTimer); clearTimeout(searchTimer); window.removeEventListener('keydown', key); window.removeEventListener('pagehide', remember); window.removeEventListener('focus', foreground); window.removeEventListener('archive-updated', archiveUpdated); document.removeEventListener('visibilitychange', catalogueVisibilityChanged) })
 function changePageSize(value: string) {
   continuous.value = value === 'scroll'
   if (!continuous.value) pageSize.value = Number(value)
@@ -370,10 +377,49 @@ function refreshCurrentWork() {
   if (!target) return
   const ticket = statusRequest.begin()
   void api<WorkDetail>(`/api/works/${target.id}?page_limit=1`, {signal: ticket.signal}).then(work => {
-    if (ticket.current() && mode.value === 'reader' && currentWork.value === target) currentWork.value = work
+    if (ticket.current() && mode.value === 'reader' && currentWork.value === target && !isOlderCatalogue(work.catalogue_revision, target.catalogue_revision)) { currentWork.value = work; observeCatalogueData(work.catalogue_revision) }
   }).catch(() => { /* The current image and navigation stay usable. */ })
 }
-function updated() { newContent.value = true; window.dispatchEvent(new Event('archive-updated')) }
+function applyFreshScope(data: GalleryBatch, ticket: ReturnType<LatestIntent['begin']>) {
+  const params = new URLSearchParams(scope.value)
+  params.set('ceiling', String(data.ceiling)); params.set('as_of', data.as_of)
+  galleryAnchor.value = 0; galleryWorkId.value = data.items[0]?.id || null
+  total.value = data.total; scope.value = params.toString(); newContent.value = false
+  savePosition(scope.value, 'gallery', galleryWorkId.value ? {work_id: galleryWorkId.value, index: 0} : 0)
+  void updateRailCounts(scope.value, ticket)
+  route(false)
+}
+async function checkForNewWorks(reveal = false) {
+  if (section.value !== 'library' || !ready.value) return
+  if (document.hidden) { hiddenCatalogueUpdate = true; return }
+  hiddenCatalogueUpdate = false
+  revealNewContent ||= reveal
+  if (checkingNewContent.value) { newContentAgain = true; return }
+  const ticket = newContentRequest.begin(), previousScope = scope.value
+  const params = new URLSearchParams(previousScope)
+  const ceiling = Number(params.get('ceiling')) || 0
+  params.delete('ceiling'); params.delete('as_of')
+  checkingNewContent.value = true
+  try {
+    const fresh = await api<GalleryBatch>(url('/api/library', params.toString(), {limit: 1, compact: 1}), {signal: ticket.signal})
+    if (!ticket.current() || scope.value !== previousScope) return
+    if (hasNewWorks(fresh, ceiling, total.value)) newContent.value = true
+    if (mode.value === 'gallery' && (revealNewContent || newContent.value && !pending.value && galleryView.value?.isAtBeginning())) {
+      revealNewContent = false
+      applyFreshScope(fresh, ticket)
+    }
+  } catch {
+    if (ticket.current() && revealNewContent) { revealNewContent = false; message('暂时无法查看新作品，当前位置已保留', true) }
+  } finally {
+    if (ticket.current()) {
+      checkingNewContent.value = false
+      if (newContentAgain) { newContentAgain = false; void checkForNewWorks() }
+    }
+  }
+}
+function archiveUpdated() { refreshCurrentWork(); void checkForNewWorks() }
+function catalogueVisibilityChanged() { if (hiddenCatalogueUpdate && !document.hidden) void checkForNewWorks() }
+function updated() { queueCatalogueUpdate() }
 </script>
 <template>
   <div class="app-shell" :class="{'sidebar-collapsed': sidebarCollapsed}" :inert="zoomPage ? true : undefined">
@@ -391,20 +437,19 @@ function updated() { newContent.value = true; window.dispatchEvent(new Event('ar
     <template v-if="section === 'library'">
       <template v-if="mode === 'gallery'">
         <div class="gallery-layout" :inert="mobileMenuOpen ? true : undefined">
-          <main class="gallery-main"><div class="gallery-controls"><div class="gallery-heading"><h1>{{ heading }}</h1><span>{{ total }} 件</span></div><div class="gallery-control-actions"><select v-model="sortChoice" aria-label="图库排序" @change="sort"><option value="newest">最新投稿</option><option value="oldest">最早投稿</option><option value="added">最近存入</option><option value="title">作品名称</option></select><button class="softbtn" :aria-expanded="filterOpen" :title="filterSummary" @click="filterOpen = true"><Icon name="filter" />筛选</button><button class="check-button" @click="task('check')"><Icon name="refresh" /><span>检查新作品</span></button></div></div>
+          <main class="gallery-main"><div class="gallery-controls"><div class="gallery-heading"><h1>{{ heading }}</h1><span>{{ total }} 件</span><button v-if="newContent" class="text-link new-work-entry" :disabled="checkingNewContent" @click="checkForNewWorks(true)">有新作品，查看</button></div><div class="gallery-control-actions"><select v-model="sortChoice" aria-label="图库排序" @change="sort"><option value="newest">最新投稿</option><option value="oldest">最早投稿</option><option value="added">最近存入</option><option value="title">作品名称</option></select><button class="softbtn" :aria-expanded="filterOpen" :title="filterSummary" @click="filterOpen = true"><Icon name="filter" />筛选</button><button class="check-button" aria-label="检查新作品" @click="task('check')"><Icon name="refresh" /><span>检查新作品</span></button></div></div>
             <div v-if="filterSummary !== '全部画师 · 全部类型'" class="active-filters"><span>{{ filterSummary }}</span><button class="text-link" @click="filterOpen = true">调整</button></div>
-            <div v-if="newContent" class="update-notice"><span>后台任务已结束，当前位置已保留。</span><button @click="refresh">刷新图库</button><button class="quiet" @click="newContent = false">关闭</button></div>
             <div v-if="error" class="notice error" role="alert">{{ error }} <button @click="retryNavigation">重试</button></div>
-            <GalleryView v-if="ready" :query="scope" :start-index="galleryAnchor" :page-size="pageSize" :continuous="continuous" @open="openFromGallery" @artist="showArtists" @message="message($event, true)" @anchor="galleryFocused" @total="total = $event" @page="galleryAnchor = $event * pageSize; route(false)" /><div v-else class="empty">正在打开本地图库…</div>
+            <GalleryView v-if="ready" ref="galleryView" :query="scope" :start-index="galleryAnchor" :page-size="pageSize" :continuous="continuous" @open="openFromGallery" @artist="showArtists" @message="message($event, true)" @anchor="galleryFocused" @total="total = $event" @page="galleryAnchor = $event * pageSize; route(false)" /><div v-else class="empty">正在打开本地图库…</div>
           </main></div>
       </template>
       <template v-else><main class="reader-layout" :inert="mobileMenuOpen ? true : undefined">
         <div v-if="error" class="notice error" role="alert">{{ error }} <button @click="retryNavigation">重试</button><button class="quiet" @click="error = ''">关闭</button></div>
         <div class="reader-stage"><Transition name="work"><PageReader :key="sessionKey" ref="reader" :mode="mode === 'feed' ? 'feed' : 'reader'" :loader="loader" :session-key="sessionKey" :initial="initialAnchor" :inactive="!!zoomPage" @focus="focused" @navigate="navigate" @zoom="zoomPage = $event">
-          <template #before><div v-if="mode === 'reader' && currentWork" class="detail-head"><div class="detail-nav"><button class="detail-back" @click="backFromDetail"><Icon name="left" />{{ detailOrigin === 'artists' ? '返回画师' : detailOrigin === 'feed' ? '返回流式阅览' : '返回图库' }}</button><span>{{ ordinaryIndex + 1 }} / {{ total }}</span></div><div class="detail-title-row"><h1>{{ currentWork.title }}</h1><RestrictionBadge :value="currentWork.x_restrict" /><span class="detail-badge">{{ currentWork.type === 'ugoira' ? '动图' : currentWork.type === 'manga' ? '漫画' : '插画' }}</span><span v-if="currentWork.display_page_count > 1" class="detail-badge">{{ currentWork.display_page_count }} 页</span></div><div class="detail-meta"><span>画师：<button class="text-link" @click="showArtists(currentWork.artist_id)">{{ currentWork.artist_name }}</button></span><span v-if="currentWork.posted_at">发布于 {{ currentWork.posted_at.slice(0, 10) }}</span></div><p v-if="sourceNotice(currentWork.availability, currentWork.recovery)" class="source-notice">{{ sourceNotice(currentWork.availability, currentWork.recovery) }}</p><div class="detail-tags"><button v-for="tag in currentWork.tags" :key="tag" class="tag" @click="tagFilter(tag)">#{{ tag }}</button></div><div class="detail-actions"><a class="text-link" :href="`https://www.pixiv.net/artworks/${currentWork.pixiv_id}`" target="_blank" rel="noopener noreferrer">在 Pixiv 查看 <Icon name="external" /></a><button class="softbtn" @click="openFolder(currentWork.id)"><Icon name="folder" />本地文件</button><div class="detail-action-right"><button class="softbtn" @click="infoOpen = true; loadInfo(currentWork.id)">整理作品</button></div></div></div><div v-else class="stream-head"><div><h1>流式阅览</h1><p>当前图库范围 · {{ total }} 件作品</p></div><button class="softbtn" @click="gallery()"><Icon name="grid" />返回图库</button></div></template>
+          <template #before><div v-if="mode === 'reader' && currentWork" class="detail-head"><div class="detail-nav"><button class="detail-back" @click="backFromDetail"><Icon name="left" />{{ detailOrigin === 'artists' ? '返回画师' : detailOrigin === 'feed' ? '返回流式阅览' : '返回图库' }}</button><span>{{ ordinaryIndex + 1 }} / {{ total }}</span></div><div class="detail-title-row"><h1>{{ currentWork.title }}</h1><RestrictionBadge :value="currentWork.x_restrict" /><span class="detail-badge">{{ currentWork.type === 'ugoira' ? '动图' : currentWork.type === 'manga' ? '漫画' : '插画' }}</span><span v-if="currentWork.display_page_count > 1" class="detail-badge">{{ currentWork.display_page_count }} 页</span></div><div class="detail-meta"><span>画师：<button class="text-link" @click="showArtists(currentWork.artist_id)">{{ currentWork.artist_name }}</button></span><span v-if="currentWork.posted_at">发布于 {{ currentWork.posted_at.slice(0, 10) }}</span></div><p v-if="archiveNotice(currentWork)" class="source-notice">{{ archiveNotice(currentWork) }}</p><div class="detail-tags"><button v-for="tag in currentWork.tags" :key="tag" class="tag" @click="tagFilter(tag)">#{{ tag }}</button></div><div class="detail-actions"><a class="text-link" :href="`https://www.pixiv.net/artworks/${currentWork.pixiv_id}`" target="_blank" rel="noopener noreferrer">在 Pixiv 查看 <Icon name="external" /></a><button class="softbtn" @click="openFolder(currentWork.id)"><Icon name="folder" />本地文件</button><div class="detail-action-right"><button class="softbtn" @click="infoOpen = true; loadInfo(currentWork.id)">整理作品</button></div></div></div><div v-else class="stream-head"><div><h1>流式阅览</h1><p>当前图库范围 · {{ total }} 件作品</p></div><button class="softbtn" @click="gallery()"><Icon name="grid" />返回图库</button></div></template>
           <template #after><template v-if="mode === 'reader' && currentWork"><div class="detail-bottom-actions"><BookmarkButton :work-id="currentWork.id" :initial="currentWork.bookmark" @message="message($event, true)" /></div><section class="detail-caption" aria-label="作品简介"><h2>作品简介</h2><div v-if="currentWork.caption" v-html="currentWork.caption" /><p v-else>{{ currentWork.caption_state === 'empty' ? '作者没有填写简介' : '尚未取得简介' }}</p></section></template><div v-else class="stream-end"><p>已到当前范围末尾</p><button @click="gallery()">返回图库</button></div></template>
         </PageReader></Transition></div>
-        <aside v-if="infoOpen" class="info-panel" data-no-navigation aria-label="作品整理"><header><h2>作品整理</h2><button @click="infoOpen = false" aria-label="关闭作品整理"><Icon name="close" /></button></header><template v-if="infoWork && (mode === 'reader' || infoWork.id === activePage?.work_id)"><h3>{{ infoWork.title }}</h3><p class="muted">{{ infoWork.artist_name }}</p><p class="muted">{{ infoWork.bookmark_count ?? '—' }} 收藏 · {{ infoWork.view_count ?? '—' }} 浏览</p><div class="tags"><span v-for="tag in infoWork.tags" :key="tag">{{ tag }}</span></div><div class="info-actions"><BookmarkButton :work-id="infoWork.id" :initial="infoWork.bookmark" @message="message($event, true)" /><button @click="bookmarkSync"><Icon name="refresh" />同步收藏状态</button><button @click="hidden">{{ infoWork.is_hidden ? '取消隐藏' : '隐藏此作品' }}</button><label>本地评分 <select :value="infoWork.rating" @change="rate(Number(($event.target as HTMLSelectElement).value))"><option :value="0">未评分</option><option v-for="value in [1,2,3,4,5]" :key="value" :value="value">{{ value }} 星</option></select></label><button @click="task('repair', infoWork.id)">补下载此作品</button><button v-if="infoWork.type === 'ugoira'" @click="task('backfill', infoWork.id)">补回动图原包</button><button class="danger" @click="removePrompt = true">永久删除</button></div><details v-if="infoWork.legacy_variants?.length" class="asset-detail"><summary>旧档案的同页文件</summary><div v-for="group in infoWork.legacy_variants" :key="group.page"><p>第 {{ group.page + 1 }} 页</p><p v-for="file in group.files" :key="file.name"><a v-if="file.src" :href="file.src" target="_blank" rel="noopener noreferrer">{{ file.default ? '默认显示' : '另一份' }}：{{ file.name }}</a><span v-else>{{ file.name }}（不可用）</span></p></div></details><details class="asset-detail"><summary>存档状态</summary><p v-for="asset in infoWork.assets" :key="asset.id">{{ asset.role === 'image' ? `第 ${asset.page + 1} 页` : asset.role === 'ugoira_zip' ? '动图原包' : '播放时序' }}：{{ asset.state === 'verified' ? '已核验' : asset.error || '待核验或缺失' }}</p></details></template><p v-else>正在读取作品信息…</p></aside>
+        <aside v-if="infoOpen" class="info-panel" data-no-navigation aria-label="作品整理"><header><h2>作品整理</h2><button @click="infoOpen = false" aria-label="关闭作品整理"><Icon name="close" /></button></header><template v-if="infoWork && (mode === 'reader' || infoWork.id === activePage?.work_id)"><h3>{{ infoWork.title }}</h3><p class="muted">{{ infoWork.artist_name }}</p><p class="muted">{{ infoWork.bookmark_count ?? '—' }} 收藏 · {{ infoWork.view_count ?? '—' }} 浏览</p><div class="tags"><span v-for="tag in infoWork.tags" :key="tag">{{ tag }}</span></div><div class="info-actions"><BookmarkButton :work-id="infoWork.id" :initial="infoWork.bookmark" @message="message($event, true)" /><button @click="bookmarkSync"><Icon name="refresh" />同步收藏状态</button><button @click="hidden">{{ infoWork.is_hidden ? '取消隐藏' : '隐藏此作品' }}</button><label>本地评分 <select :value="infoWork.rating" @change="rate(Number(($event.target as HTMLSelectElement).value))"><option :value="0">未评分</option><option v-for="value in [1,2,3,4,5]" :key="value" :value="value">{{ value }} 星</option></select></label><button @click="task('repair', infoWork.id)">补下载此作品</button><button v-if="infoWork.type === 'ugoira'" @click="task('backfill', infoWork.id)">补回动图原包</button><button class="danger" @click="removePrompt = true">永久删除</button></div><details v-if="infoWork.legacy_variants?.length" class="asset-detail"><summary>旧档案的同页文件</summary><div v-for="group in infoWork.legacy_variants" :key="group.page"><p>第 {{ group.page + 1 }} 页</p><p v-for="file in group.files" :key="file.name"><a v-if="file.src" :href="file.src" target="_blank" rel="noopener noreferrer">{{ file.default ? '默认显示' : '另一份' }}：{{ file.name }}</a><span v-else>{{ file.name }}（不可用）</span></p></div></details><details class="asset-detail"><summary>存档状态</summary><p>{{ archiveStatus(infoWork.archive) }}</p><p v-for="asset in infoWork.assets" :key="asset.id">{{ asset.role === 'image' ? `第 ${asset.page + 1} 页` : asset.role === 'ugoira_zip' ? '动图原包' : '播放时序' }}：{{ asset.state === 'verified' ? '已核验' : asset.error || '待核验或缺失' }}</p></details></template><p v-else>正在读取作品信息…</p></aside>
         <footer class="reading-toolbar"><div class="reading-toolbar-inner"><template v-if="mode === 'reader'"><button class="softbtn" :disabled="desiredIndex <= 0" @click="navigate(-1)"><Icon name="left" />上一件</button><div class="reading-counter"><strong>{{ currentWork?.title }}</strong><small>{{ ordinaryIndex + 1 }} / {{ total }} 件 · 第 {{ (activePage?.page ?? 0) + 1 }} / {{ currentWork?.display_page_count || 1 }} 页</small></div><button class="primary" :disabled="desiredIndex >= total - 1" @click="navigate(1)">下一件<Icon name="right" /></button></template><template v-else><div class="reading-counter"><strong>{{ activePage?.title || '流式阅览' }}</strong><small>{{ (activePage?.work_index ?? 0) + 1 }} / {{ total }} 件 · 第 {{ (activePage?.page ?? 0) + 1 }} / {{ activePage?.page_count || 1 }} 页</small></div><BookmarkButton v-if="activePage" :key="activePage.work_id" :work-id="activePage.work_id" @message="message($event, true)" /><button class="primary" :disabled="!activePage || activePage.work_index >= total - 1" @click="reader?.jump(activePage!.next_work_index)">跳过作品<Icon name="down" /></button></template></div></footer>
       </main></template>
     </template>
@@ -416,3 +461,8 @@ function updated() { newContent.value = true; window.dispatchEvent(new Event('ar
   <ZoomView v-if="zoomPage" :page="zoomPage" @close="zoomPage = null" />
   <ConfirmDialog v-if="removePrompt" title="永久删除作品" description="这会删除作品和本地文件，并阻止旧任务再次下载。" action="永久删除" danger @cancel="removePrompt = false" @confirm="remove" />
 </template>
+
+<style scoped>
+.gallery-heading { position: relative; }
+.new-work-entry { position: absolute; left: 0; top: calc(100% - 1px); min-height: 16px; height: 16px; padding: 0; font-size: 10px; color: var(--muted); }
+</style>

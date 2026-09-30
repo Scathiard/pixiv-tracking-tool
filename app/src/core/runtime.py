@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from stat import S_ISREG
 
 from sqlalchemy import func, select
 
@@ -83,6 +84,7 @@ class Runtime:
 
     def close(self):
         self.bookmarks.accept_submissions(False)
+        self.queue.accept_submissions(False)
         if not self.queue.stop():
             # Do not release ownership or dispose a DB still used by network work.
             return False
@@ -93,7 +95,7 @@ class Runtime:
         return True
 
     def busy(self):
-        if self.bookmarks.busy():
+        if self.bookmarks.busy() or self.queue._planning or self.queue._resources:
             return True
         with self.database.read() as session:
             return bool(session.scalar(select(func.count()).select_from(Operation).where(
@@ -170,7 +172,39 @@ class Runtime:
                 if work_id is not None:
                     allowed = True
                     break
-        return path if allowed and path.is_file() else None
+        observed_state = "missing"
+        if allowed:
+            try:
+                stat = path.stat()
+                if S_ISREG(stat.st_mode) and stat.st_size > 0:
+                    return path
+                if S_ISREG(stat.st_mode):
+                    observed_state = "invalid"
+            except OSError:
+                pass
+        if allowed:
+            from .catalogue_revision import bump_catalogue_revision
+            with self.database.write() as session:
+                # Publication may have won the writer while this observation waited.
+                try:
+                    current_stat = path.stat()
+                    if S_ISREG(current_stat.st_mode) and current_stat.st_size > 0:
+                        return path
+                    observed_state = "invalid" if S_ISREG(current_stat.st_mode) else "missing"
+                except OSError:
+                    observed_state = "missing"
+                changed = False
+                for model in (Asset, Derivative):
+                    for record in session.scalars(select(model).where(model.relative_path == relative)):
+                        record_state = "invalid" if model is Derivative else observed_state
+                        if record.state != record_state:
+                            record.state, record.error = record_state, "请求的本地文件缺失或为空，等待补齐"
+                            changed = True
+                if changed:
+                    bump_catalogue_revision(session)
+            self.queue._wake.set()
+            self.maintenance._next_scan = 0
+        return None
 
     def recovery_issues(self):
         with self.database.read() as session:

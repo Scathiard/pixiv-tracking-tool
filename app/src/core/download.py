@@ -29,8 +29,17 @@ class AssetDownloader:
 
     def __init__(self, session=None, *, allowed_hosts=("pximg.net",), allow_http=False,
                  max_bytes=2 * 1024**3):
-        self.session = session or requests.Session()
+        self._session = session
+        self._sessions = threading.local()
         self.allowed_hosts, self.allow_http, self.max_bytes = allowed_hosts, allow_http, max_bytes
+
+    @property
+    def session(self):
+        if self._session is not None:
+            return self._session
+        if not hasattr(self._sessions, "session"):
+            self._sessions.session = requests.Session()
+        return self._sessions.session
 
     def _check_url(self, url):
         parts = urlsplit(url)

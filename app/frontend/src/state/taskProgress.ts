@@ -1,5 +1,7 @@
 export interface Operation {
   id: string; label: string; state: string; source?: 'manual' | 'automatic' | 'maintenance'
+  lane?: 'check' | 'download' | 'local' | null
+  parameters?: {parent_operation_id?: string; kind?: string}
   phase: {name: string; done: number; total: number | null; unit: string; detail: string}
   result: {outcome?: string}
 }
@@ -8,10 +10,16 @@ export const activeStates = new Set(['queued', 'planning', 'ready', 'running', '
 const phases: Record<string, string> = {waiting: '等待', checking: '检查', inventory: '清点', metadata: '画师信息', captions: '作品信息', bookmarks: '收藏状态', downloading: '下载', converting: '生成预览', verifying: '核验', thumbnails: '缩略图', deleting: '删除'}
 const units: Record<string, string> = {artists: '位画师', works: '件作品', pages: '页', assets: '项原件', previews: '件预览', files: '个文件', items: '项'}
 
-export function selectPrimary(operations: Operation[], focusedId: string | null): Operation | null {
+export function selectPrimary(operations: Operation[], focusedId: string | null, runningId: string | null = null, requestedIds: string[] = []): Operation | null {
   const active = operations.filter(op => activeStates.has(op.state))
-  return active.find(op => op.id === focusedId)
-    || active.find(op => op.state === 'running' || op.state === 'planning')
+  const running = active.filter(op => op.state === 'running' || op.state === 'planning')
+  const requested = [...requestedIds].reverse().map(id => running.find(op => op.id === id)).find(Boolean)
+  return requested || running.find(op => op.id === focusedId)
+    || running.find(op => op.id === runningId)
+    || running.find(op => op.lane === 'download')
+    || running.find(op => op.lane === 'check')
+    || running.find(op => op.lane === 'local') || running[0]
+    || active.find(op => op.id === focusedId)
     || active.find(op => op.state === 'ready') || active[0] || null
 }
 
@@ -28,7 +36,14 @@ export function shouldNotifyFailure(op: Operation, previousState: string | undef
 
 export function hasProgressTrack(op: Operation | null, stale = false, workerError = false): boolean {
   return !!op && !stale && !workerError && (op.state === 'running' || op.state === 'planning')
-    && (op.phase.total === null || op.phase.total > 0)
+    && op.phase.total !== null && op.phase.total > 0
+}
+
+/** The first revision is only a baseline; duplicate and older snapshots cannot refresh a view. */
+export function catalogueChanged(previous: number | null, incoming?: number): {revision: number | null; changed: boolean} {
+  if (!Number.isSafeInteger(incoming) || incoming! < 0) return {revision: previous, changed: false}
+  if (previous === null) return {revision: incoming!, changed: false}
+  return {revision: Math.max(previous, incoming!), changed: incoming! > previous}
 }
 
 export function phaseStatus(op: Operation, automaticPaused = false, workerError = false): string {

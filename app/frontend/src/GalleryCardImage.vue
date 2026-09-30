@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import type { RecoveryState } from './types'
+import { mediaPlaceholder, type ArchiveState, type ProcessingState, type RecoveryState } from './types'
 
 const props = defineProps<{
   thumbnail: string | null
@@ -9,6 +9,8 @@ const props = defineProps<{
   animation?: boolean
   label: string
   recovery?: RecoveryState | null
+  archive?: ArchiveState
+  processing?: ProcessingState
 }>()
 const host = ref<HTMLElement | null>(null), image = ref<HTMLImageElement | null>(null)
 const visible = ref(false)
@@ -33,19 +35,9 @@ const source = computed(() => {
   return null
 })
 const placeholder = computed(() => {
-  if (props.recovery?.status === 'queued') return '已排队补齐'
-  if (props.recovery?.status === 'waiting') return '等待自动重试'
-  if (props.recovery?.status === 'attention') return '主站暂时无法补齐'
-  if (props.animation) {
-    if (props.previewStatus === 'failed') return '动图预览生成失败'
-    if (props.previewStatus === 'unavailable') return '动图预览不可用'
-    if (props.previewStatus === 'pending') return '动图预览尚未生成'
-  }
-  if (props.previewStatus === 'failed') return '原图下载失败'
-  if (props.previewStatus === 'unavailable') return '本地原图不可用'
-  if (props.previewStatus === 'pending') return '原图尚未下载'
-  if (thumbnailFailed.value || previewFailed.value) return '本地图片暂时无法显示'
-  return '缩略图待生成'
+  if (thumbnailFailed.value || previewFailed.value) return {label: '本地图片暂时无法显示', reason: '可打开作品重试图片'}
+  if (props.previewStatus === 'ready') return {label: '缩略图待生成', reason: null}
+  return mediaPlaceholder(props, props.previewStatus, props.animation)
 })
 function failed(event: Event) {
   if ((event.currentTarget as HTMLImageElement).dataset.mediaSource === 'thumbnail') thumbnailFailed.value = true
@@ -66,6 +58,6 @@ onBeforeUnmount(() => { observer?.disconnect(); image.value?.removeAttribute('sr
   <div ref="host" class="media-image media-thumbnail">
     <img v-if="source" :key="source.kind + source.url" ref="image" :src="source.url" :alt="label"
       :data-media-source="source.kind" draggable="false" decoding="async" loading="lazy" @error="failed">
-    <div v-else class="media-placeholder"><span>{{ placeholder }}</span><span v-if="recovery?.status === 'attention' && recovery.reason" class="placeholder-reason">{{ recovery.reason }}</span></div>
+    <div v-else class="media-placeholder"><span>{{ placeholder.label }}</span><span v-if="placeholder.reason" class="placeholder-reason">{{ placeholder.reason }}</span></div>
   </div>
 </template>

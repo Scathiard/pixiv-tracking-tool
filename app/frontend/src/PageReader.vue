@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
-import { needsPageRefresh, sourceNotice, type Anchor, type PageData, type PageLoader } from './types'
+import { archiveNotice, isOlderCatalogue, needsPageRefresh, type Anchor, type PageData, type PageLoader } from './types'
 import { DirectionGesture, LatestIntent } from './interaction'
 import { prepareImage } from './api'
+import { observeCatalogueData } from './state/catalogue'
 import MediaImage from './MediaImage.vue'
 import RestrictionBadge from './components/RestrictionBadge.vue'
 
@@ -18,6 +19,7 @@ let refreshTimer = 0, refreshController: AbortController | null = null, refreshi
 let failedAction: (() => void) | null = null
 const MAX_PAGES = 120, CHUNK = 40
 const REFRESH_MS = 12000, REFRESH_LIMIT = 24
+let catalogueRevision: number | undefined
 function height(page: PageData | undefined) {
   const padding = props.mode === 'feed' ? (size.value.width <= 760 ? 28 : 44) : (size.value.width < 600 ? 16 : 56)
   const availableWidth = Math.max(1, Math.min(props.mode === 'feed' ? 690 : 1100, size.value.width - padding))
@@ -67,11 +69,13 @@ async function jump(index: number, offset = 0) {
   failedAction = () => { void jump(index, offset) }
   try {
     const batch = await props.loader(Math.max(0, index - 16), 64, request.signal)
-    if (!request.current()) return
+    if (!request.current() || isOlderCatalogue(batch.catalogue_revision, catalogueRevision)) return
+    catalogueRevision = batch.catalogue_revision ?? catalogueRevision
     const target = batch.items.find(page => page.index === index) || batch.items[0]
     if (target && pages.value.length) await prepareImage(target.src, request.signal)
     if (!request.current()) return
     pages.value = batch.items; total.value = batch.total
+    observeCatalogueData(batch.catalogue_revision)
     if (target && target.index === 0 && index === 0 && offset === 0) {
       await nextTick(); viewport.value?.scrollTo({top: 0, behavior: 'instant'}); await paint()
     } else if (target) await restore({work_id: target.work_id, page: target.page, offset, index: target.index, work_index: target.work_index})
@@ -93,12 +97,14 @@ async function extend(direction: number) {
   try {
     const offset = direction > 0 ? end : Math.max(0, first - CHUNK)
     const batch = await props.loader(offset, direction > 0 ? CHUNK : first - offset, request.signal)
-    if (!request.current()) return
+    if (!request.current() || isOlderCatalogue(batch.catalogue_revision, catalogueRevision)) return
+    catalogueRevision = batch.catalogue_revision ?? catalogueRevision
     const anchor = readAnchor()
     restoring = true
     let next = direction > 0 ? [...pages.value, ...batch.items] : [...batch.items, ...pages.value]
     next = direction > 0 ? next.slice(-MAX_PAGES) : next.slice(0, MAX_PAGES)
     pages.value = next; total.value = batch.total
+    observeCatalogueData(batch.catalogue_revision)
     await restore(anchor)
   } catch (failure) {
     if (request.current()) error.value = failure instanceof Error ? failure.message : '暂时无法载入更多图片'
@@ -164,7 +170,9 @@ async function refreshMissing(force = false) {
   refreshController = controller; refreshing = true
   try {
     const batch = await props.loader(offset, limit, controller.signal)
-    if (controller.signal.aborted || session !== props.sessionKey) return
+    if (controller.signal.aborted || session !== props.sessionKey || isOlderCatalogue(batch.catalogue_revision, catalogueRevision)) return
+    catalogueRevision = batch.catalogue_revision ?? catalogueRevision
+    observeCatalogueData(batch.catalogue_revision)
     const latest = new Map(batch.items.map(page => [page.index, page]))
     const anchor = readAnchor()
     const previousTop = viewport.value?.scrollTop || 0
@@ -178,7 +186,10 @@ async function refreshMissing(force = false) {
           replacement.recovery?.next_retry_at !== page.recovery?.next_retry_at ||
           replacement.recovery?.reason !== page.recovery?.reason ||
           replacement.availability?.state !== page.availability?.state ||
-          replacement.availability?.reason !== page.availability?.reason) {
+          replacement.availability?.reason !== page.availability?.reason ||
+          JSON.stringify(replacement.archive) !== JSON.stringify(page.archive) ||
+          JSON.stringify(replacement.processing) !== JSON.stringify(page.processing) ||
+          JSON.stringify(replacement.source_update) !== JSON.stringify(page.source_update)) {
         changed = true; return replacement
       }
       return page
@@ -216,7 +227,7 @@ function move(event: PointerEvent) { if (gesture.move(event.pointerId, event.cli
 function up(event: PointerEvent) { const direction = gesture.up(event.pointerId); if (direction && !props.inactive) emit('navigate', direction) }
 function dimensions(page: PageData, width: number, height: number) { page.width = width; page.height = height }
 function retry() { failedAction?.() }
-watch(() => props.sessionKey, () => { lastAnchor = null; void jump(props.initial?.index || 0, props.initial?.offset || 0) })
+watch(() => props.sessionKey, () => { lastAnchor = null; catalogueRevision = undefined; void jump(props.initial?.index || 0, props.initial?.offset || 0) })
 onMounted(() => {
   observer = new ResizeObserver(entries => { for (const entry of entries) { const rect = entry.contentRect; if (entry.target === viewport.value) size.value = {width: rect.width, height: rect.height}; else if (entry.target === before.value) beforeHeight.value = rect.height } })
   if (viewport.value) observer.observe(viewport.value)
@@ -241,10 +252,10 @@ defineExpose({readAnchor, jump, scrollBy: (delta: number) => viewport.value?.scr
             <RestrictionBadge v-if="mode === 'feed' && pages[row.index]!.page === 0" :value="pages[row.index]!.x_restrict" />
             <span class="page-number">{{ pages[row.index]!.page + 1 }} / {{ pages[row.index]!.page_count }}</span>
             <button class="quiet" :disabled="!pages[row.index]!.src" @click="emit('zoom', pages[row.index]!)" aria-label="放大此页">放大</button>
-            <span v-if="mode === 'feed' && pages[row.index]!.page === 0 && sourceNotice(pages[row.index]!.availability, pages[row.index]!.recovery)" class="page-source">{{ sourceNotice(pages[row.index]!.availability, pages[row.index]!.recovery) }}</span>
+            <span v-if="mode === 'feed' && pages[row.index]!.page === 0 && archiveNotice(pages[row.index]!)" class="page-source">{{ archiveNotice(pages[row.index]!) }}</span>
           </figcaption>
           <div class="page-picture" :style="mode === 'reader' ? {height: `${height(pages[row.index])}px`} : undefined">
-            <MediaImage :src="pages[row.index]!.src" :state="pages[row.index]!.state" :recovery="pages[row.index]!.recovery" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
+            <MediaImage :src="pages[row.index]!.src" :state="pages[row.index]!.state" :recovery="pages[row.index]!.recovery" :processing="pages[row.index]!.processing" :archive="pages[row.index]!.archive" :animation="pages[row.index]!.type === 'ugoira'" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
               :width="mode === 'feed' ? pages[row.index]!.width || 1000 : undefined"
               :height="mode === 'feed' ? pages[row.index]!.height || 1350 : undefined"
               @size="(width, height) => dimensions(pages[row.index]!, width, height)" @zoom="emit('zoom', pages[row.index]!)" />

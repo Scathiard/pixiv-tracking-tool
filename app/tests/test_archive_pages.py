@@ -8,6 +8,7 @@ from PIL import Image
 
 from src import config
 from src.core.database import UpgradeRequired
+from src.core.maintenance import MissingMediaMaintenance
 from src.core.models import ArchiveIntent, Artist, Asset, TrackingPolicy, Work, WorkTag
 from src.core.runtime import Runtime
 from src.web import create_app
@@ -15,6 +16,9 @@ from src.web import create_app
 
 @pytest.fixture
 def pages(tmp_path, monkeypatch):
+    # Page/legacy-submit contracts need a controlled queue. Gap admission and
+    # concurrent background work have dedicated maintenance/pipeline scenarios.
+    monkeypatch.setattr(MissingMediaMaintenance, "tick", lambda self: None)
     runtime = Runtime(tmp_path / "data/pixiv_tracker.db", tmp_path / "images", create=True)
     with runtime.database.write() as session:
         artist = Artist(id=1, pixiv_user_id="1", name="artist")
@@ -62,7 +66,10 @@ def test_legacy_submit_has_identifiable_persistent_result(pages):
             break
         time.sleep(0.05)
     assert result["state"] == "finished"
-    assert result["result"]["outcome"] == "empty"
+    assert result["result"]["outcome"] == "succeeded"
+    assert result["counts"] == {"succeeded": 1}
+    assert result["phases"] == [{"phase": "verifying", "unit": "assets", "state": "succeeded", "count": 1}]
+    assert client.get("/api/works/1").json()["archive"]["state"] == "complete"
     assert client.get("/api/status").json()["logged_in"] is False
     assert client.get("/api/login").status_code == 405
     assert client.post("/api/login", headers={"Origin": "http://localhost"}).status_code == 503

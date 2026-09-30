@@ -9,6 +9,8 @@
 - `test_archive_database.py`、`test_legacy_archive_import.py`：新结构约束、旧 ID／偏好／路径映射、候选库失败回滚；只创建合成数据。
 - `test_archive_media.py`、`test_archive_recovery.py`：文件解码、动图原包和时序、发布／删除中断恢复与单写入者。
 - `test_archive_tasks.py`、`test_archive_workflows.py`：固定轮次、真实处理量、暂停边界、精确补下载；HTTP 使用本机模拟服务。
+- `test_archive_pipeline.py`：检查／下载／本地处理并行，逐项优先级、持久子任务、资源互斥、来源更新、真实核验计数与有界队列领取；仅合成元数据和媒体。
+- `test_archive_state.py`：图库／详情／流式统一整件作品原件与处理状态；首图可读不能覆盖缺页，具体媒体请求观察缺失后更新事实；5,000 件／2,000 页批量读取。
 - `test_archive_api.py`、`test_archive_pages.py`：新核心接口、旧界面适配、离线可用性、请求边界与端口反馈。
 - `test_archive_relocation.py`：连续目录切换、复制被破坏和配置提交失败时保留原运行实例。
 - `test_archive_client_contract.py`：模拟 Pixiv 响应，验证鉴权重试、原件地址与错误结果；不访问真实账号。
@@ -36,6 +38,7 @@
 - `client_cache_browser.py`：合成已确认收藏的首次显示、同卡片刷新和流式冷启动；缺原图与缺缩略图区分、可见原图兜底、503 后保留卡片并连续浏览 601 件；不访问真实账号。
 - `client_touch_browser.py`：实际 CDP 触点、方向锁、缩放、中文输入、返回位置及无 randomUUID 环境；手机尺寸模拟不等于实机验收。
 - `client_load_browser.py`：故障图片重试、第 5,000 件定位、下载中的长流阅览、固定总量与下一轮、部分失败记录、暂停队列和离线浏览。
+- `client_pipeline_browser.py`：已构建正式前端与内存合成接口，桌面／390／320px 验证并行进度、版本原位更新、整件作品状态、实际图片加载、位置和收藏请求；不读取后端、账号或真实图库。
 - 上述 client 脚本均要求新的 `--artifacts` 目录，保留模拟媒体、结果和失败截图；只使用合成账号，禁止传入真实图库。
 - `run.py --smoke-test --smoke-serve-port PORT --smoke-stop-file FILE`：仅隔离验证用，监听 `127.0.0.1`，最多运行 180 秒；普通启动不进入此入口。
 - 没有 `py` 启动器时可使用 `.devtools/v012-env/Scripts/python.exe`（Python 3.12）；指定 `.devtools/test-runs/` 下新的 `--basetemp`，不得重复使用会清理旧证据的路径。

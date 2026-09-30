@@ -200,7 +200,7 @@ class Publisher:
 
     def prepare(self, record_id: str, staging: str, target: str,
                 verified: Verification, *, derivative=False, item_id=None,
-                expected_revision: int, source_version=None):
+                expected_revision: int, source_version=None, requested_url=None, expected_source_fingerprint=None):
         staged = contained_path(self.root, staging)
         contained_path(self.root, target)
         if not staging.startswith(".staging/") or target.startswith((".staging/", ".recovery/")):
@@ -221,7 +221,7 @@ class Publisher:
                 pixiv_illust_id=work.pixiv_illust_id, intent_revision=expected_revision,
                 action="publish", staging_path=staging, target_path=target,
                 verification={**asdict(verified), "record_id": record_id,
-                              "derivative": derivative, "source_version": source_version,
+                              "derivative": derivative, "source_version": source_version, "requested_url": requested_url, "expected_source_fingerprint": expected_source_fingerprint,
                               "backup": f".recovery/{uuid4().hex}.previous"},
             )
             session.add(journal)
@@ -236,16 +236,45 @@ class Publisher:
 
     def publish(self, journal_id: str, *, after_move=None):
         try:
+            # Hashing may read gigabytes; perform it before acquiring the writer.
+            with self.database.read() as session:
+                preflight = session.get(PublicationJournal, journal_id)
+                if preflight.step in ("committed", "obsolete"):
+                    return preflight.step
+                paths = [contained_path(self.root, preflight.target_path), contained_path(self.root, preflight.staging_path)]
+            fingerprints, digests = {}, {}
+            for path in paths:
+                if path.is_file():
+                    stat = path.stat()
+                    fingerprints[path] = (stat.st_size, stat.st_mtime_ns, stat.st_ino)
+                    digests[path] = file_digest(path)
+                else:
+                    fingerprints[path] = None
+                    digests[path] = None
             with self.database.write() as session:
                 journal = session.get(PublicationJournal, journal_id)
                 if journal.step in ("committed", "obsolete"):
                     return journal.step
                 self._require_intent(session, journal.pixiv_illust_id, journal.intent_revision)
+                info = journal.verification
+                record = session.get(Derivative if info["derivative"] else Asset, info["record_id"])
+                requested_url = info.get("requested_url")
+                owner = session.get(Work, record.work_id) if record else None
+                pending_source = (owner.source_metadata or {}).get("source_updates", {}).get(record.id, {}) if owner and not info["derivative"] else {}
+                changed_fingerprint = pending_source.get("expected_fingerprint") and pending_source["expected_fingerprint"] != info.get("expected_source_fingerprint")
+                if not info["derivative"] and record and (requested_url and record.source_url and requested_url != record.source_url or changed_fingerprint):
+                    journal.step, journal.error = "obsolete", "来源已更新，旧回应保留在暂存区"
+                    return "obsolete"
                 target = contained_path(self.root, journal.target_path)
                 staged = contained_path(self.root, journal.staging_path)
                 info = journal.verification
-                if not target.is_file() or file_digest(target) != info["sha256"]:
-                    if not staged.is_file() or file_digest(staged) != info["sha256"]:
+                for path in (target, staged):
+                    stat = path.stat() if path.is_file() else None
+                    current = (stat.st_size, stat.st_mtime_ns, stat.st_ino) if stat else None
+                    if current != fingerprints[path]:
+                        raise InvalidMedia("发布核验后文件发生变化，停止覆盖")
+                if digests[target] != info["sha256"]:
+                    if digests[staged] != info["sha256"]:
                         raise InvalidMedia("中断恢复时找不到已核验的文件")
                     target.parent.mkdir(parents=True, exist_ok=True)
                     if target.exists():
@@ -268,6 +297,14 @@ class Publisher:
                 record.file_mtime_ns, record.file_identity = stat.st_mtime_ns, stat.st_ino
                 if info["derivative"]:
                     record.source_version = info.get("source_version")
+                if not info["derivative"] and requested_url:
+                    work = session.get(Work, record.work_id)
+                    updates = dict((work.source_metadata or {}).get("source_updates", {}))
+                    if updates.get(record.id, {}).get("requested_url") == requested_url and (not updates[record.id].get("expected_fingerprint") or updates[record.id]["expected_fingerprint"] == info.get("expected_source_fingerprint")):
+                        updates.pop(record.id)
+                        work.source_metadata = {**work.source_metadata, "source_updates": updates}
+                from .catalogue_revision import bump_catalogue_revision
+                bump_catalogue_revision(session)
                 journal.step, journal.error = "committed", None
                 return journal.step
         except SuppressedWork:

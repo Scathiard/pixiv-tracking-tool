@@ -27,10 +27,14 @@ def main():
     os.environ["PORT"] = str(port)
     from client_fixture import make_library
     from playwright.sync_api import sync_playwright
-    from sqlalchemy import select
+    from sqlalchemy import func, select
     import uvicorn
-    from src.core.models import Artist, Asset, TrackingPolicy
+    from src.core.models import Artist, Asset, Operation, OperationItem, TaskRound, TrackingPolicy
     runtime, remote = make_library(artifacts / "fixture", 5000)
+    # This scenario owns the controlled download gate. Automatic recovery has
+    # separate tests; freeze only its enqueueing so it cannot claim this fixture
+    # before the manual repair is submitted below.
+    runtime.queue.maintenance = None
     from src.auth import _find_system_browser
     from src.web import create_app
 
@@ -87,6 +91,15 @@ def main():
     def ready():
         page.locator(".image-page img").first.wait_for()
         page.wait_for_function("!document.querySelector('.reader-notice')")
+
+    def round_total(operation_id):
+        with runtime.database.read() as session:
+            operation = session.get(Operation, operation_id)
+            record = session.get(TaskRound, operation.round_id) if operation.round_id else None
+            if record is None or record.frozen_at is None:
+                return None
+            return session.scalar(select(func.count()).select_from(OperationItem).join(Operation).where(
+                Operation.round_id == record.id))
 
     try:
         deadline = time.monotonic() + 25
@@ -163,22 +176,37 @@ def main():
             raise TimeoutError(expression)
 
         operation_id = next_id = None
-        frozen_total = None
+        frozen_total = download_total = None
         for step in range(60):
             if step == 12:
                 response = context.request.post(origin + "/api/tasks", headers={"Origin": origin}, data={"kind": "repair", "work_ids": list(range(2, 22))})
                 assert response.status == 200, response.text()
                 operation_id = response.json()["operation_id"]
                 assert download.started.wait(30)
-                current = runtime.queue.snapshot()["round"]
-                frozen_total = current["total"]
+                deadline = time.monotonic() + 15
+                while time.monotonic() < deadline:
+                    current = runtime.queue.details(operation_id)
+                    frozen_total = round_total(operation_id)
+                    if current["lane"] == "download" and frozen_total is not None:
+                        break
+                    page.wait_for_timeout(100)
                 assert frozen_total and frozen_total > 0
+                download_total = current["phase"]["total"]
+                assert current["phase"]["name"] == "downloading" and download_total == 20, current
                 page.get_by_role("progressbar").wait_for()
-                page.wait_for_function("document.querySelector('[role=progressbar]')?.hasAttribute('aria-valuenow')")
+                page.wait_for_function("total => Number(document.querySelector('[role=progressbar]')?.getAttribute('aria-valuemax')) === total", arg=download_total)
                 response = context.request.post(origin + "/api/tasks", headers={"Origin": origin}, data={"kind": "verify", "work_ids": [4999]})
                 next_id = response.json()["operation_id"]
-                assert runtime.queue.snapshot()["next_round_count"] == 1
-                assert runtime.queue.snapshot()["round"]["total"] == frozen_total
+                deadline = time.monotonic() + 15
+                while runtime.queue.details(next_id)["state"] != "finished" and time.monotonic() < deadline:
+                    page.wait_for_timeout(100)
+                local_result = runtime.queue.details(next_id)
+                assert local_result["state"] == "finished" and local_result["result"]["outcome"] == "succeeded", local_result
+                assert not download.release.is_set() and runtime.queue.details(operation_id)["state"] == "running"
+                assert runtime.queue.details(operation_id)["phase"]["total"] == download_total
+                assert round_total(operation_id) == frozen_total
+                metrics["local_verify_while_download_blocked"] = {"outcome": local_result["result"]["outcome"],
+                    "download_total": download_total, "repair_round_total": frozen_total}
                 page.screenshot(path=str(artifacts / "active-download.png"))
             previous = value("Math.max(...[...document.querySelectorAll('.image-page')].map(n=>Number(n.dataset.globalIndex)))")
             value("(()=>{const e=document.querySelector('.page-viewport');e.scrollTop=e.scrollHeight-e.clientHeight-2;return true})()")
@@ -197,8 +225,9 @@ def main():
         assert samples[-1]["heap_bytes"] < samples[0]["heap_bytes"] * 1.8 + 8 * 1024 ** 2
         assert samples[-1]["nodes"] <= samples[2]["nodes"] + 200, "detached reading nodes keep accumulating"
         assert any(sample["downloading"] for sample in samples)
-        assert runtime.queue.snapshot()["round"]["total"] == frozen_total
-        passed("large-feed-bounded-during-download-and-next-round-keeps-fixed-total")
+        assert round_total(operation_id) == frozen_total
+        assert runtime.queue.details(operation_id)["phase"]["total"] == download_total
+        passed("large-feed-bounded-during-download-local-verify-independent-and-repair-total-fixed")
 
         download.release.set()
         deadline = time.monotonic() + 45

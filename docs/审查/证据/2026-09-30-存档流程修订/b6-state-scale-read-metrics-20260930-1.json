@@ -1,0 +1,35 @@
+{
+  "gallery60": {
+    "queries": 11,
+    "seconds": 0.0519,
+    "archive": {
+      "state": "complete",
+      "total": 2000,
+      "verified": 2000,
+      "missing": 0,
+      "unknown": 0
+    }
+  },
+  "feed120": {
+    "queries": 10,
+    "seconds": 0.03149,
+    "archive": {
+      "state": "complete",
+      "total": 2000,
+      "verified": 2000,
+      "missing": 0,
+      "unknown": 0
+    }
+  },
+  "detail1of2000": {
+    "queries": 10,
+    "seconds": 0.02025,
+    "archive": {
+      "state": "complete",
+      "total": 2000,
+      "verified": 2000,
+      "missing": 0,
+      "unknown": 0
+    }
+  }
+}

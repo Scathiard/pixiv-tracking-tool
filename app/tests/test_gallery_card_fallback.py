@@ -109,7 +109,7 @@ def test_maintenance_feedback_is_shared_and_limited_to_requested_works(tmp_path)
         database.close()
 
 
-def test_completed_visible_media_overrides_old_retry_ledger_without_rewriting_it(tmp_path):
+def test_complete_original_set_overrides_old_retry_ledger_but_first_page_does_not(tmp_path):
     database = ArchiveDatabase.create(tmp_path / "archive.db")
     try:
         with database.write() as session:
@@ -124,15 +124,21 @@ def test_completed_visible_media_overrides_old_retry_ledger_without_rewriting_it
                 "status": "waiting", "kind": "repair", "reason": "old failure",
                 "next_retry_at": "2026-09-30T09:00:00"}))
         library = Library(database)
-        assert library.query(compact=True)["items"][0]["recovery"]["status"] == "ready"
+        card = library.query(compact=True)["items"][0]
+        assert card["recovery"]["status"] == "ready"
+        assert card["archive"]["state"] == "complete"
         assert library.detail(1)["recovery"]["status"] == "ready"
         assert all(item["recovery"]["status"] == "ready" for item in library.feed()["items"])
         with database.write() as session:
             session.scalar(select(Asset).where(Asset.page_index == 1)).state = "failed"
-        assert library.query(compact=True)["items"][0]["recovery"]["status"] == "ready"
+        card = library.query(compact=True)["items"][0]
+        assert card["preview_status"] == "ready"
+        assert card["recovery"]["status"] == "waiting"
+        assert card["archive"] == {"state": "partial", "total": 2, "verified": 1, "missing": 1, "unknown": 0}
         assert library.detail(1, page_offset=1, page_limit=1)["recovery"]["status"] == "waiting"
         pages = library.feed()["items"]
-        assert pages[0]["recovery"]["status"] == "ready"
+        assert pages[0]["recovery"]["status"] == "waiting"
+        assert pages[0]["src"]
         assert pages[1]["recovery"]["status"] == "waiting"
         with database.read() as session:
             assert session.get(ApplicationState, "maintenance_work:1").value["reason"] == "old failure"

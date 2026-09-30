@@ -1,15 +1,17 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { hasProgressTrack, nextFocus, phaseStatus, selectPrimary, shouldNotifyFailure, type Operation } from '../src/state/taskProgress.ts'
+import { catalogueChanged, hasProgressTrack, nextFocus, phaseStatus, selectPrimary, shouldNotifyFailure, type Operation } from '../src/state/taskProgress.ts'
 
 function operation(id: string, state: string, done = 0, total: number | null = null): Operation {
   return {id, label: id, state, source: 'manual', phase: {name: 'verifying', done, total, unit: 'files', detail: ''}, result: {}}
 }
 
-test('the most recently requested active task stays in focus until it finishes', () => {
+test('queued manual submission cannot replace a running task with its waiting counts', () => {
   const first = operation('first', 'running', 4, 20)
   const second = operation('second', 'queued')
-  assert.equal(selectPrimary([first, second], second.id)?.id, second.id)
+  assert.equal(selectPrimary([first, second], second.id)?.id, first.id)
+  second.state = 'running'
+  assert.equal(selectPrimary([first, second], second.id, first.id)?.id, second.id)
   second.state = 'finished'
   assert.equal(selectPrimary([first, second], second.id)?.id, first.id)
   first.state = 'finished'
@@ -36,14 +38,41 @@ test('a just submitted task that finishes before the first poll still reports fa
   assert.equal(shouldNotifyFailure(task, 'running', false), true)
 })
 
-test('a known empty phase has no progress bar, while an unknown total may indicate activity', () => {
+test('empty and unknown phases show honest counts without a pretend progress bar', () => {
   const task = operation('verify', 'planning', 0, 0)
   assert.equal(phaseStatus(task), '核验 · 0 / 0 个文件')
   assert.equal(hasProgressTrack(task), false)
   task.phase.total = null
-  assert.equal(hasProgressTrack(task), true)
+  assert.equal(hasProgressTrack(task), false)
   assert.equal(hasProgressTrack(task, true), false)
   assert.equal(hasProgressTrack(task, false, true), false)
+})
+
+test('simultaneous lanes choose download first, keep the current running primary, then move to check and local', () => {
+  const check = {...operation('check', 'running', 2, 11), lane: 'check' as const}
+  const local = {...operation('local', 'running', 18, 29), lane: 'local' as const}
+  const download = {...operation('download', 'running', 1, 2000), lane: 'download' as const}
+  const queued = operation('manual', 'queued', 0, 7)
+  assert.equal(selectPrimary([local, check, download, queued], queued.id)?.id, download.id)
+  assert.equal(selectPrimary([download, local, check], null, check.id)?.id, check.id)
+  download.state = 'finished'
+  assert.equal(selectPrimary([local, check, download], null, download.id)?.id, check.id)
+  check.state = 'finished'
+  assert.equal(selectPrimary([local, check, download], null, check.id)?.id, local.id)
+  assert.equal(hasProgressTrack(queued), false)
+  check.state = 'running'
+  assert.equal(selectPrimary([local, check, queued], queued.id, local.id, [check.id, queued.id])?.id, check.id)
+  assert.equal(phaseStatus(local), '核验 · 18 / 29 个文件')
+  local.phase = {name: 'thumbnails', done: 3, total: 9, unit: 'previews', detail: ''}
+  assert.equal(phaseStatus(local), '缩略图 · 3 / 9 件预览')
+})
+
+test('catalogue revision establishes a baseline and coalesces duplicate or older snapshots', () => {
+  assert.deepEqual(catalogueChanged(null, 42), {revision: 42, changed: false})
+  assert.deepEqual(catalogueChanged(42, 47), {revision: 47, changed: true})
+  assert.deepEqual(catalogueChanged(47, 47), {revision: 47, changed: false})
+  assert.deepEqual(catalogueChanged(47, 46), {revision: 47, changed: false})
+  assert.deepEqual(catalogueChanged(47), {revision: 47, changed: false})
 })
 
 test('progress distinguishes real phase counts, unknown totals, queues and interruption', () => {

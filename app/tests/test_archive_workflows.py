@@ -165,7 +165,8 @@ def test_valid_gif_does_not_mask_mismatching_original_timing(setup_archive):
         session.add_all([work, ArchiveIntent(pixiv_illust_id="200")])
     queue.submit("verify", {}, "本地核验")
     queue.run_round()
-    assert queue.snapshot()["round"]["outcome"] == "failed"
+    assert queue.snapshot()["round"]["outcome"] == "partial_failure"
+    assert queue.snapshot()["round"]["counts"] == {"failed": 1, "succeeded": 3}
     assert Library(database).detail(1)["pages"][0]["src"] == "/images/200.gif"
     assert Library(database).feed(offset=0, limit=1, ceiling=1)["items"][0]["src"] == "/images/200.gif"
     assert len(Library(database).missing_originals()) == 1

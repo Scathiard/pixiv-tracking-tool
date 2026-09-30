@@ -76,6 +76,9 @@ class ArchiveDatabase:
         engine = cls._engine(path)
         try:
             with engine.begin() as connection:
+                # sqlite's legacy transaction mode does not begin on DDL. A
+                # failed initializer must roll back every table and index too.
+                connection.exec_driver_sql("BEGIN IMMEDIATE")
                 operations = Operations(MigrationContext.configure(connection))
                 Base.metadata.create_all(connection)
                 operations.create_table(

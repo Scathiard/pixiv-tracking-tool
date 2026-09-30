@@ -28,6 +28,22 @@ def test_create_never_overwrites_existing_database(tmp_path):
     assert path.read_bytes() == b"preserve"
 
 
+def test_failed_initialization_does_not_leave_partial_schema(tmp_path, monkeypatch):
+    from src.core.database import Base
+
+    path = tmp_path / "failed.db"
+
+    def fail_during_creation(connection):
+        connection.exec_driver_sql("CREATE TABLE initialization_probe(id INTEGER)")
+        raise RuntimeError("simulated initialization failure")
+
+    monkeypatch.setattr(Base.metadata, "create_all", fail_during_creation)
+    with pytest.raises(RuntimeError, match="initialization failure"):
+        ArchiveDatabase.create(path)
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall() == []
+
+
 def test_stopping_tracking_preserves_identity_work_and_preferences(tmp_path):
     db = ArchiveDatabase.create(tmp_path / "library.db")
     try:

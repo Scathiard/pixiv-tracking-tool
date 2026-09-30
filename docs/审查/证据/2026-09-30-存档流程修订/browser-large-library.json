@@ -1,0 +1,145 @@
+{
+  "checks": [
+    "failed-target-retains-current-work-and-retries-without-refresh",
+    "five-thousandth-work-and-feed-end-accessible-with-restored-page",
+    "large-feed-bounded-during-download-local-verify-independent-and-repair-total-fixed",
+    "partial-failure-persists-progress-retracts-without-reader-refresh",
+    "paused-automatic-queue-not-labelled-running-or-old-completion",
+    "settings-processing-log-retains-earlier-failed-round",
+    "offline-settings-search-and-local-reading-remain-usable"
+  ],
+  "errors": [],
+  "metrics": {
+    "works": 5000,
+    "long_work_pages": 2000,
+    "stream_samples": [
+      {
+        "step": 5,
+        "heap_bytes": 3912956,
+        "nodes": 255,
+        "images": 6,
+        "window_pages": 120,
+        "image_requests": 54,
+        "downloading": false
+      },
+      {
+        "step": 10,
+        "heap_bytes": 4044004,
+        "nodes": 255,
+        "images": 6,
+        "window_pages": 120,
+        "image_requests": 115,
+        "downloading": false
+      },
+      {
+        "step": 15,
+        "heap_bytes": 4168384,
+        "nodes": 276,
+        "images": 6,
+        "window_pages": 120,
+        "image_requests": 165,
+        "downloading": true
+      },
+      {
+        "step": 20,
+        "heap_bytes": 4224992,
+        "nodes": 276,
+        "images": 6,
+        "window_pages": 120,
+        "image_requests": 210,
+        "downloading": true
+      },
+      {
+        "step": 25,
+        "heap_bytes": 4247456,
+        "nodes": 276,
+        "images": 6,
+        "window_pages": 120,
+        "image_requests": 260,
+        "downloading": true
+      },
+      {
+        "step": 30,
+        "heap_bytes": 4280092,
+        "nodes": 275,
+        "images": 6,
+        "window_pages": 120,
+        "image_requests": 300,
+        "downloading": true
+      },
+      {
+        "step": 35,
+        "heap_bytes": 4333888,
+        "nodes": 275,
+        "images": 6,
+        "window_pages": 120,
+        "image_requests": 341,
+        "downloading": true
+      },
+      {
+        "step": 40,
+        "heap_bytes": 4409644,
+        "nodes": 275,
+        "images": 6,
+        "window_pages": 120,
+        "image_requests": 385,
+        "downloading": true
+      },
+      {
+        "step": 45,
+        "heap_bytes": 4426900,
+        "nodes": 275,
+        "images": 6,
+        "window_pages": 120,
+        "image_requests": 432,
+        "downloading": true
+      },
+      {
+        "step": 50,
+        "heap_bytes": 4419804,
+        "nodes": 290,
+        "images": 6,
+        "window_pages": 120,
+        "image_requests": 479,
+        "downloading": true
+      },
+      {
+        "step": 55,
+        "heap_bytes": 4438668,
+        "nodes": 287,
+        "images": 6,
+        "window_pages": 120,
+        "image_requests": 526,
+        "downloading": true
+      },
+      {
+        "step": 60,
+        "heap_bytes": 4494460,
+        "nodes": 287,
+        "images": 6,
+        "window_pages": 120,
+        "image_requests": 573,
+        "downloading": true
+      }
+    ],
+    "frontend_index_sha256": "491989be878edf186bf14827fa207af4c3ad8208d1fd0a2d1b6bc130e6a5fc85",
+    "local_verify_while_download_blocked": {
+      "outcome": "succeeded",
+      "download_total": 20,
+      "repair_round_total": 40
+    },
+    "download_result": {
+      "counts": {
+        "failed": 1,
+        "not_executed": 1,
+        "succeeded": 38
+      },
+      "outcome": "partial_failure",
+      "calls": 20
+    }
+  },
+  "real_account_used": false,
+  "real_library_used": false,
+  "real_phone_tested": false,
+  "server_stopped": true
+}

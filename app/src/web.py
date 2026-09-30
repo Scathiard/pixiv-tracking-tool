@@ -135,7 +135,7 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
 
     def switch_root(new_path):
         from . import progress
-        from .core.relocation import prepare_relocation
+        from .core.relocation import RelocationBusy, prepare_relocation
         from .data_migration import persist_data_root
         current = current_runtime()
         if current is None:
@@ -159,8 +159,6 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
                 return {"ok": True, "message": "数据目录未变化"}
             candidate, report = prepare_relocation(current, _cfg.DATA_ROOT, target)
             candidate.start()
-            candidate.queue.accept_submissions(True)
-            candidate.bookmarks.accept_submissions(True)
             # All copy/hash/database/startup checks precede the only commit point.
             persist_data_root(_cfg.env_file, target)
             committed = True
@@ -169,7 +167,13 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
             _cfg.DATA_DIR, _cfg.IMAGES_DIR = _cfg.DATA_ROOT / "data", _cfg.DATA_ROOT / "images"
             _cfg.DATABASE_URL = f"sqlite:///{_cfg.DATA_DIR / 'pixiv_tracker.db'}"
             os.environ["DATA_ROOT"] = str(_cfg.DATA_ROOT)
-            current.close()
+            if not current.close():
+                # The new instance remains gated; the old lease must stay held
+                # until every claimed worker has actually returned.
+                raise RuntimeError("原实例尚未完成关闭")
+            candidate.queue.accept_submissions(True)
+            candidate.bookmarks.accept_submissions(True)
+            candidate.bookmarks.reconcile_pending()
             if schedule and candidate.client is not None:
                 start_scheduler(candidate)
             return {"ok": True, "message": f"已切换，核对了 {report.image_files} 个图片文件；旧目录保留"}
@@ -177,7 +181,7 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
             if not committed and candidate is not None:
                 candidate.close()
             message = "目录已切换，但后台服务需要重启" if committed else getattr(exc, "user_message", str(exc))
-            return JSONResponse({"ok": False, "error": message}, 500)
+            return JSONResponse({"ok": False, "error": message}, 409 if isinstance(exc, RelocationBusy) else 500)
         finally:
             if not committed:
                 current.queue.accept_submissions(True)

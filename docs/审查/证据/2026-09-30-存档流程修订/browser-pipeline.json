@@ -1,0 +1,47 @@
+{
+  "checks": [
+    "1440-lanes-manual-queue-stable-primary-honest-unknown-reconnect",
+    "1440-revision-card-refresh-preserves-wheel-scroll-filter-bookmarks",
+    "1440-missing-p1-recovers-readable-p0-detail-in-place",
+    "1440-older-detail-response-cannot-replace-newer-visible-archive",
+    "1440-saved-original-preview-pending-old-source-update-nondestructive",
+    "1440-feed-wheel-title-bookmark-revision-position",
+    "1440-idle-progress-layer-hidden",
+    "390-lanes-manual-queue-stable-primary-honest-unknown-reconnect",
+    "390-revision-card-refresh-preserves-wheel-scroll-filter-bookmarks",
+    "390-missing-p1-recovers-readable-p0-detail-in-place",
+    "390-saved-original-preview-pending-old-source-update-nondestructive",
+    "390-feed-wheel-title-bookmark-revision-position",
+    "390-idle-progress-layer-hidden",
+    "320-lanes-manual-queue-stable-primary-honest-unknown-reconnect",
+    "320-revision-card-refresh-preserves-wheel-scroll-filter-bookmarks",
+    "320-missing-p1-recovers-readable-p0-detail-in-place",
+    "320-saved-original-preview-pending-old-source-update-nondestructive",
+    "320-feed-wheel-title-bookmark-revision-position",
+    "320-idle-progress-layer-hidden",
+    "1440-new-work-at-top-appears-with-current-filter-sort",
+    "1440-scrolled-new-work-entry-keeps-place-and-media-only-does-not-prompt",
+    "1440-feed-keeps-range-and-logo-preserves-new-work-entry",
+    "390-new-work-at-top-appears-with-current-filter-sort",
+    "390-scrolled-new-work-entry-keeps-place-and-media-only-does-not-prompt",
+    "390-feed-keeps-range-and-logo-preserves-new-work-entry",
+    "320-new-work-at-top-appears-with-current-filter-sort",
+    "320-scrolled-new-work-entry-keeps-place-and-media-only-does-not-prompt",
+    "320-feed-keeps-range-and-logo-preserves-new-work-entry",
+    "1440-other-numbered-page-retained-until-new-work-action",
+    "390-first-progress-after-old-empty-data-coalesces-first-publish-refresh",
+    "390-first-progress-after-old-missing-page-data-coalesces-first-publish-refresh"
+  ],
+  "errors": [],
+  "metrics": {
+    "1440_gallery_scroll": 650,
+    "390_gallery_scroll": 650,
+    "320_gallery_scroll": 650
+  },
+  "calls": {
+    "library": 239,
+    "detail": 30,
+    "feed": 15,
+    "bookmark_refresh": 18
+  }
+}
