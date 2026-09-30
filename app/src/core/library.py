@@ -22,7 +22,7 @@ from .models import (
 class LibraryFilter:
     artist_ids: tuple[int, ...] | None = None
     types: tuple[str, ...] | None = None
-    tags: tuple[str, ...] = ()
+    tags: tuple[str, ...] | None = None
     show_hidden: bool = False
     posted_after: datetime | None = None
     posted_before: datetime | None = None
@@ -31,6 +31,8 @@ class LibraryFilter:
     favorites: bool = False
     recent: bool = False
     as_of: datetime | None = None
+    artist_ids_exclude: tuple[int, ...] | None = None
+    tags_exclude: tuple[str, ...] | None = None
 
     def __post_init__(self):
         if self.sort not in ("newest", "oldest", "added", "title"):
@@ -76,10 +78,16 @@ class Library:
             statement = statement.where(~Work.id.in_(select(LocalPreference.work_id).where(LocalPreference.is_hidden.is_(True))))
         if filters.artist_ids is not None:
             statement = statement.where(Work.artist_id.in_(filters.artist_ids))
+        if filters.artist_ids_exclude is not None:
+            statement = statement.where(~Work.artist_id.in_(filters.artist_ids_exclude))
         if filters.types is not None:
             statement = statement.where(Work.type.in_(filters.types))
-        if filters.tags:
+        if filters.tags is not None:
             statement = statement.where(Work.id.in_(select(WorkTag.work_id).where(WorkTag.tag.in_(filters.tags))))
+        if filters.tags_exclude is not None:
+            # Inverting tag choices still matches ANY selected tag. A work with
+            # A+B remains in the inverse of A because its B tag is selected.
+            statement = statement.where(Work.id.in_(select(WorkTag.work_id).where(~WorkTag.tag.in_(filters.tags_exclude))))
         if filters.q:
             term = filters.q.strip()
             if term:

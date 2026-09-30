@@ -1,0 +1,203 @@
+{
+  "checks": [
+    "settings-2560-center-sidebar-False",
+    "settings-2560-center-sidebar-True",
+    "artists-2560-center-sidebar-False",
+    "artists-2560-center-sidebar-True"
+  ],
+  "issues": [
+    "settings-2560-left-gutter-sidebar-False: wheel does not scroll the content pane",
+    "settings-2560-right-gutter-sidebar-False: wheel does not scroll the content pane",
+    "settings-2560-left-gutter-sidebar-True: wheel does not scroll the content pane",
+    "settings-2560-right-gutter-sidebar-True: wheel does not scroll the content pane",
+    "settings-2560: bottom control is clipped or cannot scroll",
+    "artists-2560-left-gutter-sidebar-False: wheel does not scroll the content pane",
+    "artists-2560-right-gutter-sidebar-False: wheel does not scroll the content pane",
+    "artists-2560-left-gutter-sidebar-True: wheel does not scroll the content pane",
+    "artists-2560-right-gutter-sidebar-True: wheel does not scroll the content pane",
+    "artists-2560: bottom control is clipped or cannot scroll"
+  ],
+  "errors": [],
+  "metrics": [
+    {
+      "width": 2560,
+      "icons": [
+        {
+          "x": 2.9200000762939453,
+          "y": 2.740000009536743,
+          "width": 18.15999984741211,
+          "height": 18.520000457763672,
+          "centerX": 12,
+          "centerY": 12.000000238418579
+        }
+      ]
+    },
+    {
+      "width": 2560,
+      "route": "settings",
+      "position": "center",
+      "sidebar_collapsed": false,
+      "scrollTop": 450,
+      "hit": {
+        "className": "settings-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "settings",
+      "position": "left-gutter",
+      "sidebar_collapsed": false,
+      "scrollTop": 0,
+      "hit": {
+        "className": "app-shell",
+        "inPane": false
+      }
+    },
+    {
+      "width": 2560,
+      "route": "settings",
+      "position": "right-gutter",
+      "sidebar_collapsed": false,
+      "scrollTop": 0,
+      "hit": {
+        "className": "app-shell",
+        "inPane": false
+      }
+    },
+    {
+      "width": 2560,
+      "route": "settings",
+      "position": "center",
+      "sidebar_collapsed": true,
+      "scrollTop": 450,
+      "hit": {
+        "className": "settings-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "settings",
+      "position": "left-gutter",
+      "sidebar_collapsed": true,
+      "scrollTop": 0,
+      "hit": {
+        "className": "app-shell sidebar-collapsed",
+        "inPane": false
+      }
+    },
+    {
+      "width": 2560,
+      "route": "settings",
+      "position": "right-gutter",
+      "sidebar_collapsed": true,
+      "scrollTop": 0,
+      "hit": {
+        "className": "app-shell sidebar-collapsed",
+        "inPane": false
+      }
+    },
+    {
+      "width": 2560,
+      "route": "settings",
+      "before": {
+        "client": 900,
+        "scroll": 1401,
+        "top": 0
+      },
+      "after": {
+        "client": 900,
+        "scroll": 1401,
+        "top": 0
+      },
+      "bottom_reachable": false,
+      "horizontal_fit": true
+    },
+    {
+      "width": 2560,
+      "route": "artists",
+      "position": "center",
+      "sidebar_collapsed": false,
+      "scrollTop": 450,
+      "hit": {
+        "className": "artists-list grid",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "artists",
+      "position": "left-gutter",
+      "sidebar_collapsed": false,
+      "scrollTop": 0,
+      "hit": {
+        "className": "app-shell",
+        "inPane": false
+      }
+    },
+    {
+      "width": 2560,
+      "route": "artists",
+      "position": "right-gutter",
+      "sidebar_collapsed": false,
+      "scrollTop": 0,
+      "hit": {
+        "className": "app-shell",
+        "inPane": false
+      }
+    },
+    {
+      "width": 2560,
+      "route": "artists",
+      "position": "center",
+      "sidebar_collapsed": true,
+      "scrollTop": 450,
+      "hit": {
+        "className": "",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "artists",
+      "position": "left-gutter",
+      "sidebar_collapsed": true,
+      "scrollTop": 0,
+      "hit": {
+        "className": "app-shell sidebar-collapsed",
+        "inPane": false
+      }
+    },
+    {
+      "width": 2560,
+      "route": "artists",
+      "position": "right-gutter",
+      "sidebar_collapsed": true,
+      "scrollTop": 0,
+      "hit": {
+        "className": "app-shell sidebar-collapsed",
+        "inPane": false
+      }
+    },
+    {
+      "width": 2560,
+      "route": "artists",
+      "before": {
+        "client": 900,
+        "scroll": 2760,
+        "top": 0
+      },
+      "after": {
+        "client": 900,
+        "scroll": 2760,
+        "top": 0
+      },
+      "bottom_reachable": false,
+      "horizontal_fit": true
+    }
+  ],
+  "real_library_used": false,
+  "real_account_used": false,
+  "real_phone_tested": false
+}

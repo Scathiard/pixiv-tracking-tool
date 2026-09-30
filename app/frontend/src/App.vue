@@ -6,6 +6,7 @@ import { LatestIntent } from './interaction'
 import { positions, savePosition } from './positions'
 import { archiveNotice, archiveStatus, hasNewWorks, isOlderCatalogue, type Anchor, type GalleryBatch, type Mode, type PageBatch, type PageData, type PageLoader, type WorkDetail } from './types'
 import { observeCatalogueData, queueCatalogueUpdate } from './state/catalogue'
+import { writeTagValues } from './state/filterSelection'
 import FilterPanel from './FilterPanel.vue'
 import GalleryView from './GalleryView.vue'
 import PageReader from './PageReader.vue'
@@ -46,9 +47,9 @@ const sessionKey = computed(() => mode.value + ':' + (mode.value === 'reader' ? 
 const heading = computed(() => mode.value === 'gallery' ? new URLSearchParams(scope.value).has('favorites') ? '收藏作品' : new URLSearchParams(scope.value).has('recent') ? '最近存入' : '我的图库' : activePage.value?.title || currentWork.value?.title || '阅览')
 const filterSummary = computed(() => {
   const params = new URLSearchParams(scope.value)
-  const labels = [params.has('artist_ids') ? `${params.get('artist_ids')?.split(',').filter(Boolean).length || 0} 位画师` : '全部画师',
+  const labels = [params.has('artist_ids') ? `${params.get('artist_ids')?.split(',').filter(Boolean).length || 0} 位画师` : params.has('artist_ids_exclude') ? '画师已筛选' : '全部画师',
     params.has('types') ? `${params.get('types')?.split(',').filter(Boolean).length || 0} 种类型` : '全部类型']
-  if (params.has('tags')) labels.push('标签已筛选')
+  if (params.has('tags') || params.has('tags_exclude')) labels.push('标签已筛选')
   if (params.has('q')) labels.push(`搜索：${params.get('q')}`)
   return labels.join(' · ')
 })
@@ -96,7 +97,12 @@ function route(push: boolean) {
     if (detailOrigin.value === 'artists' && originArtistId.value) params.set('origin_artist', String(originArtistId.value))
   }
   if (section.value === 'library' && mode.value === 'gallery') params.set('page', String(Math.floor(galleryAnchor.value / pageSize.value) + 1))
-  const target = router.resolve({path, query: Object.fromEntries(params)})
+  const query: Record<string, string | string[]> = {}
+  for (const [name, value] of params) {
+    const previous = query[name]
+    query[name] = previous === undefined ? value : Array.isArray(previous) ? [...previous, value] : [previous, value]
+  }
+  const target = router.resolve({path, query})
   internalRoute = target.fullPath
   void router[push ? 'push' : 'replace'](target).catch(() => { internalRoute = '' })
 }
@@ -288,7 +294,7 @@ function changeRail(rail: 'all' | 'recent' | 'favorites') {
 function openFromGallery(index: number) { detailOrigin.value = 'gallery'; void openWork(index) }
 function tagFilter(tag: string) {
   const params = new URLSearchParams(homeScope.value)
-  params.delete('ceiling'); params.delete('as_of'); params.delete('favorites'); params.delete('recent'); params.set('tags', tag)
+  params.delete('ceiling'); params.delete('as_of'); params.delete('favorites'); params.delete('recent'); params.delete('tags_exclude'); writeTagValues(params, [tag])
   setHomeScope(params.toString()); void initialize(homeScope.value, '/', true)
 }
 async function openFolder(id: number) {
@@ -320,7 +326,7 @@ function showArtists(id: number | null = null) { remember(); navigation.cancel()
 function showSettings() { remember(); navigation.cancel(); infoRequest.cancel(); pending.value = false; section.value = 'settings'; filterOpen.value = false; infoOpen.value = false; route(true) }
 async function artistWorks(id: number) {
   detailOrigin.value = 'artists'; originArtistId.value = id
-  const params = new URLSearchParams(homeScope.value); params.delete('ceiling'); params.delete('as_of'); params.delete('favorites'); params.delete('recent'); params.set('artist_ids', String(id))
+  const params = new URLSearchParams(homeScope.value); params.delete('ceiling'); params.delete('as_of'); params.delete('favorites'); params.delete('recent'); params.delete('artist_ids_exclude'); params.set('artist_ids', String(id))
   await initialize(params.toString(), '/', true)
 }
 async function artistWork(id: number, workId: number) {

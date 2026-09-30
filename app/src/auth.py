@@ -125,6 +125,8 @@ def _load_token():
 
 
 def _try_refresh_token():
+    if _cancel_event.is_set():
+        return None
     saved = _load_token()
     refresh_token = saved.get("refresh_token") or _cfg.PIXIV_REFRESH_TOKEN
 
@@ -157,6 +159,8 @@ def _try_refresh_token():
         resp = r.json()
         body = resp.get("response", resp)
         next_refresh_token = body.get("refresh_token") or refresh_token
+        if _cancel_event.is_set():
+            return None
         _save_token(body["access_token"], next_refresh_token,
                     _account_id_from_response(resp))
         return next_refresh_token
@@ -167,8 +171,9 @@ def _try_refresh_token():
 
 def _oauth_pkce():
     global _pending_login_url, _pending_code_verifier, _received_code
+    if _cancel_event.is_set():
+        return None
     _code_event.clear()
-    _cancel_event.clear()
     _received_code = None
 
     code_verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b"=").decode()
@@ -190,6 +195,8 @@ def _oauth_pkce():
     # 尝试 Playwright 自动捕获（使用系统浏览器）
     print("\n  尝试自动打开浏览器...")
     code = _browser_oauth(login_url)
+    if _cancel_event.is_set():
+        return None
 
     # Playwright 不可用时：打开浏览器，等待网页端提交 code
     if not code:
@@ -205,7 +212,7 @@ def _oauth_pkce():
             pass
 
         # 等待网页端提交 code（最长等 3 分钟）
-        if not _code_event.wait(180) or _cancel_event.is_set():
+        if _cancel_event.is_set() or not _code_event.wait(180) or _cancel_event.is_set():
             _pending_login_url = None
             _pending_code_verifier = None
             print("\n[X] 等待授权超时。\n")
@@ -215,7 +222,7 @@ def _oauth_pkce():
         _pending_login_url = None
         _pending_code_verifier = None
 
-    if not code:
+    if not code or _cancel_event.is_set():
         return None
 
     # 用 code 换取 token
@@ -250,6 +257,8 @@ def _oauth_pkce():
         return None
 
     body = resp.get("response", resp)
+    if _cancel_event.is_set():
+        return None
     _save_token(body["access_token"], body["refresh_token"],
                 _account_id_from_response(resp))
     print("\n[OK] 登录成功！\n")
@@ -279,6 +288,9 @@ def _browser_oauth(login_url):
     """用 Playwright 打开浏览器，自动截获回调请求中的 code。"""
     from playwright.sync_api import sync_playwright
 
+    if _cancel_event.is_set():
+        return None
+
     code = None
     browser_closed = False
 
@@ -290,6 +302,9 @@ def _browser_oauth(login_url):
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=False, executable_path=browser_path)
+            if _cancel_event.is_set():
+                browser.close()
+                return None
             page = browser.new_page()
 
             def on_request(request):
@@ -420,6 +435,8 @@ def configure_gallery_dl(refresh_token):
 def auth():
     # 1. 尝试 refresh_token 恢复
     token = _try_refresh_token()
+    if _cancel_event.is_set():
+        return
     if token:
         configure_gallery_dl(token)
         return

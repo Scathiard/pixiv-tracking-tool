@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 from stat import S_ISREG
+import threading
+import time
 
 from sqlalchemy import func, select
 
@@ -31,12 +33,18 @@ class RemoteAccess:
         self.runtime = runtime
 
     def __getattr__(self, name):
+        if self.runtime._closing.is_set():
+            from ..request_policy import ShutdownRequested
+            raise ShutdownRequested()
         client = self.runtime.client
         if client is None:
             raise LoginRequired(LoginRequired.user_message)
         return getattr(client, name)
 
     def get_account_id(self):
+        if self.runtime._closing.is_set():
+            from ..request_policy import ShutdownRequested
+            raise ShutdownRequested()
         client = self.runtime.client
         if client is None:
             self.runtime.account_id = self.runtime.library.account_id = None
@@ -51,6 +59,9 @@ class RemoteAccess:
 
 class Runtime:
     def __init__(self, database_path: Path, images: Path, *, create=False, client=None, downloader=None):
+        self._closing = threading.Event()
+        self._closed = False
+        self._close_lock = threading.Lock()
         self.lease = LibraryLease(images).acquire()
         try:
             self.database = ArchiveDatabase.create(database_path) if create else ArchiveDatabase(database_path)
@@ -82,17 +93,33 @@ class Runtime:
         self.queue.recover()
         self.queue.start()
 
-    def close(self):
-        self.bookmarks.accept_submissions(False)
-        self.queue.accept_submissions(False)
-        if not self.queue.stop():
-            # Do not release ownership or dispose a DB still used by network work.
-            return False
-        if not self.bookmarks.stop():
-            return False
-        self.database.close()
-        self.lease.close()
-        return True
+    def request_stop(self, *, cancel_remote=False):
+        self._closing.set()
+        self.queue.request_stop()
+        self.bookmarks.request_stop()
+        # A replacement runtime can reuse the client's connection. Only actual
+        # application exit cancels that client's request/retry boundaries.
+        if cancel_remote and self.client is not None:
+            stop = getattr(self.client, "request_stop", None)
+            if callable(stop):
+                stop()
+
+    def close(self, timeout=5):
+        self.request_stop()
+        with self._close_lock:
+            if self._closed:
+                return True
+            deadline = None if timeout is None else time.monotonic() + timeout
+            if not self.queue.stop(timeout=timeout):
+                # Retain ownership and DB while a worker is still writing.
+                return False
+            remaining = None if deadline is None else max(0, deadline - time.monotonic())
+            if not self.bookmarks.stop(timeout=remaining):
+                return False
+            self.database.close()
+            self.lease.close()
+            self._closed = True
+            return True
 
     def busy(self):
         if self.bookmarks.busy() or self.queue._planning or self.queue._resources:

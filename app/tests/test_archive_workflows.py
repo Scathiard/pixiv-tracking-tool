@@ -137,6 +137,70 @@ def test_gif_only_archive_does_not_silently_backfill(setup_archive):
     assert Library(database).missing_originals() == []
 
 
+def add_gif_only_work(database, root, work_id=1):
+    remote_id = str(200 + work_id - 1)
+    Image.new("RGB", (8, 6), "red").save(root / f"{remote_id}.gif")
+    with database.write() as session:
+        work = Work(id=work_id, pixiv_illust_id=remote_id, artist_id=1, title="legacy", type="ugoira",
+                    source_metadata={"original_backfill_requires_selection": True})
+        work.assets = [Asset(role="ugoira_zip", state="missing_deferred"), Asset(role="ugoira_timing")]
+        work.derivatives = [Derivative(kind="gif", relative_path=f"{remote_id}.gif", state="unknown")]
+        session.add_all([work, ArchiveIntent(pixiv_illust_id=remote_id)])
+
+
+def test_selected_repair_fills_gif_only_originals_without_backfilling_other_works(setup_archive):
+    database, root, queue, client, download = setup_archive
+    for work_id in (1, 2):
+        add_gif_only_work(database, root, work_id)
+    queue.submit("repair", {"work_ids": [1]}, "补下载此作品")
+    queue.run_round()
+    assert client.calls == ["ugoira-200"]
+    assert download.urls == ["https://i.pximg.net/animation.zip"]
+    assert queue.snapshot()["round"]["outcome"] == "succeeded"
+    with database.read() as session:
+        selected = session.get(Work, 1)
+        assert all(asset.state == "verified" for asset in selected.assets)
+        assert not selected.source_metadata["original_backfill_requires_selection"]
+        assert session.get(Work, 2).source_metadata["original_backfill_requires_selection"]
+    assert [work["id"] for work in Library(database).missing_originals()] == [2]
+    assert Library(database).detail(1)["pages"][0]["src"] == "/images/200.gif"
+
+
+@pytest.mark.parametrize("parameters,source", [({}, "manual"), ({"artist_ids": [1]}, "manual"),
+    ({"work_ids": [1]}, "maintenance"), ({"work_ids": [1]}, "automatic")])
+def test_unselected_repair_keeps_legacy_animation_originals_deferred(setup_archive, parameters, source):
+    database, root, queue, client, download = setup_archive
+    add_gif_only_work(database, root)
+    original_gif = (root / "200.gif").read_bytes()
+    queue.submit("repair", parameters, "补下载", source=source)
+    queue.run_round()
+    assert client.calls == [] and download.urls == []
+    assert (root / "200.gif").read_bytes() == original_gif
+    assert [work["id"] for work in Library(database).missing_originals()] == [1]
+
+
+@pytest.mark.parametrize("failure", ["network", "invalid_zip"])
+def test_selected_animation_repair_failure_preserves_existing_gif(setup_archive, failure):
+    database, root, queue, client, download = setup_archive
+    add_gif_only_work(database, root)
+    original_gif = (root / "200.gif").read_bytes()
+
+    def failed_download(url, destination, report=None):
+        download.urls.append(url)
+        if failure == "network":
+            raise DownloadFailure("network", "测试网络中断", retryable=True)
+        destination.write_bytes(b"not an animation archive")
+
+    download.download = failed_download
+    queue.submit("repair", {"work_ids": [1]}, "补下载此作品")
+    queue.run_round()
+    assert download.urls == ["https://i.pximg.net/animation.zip"]
+    assert queue.snapshot()["round"]["outcome"] in ("failed", "partial_failure")
+    assert (root / "200.gif").read_bytes() == original_gif
+    assert Library(database).detail(1)["pages"][0]["src"] == "/images/200.gif"
+    assert [work["id"] for work in Library(database).missing_originals()] == [1]
+
+
 def test_suppressed_work_and_paused_artist_stay_separate_from_visibility(setup_archive):
     database, root, queue, client, download = setup_archive
     with database.write() as session:

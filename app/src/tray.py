@@ -40,19 +40,26 @@ def _open_settings():
 
 
 def _quit_app(icon: pystray.Icon):
-    from src import progress
-    from src.web import get_tracker
-    current = get_tracker()
-
-    if (current is not None and current.busy()) or progress.maintenance_active():
-        try:
-            icon.notify("当前任务尚未完成，请等待进度结束后再退出。", "Pixiv Tracker")
-        except Exception:
-            pass
+    if getattr(icon, "_quit_requested", False):
         return
+    icon._quit_requested = True
+    icon.title = "PixivTracker · 正在退出"
+    try:
+        icon.notify("正在退出：等待当前读写收尾，未完成任务下次继续。", "Pixiv Tracker")
+    except Exception:
+        pass
     from src.web import request_shutdown
     request_shutdown()
-    icon.stop()
+    done = getattr(icon, "_shutdown_complete", None)
+    if done is None:
+        icon.stop()
+        return
+
+    def finish():
+        done.wait()
+        icon.stop()
+
+    threading.Thread(target=finish, name="tray-shutdown", daemon=True).start()
 
 
 def _create_icon():
@@ -78,7 +85,7 @@ def _create_icon():
 
 
 def run_tray(*, offline=False):
-    """系统托盘入口。在主线程运行 pystray，Web 服务在 daemon 线程启动。"""
+    """主线程运行托盘；退出时等待服务保存当前工作并释放图库。"""
     from src.config import PORT, DATA_DIR
     from src.version import DISPLAY_VERSION
 
@@ -90,26 +97,30 @@ def run_tray(*, offline=False):
     if offline:
         print("[tray] 离线模式：不登录 Pixiv，不启动自动检查")
 
-    # 在 daemon 线程启动 Web 服务
+    web_done = threading.Event()
+    # 保持服务线程存活，直到安全收尾完成。
     def _start_web():
-        import time
-        time.sleep(1)  # 等托盘图标就位
-        from src.web import main
-        main(offline=offline)
+        from src.web import main, _shutdown_requested
+        try:
+            if not _shutdown_requested.wait(1):  # 等托盘图标就位，可被退出唤醒
+                main(offline=offline)
+        finally:
+            web_done.set()
 
     web_thread = threading.Thread(target=_start_web, daemon=False)
     web_thread.start()
 
     # 自动打开浏览器
     def _auto_browser():
-        import time
-        time.sleep(3)
-        _open_gallery()
+        from src.web import _shutdown_requested
+        if not _shutdown_requested.wait(3):
+            _open_gallery()
 
     threading.Thread(target=_auto_browser, daemon=True).start()
 
     # 主线程运行托盘图标
     icon = _create_icon()
+    icon._shutdown_complete = web_done
     icon.run()
     from src.web import request_shutdown
     request_shutdown()

@@ -48,8 +48,9 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
 
     async def connect(interactive=False):
         from .auth import _try_refresh_token, auth
+        from .request_policy import ShutdownRequested
         current = application.state.runtime
-        if current is None:
+        if current is None or application.state.stopping:
             return
         installed_client = None
         try:
@@ -58,14 +59,16 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
                 connected = True
             else:
                 connected = bool(await asyncio.to_thread(_try_refresh_token))
-            if connected:
+            if connected and not application.state.stopping:
                 installed_client = PixivClient()
                 current.client = installed_client
                 await asyncio.to_thread(current.remote.get_account_id)
                 await asyncio.to_thread(current.bookmarks.reconcile_pending)
                 application.state.login_error = None
-                if schedule:
+                if schedule and not application.state.stopping:
                     start_scheduler(current)
+        except ShutdownRequested:
+            return
         except Exception:
             if installed_client is not None and current.client is installed_client:
                 current.client = None
@@ -79,30 +82,44 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
         try:
             current = await asyncio.to_thread(runtime_factory or default_runtime)
             application.state.runtime = current
-            await asyncio.to_thread(current.start)
-            if schedule and current.client is not None:
+            # Exit can arrive while the factory is opening the library. Do not
+            # start workers or acquire a new page after that remembered intent.
+            if _shutdown_requested.is_set() or application.state.stopping:
+                application.state.stopping = True
+                current.request_stop(cancel_remote=True)
+            else:
+                await asyncio.to_thread(current.start)
+            if _shutdown_requested.is_set():
+                application.state.stopping = True
+                current.request_stop(cancel_remote=True)
+            if schedule and current.client is not None and not application.state.stopping:
                 start_scheduler(current)
-            if authenticate and current.client is None:
+            if authenticate and current.client is None and not application.state.stopping:
                 application.state.auth_task = asyncio.create_task(connect())
         except UpgradeRequired:
             application.state.upgrade_required = True
         except BaseException:
             if current is not None:
-                await asyncio.to_thread(current.close)
+                await asyncio.to_thread(current.close, timeout=None)
             application.state.runtime = None
             raise
         try:
             yield
         finally:
+            application.state.stopping = True
+            current = application.state.runtime
+            if current is not None:
+                current.request_stop(cancel_remote=True)
             if schedule:
                 stop_scheduler()
             if authenticate:
                 cancel_auth()
                 if application.state.auth_task:
-                    application.state.auth_task.cancel()
-            current = application.state.runtime
+                    # Cancelling to_thread only abandons its awaiter, not the
+                    # actual thread. Wait until auth cannot install/use runtime.
+                    await asyncio.gather(application.state.auth_task, return_exceptions=True)
             if current is not None:
-                await asyncio.to_thread(current.close)
+                await asyncio.to_thread(current.close, timeout=None)
             application.state.runtime = None
 
     release = getattr(sys, "frozen", False)
@@ -110,6 +127,7 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
         docs_url=None if release else "/docs", redoc_url=None if release else "/redoc",
         openapi_url=None if release else "/openapi.json")
     application.state.runtime = None
+    application.state.stopping = False
     application.state.auth_task = None
     application.state.login_error = None
     application.state.upgrade_required = False
@@ -267,7 +285,9 @@ def main(*, offline=False):
     serving_app = create_app(authenticate=False, schedule=False,
                              reading_ui=Path(resource_path("frontend/dist/index.html")).is_file()) if offline else app
     config = uvicorn.Config(serving_app, host=None, port=PORT, loop="src.networking:http_loop_factory",
-                            log_level="warning", timeout_graceful_shutdown=10, limit_concurrency=128)
+                            # Cancelling a sync HTTP awaiter does not stop its DB
+                            # writer. Drain those requests before closing runtime.
+                            log_level="warning", timeout_graceful_shutdown=None, limit_concurrency=128)
     server = uvicorn.Server(config)
 
     socks = []
@@ -311,8 +331,18 @@ def main(*, offline=False):
 def request_shutdown():
     """请求 Web 服务走 Uvicorn lifespan 正常退出。"""
     _shutdown_requested.set()
+    cancel_auth()
     if _server is not None:
         _server.should_exit = True
+        serving_app = _server.config.app
+    else:
+        serving_app = app
+    state = getattr(serving_app, "state", None)
+    if state is not None:
+        state.stopping = True
+        current = getattr(state, "runtime", None)
+        if current is not None:
+            current.request_stop(cancel_remote=True)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "build": "20260930.3",
+  "evidence_scope": "Initial selected-animation and scroll fixes; final exit/filter integration is recorded separately",
+  "frontend": {
+    "commands": [
+      "npm run test",
+      "npm run build"
+    ],
+    "unit_passed": 28,
+    "unit_failed": 0,
+    "typecheck": "passed",
+    "production_build": "passed",
+    "evidence_source": "Observed tool output; no separate raw stdout log was captured"
+  },
+  "backend": {
+    "passed": 93,
+    "failed": 0,
+    "report": "archive-green.xml"
+  },
+  "browser": {
+    "passed": 32,
+    "issues": 0,
+    "page_errors": 0,
+    "report": "wheel-green.json"
+  },
+  "real_account_used": false,
+  "real_library_used": false,
+  "real_phone_tested": false
+}

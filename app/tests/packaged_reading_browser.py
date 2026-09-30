@@ -62,9 +62,9 @@ def main():
             page.on("pageerror", lambda error: page_errors.append(str(error)))
             page.goto(origin, wait_until="domcontentloaded")
             page.locator('.work-card[data-work-id="1"]').wait_for()
-            assert '.webp' in page.locator('.card-picture img').first.get_attribute('src').split('?')[0]
+            assert '.webp' in page.locator('.work-card[data-work-id="1"] .card-picture img').get_attribute('src').split('?')[0]
             checks.append("exe-opens-new-local-gallery-and-thumbnail")
-            gallery = page.request.get(origin + "/api/library?compact=1&limit=1").json()
+            gallery = page.request.get(origin + "/api/library?compact=1&limit=1&q=isolated").json()
             detail = page.request.get(origin + "/api/works/1?page_limit=1").json()
             progress = page.request.get(origin + "/api/progress").json()
             expected_archive = {"state": "complete", "total": 1, "verified": 1, "missing": 0, "unknown": 0}
@@ -76,11 +76,37 @@ def main():
             (artifacts / "exe-archive-contract.json").write_text(json.dumps({"gallery": gallery,
                 "detail": detail, "progress": progress}, ensure_ascii=False, indent=2), encoding="utf-8")
             checks.append("exe-whole-work-facts-catalogue-revision-and-bounded-progress")
+            selected = page.request.get(origin + "/api/works/2?page_limit=1").json()
+            unselected = page.request.get(origin + "/api/works/3?page_limit=1").json()
+            assert selected['archive'] == {'state':'complete','total':2,'verified':2,'missing':0,'unknown':0}
+            assert unselected['archive']['state'] == 'partial'
+            assert unselected['pages'][0]['src'] == '/images/3.gif'
+            assert [work['id'] for work in page.request.get(origin + '/api/library/missing-originals').json()['items']] == [3]
+            checks.append('exe-selected-animation-originals-filled-and-other-gif-preserved')
             page.get_by_role("button", name="收起侧栏", exact=True).click()
             page.locator(".app-shell.sidebar-collapsed").wait_for()
             page.get_by_role("button", name="展开侧栏", exact=True).click()
             page.get_by_role("button", name="检查新作品", exact=True).wait_for()
             checks.append("exe-b-sidebar-and-manual-check-entry")
+            page.get_by_role('button', name='筛选', exact=True).click()
+            dialog = page.get_by_role('dialog', name='筛选作品')
+            dialog.get_by_role('button', name='画师', exact=False).first.click()
+            dialog.locator('.filter-candidate[data-value="1"]').wait_for()
+            assert dialog.locator('.filter-candidate[data-value="1"] .candidate-label').inner_text() == 'smoke'
+            dialog.get_by_role('button', name='标签', exact=False).first.click()
+            dialog.locator('.filter-candidate[data-value="本地动图"]').wait_for()
+            dialog.locator('.filter-candidate[data-value="本地单图"]').click()
+            dialog.get_by_role('button', name='应用筛选', exact=True).click()
+            dialog.wait_for(state='hidden')
+            page.locator('.work-card[data-work-id="1"]').wait_for()
+            page.wait_for_function("document.querySelectorAll('.work-card').length === 1")
+            page.get_by_role('button', name='筛选', exact=True).click()
+            dialog.get_by_role('button', name='标签', exact=False).first.click()
+            assert dialog.locator('.filter-candidate[data-value="本地单图"]').get_attribute('aria-pressed') == 'true'
+            dialog.get_by_role('button', name='重置', exact=True).click()
+            dialog.get_by_role('button', name='应用筛选', exact=True).click()
+            page.wait_for_function("document.querySelectorAll('.work-card').length === 3")
+            checks.append('exe-full-local-filter-candidates-selection-reopen-reset')
             page.locator('.work-card[data-work-id="1"] .card-picture').click()
             page.locator('.image-page img').first.wait_for()
             page.wait_for_function("() => { const img = document.querySelector('.image-page img'); return img.complete && img.naturalWidth > 0; }")
@@ -121,6 +147,20 @@ def main():
             page.locator(".settings-page").wait_for()
             assert page.locator("body").get_attribute("data-theme") == "dark"
             checks.append("exe-theme-rapid-clicks-and-reload")
+            page.set_viewport_size({'width':2560,'height':900})
+            for collapsed in (False, True):
+                if bool(page.locator('.app-shell.sidebar-collapsed').count()) != collapsed:
+                    page.get_by_role('button', name='收起侧栏' if collapsed else '展开侧栏', exact=True).click()
+                sidebar = page.locator('.app-header').bounding_box()
+                assert sidebar
+                for position, x in (('left', sidebar['x'] + sidebar['width'] + 8), ('right', 2548)):
+                    page.locator('.settings-page').evaluate('e => e.scrollTop = 0')
+                    page.mouse.move(x, 500)
+                    page.mouse.wheel(0, 450)
+                    page.wait_for_function("document.querySelector('.settings-page').scrollTop > 0")
+            page.screenshot(path=str(artifacts / 'exe-settings-gutter-wheel.png'))
+            checks.append('exe-wide-settings-both-gutters-and-sidebar-wheel')
+            page.set_viewport_size({'width':1440,'height':900})
             page.goto(origin + "/artist/1")
             page.locator(".artist-profile").wait_for()
             checks.append("exe-direct-artist-route-and-local-profile")

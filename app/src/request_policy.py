@@ -9,6 +9,10 @@ from email.utils import parsedate_to_datetime
 MAX_RETRY_AFTER = 86400  # The persisted task result accepts at most one day.
 
 
+class ShutdownRequested(BaseException):
+    """Cooperative stop, kept out of handlers' ordinary failure classification."""
+
+
 def retry_after_seconds(headers, *, now=None):
     """Read RFC Retry-After seconds or an HTTP date without retaining headers."""
     raw = headers.get("Retry-After") if headers else None

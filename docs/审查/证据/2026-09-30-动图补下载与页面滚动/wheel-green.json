@@ -1,0 +1,461 @@
+{
+  "checks": [
+    "settings-2560-center-sidebar-False",
+    "settings-2560-left-gutter-sidebar-False",
+    "settings-2560-right-gutter-sidebar-False",
+    "settings-2560-center-sidebar-True",
+    "settings-2560-left-gutter-sidebar-True",
+    "settings-2560-right-gutter-sidebar-True",
+    "settings-2560-bottom-reachable",
+    "artists-2560-center-sidebar-False",
+    "artists-2560-left-gutter-sidebar-False",
+    "artists-2560-right-gutter-sidebar-False",
+    "artists-2560-center-sidebar-True",
+    "artists-2560-left-gutter-sidebar-True",
+    "artists-2560-right-gutter-sidebar-True",
+    "artists-2560-bottom-reachable",
+    "settings-1440-center-sidebar-False",
+    "settings-1440-left-gutter-sidebar-False",
+    "settings-1440-right-gutter-sidebar-False",
+    "settings-1440-center-sidebar-True",
+    "settings-1440-left-gutter-sidebar-True",
+    "settings-1440-right-gutter-sidebar-True",
+    "settings-1440-bottom-reachable",
+    "artists-1440-center-sidebar-False",
+    "artists-1440-left-gutter-sidebar-False",
+    "artists-1440-right-gutter-sidebar-False",
+    "artists-1440-center-sidebar-True",
+    "artists-1440-left-gutter-sidebar-True",
+    "artists-1440-right-gutter-sidebar-True",
+    "artists-1440-bottom-reachable",
+    "settings-390-bottom-reachable",
+    "artists-390-bottom-reachable",
+    "settings-320-bottom-reachable",
+    "artists-320-bottom-reachable"
+  ],
+  "issues": [],
+  "errors": [],
+  "metrics": [
+    {
+      "width": 2560,
+      "icons": [
+        {
+          "x": 2.9200000762939453,
+          "y": 2.740000009536743,
+          "width": 18.15999984741211,
+          "height": 18.520000457763672,
+          "centerX": 12,
+          "centerY": 12.000000238418579
+        }
+      ]
+    },
+    {
+      "width": 2560,
+      "route": "settings",
+      "position": "center",
+      "sidebar_collapsed": false,
+      "scrollTop": 450,
+      "hit": {
+        "className": "settings-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "settings",
+      "position": "left-gutter",
+      "sidebar_collapsed": false,
+      "scrollTop": 450,
+      "hit": {
+        "className": "settings-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "settings",
+      "position": "right-gutter",
+      "sidebar_collapsed": false,
+      "scrollTop": 450,
+      "hit": {
+        "className": "settings-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "settings",
+      "position": "center",
+      "sidebar_collapsed": true,
+      "scrollTop": 450,
+      "hit": {
+        "className": "settings-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "settings",
+      "position": "left-gutter",
+      "sidebar_collapsed": true,
+      "scrollTop": 450,
+      "hit": {
+        "className": "settings-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "settings",
+      "position": "right-gutter",
+      "sidebar_collapsed": true,
+      "scrollTop": 450,
+      "hit": {
+        "className": "settings-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "settings",
+      "before": {
+        "client": 900,
+        "scroll": 1401,
+        "top": 0
+      },
+      "after": {
+        "client": 900,
+        "scroll": 1401,
+        "top": 501
+      },
+      "bottom_reachable": true,
+      "horizontal_fit": true
+    },
+    {
+      "width": 2560,
+      "route": "artists",
+      "position": "center",
+      "sidebar_collapsed": false,
+      "scrollTop": 450,
+      "hit": {
+        "className": "artists-list grid",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "artists",
+      "position": "left-gutter",
+      "sidebar_collapsed": false,
+      "scrollTop": 450,
+      "hit": {
+        "className": "subpage artists-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "artists",
+      "position": "right-gutter",
+      "sidebar_collapsed": false,
+      "scrollTop": 450,
+      "hit": {
+        "className": "subpage artists-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "artists",
+      "position": "center",
+      "sidebar_collapsed": true,
+      "scrollTop": 450,
+      "hit": {
+        "className": "",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "artists",
+      "position": "left-gutter",
+      "sidebar_collapsed": true,
+      "scrollTop": 450,
+      "hit": {
+        "className": "subpage artists-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "artists",
+      "position": "right-gutter",
+      "sidebar_collapsed": true,
+      "scrollTop": 450,
+      "hit": {
+        "className": "subpage artists-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 2560,
+      "route": "artists",
+      "before": {
+        "client": 900,
+        "scroll": 2760,
+        "top": 0
+      },
+      "after": {
+        "client": 900,
+        "scroll": 2760,
+        "top": 1860
+      },
+      "bottom_reachable": true,
+      "horizontal_fit": true
+    },
+    {
+      "width": 1440,
+      "icons": [
+        {
+          "x": 2.9200000762939453,
+          "y": 2.740000009536743,
+          "width": 18.15999984741211,
+          "height": 18.520000457763672,
+          "centerX": 12,
+          "centerY": 12.000000238418579
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "route": "settings",
+      "position": "center",
+      "sidebar_collapsed": false,
+      "scrollTop": 450,
+      "hit": {
+        "className": "settings-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 1440,
+      "route": "settings",
+      "position": "left-gutter",
+      "sidebar_collapsed": false,
+      "scrollTop": 450,
+      "hit": {
+        "className": "settings-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 1440,
+      "route": "settings",
+      "position": "right-gutter",
+      "sidebar_collapsed": false,
+      "scrollTop": 450,
+      "hit": {
+        "className": "settings-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 1440,
+      "route": "settings",
+      "position": "center",
+      "sidebar_collapsed": true,
+      "scrollTop": 450,
+      "hit": {
+        "className": "settings-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 1440,
+      "route": "settings",
+      "position": "left-gutter",
+      "sidebar_collapsed": true,
+      "scrollTop": 450,
+      "hit": {
+        "className": "settings-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 1440,
+      "route": "settings",
+      "position": "right-gutter",
+      "sidebar_collapsed": true,
+      "scrollTop": 450,
+      "hit": {
+        "className": "settings-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 1440,
+      "route": "settings",
+      "before": {
+        "client": 900,
+        "scroll": 1401,
+        "top": 0
+      },
+      "after": {
+        "client": 900,
+        "scroll": 1401,
+        "top": 501
+      },
+      "bottom_reachable": true,
+      "horizontal_fit": true
+    },
+    {
+      "width": 1440,
+      "route": "artists",
+      "position": "center",
+      "sidebar_collapsed": false,
+      "scrollTop": 450,
+      "hit": {
+        "className": "artists-list grid",
+        "inPane": true
+      }
+    },
+    {
+      "width": 1440,
+      "route": "artists",
+      "position": "left-gutter",
+      "sidebar_collapsed": false,
+      "scrollTop": 450,
+      "hit": {
+        "className": "subpage artists-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 1440,
+      "route": "artists",
+      "position": "right-gutter",
+      "sidebar_collapsed": false,
+      "scrollTop": 450,
+      "hit": {
+        "className": "subpage artists-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 1440,
+      "route": "artists",
+      "position": "center",
+      "sidebar_collapsed": true,
+      "scrollTop": 450,
+      "hit": {
+        "className": "",
+        "inPane": true
+      }
+    },
+    {
+      "width": 1440,
+      "route": "artists",
+      "position": "left-gutter",
+      "sidebar_collapsed": true,
+      "scrollTop": 450,
+      "hit": {
+        "className": "subpage artists-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 1440,
+      "route": "artists",
+      "position": "right-gutter",
+      "sidebar_collapsed": true,
+      "scrollTop": 450,
+      "hit": {
+        "className": "subpage artists-page",
+        "inPane": true
+      }
+    },
+    {
+      "width": 1440,
+      "route": "artists",
+      "before": {
+        "client": 900,
+        "scroll": 2760,
+        "top": 0
+      },
+      "after": {
+        "client": 900,
+        "scroll": 2760,
+        "top": 1860
+      },
+      "bottom_reachable": true,
+      "horizontal_fit": true
+    },
+    {
+      "width": 390,
+      "route": "settings",
+      "before": {
+        "client": 794,
+        "scroll": 1669,
+        "top": 0
+      },
+      "after": {
+        "client": 794,
+        "scroll": 1669,
+        "top": 875
+      },
+      "bottom_reachable": true,
+      "horizontal_fit": true
+    },
+    {
+      "width": 390,
+      "route": "artists",
+      "before": {
+        "client": 794,
+        "scroll": 5790,
+        "top": 0
+      },
+      "after": {
+        "client": 794,
+        "scroll": 5790,
+        "top": 4996
+      },
+      "bottom_reachable": true,
+      "horizontal_fit": true
+    },
+    {
+      "width": 320,
+      "route": "settings",
+      "before": {
+        "client": 590,
+        "scroll": 1783,
+        "top": 0
+      },
+      "after": {
+        "client": 590,
+        "scroll": 1783,
+        "top": 1193
+      },
+      "bottom_reachable": true,
+      "horizontal_fit": true
+    },
+    {
+      "width": 320,
+      "route": "artists",
+      "before": {
+        "client": 590,
+        "scroll": 5790,
+        "top": 0
+      },
+      "after": {
+        "client": 590,
+        "scroll": 5790,
+        "top": 5200
+      },
+      "bottom_reachable": true,
+      "horizontal_fit": true
+    }
+  ],
+  "real_library_used": false,
+  "real_account_used": false,
+  "real_phone_tested": false
+}

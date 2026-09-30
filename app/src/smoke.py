@@ -13,6 +13,8 @@ import re
 import tempfile
 import threading
 import time
+from types import SimpleNamespace
+import zipfile
 
 
 @contextmanager
@@ -23,7 +25,10 @@ def _image_source():
     data = BytesIO()
     with Image.new("RGB", (32, 48), "navy") as picture:
         picture.save(data, format="PNG")
-    payload = data.getvalue()
+    animation = BytesIO()
+    with zipfile.ZipFile(animation, "w") as archive:
+        archive.writestr("000000.png", data.getvalue())
+    payloads = {"/1_p0.png": data.getvalue(), "/2.zip": animation.getvalue()}
     received = []
 
     class Handler(BaseHTTPRequestHandler):
@@ -31,11 +36,12 @@ def _image_source():
             pass
 
         def do_GET(self):
-            accepted = (self.path == "/1_p0.png"
+            accepted = (self.path in payloads
                         and self.headers.get("User-Agent", "").startswith("PixivIOSApp/")
                         and self.headers.get("Referer") == "https://www.pixiv.net/"
                         and not self.headers.get("Authorization"))
             received.append(accepted)
+            payload = payloads.get(self.path, b"")
             self.send_response(200 if accepted else 403)
             self.send_header("Content-Length", str(len(payload) if accepted else 0))
             self.end_headers()
@@ -107,7 +113,7 @@ def run_smoke_test() -> int:
     from .config import resource_path
     from .core.runtime import Runtime
     from .core.download import AssetDownloader
-    from .core.models import ArchiveIntent, Artist, Asset, Work
+    from .core.models import ArchiveIntent, Artist, Asset, Derivative, Work, WorkTag
     from .version import __version__, __build__
     from .web import create_app
     import requests
@@ -117,17 +123,55 @@ def run_smoke_test() -> int:
             raise RuntimeError(f"缺少打包资源: {relative}")
     transport = requests.Session()
     transport.trust_env = False  # Synthetic loopback must never use a proxy or account.
-    runtime = Runtime(root / "data/pixiv_tracker.db", root / "images", create=True,
-        downloader=AssetDownloader(session=transport, allowed_hosts=("127.0.0.1",), allow_http=True))
     with _image_source() as (source_url, received):
+        from PIL import Image
+        metadata_reads = []
+
+        def animation_metadata(remote_id):
+            metadata_reads.append(remote_id)
+            if remote_id != "2":
+                raise RuntimeError("隔离验证请求了未选择的动图原包")
+            return {"zip_urls": {"original": source_url.rsplit("/", 1)[0] + "/2.zip"},
+                    "frames": [{"file": "000000.png", "delay": 80}]}
+
+        runtime = Runtime(root / "data/pixiv_tracker.db", root / "images", create=True,
+            client=SimpleNamespace(get_ugoira_metadata=animation_metadata, get_account_id=lambda: None),
+            downloader=AssetDownloader(session=transport, allowed_hosts=("127.0.0.1",), allow_http=True))
         with runtime.database.write() as session:
             work = Work(id=1, pixiv_illust_id="1", artist=Artist(pixiv_user_id="1", name="smoke"), title="isolated")
             work.assets = [Asset(role="image", relative_path="1_p0.png", state="failed", source_url=source_url,
                                 error="图片来源拒绝访问（403），原因待核查")]
+            work.tags = [WorkTag(tag="本地单图")]
             session.add_all([work, ArchiveIntent(pixiv_illust_id="1")])
+            session.flush()
+            for work_id in (2, 3):
+                relative = f"{work_id}.gif"
+                with Image.new("RGB", (32, 48), "red") as image:
+                    image.save(runtime.images / relative)
+                legacy = Work(id=work_id, pixiv_illust_id=str(work_id), artist_id=work.artist_id,
+                    title=f"legacy animation {work_id}", type="ugoira",
+                    source_metadata={"original_backfill_requires_selection": True})
+                legacy.assets = [Asset(role="ugoira_zip", state="missing_deferred"), Asset(role="ugoira_timing")]
+                legacy.derivatives = [Derivative(kind="gif", relative_path=relative)]
+                legacy.tags = [WorkTag(tag="本地动图")]
+                session.add_all([legacy, ArchiveIntent(pixiv_illust_id=str(work_id))])
+        unselected_gif = (runtime.images / "3.gif").read_bytes()
         runtime.queue.submit("repair", {"work_ids": [1]}, "smoke")
         runtime.queue.run_round()
-        if received != [True]:
+        if runtime.queue.snapshot()["round"]["outcome"] != "succeeded":
+            raise RuntimeError("打包程序的原图下载、核验或缩略图生成失败")
+        runtime.queue.submit("repair", {"work_ids": [2]}, "smoke selected animation")
+        runtime.queue.run_round()
+        with runtime.database.read() as session:
+            selected = session.get(Work, 2)
+            if (not all(asset.state == "verified" for asset in selected.assets)
+                    or selected.source_metadata.get("original_backfill_requires_selection")):
+                raise RuntimeError("打包程序未补齐所选动图原包与时序")
+            if not session.get(Work, 3).source_metadata.get("original_backfill_requires_selection"):
+                raise RuntimeError("打包程序擅自选择了另一件动图原包")
+        if metadata_reads != ["2"] or (runtime.images / "3.gif").read_bytes() != unselected_gif:
+            raise RuntimeError("打包程序修改了未选动图或请求了其他原包")
+        if received != [True, True]:
             raise RuntimeError("打包程序的图片下载请求未通过兼容性验证")
     transport.close()
     if runtime.queue.snapshot()["round"]["outcome"] != "succeeded":
@@ -157,6 +201,8 @@ def run_smoke_test() -> int:
 
     checks = asyncio.run(exercise())
     checks["original_download_verified_and_thumbnail_published"] = 200
+    checks["selected_animation_originals_downloaded_and_verified"] = 200
+    checks["unselected_legacy_animation_remains_deferred"] = 200
     if args.smoke_serve_port is not None:
         import uvicorn
         # The ASGI checks closed their runtime; serve the same synthetic files

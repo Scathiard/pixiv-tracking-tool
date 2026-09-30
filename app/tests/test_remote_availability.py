@@ -57,10 +57,9 @@ def test_check_continues_after_one_work_conflicts_across_artist_pages(tmp_path):
                 if page:
                     session.add(asset)
 
-        class PagedClient:
-            get_all_artist_illusts = PixivClient.get_all_artist_illusts
-
+        class PagedClient(PixivClient):
             def __init__(self):
+                super().__init__()
                 self.pages = []
 
             def _get(self, _, params):

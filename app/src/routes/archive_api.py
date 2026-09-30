@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
+from starlette.datastructures import QueryParams
 
 from ..core.library import LibraryFilter
 from ..core.models import utcnow
@@ -52,10 +53,14 @@ LABELS = {"check": "检查新作品", "metadata": "刷新信息", "bookmarks": "
 
 
 def parse_filters(parameters) -> LibraryFilter:
+    if any(name in parameters and name + "_exclude" in parameters for name in ("artist_ids", "tags")):
+        raise ValueError("同一筛选不能同时包含选择和反选")
     def csv(name, numeric=False):
         if name not in parameters:
             return None
-        values = tuple(v for v in parameters[name].split(",") if v)
+        raw = parameters.getlist(name) if hasattr(parameters, "getlist") else parameters[name]
+        repeated_tags = name in ("tags", "tags_exclude") and isinstance(raw, (tuple, list)) and len(raw) > 1
+        values = tuple(v for v in (raw if repeated_tags else parameters[name].split(",")) if v)
         return tuple(sorted(set(int(v) for v in values))) if numeric else tuple(sorted(set(values)))
 
     after, before = None, None
@@ -82,10 +87,10 @@ def parse_filters(parameters) -> LibraryFilter:
         if parameters.get(name, "0") not in ("0", "1"):
             raise ValueError("筛选条件无效")
     return LibraryFilter(artist_ids=csv("artist_ids", True), types=csv("types"),
-        tags=csv("tags") or (), show_hidden=parameters.get("show_hidden") in ("1", "true"),
+        tags=csv("tags"), show_hidden=parameters.get("show_hidden") in ("1", "true"),
         posted_after=after, posted_before=before, sort=parameters.get("sort", "newest"),
         q=q, favorites=parameters.get("favorites") == "1", recent=parameters.get("recent") == "1",
-        as_of=reference)
+        as_of=reference, artist_ids_exclude=csv("artist_ids_exclude", True), tags_exclude=csv("tags_exclude"))
 
 
 def create_router(get_runtime):
@@ -107,8 +112,10 @@ def create_router(get_runtime):
 
     @router.get("/api/library")
     def library(request: Request, offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500), ceiling: int | None = Query(None, ge=0), compact: bool = False):
-        parameters = dict(request.query_params)
-        parameters.setdefault("as_of", utcnow().isoformat())
+        pairs = list(request.query_params.multi_items())
+        if "as_of" not in request.query_params:
+            pairs.append(("as_of", utcnow().isoformat()))
+        parameters = QueryParams(pairs)
         try:
             selected = parse_filters(parameters)
         except ValueError as exc:

@@ -8,13 +8,15 @@
 - `browser_fixture.py` + `browser_smoke.py`：真实 Chromium 的桌面/手机冒烟，只使用隔离夹具，不读取真实 Pixiv token 或图库。
 - `test_archive_database.py`、`test_legacy_archive_import.py`：新结构约束、旧 ID／偏好／路径映射、候选库失败回滚；只创建合成数据。
 - `test_archive_media.py`、`test_archive_recovery.py`：文件解码、动图原包和时序、发布／删除中断恢复与单写入者。
-- `test_archive_tasks.py`、`test_archive_workflows.py`：固定轮次、真实处理量、暂停边界、精确补下载；HTTP 使用本机模拟服务。
+- `test_archive_tasks.py`、`test_archive_workflows.py`：固定轮次、真实处理量、暂停边界、精确补下载；所选旧动图 ZIP／时序补齐、未选项不补和失败保留 GIF；HTTP 使用本机模拟服务。
 - `test_archive_pipeline.py`：检查／下载／本地处理并行，逐项优先级、持久子任务、资源互斥、来源更新、真实核验计数与有界队列领取；仅合成元数据和媒体。
 - `test_archive_state.py`：图库／详情／流式统一整件作品原件与处理状态；首图可读不能覆盖缺页，具体媒体请求观察缺失后更新事实；5,000 件／2,000 页批量读取。
 - `test_archive_api.py`、`test_archive_pages.py`：新核心接口、旧界面适配、离线可用性、请求边界与端口反馈。
 - `test_archive_relocation.py`：连续目录切换、复制被破坏和配置提交失败时保留原运行实例。
+- `test_shutdown.py`、`shutdown_process.py`：托盘退出的安全收尾、排队／暂停、恢复不重做、收藏只回读和启动期间退出；独立子进程运行真实托盘回调与 Uvicorn，仅物理图标和联网部分用隔离替身，不表示实体托盘已验收。
+- `test_filter_catalogue.py`：完整本地画师／标签候选、隐藏与停止追踪、空选与不限、反选标签的任意匹配，以及图库／流式／定位共用条件；只用合成图库。
 - `test_archive_client_contract.py`：模拟 Pixiv 响应，验证鉴权重试、原件地址与错误结果；不访问真实账号。
-- `run.py --smoke-test --smoke-output NEW_JSON_PATH`：源码与 EXE 共用的隔离冒烟，仅从本机合成图片服务下载，验证真实下载器、原件核验、文件发布与缩略图；保留独立测试库和结果，不启动登录或托盘。
+- `run.py --smoke-test --smoke-output NEW_JSON_PATH`：源码与 EXE 共用的隔离冒烟，仅从本机合成图片／ZIP 服务下载，验证真实下载器、所选旧动图原包与时序、未选 GIF 保留、原件核验、文件发布与缩略图；保留独立测试库和结果，不启动登录或托盘。
 - `archive_browser.py`：新核心的桌面与手机尺寸浏览器验证；`--artifacts` 必须指定新的隔离目录，保留结果和截图；不是手机实机验收。
 - `reading_browser.py`：生成大型合成图库，用实际 Chromium 验证普通／流式阅览、真实触控事件、乱序请求、长时间滚动与后台下载；`--artifacts` 每次用新目录。
 - `reading_deep_browser.py`：复用前项生成的 `.devtools/test-runs/` 合成图库，验证第 5000 件作品、流式末端及浏览器返回位置；拒绝真实图库路径。
@@ -32,7 +34,8 @@
 - `client_availability_browser.py`：来源不可获取时的本地图、缺页原因、桌面／手机排版、停止轮询及任务完成后的原位恢复；只用合成图库与本机服务。
 - `client_fixture.py`、`client_browser.py`：正式界面回归、5,000 / 2,000 合成图库、桌面与 390 / 320px、主题连点与收藏跨作品响应。
 - `client_b_browser.py`：B 侧栏收放与锚点、手机菜单与搜索、首页检查入口、进度各状态、通知自动消失与只读日志；任务接口使用浏览器替身，`--remaining-only` 可独立复测导航与手机。
-- `client_display_browser.py`：桌面滚轮与 390/320px CDP 触摸实际滚到设置、画师页底部；保存图标几何与截图，不以元素存在替代可达性。
+- `client_display_browser.py`：2560/1440px 设置／画师页的内容与两侧留白真实滚轮、侧栏收放，以及 390/320px CDP 触摸实际滚到底部；`--wide-only` 单独复现宽屏留白；保存图标几何与截图，不以元素存在替代可达性。
+- `client_filter_browser.py`：137 位画师和逾一万项标签的完整候选、虚拟列表、搜索、勾选／反选／全选、重开回显、空结果恢复与读取失败重试；真实鼠标与 CDP 触摸覆盖桌面、390/320px，仅本机合成接口。
 - `client_reader_wheel_browser.py`：2560px 下图库／详情／流式的图片与外侧留白真实滚轮，以及 390px CDP 触摸；要求全内容区能滚动。
 - `client_reader_recovery_browser.py`：详情可见缺页持续轮询、同 URL 图片加载失败后自动恢复、流式存档更新事件与位置保留；使用模拟接口，无账号操作。
 - `client_cache_browser.py`：合成已确认收藏的首次显示、同卡片刷新和流式冷启动；缺原图与缺缩略图区分、可见原图兜底、503 后保留卡片并连续浏览 601 件；不访问真实账号。

@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import timedelta
-from threading import RLock
+from threading import Event, RLock
 import time
 from uuid import UUID, uuid4
 
@@ -80,11 +80,13 @@ class BookmarkService:
         self._futures = set()
         self._scheduled_ids = set()
         self._accepting = True
+        self._stopping = Event()
 
     def start(self):
         with self._lock:
             if self._executor is not None:
                 return
+            self._stopping.clear()
             self._executor = ThreadPoolExecutor(
                 max_workers=self.max_workers, thread_name_prefix="bookmark")
             self.reconcile_pending()
@@ -173,6 +175,16 @@ class BookmarkService:
             result["cached"] = result["value"] is not None
         return result
 
+    def request_stop(self):
+        self._stopping.set()
+        with self._lock:
+            self._accepting = False
+            futures = list(self._futures)
+        # Cancel only calls that have not entered a worker. Their durable pending
+        # intent stays available for readback-only recovery at next startup.
+        for future in futures:
+            future.cancel()
+
     def stop(self, timeout=5.0):
         with self._lock:
             executor = self._executor
@@ -181,7 +193,7 @@ class BookmarkService:
         if active and wait(active, timeout=timeout).not_done:
             return False
         if executor is not None:
-            executor.shutdown(wait=True, cancel_futures=False)
+            executor.shutdown(wait=True, cancel_futures=self._stopping.is_set())
         with self._lock:
             self._executor = None
             self._fresh.clear()
@@ -211,7 +223,7 @@ class BookmarkService:
         with self._lock:
             self._futures.discard(future)
             self._scheduled_ids.discard(operation_id)
-            if future.exception() is not None:
+            if not future.cancelled() and future.exception() is not None:
                 try:
                     self._finish(operation_id, "unconfirmed", "收藏核对意外中断")
                 except Exception:
@@ -396,6 +408,17 @@ class BookmarkService:
         return True
 
     def _run(self, operation_id, readback_only):
+        from ..request_policy import ShutdownRequested
+        try:
+            self._run_active(operation_id, readback_only)
+        except ShutdownRequested:
+            # A write may already have reached Pixiv: retain pending for a
+            # readback on restart, never mark it successful or replay the write.
+            return
+
+    def _run_active(self, operation_id, readback_only):
+        if self._stopping.is_set():
+            return
         if readback_only and not self._is_available():
             return
         with self.database.read() as session:
@@ -424,7 +447,7 @@ class BookmarkService:
             return
         with self.database.write() as session:
             item = session.get(BookmarkOperation, operation_id)
-            if item.status != "pending":
+            if item.status != "pending" or self._stopping.is_set():
                 return
             item.account_id = account
             if kind == "write" and not readback_only:
@@ -437,6 +460,8 @@ class BookmarkService:
         write_rate_limited = False
         if kind == "write" and not readback_only:
             try:
+                if self._stopping.is_set():
+                    return
                 if self._is_suppressed(pixiv_id):
                     self._finish(operation_id, "failed", "作品已从本地存档删除")
                     return
@@ -460,6 +485,8 @@ class BookmarkService:
         last_read = None
         rate_limited = False
         for attempt in range(1, 4):
+            if self._stopping.is_set():
+                return
             if self._is_suppressed(pixiv_id):
                 self._finish(operation_id, "failed", "作品已从本地存档删除")
                 return

@@ -2,7 +2,7 @@ import threading
 import time
 import requests
 from . import config as _cfg
-from .request_policy import is_rate_limit, retry_after_seconds
+from .request_policy import ShutdownRequested, is_rate_limit, retry_after_seconds
 
 
 def _token_file():
@@ -95,7 +95,14 @@ class PixivClient:
     _bookmark_cooldown_until = 0.0
 
     def __init__(self):
-        pass
+        self._stopping = threading.Event()
+
+    def request_stop(self):
+        self._stopping.set()
+
+    def _checkpoint(self):
+        if self._stopping.is_set():
+            raise ShutdownRequested()
 
     def _get(self, endpoint, params=None):
         return self._request(endpoint, params, retry_token=True)
@@ -103,6 +110,7 @@ class PixivClient:
     def _do_get(self, endpoint, headers, params):
         """带连接重试的 GET。"""
         for attempt in range(3):
+            self._checkpoint()
             try:
                 r = requests.get(
                     f"{API_HOST}{endpoint}",
@@ -112,18 +120,23 @@ class PixivClient:
                 )
                 return r
             except (requests.exceptions.SSLError, requests.exceptions.ConnectionError):
+                self._checkpoint()
                 if attempt == 2:
                     raise
-                time.sleep(2 * (attempt + 1))
+                if self._stopping.wait(2 * (attempt + 1)):
+                    raise ShutdownRequested()
 
     def _do_post(self, endpoint, headers, data):
         """A remote write may commit before a transport error, so send it once."""
+        self._checkpoint()
         return requests.post(
             f"{API_HOST}{endpoint}", headers=headers, data=data or {}, timeout=30,
         )
 
     def _request(self, endpoint, params, retry_token):
+        self._checkpoint()
         self._throttle()
+        self._checkpoint()
 
         headers = _get_auth_header()
         headers["Accept-Language"] = "zh-cn"
@@ -139,6 +152,7 @@ class PixivClient:
                 retryable=True, failure_code="api_network") from exc
         self._note_api_limit(r)
         if retry_token and _token_expired(r):
+            self._checkpoint()
             from .auth import _try_refresh_token
             if _try_refresh_token():
                 return self._request(endpoint, params, retry_token=False)
@@ -159,7 +173,9 @@ class PixivClient:
 
     def _post(self, endpoint, data=None, retry_token=True):
         """Send a remote write once; its outcome may be uncertain on failure."""
+        self._checkpoint()
         self._throttle()
+        self._checkpoint()
 
         headers = _get_auth_header()
         headers["Accept-Language"] = "zh-cn"
@@ -251,6 +267,7 @@ class PixivClient:
         """One throttled read using the captured account's token."""
         headers = self._bound_headers(account_id)
         self._bookmark_throttle()
+        self._checkpoint()
         try:
             response = requests.get(f"{API_HOST}/v1/illust/detail", headers=headers,
                                     params={"illust_id": illust_id}, timeout=30)
@@ -260,6 +277,7 @@ class PixivClient:
         self._note_bookmark_limit(response)
         self._note_api_limit(response)
         if _token_expired(response):
+            self._checkpoint()
             from .auth import _try_refresh_token
             _try_refresh_token()
             raise PixivRequestError(response.status_code, "收藏核对登录已更新，请重试回读")
@@ -364,6 +382,7 @@ class PixivClient:
             while True:
                 data = self._get(url, params)
                 for illust in data.get("illusts", []):
+                    self._checkpoint()
                     yield self._parse_illust(illust)
 
                 next_url = data.get("next_url")

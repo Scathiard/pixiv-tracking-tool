@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="3" time="40.472" timestamp="2026-09-30T16:49:02.276137+08:00" hostname="Baseline"><testcase classname="tests.test_archive_workflows" name="test_selected_repair_fills_gif_only_originals_without_backfilling_other_works" time="11.413"><failure message="AssertionError: assert [] == ['ugoira-200']&#10;  &#10;  Right contains one more item: 'ugoira-200'&#10;  Use -v to get more diff">setup_archive = (&lt;src.core.database.ArchiveDatabase object at 0x000001E1633CBF50&gt;, WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/...hive_workflows.FakePixiv object at 0x000001E163663DA0&gt;, &lt;test_archive_workflows.Download object at 0x000001E163663C50&gt;)
+
+    def test_selected_repair_fills_gif_only_originals_without_backfilling_other_works(setup_archive):
+        database, root, queue, client, download = setup_archive
+        for work_id in (1, 2):
+            add_gif_only_work(database, root, work_id)
+        queue.submit("repair", {"work_ids": [1]}, "补下载此作品")
+        queue.run_round()
+&gt;       assert client.calls == ["ugoira-200"]
+E       AssertionError: assert [] == ['ugoira-200']
+E
+E         Right contains one more item: 'ugoira-200'
+E         Use -v to get more diff
+
+tests\test_archive_workflows.py:157: AssertionError</failure></testcase><testcase classname="tests.test_archive_workflows" name="test_selected_animation_repair_failure_preserves_existing_gif[network]" time="2.773"><failure message="AssertionError: assert [] == ['https://i.p...nimation.zip']&#10;  &#10;  Right contains one more item: 'https://i.pximg.net/animation.zip'&#10;  Use -v to get more diff">setup_archive = (&lt;src.core.database.ArchiveDatabase object at 0x000001E161088AA0&gt;, WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/...hive_workflows.FakePixiv object at 0x000001E1636C3680&gt;, &lt;test_archive_workflows.Download object at 0x000001E1636C3800&gt;)
+failure = 'network'
+
+    @pytest.mark.parametrize("failure", ["network", "invalid_zip"])
+    def test_selected_animation_repair_failure_preserves_existing_gif(setup_archive, failure):
+        database, root, queue, client, download = setup_archive
+        add_gif_only_work(database, root)
+        original_gif = (root / "200.gif").read_bytes()
+
+        def failed_download(url, destination, report=None):
+            download.urls.append(url)
+            if failure == "network":
+                raise DownloadFailure("network", "测试网络中断", retryable=True)
+            destination.write_bytes(b"not an animation archive")
+
+        download.download = failed_download
+        queue.submit("repair", {"work_ids": [1]}, "补下载此作品")
+        queue.run_round()
+&gt;       assert download.urls == ["https://i.pximg.net/animation.zip"]
+E       AssertionError: assert [] == ['https://i.p...nimation.zip']
+E
+E         Right contains one more item: 'https://i.pximg.net/animation.zip'
+E         Use -v to get more diff
+
+tests\test_archive_workflows.py:197: AssertionError</failure></testcase><testcase classname="tests.test_archive_workflows" name="test_selected_animation_repair_failure_preserves_existing_gif[invalid_zip]" time="2.805"><failure message="AssertionError: assert [] == ['https://i.p...nimation.zip']&#10;  &#10;  Right contains one more item: 'https://i.pximg.net/animation.zip'&#10;  Use -v to get more diff">setup_archive = (&lt;src.core.database.ArchiveDatabase object at 0x000001E163DDC500&gt;, WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/...hive_workflows.FakePixiv object at 0x000001E163DFB800&gt;, &lt;test_archive_workflows.Download object at 0x000001E163DF8620&gt;)
+failure = 'invalid_zip'
+
+    @pytest.mark.parametrize("failure", ["network", "invalid_zip"])
+    def test_selected_animation_repair_failure_preserves_existing_gif(setup_archive, failure):
+        database, root, queue, client, download = setup_archive
+        add_gif_only_work(database, root)
+        original_gif = (root / "200.gif").read_bytes()
+
+        def failed_download(url, destination, report=None):
+            download.urls.append(url)
+            if failure == "network":
+                raise DownloadFailure("network", "测试网络中断", retryable=True)
+            destination.write_bytes(b"not an animation archive")
+
+        download.download = failed_download
+        queue.submit("repair", {"work_ids": [1]}, "补下载此作品")
+        queue.run_round()
+&gt;       assert download.urls == ["https://i.pximg.net/animation.zip"]
+E       AssertionError: assert [] == ['https://i.p...nimation.zip']
+E
+E         Right contains one more item: 'https://i.pximg.net/animation.zip'
+E         Use -v to get more diff
+
+tests\test_archive_workflows.py:197: AssertionError</failure></testcase></testsuite></testsuites>

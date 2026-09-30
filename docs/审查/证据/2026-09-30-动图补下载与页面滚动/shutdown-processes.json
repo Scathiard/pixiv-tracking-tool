@@ -1,0 +1,121 @@
+{
+  "results": [
+    {
+      "mode": "idle",
+      "callback_seconds": 0.0,
+      "waiting_visible": true,
+      "exit_seconds": 0.2190000000409782,
+      "states": [],
+      "notices": [
+        "正在退出：等待当前读写收尾，未完成任务下次继续。"
+      ],
+      "closed": true
+    },
+    {
+      "mode": "paused",
+      "callback_seconds": 0.0,
+      "waiting_visible": true,
+      "exit_seconds": 0.2660000000614673,
+      "states": [
+        {
+          "state": "queued",
+          "items": []
+        }
+      ],
+      "notices": [
+        "正在退出：等待当前读写收尾，未完成任务下次继续。"
+      ],
+      "closed": true
+    },
+    {
+      "mode": "check",
+      "callback_seconds": 0.0,
+      "waiting_visible": true,
+      "exit_seconds": 0.3279999999795109,
+      "states": [
+        {
+          "state": "interrupted",
+          "items": []
+        }
+      ],
+      "notices": [
+        "正在退出：等待当前读写收尾，未完成任务下次继续。"
+      ],
+      "closed": true
+    },
+    {
+      "mode": "download",
+      "callback_seconds": 0.0,
+      "waiting_visible": true,
+      "exit_seconds": 0.6560000000754371,
+      "states": [
+        {
+          "state": "interrupted",
+          "items": [
+            "pending",
+            "pending"
+          ]
+        }
+      ],
+      "notices": [
+        "正在退出：等待当前读写收尾，未完成任务下次继续。"
+      ],
+      "closed": true
+    },
+    {
+      "mode": "local",
+      "callback_seconds": 0.0,
+      "waiting_visible": true,
+      "exit_seconds": 0.4220000000204891,
+      "states": [
+        {
+          "state": "running",
+          "items": [
+            "succeeded",
+            "pending"
+          ]
+        }
+      ],
+      "notices": [
+        "正在退出：等待当前读写收尾，未完成任务下次继续。"
+      ],
+      "closed": true
+    },
+    {
+      "mode": "auth",
+      "callback_seconds": 0.0,
+      "waiting_visible": true,
+      "exit_seconds": 0.21899999992456287,
+      "states": [],
+      "notices": [
+        "正在退出：等待当前读写收尾，未完成任务下次继续。"
+      ],
+      "closed": true
+    },
+    {
+      "mode": "starting",
+      "callback_seconds": 0.0,
+      "waiting_visible": false,
+      "exit_seconds": 0.0,
+      "states": [],
+      "notices": [
+        "正在退出：等待当前读写收尾，未完成任务下次继续。"
+      ],
+      "closed": true
+    },
+    {
+      "mode": "factory",
+      "callback_seconds": 0.0,
+      "waiting_visible": true,
+      "exit_seconds": 0.8589999999385327,
+      "states": [],
+      "notices": [
+        "正在退出：等待当前读写收尾，未完成任务下次继续。"
+      ],
+      "closed": true
+    }
+  ],
+  "native_icon_tested": false,
+  "real_account_used": false,
+  "real_library_used": false
+}

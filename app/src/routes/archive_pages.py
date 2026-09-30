@@ -5,6 +5,7 @@ import math
 import os
 from datetime import datetime
 from types import SimpleNamespace
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -14,11 +15,25 @@ from ..core.library import LibraryFilter
 from ..core.media import contained_path
 from ..core.models import Artist, Asset, TrackingPolicy, Work
 from ..core.tasks import safe_failure
-from ..query_state import build_local_url, safe_redirect_target
+from ..query_state import safe_redirect_target
 from .archive_api import LABELS, parse_filters
 
 TYPE_LABELS = {"illust": "插画", "manga": "漫画", "ugoira": "动图"}
 PERIOD_LABELS = {"24h": "24小时内", "week": "一周内", "month": "一个月内", "half_year": "半年内", "year": "一年内", "custom": "指定期间"}
+
+
+def _parameters(request):
+    params = dict(request.query_params)
+    for name in ("tags", "tags_exclude"):
+        values = request.query_params.getlist(name)
+        if len(values) > 1:
+            params[name] = values
+    return params
+
+
+def _local_url(path, params):
+    query = urlencode([(key, value) for key, value in params.items() if value is not None], doseq=True)
+    return f"{path}?{query}" if query else path
 
 
 def _work(view):
@@ -52,7 +67,7 @@ def create_pages(get_runtime, templates, config, *, switch_root=None):
 
     def gallery_context(request, *, offset=None):
         current = runtime()
-        params = dict(request.query_params)
+        params = _parameters(request)
         if "artist_id" in params and "artist_ids" not in params:
             params["artist_ids"] = params.pop("artist_id")
         if "type" in params and "types" not in params:
@@ -68,7 +83,7 @@ def create_pages(get_runtime, templates, config, *, switch_root=None):
             params.pop(key, None)
 
         def url(path="/", **overrides):
-            return build_local_url(path, {**params, **overrides})
+            return _local_url(path, {**params, **overrides})
 
         artists = [_artist(view) for view in current.library.artists()]
         all_ids, all_types = {artist.id for artist in artists}, set(TYPE_LABELS)
@@ -92,7 +107,7 @@ def create_pages(get_runtime, templates, config, *, switch_root=None):
             "show_hidden": filters.show_hidden, "show_hidden_toggle_url": url(show_hidden=None if filters.show_hidden else "1"),
             "period": params.get("period"), "posted_after": params.get("posted_after"), "posted_before": params.get("posted_before"),
             "period_labels": PERIOD_LABELS, "tag_list": current.library.tags(filters, ceiling=result["ceiling"]),
-            "selected_tags": set(filters.tags), "detail_query": url(""),
+            "selected_tags": set(filters.tags or ()), "detail_query": url(""),
             "offset": offset, "page_size": page_size, "total_count": result["total"], "has_more": result["has_more"],
             "pagination_mode": config.PAGINATION_MODE, "max_visible_items": config.MAX_VISIBLE_ITEMS,
             "current_page": current_page, "total_pages": total_pages,
@@ -111,11 +126,12 @@ def create_pages(get_runtime, templates, config, *, switch_root=None):
 
     @router.get("/artist/{artist_id}")
     def artist_gallery(request: Request, artist_id: int):
-        params = dict(request.query_params)
+        params = _parameters(request)
         params["artist_ids"] = artist_id
+        params.pop("artist_ids_exclude", None)
         if "type" in params:
             params["types"] = params.pop("type")
-        return RedirectResponse(build_local_url("/", params), 303)
+        return RedirectResponse(_local_url("/", params), 303)
 
     @router.get("/illust/{work_id}")
     def detail(request: Request, work_id: int):

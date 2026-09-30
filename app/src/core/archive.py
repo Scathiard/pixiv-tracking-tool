@@ -479,7 +479,11 @@ class ArchiveHandler:
             revision = intent.revision
             directory = work.artist.directory or f"artist_{work.artist.pixiv_user_id}"
             assets = list(work.assets)
-            maintenance = session.get(Operation, context.operation_id).source == "maintenance"
+            operation = session.get(Operation, context.operation_id)
+            maintenance = operation.source == "maintenance"
+            # Selecting a work for manual repair also selects its legacy originals.
+            # Global, artist-scoped and background repairs do not grant that consent.
+            selected_originals = self.kind == "repair" and operation.source == "manual" and work_id in parameters.get("work_ids", ())
             ledger = session.get(ApplicationState, f"maintenance_work:{work_id}")
             remote_track = ((ledger.value.get("tracks", {}).get("remote", {})
                 if ledger and isinstance(ledger.value, dict) else {}))
@@ -495,7 +499,7 @@ class ArchiveHandler:
                 specs.append(ItemSpec(f"verify-gif-{work_id}", "verify_derivative", {"work_id": work_id, "record_id": preview.id if preview else None, "role": "gif", "revision": revision}, "verifying", "previews"))
             return specs
         remote_failure = None
-        defer_originals = work.source_metadata.get("original_backfill_requires_selection") and self.kind != "backfill"
+        defer_originals = work.source_metadata.get("original_backfill_requires_selection") and not (self.kind == "backfill" or selected_originals)
         local_only = self.kind in ("verify", "thumbnails")
         if self.kind != "thumbnails" and not defer_originals:
             context.detail(f"正在核验 {work.title} · {len(assets)} 项原件")

@@ -54,6 +54,18 @@ def test_existing_pages_render_from_the_same_new_local_core(pages):
     assert client.get("/settings").status_code == 200
 
 
+def test_legacy_pages_preserve_literal_repeated_tag_in_navigation(pages):
+    client, runtime = pages
+    with runtime.database.write() as session:
+        session.add(WorkTag(work_id=1, tag="逗号,标签"))
+    literal = [("tags", "逗号,标签"), ("tags", "逗号,标签")]
+    response = client.get("/", params=literal)
+    assert response.status_code == 200 and "local image" in response.text
+    assert response.text.count("%E9%80%97%E5%8F%B7%2C%E6%A0%87%E7%AD%BE") > 1
+    assert client.get("/illust/1", params=literal).status_code == 200
+    assert client.get("/").status_code == 200  # omitted tag selection remains unlimited
+
+
 def test_legacy_submit_has_identifiable_persistent_result(pages):
     client, runtime = pages
     submission = client.post("/settings/validate-and-fix", headers={"Origin": "http://localhost"})

@@ -77,6 +77,7 @@ class TaskContext:
         self.queue, self.operation_id, self.item_id = queue, operation_id, item_id
 
     def report(self, phase: str, done: int, total: int | None, unit: str, detail: str):
+        self.checkpoint()
         if done < 0 or total is not None and (total < 0 or done > total):
             raise ValueError("进度计数超出清单范围")
         with self.queue.database.write() as session:
@@ -89,10 +90,12 @@ class TaskContext:
 
     def checkpoint_parameters(self, parameters: dict):
         """Freeze a started automatic batch's artist selection before network I/O."""
+        self.checkpoint()
         with self.queue.database.write() as session:
             session.get(Operation, self.operation_id).parameters = parameters
 
     def report_bytes(self, done: int, total: int | None):
+        self.checkpoint()
         with self.queue.database.write() as session:
             operation = session.get(Operation, self.operation_id)
             current_items = dict(operation.result.get("current_items", {}))
@@ -100,9 +103,15 @@ class TaskContext:
             operation.result = {**operation.result, "current_items": current_items, "current_item": current_items[self.item_id]}
 
     def detail(self, text):
+        self.checkpoint()
         with self.queue.database.write() as session:
             operation = session.get(Operation, self.operation_id)
             operation.detail, operation.updated_at = text, utcnow()
+
+    def checkpoint(self):
+        if self.queue._stop.is_set():
+            from ..request_policy import ShutdownRequested
+            raise ShutdownRequested()
 
 
 class TaskQueue:
@@ -226,16 +235,21 @@ class TaskQueue:
             thread.start()
         self._wake.set()
 
-    def stop(self, timeout=5):
-        self.accept_submissions(False)
+    def request_stop(self):
+        # Called directly from the tray: do not wait for an in-flight DB writer.
+        self._accepting = False
         self._stop.set()
         self._wake.set()
-        deadline = time.monotonic() + timeout
+
+    def stop(self, timeout=5):
+        self.request_stop()
+        deadline = None if timeout is None else time.monotonic() + timeout
         for thread in self._threads:
-            thread.join(timeout=max(0, deadline - time.monotonic()))
+            thread.join(timeout=None if deadline is None else max(0, deadline - time.monotonic()))
         return not any(thread.is_alive() for thread in self._threads)
 
     def _worker(self, lane):
+        from ..request_policy import ShutdownRequested
         while not self._stop.is_set():
             try:
                 if lane == "check" and self.maintenance is not None:
@@ -248,6 +262,8 @@ class TaskQueue:
                     continue
                 self._wake.wait(0.1)
                 self._wake.clear()
+            except ShutdownRequested:
+                return
             except Exception as exc:
                 self.worker_error = type(exc).__name__
                 log.error("任务执行器中断，未完成记录已保留", exc_info=False)
@@ -384,6 +400,7 @@ class TaskQueue:
             return current.id if current else self._claim_round_in_transaction(session)
 
     def _plan(self, operation_id):
+        from ..request_policy import ShutdownRequested
         with self.database.write() as session:
             operation = session.get(Operation, operation_id)
             paused = session.get(ApplicationState, "automatic_paused")
@@ -399,12 +416,18 @@ class TaskQueue:
         context = TaskContext(self, operation_id)
         failure = None
         try:
+            context.checkpoint()
             specs = self.handlers[kind].plan(parameters, context)
             seen = set()
             for spec in specs:
                 if spec.key in seen or any(key not in seen for key in spec.depends_on):
                     raise ValueError("清单重复或依赖顺序不合法")
                 seen.add(spec.key)
+        except ShutdownRequested:
+            with self.database.write() as session:
+                operation = session.get(Operation, operation_id)
+                operation.state, operation.detail = "interrupted", "退出前已保存进度，下次启动继续"
+            return False
         except Exception as exc:
             failure = safe_failure(exc)
             specs = [ItemSpec("inventory-failed", "inventory-failed", {}, "checking")]
@@ -447,13 +470,20 @@ class TaskQueue:
             self._run_lock.release()
 
     def _execute_item(self, operation_id, item, dependency_failed=False):
+        from ..request_policy import ShutdownRequested
         phase_key = item.phase + ":" + item.unit
         with self.database.read() as session:
             kind = session.get(Operation, operation_id).kind
             counts = dict(session.execute(select(OperationItem.state, func.count()).where(OperationItem.operation_id == operation_id,
                 OperationItem.phase == item.phase, OperationItem.unit == item.unit).group_by(OperationItem.state)).all())
         context = TaskContext(self, operation_id, item.id)
-        context.report(item.phase, sum(counts.get(state, 0) for state in SETTLED), sum(counts.values()), item.unit, "正在处理")
+        # Claim happened just before shutdown: leave the item pending rather than
+        # classifying cancellation as a failed or successful attempt.
+        try:
+            context.report(item.phase, sum(counts.get(state, 0) for state in SETTLED), sum(counts.values()), item.unit, "正在处理")
+        except ShutdownRequested:
+            self._interrupt_item(item.id, operation_id)
+            return
         if dependency_failed:
             with self.database.read() as session:
                 dependency_states = dict(session.execute(select(OperationItem.item_key, OperationItem.state).where(
@@ -466,6 +496,9 @@ class TaskQueue:
                 result = self.handlers[kind].execute(spec, context)
                 if not isinstance(result, ItemResult) or result.state not in SETTLED:
                     raise TypeError("任务必须返回明确的处理结果")
+            except ShutdownRequested:
+                self._interrupt_item(item.id, operation_id)
+                return
             except Exception as exc:
                 result = ItemResult("failed", safe_failure(exc))
         with self.database.write() as session:
@@ -484,6 +517,16 @@ class TaskQueue:
             operation.result = {**{k: v for k, v in operation.result.items() if k != "current_item"}, "current_items": current_items, "phase_snapshots": snapshots}
             if current_items:
                 operation.result = {**operation.result, "current_item": next(iter(current_items.values()))}
+
+    def _interrupt_item(self, item_id, operation_id):
+        with self.database.write() as session:
+            session.get(OperationItem, item_id).state = "pending"
+            operation = session.get(Operation, operation_id)
+            operation.state, operation.detail = "interrupted", "退出前已保存进度，下次启动继续"
+            current_items = dict(operation.result.get("current_items", {}))
+            current_items.pop(item_id, None)
+            operation.result = {**{key: value for key, value in operation.result.items() if key != "current_item"},
+                                "current_items": current_items}
 
     def _finalize(self, session, operation_ids):
         session.flush()
