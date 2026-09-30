@@ -12,7 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from .catalogue_revision import bump_catalogue_revision
 from .download import AssetDownloader
-from .media import InvalidMedia, Publisher, SuppressedWork, build_gif, build_thumbnail, contained_path, verify_media, verify_ugoira_pair
+from .media import CARD_MOTION_SPEC, InvalidMedia, Publisher, SuppressedWork, build_card_motion, build_gif, build_thumbnail, contained_path, verify_media, verify_ugoira_pair
 from .models import (
     ApplicationState, ArchiveIntent, Artist, Asset, Derivative, LocalPreference, Operation, RemoteBookmark,
     TrackingPolicy, Work, WorkTag, utcnow,
@@ -256,10 +256,12 @@ class ArchiveHandler:
 
     def _discovery_specs(self, session, work, metadata=None):
         """Pure catalogue planning: never stat or decode established originals."""
-        if (work.source_metadata or {}).get("original_backfill_requires_selection"):
-            return []
+        deferred = bool((work.source_metadata or {}).get("original_backfill_requires_selection"))
         intent = session.get(ArchiveIntent, work.pixiv_illust_id)
         assets = list(session.scalars(select(Asset).where(Asset.work_id == work.id).order_by(Asset.page_index)))
+        if deferred:
+            # Discovery may fill local caches without authorizing old ZIP/timing.
+            assets = []
         directory = work.artist.directory or f"artist_{work.artist.pixiv_user_id}"
         updates = (work.source_metadata or {}).get("source_updates", {})
         specs, required = [], []
@@ -285,14 +287,16 @@ class ArchiveHandler:
             required.append(key)
             specs.append(ItemSpec(key, kind, target, "downloading", "assets"))
         if work.type == "ugoira":
-            if not required and not all(asset.state == "verified" for asset in assets):
+            preview = session.scalar(select(Derivative).where(Derivative.work_id == work.id, Derivative.kind == "gif", Derivative.spec_key == "v1"))
+            gif_ready = bool(preview and preview.relative_path and preview.state in ("verified", "unknown"))
+            pair_ready = len(assets) >= 2 and all(asset.state == "verified" for asset in assets)
+            if not required and not pair_ready and not gif_ready:
                 return specs
             if required:
                 key = f"pair-{work.id}"
                 specs.append(ItemSpec(key, "ugoira_pair", {"work_id": work.id, "revision": intent.revision}, "verifying", "works", tuple(required)))
                 required = [key]
-            preview = session.scalar(select(Derivative).where(Derivative.work_id == work.id, Derivative.kind == "gif", Derivative.spec_key == "v1"))
-            if required or preview is None or preview.state not in ("verified", "unknown"):
+            if required or not gif_ready:
                 if preview is None:
                     preview = Derivative(work_id=work.id, kind="gif")
                     session.add(preview); session.flush()
@@ -310,6 +314,17 @@ class ArchiveHandler:
                 thumbnail = Derivative(work_id=work.id, kind="thumbnail")
                 session.add(thumbnail); session.flush()
             specs.append(ItemSpec(f"thumbnail-{thumbnail.id}", "thumbnail", {"work_id": work.id, "record_id": thumbnail.id, "revision": intent.revision, "path": f".thumbnails/{work.pixiv_illust_id}_p0_v1.webp", "force": bool(required)}, "thumbnails", "previews", tuple(required)))
+        if work.type == "ugoira":
+            motion = session.scalar(select(Derivative).where(Derivative.work_id == work.id,
+                Derivative.kind == "thumbnail", Derivative.page_index == 0, Derivative.spec_key == CARD_MOTION_SPEC))
+            if required or motion is None or motion.state != "verified" or not preview.sha256 or motion.source_version != preview.sha256:
+                if motion is None:
+                    motion = Derivative(work_id=work.id, kind="thumbnail", spec_key=CARD_MOTION_SPEC)
+                    session.add(motion); session.flush()
+                specs.append(ItemSpec(f"thumbnail-{motion.id}", "thumbnail", {
+                    "work_id": work.id, "record_id": motion.id, "revision": intent.revision,
+                    "path": f".thumbnails/{work.pixiv_illust_id}_card_motion_v1.webp", "force": bool(required)},
+                    "thumbnails", "previews", tuple(required)))
         return specs
 
     def plan(self, parameters, context):
@@ -645,6 +660,16 @@ class ArchiveHandler:
             specs.append(ItemSpec(f"thumbnail-{thumbnail_id}", "thumbnail", {
                 "work_id": work_id, "record_id": thumbnail_id, "revision": revision,
                 "path": f".thumbnails/{work.pixiv_illust_id}_p0_v1.webp", "force": bool(required)}, "thumbnails", "previews", tuple(required)))
+        if work.type == "ugoira" and self.kind != "verify":
+            with self.database.read() as session:
+                motion = session.scalar(select(Derivative).where(Derivative.work_id == work_id,
+                    Derivative.kind == "thumbnail", Derivative.page_index == 0, Derivative.spec_key == CARD_MOTION_SPEC))
+            if required or not self._derivative_usable(motion, "thumbnail"):
+                motion_id = self._ensure_derivative(work_id, "thumbnail", CARD_MOTION_SPEC)
+                specs.append(ItemSpec(f"thumbnail-{motion_id}", "thumbnail", {
+                    "work_id": work_id, "record_id": motion_id, "revision": revision,
+                    "path": f".thumbnails/{work.pixiv_illust_id}_card_motion_v1.webp", "force": bool(required)},
+                    "thumbnails", "previews", tuple(required)))
         if self.kind in ("repair", "verify", "backfill") and not maintenance:
             self._clear_remote_attention_if_complete(work_id)
         return specs
@@ -686,12 +711,12 @@ class ArchiveHandler:
                 return None
             return ":".join(source.sha256 for source in inputs)
 
-    def _ensure_derivative(self, work_id, kind):
+    def _ensure_derivative(self, work_id, kind, spec_key="v1"):
         with self.database.write() as session:
             record = session.scalar(select(Derivative).where(Derivative.work_id == work_id,
-                Derivative.kind == kind, Derivative.page_index == 0, Derivative.spec_key == "v1"))
+                Derivative.kind == kind, Derivative.page_index == 0, Derivative.spec_key == spec_key))
             if record is None:
-                record = Derivative(work_id=work_id, kind=kind)
+                record = Derivative(work_id=work_id, kind=kind, spec_key=spec_key)
                 session.add(record)
                 session.flush()
             return record.id
@@ -700,6 +725,8 @@ class ArchiveHandler:
         if not record or not record.relative_path:
             return False
         source_version = self._source_version(record)
+        if record.spec_key == CARD_MOTION_SPEC and (not source_version or not record.source_version):
+            return False
         if record.source_version and source_version and source_version != record.source_version:
             with self.database.write() as session:
                 stored = session.get(Derivative, record.id)
@@ -785,6 +812,7 @@ class ArchiveHandler:
         if derivative and not target.get("force") and self._derivative_usable(record, item.kind):
             return ItemResult(detail={"message": "预览已核验，无需再次生成"})
         relative, staged = self.publisher.staging()
+        source_version = None
         try:
             if item.kind == "download":
                 self.downloader.download(target["url"], staged, context.report_bytes)
@@ -811,10 +839,22 @@ class ArchiveHandler:
                         if original is None or not original.relative_path:
                             raise InvalidMedia("缺少第一张原件，无法生成缩略图")
                         source = contained_path(self.publisher.root, original.relative_path)
-                verified = build_gif(source, timing, staged) if item.kind == "gif" else build_thumbnail(source, staged)
+                if record.spec_key == CARD_MOTION_SPEC:
+                    if not self._derivative_usable(preview, "gif"):
+                        raise InvalidMedia("缺少已核验的本地 GIF，无法生成卡片预览")
+                    source_version = self._source_version(record)
+                    source_stat = source.stat()
+                    fingerprint = (source_stat.st_size, source_stat.st_mtime_ns, source_stat.st_ino)
+                    verified = build_card_motion(source, staged, checkpoint=context.checkpoint)
+                    current = source.stat()
+                    if fingerprint != (current.st_size, current.st_mtime_ns, current.st_ino) or source_version != self._source_version(record):
+                        raise InvalidMedia("生成期间本地 GIF 已改变，等待重建卡片预览")
+                    context.checkpoint()
+                else:
+                    verified = build_gif(source, timing, staged) if item.kind == "gif" else build_thumbnail(source, staged)
             journal_id = self.publisher.prepare(record_id, relative, target["path"], verified,
                 derivative=derivative, item_id=context.item_id, expected_revision=target["revision"],
-                source_version=self._source_version(record) if derivative else None, requested_url=requested_url, expected_source_fingerprint=target.get("expected_fingerprint"))
+                source_version=(source_version or self._source_version(record)) if derivative else None, requested_url=requested_url, expected_source_fingerprint=target.get("expected_fingerprint"))
             state = self.publisher.publish(journal_id)
             if state == "committed" and not derivative:
                 self._clear_remote_attention_if_complete(work.id)

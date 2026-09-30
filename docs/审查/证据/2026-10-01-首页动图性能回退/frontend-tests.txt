@@ -1,0 +1,55 @@
+
+> pixiv-local-reader@0.2.0 test
+> node --experimental-strip-types --test tests/*.test.ts
+
+✔ older metadata responses cannot replace a newer catalogue snapshot (4.5607ms)
+✔ an unavailable source does not hide a saved image or create a deletion claim (6.7331ms)
+✔ readable p0 does not turn a work with missing p1 into a complete archive (4.0886ms)
+✔ complete originals and pending animation preview remain separate without healthy card badges (1.1896ms)
+✔ old unknown and source updates retain readable local pages without claiming verification (17.8267ms)
+✔ stopped remote repair does not poll a missing page, while queued and waiting repairs do (0.1759ms)
+✔ stopped remote repair still lets a saved original receive a generated thumbnail (0.4605ms)
+✔ gallery source badges name only confirmed exceptional states and keep the reason available (0.194ms)
+✔ request IDs use secure random bytes when randomUUID is unavailable (5.3664ms)
+✔ the final readback may finish the pending operation at the same version (0.8443ms)
+✔ late responses cannot roll a terminal state back or replace another operation (3.1392ms)
+✔ account changes and server restarts outrank older work versions (2.2253ms)
+✔ a stored same-account fact stays visible while stale or pending; another account cannot infer cancel (0.317ms)
+✔ old displayed data followed by a newer first progress snapshot triggers one refresh (1.3845ms)
+✔ a late first library response is refreshed when progress already saw newer content (0.179ms)
+✔ equal initial versions are only a baseline and never require a second initial read (0.1876ms)
+✔ media publication alone is not new work, while fresh matching works can replace an empty scope (0.2781ms)
+✔ all, empty, toggled and inverse selections remain distinct across catalogue (3.2447ms)
+✔ ten thousand candidates invert and serialize only the smaller selection (50.8809ms)
+✔ explicit full includes and absent old selections keep their existing meaning (7.6689ms)
+✔ literal comma tags round trip while single-parameter legacy CSV stays compatible (11.1885ms)
+✔ all pages load with no 100 artist truncation, and incomplete lists fail (10.1322ms)
+✔ visible animation uses the GIF even when a healthy thumbnail exists (3.168ms)
+✔ inactive cards release animation media and can still display a static thumbnail (0.4895ms)
+✔ animation failure falls back without suppressing the card or retrying the GIF (1.259ms)
+✔ only an advancing known catalogue revision allows a same-URL failed preview retry (0.2747ms)
+✔ unrelated rapid catalogue updates cannot retry failed media more than once per cooldown (0.2121ms)
+✔ vertical and diagonal starts cannot turn into work navigation later (2.2422ms)
+✔ a single horizontal gesture changes one work, never a short tap (0.5082ms)
+✔ multitouch, controls and cancelled gestures cannot navigate (0.4352ms)
+✔ old navigation results cannot replace a newer intent or a closed view (0.5815ms)
+✔ queued manual submission cannot replace a running task with its waiting counts (1.5701ms)
+✔ an automatically selected task keeps focus when snapshot ordering changes (0.271ms)
+✔ a just submitted task that finishes before the first poll still reports failure (0.1798ms)
+✔ empty and unknown phases show honest counts without a pretend progress bar (0.2751ms)
+✔ simultaneous lanes choose download first, keep the current running primary, then move to check and local (0.4444ms)
+✔ catalogue revision establishes a baseline and coalesces duplicate or older snapshots (3.0435ms)
+✔ progress distinguishes real phase counts, unknown totals, queues and interruption (0.4997ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1400.6153
+npm notice
+npm notice New major version of npm available! 11.12.1 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice

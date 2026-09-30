@@ -553,7 +553,10 @@ def test_established_ugoira_check_does_not_refetch_timing_or_touch_originals(arc
     with db.write() as session:
         work = Work(id=1, pixiv_illust_id="100", artist_id=1, title="established animation", type="ugoira", source_metadata={"urls": []})
         work.assets = [Asset(role="ugoira_zip", state="verified", relative_path="old/100.zip"), Asset(role="ugoira_timing", state="verified", relative_path="old/100.frames.json")]
-        work.derivatives = [Derivative(kind="gif", state="verified", relative_path="old/100.gif"), Derivative(kind="thumbnail", state="verified", relative_path="old/thumb.webp")]
+        work.derivatives = [Derivative(kind="gif", state="verified", relative_path="old/100.gif", sha256="a" * 64),
+                            Derivative(kind="thumbnail", state="verified", relative_path="old/thumb.webp"),
+                            Derivative(kind="thumbnail", spec_key="card-motion-v1", state="verified",
+                                       relative_path="old/card.webp", source_version="a" * 64)]
         session.add_all([work, ArchiveIntent(pixiv_illust_id="100")])
 
     class EstablishedClient:

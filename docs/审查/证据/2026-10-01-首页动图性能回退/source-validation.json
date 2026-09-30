@@ -1,0 +1,137 @@
+{
+  "baseline": "main/e7bff6457b5e7c9d050b3b6dfcaba1c064a0eb4a",
+  "version": "0.2.0",
+  "build": "20261001.1",
+  "comparison": [
+    {
+      "round": "1440-r1-animation",
+      "phase": "idle",
+      "baseline_cpu_core_equivalent": 2.166922624901949,
+      "candidate_cpu_core_equivalent": 0.3724083820687558,
+      "cpu_reduction_percent": 82.81395109409561,
+      "baseline_raf": {
+        "frames": 519,
+        "p95_ms": 6,
+        "over_33ms": 0,
+        "over_50ms": 0
+      },
+      "candidate_raf": {
+        "frames": 523,
+        "p95_ms": 6,
+        "over_33ms": 0,
+        "over_50ms": 0
+      }
+    },
+    {
+      "round": "1440-r1-animation",
+      "phase": "scroll",
+      "baseline_cpu_core_equivalent": 2.564209467685385,
+      "candidate_cpu_core_equivalent": 0.4074128617381645,
+      "cpu_reduction_percent": 84.11156081933039,
+      "baseline_raf": {
+        "frames": 470,
+        "p95_ms": 23.600000000000364,
+        "over_33ms": 12,
+        "over_50ms": 2
+      },
+      "candidate_raf": {
+        "frames": 520,
+        "p95_ms": 6,
+        "over_33ms": 1,
+        "over_50ms": 0
+      }
+    },
+    {
+      "round": "1440-r2-animation",
+      "phase": "idle",
+      "baseline_cpu_core_equivalent": 2.133700165827592,
+      "candidate_cpu_core_equivalent": 0.3076828870101949,
+      "cpu_reduction_percent": 85.5798442565685,
+      "baseline_raf": {
+        "frames": 500,
+        "p95_ms": 6,
+        "over_33ms": 0,
+        "over_50ms": 0
+      },
+      "candidate_raf": {
+        "frames": 522,
+        "p95_ms": 6,
+        "over_33ms": 0,
+        "over_50ms": 0
+      }
+    },
+    {
+      "round": "1440-r2-animation",
+      "phase": "scroll",
+      "baseline_cpu_core_equivalent": 2.329103418181818,
+      "candidate_cpu_core_equivalent": 0.34678500000000007,
+      "cpu_reduction_percent": 85.11079425272095,
+      "baseline_raf": {
+        "frames": 450,
+        "p95_ms": 47,
+        "over_33ms": 58,
+        "over_50ms": 18
+      },
+      "candidate_raf": {
+        "frames": 513,
+        "p95_ms": 6,
+        "over_33ms": 0,
+        "over_50ms": 0
+      }
+    }
+  ],
+  "source_media": {
+    "width": 1280,
+    "height": 960,
+    "frames": 16,
+    "frame_duration_ms": 50,
+    "bytes": 3517985,
+    "sha256": "fa2b75431c6f7dc295e01f01fbe54afed166704c1be11effb08645a51872412a"
+  },
+  "candidate_media": {
+    "width": 360,
+    "height": 270,
+    "frames": 8,
+    "duration_ms": 800,
+    "frame_durations_ms": [
+      100,
+      100,
+      100,
+      100,
+      100,
+      100,
+      100,
+      100
+    ],
+    "bytes": 264688,
+    "sha256": "c522d14689484791a3477fb0d4612300fc33bd7597d5de5adfe9cbdafd82ac51",
+    "generator": "production build_card_motion",
+    "spec_key": "card-motion-v1"
+  },
+  "widths": [
+    1440,
+    390,
+    320
+  ],
+  "budget_violations": [],
+  "functional_browser_checks": 29,
+  "cache_browser_checks": 7,
+  "frontend_tests": 38,
+  "source_smoke_checks": 18,
+  "backend_full": "pending final rerun",
+  "packaged_validation": "pending",
+  "real_library_metadata": {
+    "read_only_aggregate": true,
+    "gif_records": 1413,
+    "max_pixels": 2073600,
+    "median_pixels": 317200,
+    "max_bytes": 42874937,
+    "median_bytes": 4418864
+  },
+  "real_account_used": false,
+  "real_library_written": false,
+  "real_phone_tested": false,
+  "cpu_definition": "sum Chromium browser renderer GPU CPU seconds / wall-clock seconds; not host CPU percentage",
+  "synthetic_fixture": "80 works using one synthetic GIF; conversion publication separately tested by backend and smoke",
+  "raw_private_root": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs"
+}

@@ -8,6 +8,7 @@
 - `browser_fixture.py` + `browser_smoke.py`：真实 Chromium 的桌面/手机冒烟，只使用隔离夹具，不读取真实 Pixiv token 或图库。
 - `test_archive_database.py`、`test_legacy_archive_import.py`：新结构约束、旧 ID／偏好／路径映射、候选库失败回滚；只创建合成数据。
 - `test_archive_media.py`、`test_archive_recovery.py`：文件解码、动图原包和时序、发布／删除中断恢复与单写入者。
+- `test_archive_card_motion.py`：有界动画缩略图、短循环和总时长、GIF-only 离线生成、后台维护、源版本与发布恢复；compact 图库使用轻量缓存，详情保留原 GIF。
 - `test_archive_tasks.py`、`test_archive_workflows.py`：固定轮次、真实处理量、暂停边界、精确补下载；手动全库／画师／单件范围内旧动图 ZIP／时序补齐，自动任务不顺带补旧原包；来源核对／跳过、临时失败和失败保留 GIF；HTTP 使用本机模拟服务。
 - `test_archive_pipeline.py`：检查／下载／本地处理并行，逐项优先级、持久子任务、资源互斥、来源更新、真实核验计数与有界队列领取；仅合成元数据和媒体。
 - `test_archive_state.py`：图库／详情／流式统一整件作品原件与处理状态；首图可读不能覆盖缺页，具体媒体请求观察缺失后更新事实；5,000 件／2,000 页批量读取。
@@ -20,7 +21,7 @@
 - `archive_browser.py`：新核心的桌面与手机尺寸浏览器验证；`--artifacts` 必须指定新的隔离目录，保留结果和截图；不是手机实机验收。
 - `reading_browser.py`：生成大型合成图库，用实际 Chromium 验证普通／流式阅览、真实触控事件、乱序请求、长时间滚动与后台下载；`--artifacts` 每次用新目录。
 - `reading_deep_browser.py`：复用前项生成的 `.devtools/test-runs/` 合成图库，验证第 5000 件作品、流式末端及浏览器返回位置；拒绝真实图库路径。
-- `packaged_reading_browser.py`：让当前 EXE 只在本机启动自己的合成图库服务，验证实际下载、整件存档事实、目录版本、有界进度及图库、详情、流式、画师、设置与主题；`--exe` 与 `--artifacts` 指向交付文件和新证据目录。
+- `packaged_reading_browser.py`：让当前 EXE 只在本机启动自己的合成图库服务，验证实际下载、整件存档事实、目录版本、有界进度及图库、详情、流式、画师、设置与主题；动图卡片须使用 360×270 轻量缓存、滚动暂停和恢复，详情保留 1280×960 原 GIF；`--exe` 与 `--artifacts` 指向交付文件和新证据目录。
 - `test_bookmarks_v022.py`、`test_bookmark_client_v022.py`：收藏请求只写一次、同账号明确回读、旧响应、限流、未知字段、离线启动与仅回读恢复。
 - `test_upgrade_v022.py`：0001 → 0002 显式转换、源库保留、未知收藏空值及失败回退；仅合成 SQLite。
 - `test_v022_api.py`、`test_v022_integration.py`：统一筛选、画师资料、设置与暂停、跨模块收藏竞争及登录就绪后的恢复。
@@ -40,6 +41,7 @@
 - `client_reader_recovery_browser.py`：详情可见缺页持续轮询、同 URL 图片加载失败后自动恢复、流式存档更新事件与位置保留；使用模拟接口，无账号操作。
 - `client_cache_browser.py`：合成已确认收藏的首次显示、同卡片刷新和流式冷启动；缺原图与缺缩略图区分、可见原图兜底、503 后保留卡片并连续浏览 601 件；不访问真实账号。
 - `client_animation_browser.py`：两帧本地 GIF 在桌面／390／320px 卡片的实际画面变化、静态回退、离屏／模拟后台释放、同地址恢复和限频；统计卡片／媒体／请求上限，不表示实体后台或超大 GIF 内存已测。
+- `client_animation_performance.py`：80 件同图库的 1280×960／16 帧 GIF 与静态缩略图 AB／BA 对照，固定真实滚轮轨迹；保存浏览器进程 CPU、原始 rAF 间隔和可选解码／绘制迹线。`--frontend` 可指定已构建候选，`--media` 复用既有合成 GIF，`--preview-size 360` 仅改变供给尺寸并保持时序；`--real-derivative` 调用生产生成器并使用真实 compact API，检查无原 GIF 请求、滚动暂停、停止和返回后的实际播放。此模式生成一次同样本后用硬链接注册 80 件，任务队列生成／发布另由核心测试覆盖。`--assert-animation-budget` 令明显超出静态 CPU 预算的轮次失败。`--artifacts` 必须是主仓库 `.devtools/test-runs/b9-perf-*` 新目录；不读真实库、账号或配置，不等于 EXE／实体手机验收。
 - `client_originals_browser.py`：合成缺包清单的来源与临时原因、普通补下载／显式重新核对、完成后原位移出、读取失败保留事实，以及使用主站用户 ID 的画师链接；桌面／390／320px，不执行真实账号操作。
 - `client_touch_browser.py`：实际 CDP 触点、方向锁、缩放、中文输入、返回位置及无 randomUUID 环境；手机尺寸模拟不等于实机验收。
 - `client_load_browser.py`：故障图片重试、第 5,000 件定位、下载中的长流阅览、固定总量与下一轮、部分失败记录、暂停队列和离线浏览。

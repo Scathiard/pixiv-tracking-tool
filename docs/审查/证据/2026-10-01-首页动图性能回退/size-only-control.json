@@ -1,0 +1,2809 @@
+{
+  "media": {
+    "width": 360,
+    "height": 270,
+    "frames": 16,
+    "frame_duration_ms": 50,
+    "bytes": 885357,
+    "sha256": "8d6ab7f8041dd99fcf158c68e49f48a30d6a1bbd222b982c85459af2ef719eb5"
+  },
+  "source_media": {
+    "width": 1280,
+    "height": 960,
+    "frames": 16,
+    "frame_duration_ms": 50,
+    "bytes": 3517985,
+    "sha256": "fa2b75431c6f7dc295e01f01fbe54afed166704c1be11effb08645a51872412a"
+  },
+  "frontend": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261001.1\\app\\frontend\\dist",
+  "widths": [
+    1440
+  ],
+  "rounds": [
+    {
+      "name": "1440-r1-animation",
+      "mode": "animation",
+      "width": 1440,
+      "observed_media": [
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/80.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/79.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/78.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/77.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/76.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/75.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/74.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/73.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/72.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/71.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/70.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/69.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/68.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/67.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/66.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100065-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100064-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100063-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100062-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100061-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100060-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100059-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100058-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100057-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100056-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        }
+      ],
+      "frame_hashes": [
+        "9c778327a4d94ecc9b2d9f36b613a54c7e39ed4d16ef502e613465c34dc9463c",
+        "4517b06e9919e12b395469a62b8b03173da5e79a7d1406722e82b0b515bd4bd9",
+        "de85f70ecc3e437e975514aacb2376918153d9764dd23e9d86d27e3634ae5a4b"
+      ],
+      "initial_cards": 25,
+      "initial_animations": 15,
+      "phases": {
+        "idle": {
+          "frames": 460,
+          "mean_ms": 6.508913043478262,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 11.699999999999818,
+          "p99_ms": 23.5,
+          "max_ms": 29.400000000000546,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.0,
+          "wheel_events": 0,
+          "cpu_seconds": 1.7001160000000004,
+          "cpu_by_process": [
+            {
+              "id": "35912",
+              "type": "browser",
+              "cpu_seconds": 0.024510000000000032
+            },
+            {
+              "id": "20152",
+              "type": "renderer",
+              "cpu_seconds": 0.0017269999999999994
+            },
+            {
+              "id": "15156",
+              "type": "renderer",
+              "cpu_seconds": 0.5116340000000001
+            },
+            {
+              "id": "14884",
+              "type": "renderer",
+              "cpu_seconds": 0.0023110000000000075
+            },
+            {
+              "id": "56540",
+              "type": "GPU",
+              "cpu_seconds": 1.1353910000000003
+            },
+            {
+              "id": "31944",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.022964000000000012
+            },
+            {
+              "id": "59828",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.001578999999999997
+            }
+          ],
+          "main_thread_task_seconds": 0.229547,
+          "long_tasks": [],
+          "cards": 25,
+          "animations": 15,
+          "scroll_top": 0,
+          "trace_render_decode": {
+            "RasterSource::PerformSolidColorAnalysis": {
+              "events": 945,
+              "duration_ms": 4.629999999999953
+            },
+            "RasterizerTaskImpl::RunOnWorkerThread": {
+              "events": 945,
+              "duration_ms": 170.25900000000019
+            },
+            "RasterTask": {
+              "events": 945,
+              "duration_ms": 164.53400000000013
+            },
+            "GpuRasterBuffer::Playback": {
+              "events": 945,
+              "duration_ms": 158.74500000000018
+            },
+            "RasterImplementation::RasterCHROMIUM": {
+              "events": 945,
+              "duration_ms": 145.16500000000005
+            },
+            "RendererRasterWorker": {
+              "events": 655,
+              "duration_ms": 569.7549999999994
+            },
+            "RasterDecoderImpl::DoBeginRasterCHROMIUM": {
+              "events": 944,
+              "duration_ms": 6.2129999999999415
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM": {
+              "events": 944,
+              "duration_ms": 183.68399999999997
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM::Deserializing": {
+              "events": 944,
+              "duration_ms": 181.29100000000014
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM": {
+              "events": 944,
+              "duration_ms": 364.40700000000044
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM::Flush": {
+              "events": 944,
+              "duration_ms": 359.00400000000013
+            },
+            "PrePaint": {
+              "events": 462,
+              "duration_ms": 10.804999999999964
+            },
+            "LocalFrameView::RunPrePaintLifecyclePhase": {
+              "events": 462,
+              "duration_ms": 3.628999999999994
+            },
+            "Blink.PrePaint.UpdateTime": {
+              "events": 462,
+              "duration_ms": 2.528000000000003
+            },
+            "LocalFrameView::RunPaintLifecyclePhase": {
+              "events": 462,
+              "duration_ms": 20.032999999999955
+            },
+            "Blink.Paint.UpdateTime": {
+              "events": 462,
+              "duration_ms": 10.088999999999954
+            },
+            "LocalFrameView::pushPaintArtifactToCompositor": {
+              "events": 462,
+              "duration_ms": 5.86899999999998
+            },
+            "TextResourceDecoder::Decode": {
+              "events": 2,
+              "duration_ms": 0.005
+            }
+          }
+        },
+        "scroll": {
+          "frames": 419,
+          "mean_ms": 7.4682577565632435,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 17.600000000000364,
+          "p99_ms": 29.19999999999891,
+          "max_ms": 52.899999999999636,
+          "over_33ms": 3,
+          "over_50ms": 1,
+          "elapsed_seconds": 3.1410000000614673,
+          "wheel_events": 30,
+          "cpu_seconds": 2.7736090000000004,
+          "cpu_by_process": [
+            {
+              "id": "35912",
+              "type": "browser",
+              "cpu_seconds": 0.12439500000000003
+            },
+            {
+              "id": "20152",
+              "type": "renderer",
+              "cpu_seconds": 0.0010990000000000028
+            },
+            {
+              "id": "15156",
+              "type": "renderer",
+              "cpu_seconds": 0.9747359999999998
+            },
+            {
+              "id": "14884",
+              "type": "renderer",
+              "cpu_seconds": 0.0013019999999999698
+            },
+            {
+              "id": "56540",
+              "type": "GPU",
+              "cpu_seconds": 1.5684390000000006
+            },
+            {
+              "id": "31944",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.095196
+            },
+            {
+              "id": "59828",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0008050000000000002
+            },
+            {
+              "id": "60756",
+              "type": "tracing.mojom.TracingService",
+              "cpu_seconds": 0.007637000000000116
+            }
+          ],
+          "main_thread_task_seconds": 0.654662,
+          "long_tasks": [],
+          "cards": 40,
+          "animations": 20,
+          "scroll_top": 960,
+          "trace_render_decode": {
+            "RendererRasterWorker": {
+              "events": 733,
+              "duration_ms": 826.266000000001
+            },
+            "RasterDecoderImpl::DoBeginRasterCHROMIUM": {
+              "events": 905,
+              "duration_ms": 6.777999999999947
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM": {
+              "events": 905,
+              "duration_ms": 206.60999999999984
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM::Deserializing": {
+              "events": 905,
+              "duration_ms": 204.34200000000004
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM": {
+              "events": 905,
+              "duration_ms": 506.1090000000006
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM::Flush": {
+              "events": 905,
+              "duration_ms": 500.44799999999964
+            },
+            "PrePaint": {
+              "events": 515,
+              "duration_ms": 28.667000000000044
+            },
+            "LocalFrameView::RunPrePaintLifecyclePhase": {
+              "events": 515,
+              "duration_ms": 19.389000000000028
+            },
+            "Blink.PrePaint.UpdateTime": {
+              "events": 515,
+              "duration_ms": 18.477000000000015
+            },
+            "LocalFrameView::RunPaintLifecyclePhase": {
+              "events": 429,
+              "duration_ms": 131.7300000000001
+            },
+            "Blink.Paint.UpdateTime": {
+              "events": 429,
+              "duration_ms": 56.32200000000003
+            },
+            "LocalFrameView::pushPaintArtifactToCompositor": {
+              "events": 429,
+              "duration_ms": 64.40899999999998
+            },
+            "RasterSource::PerformSolidColorAnalysis": {
+              "events": 902,
+              "duration_ms": 3.9319999999999533
+            },
+            "RasterizerTaskImpl::RunOnWorkerThread": {
+              "events": 902,
+              "duration_ms": 180.92200000000008
+            },
+            "RasterTask": {
+              "events": 902,
+              "duration_ms": 173.78199999999978
+            },
+            "GpuRasterBuffer::Playback": {
+              "events": 902,
+              "duration_ms": 170.076
+            },
+            "RasterImplementation::RasterCHROMIUM": {
+              "events": 902,
+              "duration_ms": 156.3200000000001
+            },
+            "PaintLayerScrollableArea::UpdateScrollOffset": {
+              "events": 30,
+              "duration_ms": 2.84
+            },
+            "PaintArtifactCompositor::Update": {
+              "events": 57,
+              "duration_ms": 31.391999999999996
+            },
+            "Paint": {
+              "events": 576,
+              "duration_ms": 56.121000000000016
+            },
+            "PaintController::commitNewDisplayItems": {
+              "events": 151,
+              "duration_ms": 0.5230000000000002
+            },
+            "PaintWorkletPaintDispatcher::DispatchWorklets": {
+              "events": 94,
+              "duration_ms": 0.7200000000000004
+            },
+            "PaintWorkletPaintDispatcher::AsyncPaintDone": {
+              "events": 94,
+              "duration_ms": 9.34
+            },
+            "ResourceLoadPriorityOptimizer::UpdateImagePrioritiesAndSpeculativeDecodes": {
+              "events": 38,
+              "duration_ms": 1.5169999999999983
+            },
+            "GpuImageDecodeTaskImpl::RunOnWorkerThread": {
+              "events": 200,
+              "duration_ms": 181.826
+            },
+            "ImageDecodeTask": {
+              "events": 200,
+              "duration_ms": 177.93799999999987
+            },
+            "GpuImageDecodeCache::DecodeImage": {
+              "events": 200,
+              "duration_ms": 175.83600000000007
+            },
+            "Decode LazyPixelRef": {
+              "events": 200,
+              "duration_ms": 168.74200000000002
+            },
+            "ImageFrameGenerator::decodeToYUV": {
+              "events": 21,
+              "duration_ms": 23.791
+            },
+            "GpuImageDecodeCache::UploadImage": {
+              "events": 200,
+              "duration_ms": 11.766999999999996
+            },
+            "ImageFrameGenerator::decodeAndScale": {
+              "events": 179,
+              "duration_ms": 143.56800000000004
+            },
+            "ImageFrameGenerator::decode": {
+              "events": 179,
+              "duration_ms": 132.6879999999999
+            },
+            "ImageDecoder::DecodeFrameBufferAtIndex": {
+              "events": 179,
+              "duration_ms": 132.17499999999998
+            },
+            "Decode Image": {
+              "events": 179,
+              "duration_ms": 117.41900000000003
+            },
+            "PaintImage": {
+              "events": 192,
+              "duration_ms": 5.031999999999996
+            },
+            "TextResourceDecoder::Decode": {
+              "events": 2,
+              "duration_ms": 0.007
+            }
+          }
+        },
+        "settled": {
+          "frames": 516,
+          "mean_ms": 5.88217054263566,
+          "p50_ms": 5.899999999997817,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6.100000000002183,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.030999999959022,
+          "wheel_events": 0,
+          "cpu_seconds": 1.4159639999999984,
+          "cpu_by_process": [
+            {
+              "id": "35912",
+              "type": "browser",
+              "cpu_seconds": 0.008093999999999824
+            },
+            {
+              "id": "20152",
+              "type": "renderer",
+              "cpu_seconds": 0.0010959999999999998
+            },
+            {
+              "id": "15156",
+              "type": "renderer",
+              "cpu_seconds": 0.5099480000000001
+            },
+            {
+              "id": "14884",
+              "type": "renderer",
+              "cpu_seconds": 0.0012260000000000049
+            },
+            {
+              "id": "56540",
+              "type": "GPU",
+              "cpu_seconds": 0.8876049999999989
+            },
+            {
+              "id": "31944",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.0008350000000000302
+            },
+            {
+              "id": "59828",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0006649999999999989
+            },
+            {
+              "id": "60756",
+              "type": "tracing.mojom.TracingService",
+              "cpu_seconds": 0.0064949999999996955
+            }
+          ],
+          "main_thread_task_seconds": 0.314333,
+          "long_tasks": [],
+          "cards": 40,
+          "animations": 20,
+          "scroll_top": 960,
+          "trace_render_decode": {
+            "RendererRasterWorker": {
+              "events": 638,
+              "duration_ms": 485.03099999999904
+            },
+            "PrePaint": {
+              "events": 518,
+              "duration_ms": 11.596999999999953
+            },
+            "LocalFrameView::RunPrePaintLifecyclePhase": {
+              "events": 518,
+              "duration_ms": 5.247999999999955
+            },
+            "Blink.PrePaint.UpdateTime": {
+              "events": 518,
+              "duration_ms": 3.91400000000002
+            },
+            "LocalFrameView::RunPaintLifecyclePhase": {
+              "events": 518,
+              "duration_ms": 21.136999999999944
+            },
+            "Blink.Paint.UpdateTime": {
+              "events": 518,
+              "duration_ms": 10.336999999999962
+            },
+            "LocalFrameView::pushPaintArtifactToCompositor": {
+              "events": 518,
+              "duration_ms": 3.4709999999999916
+            },
+            "RasterSource::PerformSolidColorAnalysis": {
+              "events": 537,
+              "duration_ms": 3.6829999999999754
+            },
+            "RasterizerTaskImpl::RunOnWorkerThread": {
+              "events": 537,
+              "duration_ms": 169.71099999999996
+            },
+            "RasterTask": {
+              "events": 537,
+              "duration_ms": 163.23099999999988
+            },
+            "GpuRasterBuffer::Playback": {
+              "events": 537,
+              "duration_ms": 160.136
+            },
+            "RasterImplementation::RasterCHROMIUM": {
+              "events": 537,
+              "duration_ms": 152.54199999999983
+            },
+            "RasterDecoderImpl::DoBeginRasterCHROMIUM": {
+              "events": 536,
+              "duration_ms": 4.199999999999976
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM": {
+              "events": 536,
+              "duration_ms": 161.8400000000001
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM::Deserializing": {
+              "events": 536,
+              "duration_ms": 160.47099999999998
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM": {
+              "events": 536,
+              "duration_ms": 306.1269999999999
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM::Flush": {
+              "events": 536,
+              "duration_ms": 302.404
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "1440-r1-static",
+      "mode": "static",
+      "width": 1440,
+      "observed_media": [
+        {
+          "src": "http://127.0.0.1:63704/images/100080-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100079-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100078-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100077-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100076-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100075-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100074-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100073-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100072-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100071-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100070-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100069-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100068-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100067-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100066-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100065-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100064-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100063-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100062-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100061-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100060-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100059-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100058-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100057-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100056-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        }
+      ],
+      "frame_hashes": [
+        "6f5309d92c275b58e1dcbf8458038cccd7357a43f09535ae8443a802357d98b3",
+        "6f5309d92c275b58e1dcbf8458038cccd7357a43f09535ae8443a802357d98b3",
+        "6f5309d92c275b58e1dcbf8458038cccd7357a43f09535ae8443a802357d98b3"
+      ],
+      "initial_cards": 25,
+      "initial_animations": 0,
+      "phases": {
+        "idle": {
+          "frames": 509,
+          "mean_ms": 5.917092337917485,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 12.600000000000364,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.015999999945052,
+          "wheel_events": 0,
+          "cpu_seconds": 0.3827769999999991,
+          "cpu_by_process": [
+            {
+              "id": "35912",
+              "type": "browser",
+              "cpu_seconds": 0.019994999999999763
+            },
+            {
+              "id": "33748",
+              "type": "renderer",
+              "cpu_seconds": 0.001016000000000003
+            },
+            {
+              "id": "34948",
+              "type": "renderer",
+              "cpu_seconds": 0.263443
+            },
+            {
+              "id": "46020",
+              "type": "renderer",
+              "cpu_seconds": 0.0016149999999999776
+            },
+            {
+              "id": "56540",
+              "type": "GPU",
+              "cpu_seconds": 0.08682699999999954
+            },
+            {
+              "id": "31944",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.002475000000000005
+            },
+            {
+              "id": "59828",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0011610000000000023
+            },
+            {
+              "id": "60756",
+              "type": "tracing.mojom.TracingService",
+              "cpu_seconds": 0.006244999999999834
+            }
+          ],
+          "main_thread_task_seconds": 0.25672599999999995,
+          "long_tasks": [],
+          "cards": 25,
+          "animations": 0,
+          "scroll_top": 0,
+          "trace_render_decode": {
+            "PrePaint": {
+              "events": 511,
+              "duration_ms": 11.078999999999938
+            },
+            "LocalFrameView::RunPrePaintLifecyclePhase": {
+              "events": 511,
+              "duration_ms": 4.322999999999974
+            },
+            "Blink.PrePaint.UpdateTime": {
+              "events": 511,
+              "duration_ms": 2.9559999999999977
+            },
+            "LocalFrameView::RunPaintLifecyclePhase": {
+              "events": 511,
+              "duration_ms": 19.179999999999993
+            },
+            "Blink.Paint.UpdateTime": {
+              "events": 511,
+              "duration_ms": 10.14899999999998
+            },
+            "LocalFrameView::pushPaintArtifactToCompositor": {
+              "events": 511,
+              "duration_ms": 3.8389999999999866
+            },
+            "RasterImplementation::SetAggressivelyFreeResources": {
+              "events": 2,
+              "duration_ms": 0.229
+            },
+            "RendererRasterWorker": {
+              "events": 4,
+              "duration_ms": 0.11399999999999999
+            }
+          }
+        },
+        "scroll": {
+          "frames": 513,
+          "mean_ms": 6.008382066276802,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6.100000000000364,
+          "max_ms": 35.399999999999636,
+          "over_33ms": 1,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.077999999979511,
+          "wheel_events": 30,
+          "cpu_seconds": 1.2214250000000013,
+          "cpu_by_process": [
+            {
+              "id": "35912",
+              "type": "browser",
+              "cpu_seconds": 0.06979600000000019
+            },
+            {
+              "id": "33748",
+              "type": "renderer",
+              "cpu_seconds": 0.0013319999999999999
+            },
+            {
+              "id": "34948",
+              "type": "renderer",
+              "cpu_seconds": 0.625316
+            },
+            {
+              "id": "46020",
+              "type": "renderer",
+              "cpu_seconds": 0.0019819999999999838
+            },
+            {
+              "id": "56540",
+              "type": "GPU",
+              "cpu_seconds": 0.48655500000000096
+            },
+            {
+              "id": "31944",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.029536000000000007
+            },
+            {
+              "id": "59828",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0006670000000000009
+            },
+            {
+              "id": "60756",
+              "type": "tracing.mojom.TracingService",
+              "cpu_seconds": 0.006241000000000163
+            }
+          ],
+          "main_thread_task_seconds": 0.5133420000000001,
+          "long_tasks": [],
+          "cards": 40,
+          "animations": 0,
+          "scroll_top": 960,
+          "trace_render_decode": {
+            "PrePaint": {
+              "events": 585,
+              "duration_ms": 21.679
+            },
+            "LocalFrameView::RunPrePaintLifecyclePhase": {
+              "events": 585,
+              "duration_ms": 14.88699999999993
+            },
+            "Blink.PrePaint.UpdateTime": {
+              "events": 585,
+              "duration_ms": 13.935000000000025
+            },
+            "LocalFrameView::RunPaintLifecyclePhase": {
+              "events": 519,
+              "duration_ms": 96.93600000000018
+            },
+            "Blink.Paint.UpdateTime": {
+              "events": 519,
+              "duration_ms": 37.58800000000008
+            },
+            "LocalFrameView::pushPaintArtifactToCompositor": {
+              "events": 519,
+              "duration_ms": 48.71600000000005
+            },
+            "PaintLayerScrollableArea::UpdateScrollOffset": {
+              "events": 30,
+              "duration_ms": 2.875
+            },
+            "PaintArtifactCompositor::Update": {
+              "events": 38,
+              "duration_ms": 17.465
+            },
+            "RasterSource::PerformSolidColorAnalysis": {
+              "events": 232,
+              "duration_ms": 0.9100000000000007
+            },
+            "RasterizerTaskImpl::RunOnWorkerThread": {
+              "events": 232,
+              "duration_ms": 41.22099999999996
+            },
+            "RasterTask": {
+              "events": 232,
+              "duration_ms": 39.675000000000026
+            },
+            "GpuRasterBuffer::Playback": {
+              "events": 232,
+              "duration_ms": 38.28500000000001
+            },
+            "RasterImplementation::RasterCHROMIUM": {
+              "events": 232,
+              "duration_ms": 35.706000000000024
+            },
+            "RendererRasterWorker": {
+              "events": 292,
+              "duration_ms": 205.97799999999984
+            },
+            "RasterDecoderImpl::DoBeginRasterCHROMIUM": {
+              "events": 232,
+              "duration_ms": 1.7119999999999964
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM": {
+              "events": 233,
+              "duration_ms": 60.06599999999994
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM::Deserializing": {
+              "events": 233,
+              "duration_ms": 59.48800000000002
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM": {
+              "events": 232,
+              "duration_ms": 127.51499999999996
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM::Flush": {
+              "events": 232,
+              "duration_ms": 125.99899999999997
+            },
+            "Paint": {
+              "events": 390,
+              "duration_ms": 31.553999999999988
+            },
+            "PaintController::commitNewDisplayItems": {
+              "events": 139,
+              "duration_ms": 0.3550000000000002
+            },
+            "PaintWorkletPaintDispatcher::DispatchWorklets": {
+              "events": 113,
+              "duration_ms": 0.6960000000000005
+            },
+            "PaintWorkletPaintDispatcher::AsyncPaintDone": {
+              "events": 113,
+              "duration_ms": 9.692
+            },
+            "ResourceLoadPriorityOptimizer::UpdateImagePrioritiesAndSpeculativeDecodes": {
+              "events": 17,
+              "duration_ms": 0.10500000000000001
+            },
+            "GpuImageDecodeTaskImpl::RunOnWorkerThread": {
+              "events": 15,
+              "duration_ms": 12.74
+            },
+            "ImageDecodeTask": {
+              "events": 15,
+              "duration_ms": 12.364
+            },
+            "GpuImageDecodeCache::DecodeImage": {
+              "events": 15,
+              "duration_ms": 12.298
+            },
+            "Decode LazyPixelRef": {
+              "events": 15,
+              "duration_ms": 11.607000000000001
+            },
+            "ImageFrameGenerator::decodeToYUV": {
+              "events": 14,
+              "duration_ms": 9.729000000000001
+            },
+            "GpuImageDecodeCache::UploadImage": {
+              "events": 15,
+              "duration_ms": 1.056
+            },
+            "ImageFrameGenerator::decodeAndScale": {
+              "events": 1,
+              "duration_ms": 1.251
+            },
+            "ImageFrameGenerator::decode": {
+              "events": 1,
+              "duration_ms": 1.241
+            },
+            "ImageDecoder::DecodeFrameBufferAtIndex": {
+              "events": 1,
+              "duration_ms": 1.238
+            },
+            "Decode Image": {
+              "events": 1,
+              "duration_ms": 1.235
+            },
+            "PaintImage": {
+              "events": 33,
+              "duration_ms": 0.43400000000000016
+            }
+          }
+        },
+        "settled": {
+          "frames": 515,
+          "mean_ms": 5.882330097087378,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6.100000000000364,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.030999999959022,
+          "wheel_events": 0,
+          "cpu_seconds": 0.3555580000000007,
+          "cpu_by_process": [
+            {
+              "id": "35912",
+              "type": "browser",
+              "cpu_seconds": 0.008485999999999994
+            },
+            {
+              "id": "33748",
+              "type": "renderer",
+              "cpu_seconds": 0.000902
+            },
+            {
+              "id": "34948",
+              "type": "renderer",
+              "cpu_seconds": 0.25743700000000014
+            },
+            {
+              "id": "46020",
+              "type": "renderer",
+              "cpu_seconds": 0.0011569999999999636
+            },
+            {
+              "id": "56540",
+              "type": "GPU",
+              "cpu_seconds": 0.08062600000000053
+            },
+            {
+              "id": "31944",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.0009020000000000694
+            },
+            {
+              "id": "59828",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.000900999999999999
+            },
+            {
+              "id": "60756",
+              "type": "tracing.mojom.TracingService",
+              "cpu_seconds": 0.005147000000000013
+            }
+          ],
+          "main_thread_task_seconds": 0.23149599999999998,
+          "long_tasks": [],
+          "cards": 40,
+          "animations": 0,
+          "scroll_top": 960,
+          "trace_render_decode": {
+            "PrePaint": {
+              "events": 517,
+              "duration_ms": 7.8519999999999746
+            },
+            "LocalFrameView::RunPrePaintLifecyclePhase": {
+              "events": 517,
+              "duration_ms": 3.4629999999999903
+            },
+            "Blink.PrePaint.UpdateTime": {
+              "events": 517,
+              "duration_ms": 2.5049999999999906
+            },
+            "LocalFrameView::RunPaintLifecyclePhase": {
+              "events": 517,
+              "duration_ms": 18.194999999999972
+            },
+            "Blink.Paint.UpdateTime": {
+              "events": 517,
+              "duration_ms": 9.646999999999968
+            },
+            "LocalFrameView::pushPaintArtifactToCompositor": {
+              "events": 517,
+              "duration_ms": 2.907999999999988
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "1440-r2-static",
+      "mode": "static",
+      "width": 1440,
+      "observed_media": [
+        {
+          "src": "http://127.0.0.1:63704/images/100080-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100079-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100078-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100077-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100076-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100075-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100074-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100073-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100072-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100071-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100070-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100069-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100068-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100067-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100066-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100065-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100064-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100063-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100062-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100061-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100060-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100059-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100058-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100057-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100056-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        }
+      ],
+      "frame_hashes": [],
+      "initial_cards": 25,
+      "initial_animations": 0,
+      "phases": {
+        "idle": {
+          "frames": 521,
+          "mean_ms": 5.882149712092131,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.062999999965541,
+          "wheel_events": 0,
+          "cpu_seconds": 0.3955760000000001,
+          "cpu_by_process": [
+            {
+              "id": "35912",
+              "type": "browser",
+              "cpu_seconds": 0.020540000000000003
+            },
+            {
+              "id": "38136",
+              "type": "renderer",
+              "cpu_seconds": 0.0012749999999999984
+            },
+            {
+              "id": "60944",
+              "type": "renderer",
+              "cpu_seconds": 0.27205999999999997
+            },
+            {
+              "id": "61620",
+              "type": "renderer",
+              "cpu_seconds": 0.0017790000000000306
+            },
+            {
+              "id": "56540",
+              "type": "GPU",
+              "cpu_seconds": 0.08703299999999992
+            },
+            {
+              "id": "31944",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.005183999999999966
+            },
+            {
+              "id": "59828",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0012030000000000027
+            },
+            {
+              "id": "60756",
+              "type": "tracing.mojom.TracingService",
+              "cpu_seconds": 0.00650200000000023
+            }
+          ],
+          "main_thread_task_seconds": 0.275933,
+          "long_tasks": [],
+          "cards": 25,
+          "animations": 0,
+          "scroll_top": 0,
+          "trace_render_decode": {
+            "PrePaint": {
+              "events": 525,
+              "duration_ms": 11.568999999999956
+            },
+            "LocalFrameView::RunPrePaintLifecyclePhase": {
+              "events": 525,
+              "duration_ms": 4.3189999999999795
+            },
+            "Blink.PrePaint.UpdateTime": {
+              "events": 525,
+              "duration_ms": 3.4449999999999994
+            },
+            "LocalFrameView::RunPaintLifecyclePhase": {
+              "events": 525,
+              "duration_ms": 21.04199999999996
+            },
+            "Blink.Paint.UpdateTime": {
+              "events": 525,
+              "duration_ms": 12.112999999999975
+            },
+            "LocalFrameView::pushPaintArtifactToCompositor": {
+              "events": 525,
+              "duration_ms": 4.251999999999987
+            },
+            "RasterImplementation::SetAggressivelyFreeResources": {
+              "events": 2,
+              "duration_ms": 0.258
+            },
+            "RendererRasterWorker": {
+              "events": 4,
+              "duration_ms": 0.113
+            }
+          }
+        },
+        "scroll": {
+          "frames": 549,
+          "mean_ms": 6.085792349726777,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 11.700000000000728,
+          "max_ms": 41.19999999999891,
+          "over_33ms": 1,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.327999999979511,
+          "wheel_events": 30,
+          "cpu_seconds": 1.394819999999999,
+          "cpu_by_process": [
+            {
+              "id": "35912",
+              "type": "browser",
+              "cpu_seconds": 0.08472299999999988
+            },
+            {
+              "id": "38136",
+              "type": "renderer",
+              "cpu_seconds": 0.001357999999999998
+            },
+            {
+              "id": "60944",
+              "type": "renderer",
+              "cpu_seconds": 0.7239610000000001
+            },
+            {
+              "id": "61620",
+              "type": "renderer",
+              "cpu_seconds": 0.0022969999999999935
+            },
+            {
+              "id": "56540",
+              "type": "GPU",
+              "cpu_seconds": 0.5412479999999995
+            },
+            {
+              "id": "31944",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.03264199999999995
+            },
+            {
+              "id": "59828",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.001355999999999996
+            },
+            {
+              "id": "60756",
+              "type": "tracing.mojom.TracingService",
+              "cpu_seconds": 0.007234999999999658
+            }
+          ],
+          "main_thread_task_seconds": 0.7689469999999999,
+          "long_tasks": [],
+          "cards": 40,
+          "animations": 0,
+          "scroll_top": 960,
+          "trace_render_decode": {
+            "PrePaint": {
+              "events": 627,
+              "duration_ms": 32.77000000000002
+            },
+            "LocalFrameView::RunPrePaintLifecyclePhase": {
+              "events": 627,
+              "duration_ms": 23.259000000000036
+            },
+            "Blink.PrePaint.UpdateTime": {
+              "events": 627,
+              "duration_ms": 21.45500000000002
+            },
+            "LocalFrameView::RunPaintLifecyclePhase": {
+              "events": 556,
+              "duration_ms": 141.98600000000005
+            },
+            "Blink.Paint.UpdateTime": {
+              "events": 556,
+              "duration_ms": 55.06200000000013
+            },
+            "LocalFrameView::pushPaintArtifactToCompositor": {
+              "events": 556,
+              "duration_ms": 74.2410000000001
+            },
+            "PaintLayerScrollableArea::UpdateScrollOffset": {
+              "events": 30,
+              "duration_ms": 2.4459999999999993
+            },
+            "PaintArtifactCompositor::Update": {
+              "events": 43,
+              "duration_ms": 30.764999999999993
+            },
+            "RasterSource::PerformSolidColorAnalysis": {
+              "events": 244,
+              "duration_ms": 1.1219999999999983
+            },
+            "RasterizerTaskImpl::RunOnWorkerThread": {
+              "events": 244,
+              "duration_ms": 73.74200000000002
+            },
+            "RasterTask": {
+              "events": 244,
+              "duration_ms": 69.29700000000003
+            },
+            "GpuRasterBuffer::Playback": {
+              "events": 244,
+              "duration_ms": 67.37999999999995
+            },
+            "RasterImplementation::RasterCHROMIUM": {
+              "events": 244,
+              "duration_ms": 63.83400000000003
+            },
+            "RendererRasterWorker": {
+              "events": 319,
+              "duration_ms": 233.46399999999988
+            },
+            "RasterDecoderImpl::DoBeginRasterCHROMIUM": {
+              "events": 244,
+              "duration_ms": 1.9309999999999954
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM": {
+              "events": 246,
+              "duration_ms": 70.894
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM::Deserializing": {
+              "events": 246,
+              "duration_ms": 70.2359999999999
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM": {
+              "events": 244,
+              "duration_ms": 144.21699999999984
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM::Flush": {
+              "events": 244,
+              "duration_ms": 142.34599999999995
+            },
+            "Paint": {
+              "events": 417,
+              "duration_ms": 42.70200000000002
+            },
+            "PaintController::commitNewDisplayItems": {
+              "events": 154,
+              "duration_ms": 0.40100000000000025
+            },
+            "PaintWorkletPaintDispatcher::DispatchWorklets": {
+              "events": 126,
+              "duration_ms": 0.8150000000000006
+            },
+            "PaintWorkletPaintDispatcher::AsyncPaintDone": {
+              "events": 126,
+              "duration_ms": 11.731000000000005
+            },
+            "ResourceLoadPriorityOptimizer::UpdateImagePrioritiesAndSpeculativeDecodes": {
+              "events": 22,
+              "duration_ms": 0.21100000000000002
+            },
+            "GpuImageDecodeTaskImpl::RunOnWorkerThread": {
+              "events": 15,
+              "duration_ms": 20.561
+            },
+            "ImageDecodeTask": {
+              "events": 15,
+              "duration_ms": 19.796
+            },
+            "GpuImageDecodeCache::DecodeImage": {
+              "events": 15,
+              "duration_ms": 18.036
+            },
+            "Decode LazyPixelRef": {
+              "events": 15,
+              "duration_ms": 15.124999999999998
+            },
+            "ImageFrameGenerator::decodeToYUV": {
+              "events": 11,
+              "duration_ms": 10.644
+            },
+            "GpuImageDecodeCache::UploadImage": {
+              "events": 15,
+              "duration_ms": 1.509
+            },
+            "PaintImage": {
+              "events": 33,
+              "duration_ms": 0.8410000000000003
+            },
+            "ImageFrameGenerator::decodeAndScale": {
+              "events": 4,
+              "duration_ms": 4.368
+            },
+            "ImageFrameGenerator::decode": {
+              "events": 4,
+              "duration_ms": 4.2379999999999995
+            },
+            "ImageDecoder::DecodeFrameBufferAtIndex": {
+              "events": 4,
+              "duration_ms": 4.223
+            },
+            "Decode Image": {
+              "events": 4,
+              "duration_ms": 4.213
+            }
+          }
+        },
+        "settled": {
+          "frames": 522,
+          "mean_ms": 5.882375478927201,
+          "p50_ms": 5.899999999997817,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6.19999999999709,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.062999999965541,
+          "wheel_events": 0,
+          "cpu_seconds": 0.35452500000000137,
+          "cpu_by_process": [
+            {
+              "id": "35912",
+              "type": "browser",
+              "cpu_seconds": 0.01069600000000026
+            },
+            {
+              "id": "38136",
+              "type": "renderer",
+              "cpu_seconds": 0.0009620000000000045
+            },
+            {
+              "id": "60944",
+              "type": "renderer",
+              "cpu_seconds": 0.253304
+            },
+            {
+              "id": "61620",
+              "type": "renderer",
+              "cpu_seconds": 0.0010600000000000054
+            },
+            {
+              "id": "56540",
+              "type": "GPU",
+              "cpu_seconds": 0.08013900000000085
+            },
+            {
+              "id": "31944",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.001226999999999978
+            },
+            {
+              "id": "59828",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0008379999999999985
+            },
+            {
+              "id": "60756",
+              "type": "tracing.mojom.TracingService",
+              "cpu_seconds": 0.006299000000000277
+            }
+          ],
+          "main_thread_task_seconds": 0.1981,
+          "long_tasks": [],
+          "cards": 40,
+          "animations": 0,
+          "scroll_top": 960,
+          "trace_render_decode": {
+            "PrePaint": {
+              "events": 524,
+              "duration_ms": 7.591999999999981
+            },
+            "LocalFrameView::RunPrePaintLifecyclePhase": {
+              "events": 524,
+              "duration_ms": 2.86599999999999
+            },
+            "Blink.PrePaint.UpdateTime": {
+              "events": 524,
+              "duration_ms": 2.0599999999999796
+            },
+            "LocalFrameView::RunPaintLifecyclePhase": {
+              "events": 524,
+              "duration_ms": 15.236000000000008
+            },
+            "Blink.Paint.UpdateTime": {
+              "events": 524,
+              "duration_ms": 8.729999999999974
+            },
+            "LocalFrameView::pushPaintArtifactToCompositor": {
+              "events": 524,
+              "duration_ms": 2.944999999999985
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "1440-r2-animation",
+      "mode": "animation",
+      "width": 1440,
+      "observed_media": [
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/80.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/79.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/78.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/77.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/76.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/75.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/74.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/73.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/72.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/71.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/70.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/69.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/68.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/67.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/performance-fixture/66.gif",
+          "naturalWidth": 360,
+          "naturalHeight": 270,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100065-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100064-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100063-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100062-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100061-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100060-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100059-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100058-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100057-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:63704/images/100056-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        }
+      ],
+      "frame_hashes": [],
+      "initial_cards": 25,
+      "initial_animations": 15,
+      "phases": {
+        "idle": {
+          "frames": 506,
+          "mean_ms": 5.940316205533597,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 17.600000000000364,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.0,
+          "wheel_events": 0,
+          "cpu_seconds": 1.491230999999999,
+          "cpu_by_process": [
+            {
+              "id": "35912",
+              "type": "browser",
+              "cpu_seconds": 0.0172030000000003
+            },
+            {
+              "id": "2804",
+              "type": "renderer",
+              "cpu_seconds": 0.0011699999999999974
+            },
+            {
+              "id": "17836",
+              "type": "renderer",
+              "cpu_seconds": 0.5109619999999999
+            },
+            {
+              "id": "17724",
+              "type": "renderer",
+              "cpu_seconds": 0.0015059999999999796
+            },
+            {
+              "id": "56540",
+              "type": "GPU",
+              "cpu_seconds": 0.947737
+            },
+            {
+              "id": "31944",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.004224999999999923
+            },
+            {
+              "id": "59828",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0011540000000000022
+            },
+            {
+              "id": "60756",
+              "type": "tracing.mojom.TracingService",
+              "cpu_seconds": 0.0072739999999988925
+            }
+          ],
+          "main_thread_task_seconds": 0.28101600000000004,
+          "long_tasks": [],
+          "cards": 25,
+          "animations": 15,
+          "scroll_top": 0,
+          "trace_render_decode": {
+            "RasterDecoderImpl::DoBeginRasterCHROMIUM": {
+              "events": 822,
+              "duration_ms": 5.541999999999973
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM": {
+              "events": 822,
+              "duration_ms": 153.95200000000014
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM::Deserializing": {
+              "events": 822,
+              "duration_ms": 151.87600000000015
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM": {
+              "events": 822,
+              "duration_ms": 312.29800000000023
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM::Flush": {
+              "events": 822,
+              "duration_ms": 307.45999999999987
+            },
+            "RasterSource::PerformSolidColorAnalysis": {
+              "events": 821,
+              "duration_ms": 4.304999999999968
+            },
+            "RasterizerTaskImpl::RunOnWorkerThread": {
+              "events": 821,
+              "duration_ms": 139.05400000000003
+            },
+            "PrePaint": {
+              "events": 509,
+              "duration_ms": 9.419999999999966
+            },
+            "LocalFrameView::RunPrePaintLifecyclePhase": {
+              "events": 509,
+              "duration_ms": 4.3349999999999875
+            },
+            "Blink.PrePaint.UpdateTime": {
+              "events": 509,
+              "duration_ms": 2.1499999999999853
+            },
+            "RasterTask": {
+              "events": 821,
+              "duration_ms": 131.8670000000001
+            },
+            "GpuRasterBuffer::Playback": {
+              "events": 821,
+              "duration_ms": 127.66799999999994
+            },
+            "LocalFrameView::RunPaintLifecyclePhase": {
+              "events": 509,
+              "duration_ms": 20.47999999999998
+            },
+            "Blink.Paint.UpdateTime": {
+              "events": 509,
+              "duration_ms": 12.094999999999967
+            },
+            "RendererRasterWorker": {
+              "events": 668,
+              "duration_ms": 486.604
+            },
+            "RasterImplementation::RasterCHROMIUM": {
+              "events": 821,
+              "duration_ms": 115.36099999999998
+            },
+            "LocalFrameView::pushPaintArtifactToCompositor": {
+              "events": 509,
+              "duration_ms": 2.9799999999999924
+            }
+          }
+        },
+        "scroll": {
+          "frames": 448,
+          "mean_ms": 6.8276785714285735,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 11.799999999999272,
+          "p99_ms": 23.5,
+          "max_ms": 53.80000000000109,
+          "over_33ms": 2,
+          "over_50ms": 1,
+          "elapsed_seconds": 3.0790000000270084,
+          "wheel_events": 30,
+          "cpu_seconds": 2.365123000000001,
+          "cpu_by_process": [
+            {
+              "id": "35912",
+              "type": "browser",
+              "cpu_seconds": 0.10750899999999941
+            },
+            {
+              "id": "2804",
+              "type": "renderer",
+              "cpu_seconds": 0.0012129999999999988
+            },
+            {
+              "id": "17836",
+              "type": "renderer",
+              "cpu_seconds": 0.88442
+            },
+            {
+              "id": "17724",
+              "type": "renderer",
+              "cpu_seconds": 0.0017650000000000166
+            },
+            {
+              "id": "56540",
+              "type": "GPU",
+              "cpu_seconds": 1.2877160000000014
+            },
+            {
+              "id": "31944",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.07461099999999998
+            },
+            {
+              "id": "59828",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.001018000000000005
+            },
+            {
+              "id": "60756",
+              "type": "tracing.mojom.TracingService",
+              "cpu_seconds": 0.0068710000000002935
+            }
+          ],
+          "main_thread_task_seconds": 0.49722500000000003,
+          "long_tasks": [],
+          "cards": 40,
+          "animations": 20,
+          "scroll_top": 960,
+          "trace_render_decode": {
+            "RendererRasterWorker": {
+              "events": 758,
+              "duration_ms": 653.6789999999994
+            },
+            "PrePaint": {
+              "events": 538,
+              "duration_ms": 23.304000000000038
+            },
+            "LocalFrameView::RunPrePaintLifecyclePhase": {
+              "events": 538,
+              "duration_ms": 17.010000000000012
+            },
+            "Blink.PrePaint.UpdateTime": {
+              "events": 538,
+              "duration_ms": 16.251000000000044
+            },
+            "LocalFrameView::RunPaintLifecyclePhase": {
+              "events": 455,
+              "duration_ms": 89.67800000000017
+            },
+            "Blink.Paint.UpdateTime": {
+              "events": 455,
+              "duration_ms": 31.392000000000035
+            },
+            "LocalFrameView::pushPaintArtifactToCompositor": {
+              "events": 455,
+              "duration_ms": 48.69000000000006
+            },
+            "RasterSource::PerformSolidColorAnalysis": {
+              "events": 892,
+              "duration_ms": 3.7699999999999525
+            },
+            "RasterizerTaskImpl::RunOnWorkerThread": {
+              "events": 892,
+              "duration_ms": 134.25199999999987
+            },
+            "RasterTask": {
+              "events": 892,
+              "duration_ms": 128.07200000000003
+            },
+            "GpuRasterBuffer::Playback": {
+              "events": 892,
+              "duration_ms": 124.96500000000002
+            },
+            "RasterImplementation::RasterCHROMIUM": {
+              "events": 892,
+              "duration_ms": 115.11800000000007
+            },
+            "RasterDecoderImpl::DoBeginRasterCHROMIUM": {
+              "events": 892,
+              "duration_ms": 5.383999999999955
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM": {
+              "events": 892,
+              "duration_ms": 182.60099999999994
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM::Deserializing": {
+              "events": 892,
+              "duration_ms": 180.70600000000022
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM": {
+              "events": 892,
+              "duration_ms": 372.5250000000002
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM::Flush": {
+              "events": 892,
+              "duration_ms": 367.67600000000044
+            },
+            "PaintLayerScrollableArea::UpdateScrollOffset": {
+              "events": 30,
+              "duration_ms": 2.817
+            },
+            "PaintArtifactCompositor::Update": {
+              "events": 53,
+              "duration_ms": 24.368
+            },
+            "Paint": {
+              "events": 568,
+              "duration_ms": 28.496000000000045
+            },
+            "PaintController::commitNewDisplayItems": {
+              "events": 158,
+              "duration_ms": 0.3600000000000002
+            },
+            "PaintWorkletPaintDispatcher::DispatchWorklets": {
+              "events": 105,
+              "duration_ms": 0.6200000000000004
+            },
+            "PaintWorkletPaintDispatcher::AsyncPaintDone": {
+              "events": 105,
+              "duration_ms": 9.517999999999997
+            },
+            "ResourceLoadPriorityOptimizer::UpdateImagePrioritiesAndSpeculativeDecodes": {
+              "events": 34,
+              "duration_ms": 0.3730000000000001
+            },
+            "GpuImageDecodeTaskImpl::RunOnWorkerThread": {
+              "events": 200,
+              "duration_ms": 125.83000000000004
+            },
+            "ImageDecodeTask": {
+              "events": 200,
+              "duration_ms": 122.89800000000004
+            },
+            "GpuImageDecodeCache::DecodeImage": {
+              "events": 200,
+              "duration_ms": 121.33199999999998
+            },
+            "Decode LazyPixelRef": {
+              "events": 200,
+              "duration_ms": 117.48700000000001
+            },
+            "ImageFrameGenerator::decodeToYUV": {
+              "events": 24,
+              "duration_ms": 16.069
+            },
+            "ImageFrameGenerator::decodeAndScale": {
+              "events": 176,
+              "duration_ms": 100.49800000000005
+            },
+            "ImageFrameGenerator::decode": {
+              "events": 176,
+              "duration_ms": 90.28899999999994
+            },
+            "ImageDecoder::DecodeFrameBufferAtIndex": {
+              "events": 176,
+              "duration_ms": 89.94800000000005
+            },
+            "Decode Image": {
+              "events": 176,
+              "duration_ms": 88.70000000000006
+            },
+            "GpuImageDecodeCache::UploadImage": {
+              "events": 200,
+              "duration_ms": 6.669999999999992
+            },
+            "PaintImage": {
+              "events": 164,
+              "duration_ms": 2.042999999999995
+            }
+          }
+        },
+        "settled": {
+          "frames": 476,
+          "mean_ms": 6.31470588235294,
+          "p50_ms": 5.899999999997817,
+          "p95_ms": 6,
+          "p99_ms": 17.700000000000728,
+          "max_ms": 35.29999999999927,
+          "over_33ms": 2,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.01500000001397,
+          "wheel_events": 0,
+          "cpu_seconds": 1.443744000000001,
+          "cpu_by_process": [
+            {
+              "id": "35912",
+              "type": "browser",
+              "cpu_seconds": 0.008140000000000036
+            },
+            {
+              "id": "2804",
+              "type": "renderer",
+              "cpu_seconds": 0.0008499999999999966
+            },
+            {
+              "id": "17836",
+              "type": "renderer",
+              "cpu_seconds": 0.48513800000000007
+            },
+            {
+              "id": "17724",
+              "type": "renderer",
+              "cpu_seconds": 0.0009460000000000024
+            },
+            {
+              "id": "56540",
+              "type": "GPU",
+              "cpu_seconds": 0.9408940000000001
+            },
+            {
+              "id": "31944",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.0011299999999999644
+            },
+            {
+              "id": "59828",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0008580000000000046
+            },
+            {
+              "id": "60756",
+              "type": "tracing.mojom.TracingService",
+              "cpu_seconds": 0.0057880000000007925
+            }
+          ],
+          "main_thread_task_seconds": 0.238118,
+          "long_tasks": [],
+          "cards": 40,
+          "animations": 20,
+          "scroll_top": 960,
+          "trace_render_decode": {
+            "RasterSource::PerformSolidColorAnalysis": {
+              "events": 509,
+              "duration_ms": 3.415999999999981
+            },
+            "RasterizerTaskImpl::RunOnWorkerThread": {
+              "events": 509,
+              "duration_ms": 145.03399999999993
+            },
+            "RasterTask": {
+              "events": 509,
+              "duration_ms": 139.85000000000008
+            },
+            "RendererRasterWorker": {
+              "events": 676,
+              "duration_ms": 437.0929999999995
+            },
+            "GpuRasterBuffer::Playback": {
+              "events": 509,
+              "duration_ms": 137.0370000000001
+            },
+            "RasterImplementation::RasterCHROMIUM": {
+              "events": 509,
+              "duration_ms": 128.24399999999994
+            },
+            "RasterDecoderImpl::DoBeginRasterCHROMIUM": {
+              "events": 509,
+              "duration_ms": 3.7899999999999796
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM": {
+              "events": 509,
+              "duration_ms": 148.7729999999998
+            },
+            "RasterDecoderImpl::DoRasterCHROMIUM::Deserializing": {
+              "events": 509,
+              "duration_ms": 147.55000000000004
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM": {
+              "events": 509,
+              "duration_ms": 271.22099999999983
+            },
+            "RasterDecoderImpl::DoEndRasterCHROMIUM::Flush": {
+              "events": 509,
+              "duration_ms": 267.8420000000001
+            },
+            "PrePaint": {
+              "events": 478,
+              "duration_ms": 11.18699999999995
+            },
+            "LocalFrameView::RunPrePaintLifecyclePhase": {
+              "events": 478,
+              "duration_ms": 4.29599999999999
+            },
+            "Blink.PrePaint.UpdateTime": {
+              "events": 478,
+              "duration_ms": 3.587000000000008
+            },
+            "LocalFrameView::RunPaintLifecyclePhase": {
+              "events": 478,
+              "duration_ms": 15.180000000000026
+            },
+            "Blink.Paint.UpdateTime": {
+              "events": 478,
+              "duration_ms": 9.066999999999958
+            },
+            "LocalFrameView::pushPaintArtifactToCompositor": {
+              "events": 478,
+              "duration_ms": 2.6929999999999956
+            }
+          }
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "real_library_used": false,
+  "real_account_used": false,
+  "limits": "Headless Chromium; rAF gaps observe main-thread scheduling, CPU includes browser/renderer/GPU processes; synthetic geometry, no device/EXE claim",
+  "browser_version": "154.0.8037.58",
+  "budget_violations": [],
+  "gif_requests": {
+    "69": 2,
+    "72": 2,
+    "68": 2,
+    "79": 2,
+    "73": 2,
+    "75": 2,
+    "76": 2,
+    "80": 2,
+    "74": 2,
+    "77": 2,
+    "67": 2,
+    "66": 2,
+    "78": 2,
+    "70": 2,
+    "71": 2,
+    "62": 2,
+    "65": 2,
+    "64": 2,
+    "61": 2,
+    "63": 2,
+    "57": 2,
+    "56": 2,
+    "60": 2,
+    "59": 2,
+    "58": 2,
+    "52": 3,
+    "54": 3,
+    "55": 3,
+    "51": 3,
+    "53": 3
+  }
+}

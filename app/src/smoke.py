@@ -25,13 +25,16 @@ def _image_source():
     data = BytesIO()
     with Image.new("RGB", (32, 48), "navy") as picture:
         picture.save(data, format="PNG")
-    second = BytesIO()
-    with Image.new("RGB", (32, 48), "gold") as picture:
-        picture.save(second, format="PNG")
+    animation_frames = []
+    for color in ("navy", "gold"):
+        frame = BytesIO()
+        with Image.new("RGB", (1280, 960), color) as picture:
+            picture.save(frame, format="PNG")
+        animation_frames.append(frame.getvalue())
     animation = BytesIO()
     with zipfile.ZipFile(animation, "w") as archive:
-        archive.writestr("000000.png", data.getvalue())
-        archive.writestr("000001.png", second.getvalue())
+        archive.writestr("000000.png", animation_frames[0])
+        archive.writestr("000001.png", animation_frames[1])
     payloads = {"/1_p0.png": data.getvalue(), "/2.zip": animation.getvalue()}
     received = []
 
@@ -121,6 +124,7 @@ def run_smoke_test() -> int:
     from .version import __version__, __build__
     from .web import create_app
     import requests
+    from sqlalchemy import select
 
     for relative in ("src/templates/base.html", "static/style.css", "static/task-panel.js"):
         if not Path(resource_path(relative)).is_file():
@@ -195,8 +199,20 @@ def run_smoke_test() -> int:
         if metadata_reads != ["2", "3"] or detail_reads != ["3"] or (runtime.images / "3.gif").read_bytes() != unavailable_gif:
             raise RuntimeError("打包程序修改了不可获取动图或重复请求其来源")
         with Image.open(runtime.images / "2.gif") as preview:
-            if preview.n_frames != 2:
+            if preview.n_frames != 2 or preview.size != (1280, 960):
                 raise RuntimeError("打包程序的动图原包未生成可播放预览")
+        compact = next(item for item in runtime.library.query(compact=True)["items"] if item["id"] == 2)
+        if not compact["preview"] or "_card_motion_v1.webp?v=" not in compact["preview"]:
+            raise RuntimeError("打包程序的图库未使用轻量动画缓存")
+        with runtime.database.read() as session:
+            motion = session.scalar(select(Derivative).where(Derivative.work_id == 2,
+                Derivative.kind == "thumbnail", Derivative.spec_key == "card-motion-v1"))
+            motion_path = runtime.images / motion.relative_path
+        with Image.open(motion_path) as preview:
+            if preview.n_frames != 2 or preview.size != (360, 270):
+                raise RuntimeError("打包程序的图库动画未缩小或已丢失播放帧")
+        if runtime.library.detail(2)["pages"][0]["src"] != "/images/2.gif":
+            raise RuntimeError("打包程序将详情原 GIF 替换成了缩略图")
         if received != [True, True]:
             raise RuntimeError("打包程序的图片下载请求未通过兼容性验证")
     transport.close()
@@ -229,6 +245,7 @@ def run_smoke_test() -> int:
     checks["original_download_verified_and_thumbnail_published"] = 200
     checks["manual_scope_animation_originals_downloaded_and_verified"] = 200
     checks["unavailable_animation_skipped_without_repeated_requests_gif_retained"] = 200
+    checks["bounded_card_animation_published_original_gif_retained"] = 200
     if args.smoke_serve_port is not None:
         import uvicorn
         # The ASGI checks closed their runtime; serve the same synthetic files

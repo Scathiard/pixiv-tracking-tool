@@ -8,6 +8,7 @@ const props = defineProps<{
   preview: string | null
   previewStatus: 'ready' | 'pending' | 'failed' | 'unavailable'
   animation?: boolean
+  suspended?: boolean
   mediaRevision?: number
   label: string
   recovery?: RecoveryState | null
@@ -17,7 +18,7 @@ const props = defineProps<{
 const host = ref<HTMLElement | null>(null), image = ref<HTMLImageElement | null>(null)
 const visible = ref(false)
 const foreground = ref(document.visibilityState === 'visible')
-const active = computed(() => visible.value && foreground.value)
+const active = computed(() => visible.value && foreground.value && (!props.animation || !props.suspended))
 const thumbnailFailed = ref(false), previewFailed = ref(false)
 let observer: IntersectionObserver | null = null
 let previewFailedAt = 0, retryTimer = 0, pendingMediaUpdate = false

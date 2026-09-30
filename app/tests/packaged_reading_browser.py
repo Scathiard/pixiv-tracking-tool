@@ -61,6 +61,11 @@ def main():
                 card = target_page.locator('.work-card[data-work-id="2"] .card-picture')
                 card.scroll_into_view_if_needed()
                 target_page.wait_for_function("() => {const img=document.querySelector('.work-card[data-work-id=\"2\"] img[data-media-source=\"animation\"]'); return img?.complete && img.naturalWidth > 0}")
+                media = card.locator('img[data-media-source="animation"]')
+                assert '_card_motion_v1.webp?v=' in media.get_attribute('src')
+                assert media.evaluate('img => [img.naturalWidth, img.naturalHeight]') == [360,270]
+                assert not target_page.locator('.work-card img[src*=".gif"]').count()
+                checks.append(f'exe-gallery-uses-bounded-motion-cache-{width}')
                 frames = []
                 # Unequal intervals avoid repeatedly sampling the same phase of
                 # a short loop (these fixture frames last 100 and 200 ms).
@@ -98,6 +103,12 @@ def main():
             assert [work['id'] for work in page.request.get(origin + '/api/library/missing-originals').json()['items']] == [3]
             checks.append('exe-manual-scope-animation-originals-filled-and-unavailable-gif-preserved')
             animation_frames(page, 1440)
+            page.locator('.work-card[data-work-id="2"] .card-picture').click()
+            page.wait_for_function("() => {const img=document.querySelector('.image-page img'); return img?.complete && img.naturalWidth === 1280 && img.naturalHeight === 960}")
+            assert page.locator('.image-page img').first.get_attribute('src').endswith('/images/2.gif')
+            checks.append('exe-animation-detail-keeps-full-resolution-gif')
+            page.goto(origin, wait_until='domcontentloaded')
+            page.locator('.work-card[data-work-id="1"]').wait_for()
             for width in (390,320):
                 animation_phone = browser.new_context(viewport={"width":width,"height":844}, is_mobile=True, has_touch=True)
                 animation_page = animation_phone.new_page()
@@ -113,6 +124,23 @@ def main():
                 animation_page.screenshot(path=str(artifacts / f'exe-originals-unavailable-{width}.png'))
                 checks.append(f'exe-missing-originals-availability-readable-{width}')
                 animation_phone.close()
+            scrolling_phone = browser.new_context(viewport={"width":390,"height":420}, is_mobile=True, has_touch=True)
+            scrolling_page = scrolling_phone.new_page()
+            scrolling_page.on('pageerror', lambda error:page_errors.append(str(error)))
+            scrolling_page.goto(origin, wait_until='domcontentloaded')
+            scrolling_page.wait_for_function("document.querySelectorAll('img[data-media-source=\"animation\"]').length > 0")
+            pane = scrolling_page.locator('.gallery-viewport')
+            assert pane.evaluate('e => e.scrollHeight > e.clientHeight')
+            scrolling_page.evaluate("window.__initialAnimation = document.querySelector('img[data-media-source=\"animation\"]')")
+            scrolling_page.mouse.move(180, 250)
+            scrolling_page.mouse.wheel(0, 80)
+            scrolling_page.wait_for_function("document.querySelector('.gallery-viewport').scrollTop > 0")
+            paused = scrolling_page.evaluate("({animations:document.querySelectorAll('img[data-media-source=\"animation\"]').length,scrollTop:document.querySelector('.gallery-viewport').scrollTop,oldReleased:!window.__initialAnimation.isConnected || !window.__initialAnimation.hasAttribute('src')})")
+            assert paused['animations'] == 0 and paused['oldReleased']
+            scrolling_page.wait_for_function("document.querySelectorAll('img[data-media-source=\"animation\"]').length > 0")
+            animation_metrics['scroll_pause'] = paused
+            checks.append('exe-gallery-wheel-pauses-and-resumes-animation')
+            scrolling_phone.close()
             page.get_by_role("button", name="收起侧栏", exact=True).click()
             page.locator(".app-shell.sidebar-collapsed").wait_for()
             page.get_by_role("button", name="展开侧栏", exact=True).click()

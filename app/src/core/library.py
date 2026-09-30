@@ -12,6 +12,7 @@ from sqlalchemy.orm import load_only, selectinload
 from ..security import sanitize_caption
 
 from .archive_state import work_states
+from .media import CARD_MOTION_SPEC
 from .models import (
     ArchiveIntent, Artist, Asset, BookmarkOperation, Derivative, LocalPreference, RemoteBookmark,
     TrackingPolicy, Work, WorkTag, utcnow,
@@ -281,6 +282,7 @@ class Library:
                 for view in views:
                     view["is_bookmarked"] = bool(view["bookmark"]["value"])
             ids = [work.id for work in works]
+            animation_ids = [work.id for work in works if work.type == "ugoira"]
             states, revision = work_states(session, works)
             thumbnails = {row.work_id: row for row in session.scalars(select(Derivative).where(
                 Derivative.work_id.in_(ids), Derivative.kind == "thumbnail", Derivative.page_index == 0,
@@ -288,12 +290,23 @@ class Library:
             first_pages = {row.work_id: row for row in session.scalars(select(Asset).where(
                 Asset.work_id.in_(ids), Asset.role == "image", Asset.page_index == 0))}
             animations = {row.work_id: row for row in session.scalars(select(Derivative).where(
-                Derivative.work_id.in_(ids), Derivative.kind == "gif", Derivative.spec_key == "v1"))}
+                Derivative.work_id.in_(animation_ids), Derivative.kind == "gif", Derivative.spec_key == "v1"))} if animation_ids else {}
+            card_animations = {row.work_id: row for row in session.scalars(select(Derivative).where(
+                Derivative.work_id.in_(animation_ids), Derivative.kind == "thumbnail", Derivative.page_index == 0,
+                Derivative.spec_key == CARD_MOTION_SPEC))} if compact and animation_ids else {}
             for view in views:
                 view.update(states[view["id"]])
                 thumb = thumbnails.get(view["id"])
                 preview = animations.get(view["id"]) if view["type"] == "ugoira" else first_pages.get(view["id"])
+                if compact and view["type"] == "ugoira":
+                    source = preview
+                    preview = card_animations.get(view["id"])
+                    if (preview is None or preview.state != "verified" or not preview.sha256 or source is None
+                            or source.state != "verified" or not source.sha256 or preview.source_version != source.sha256):
+                        preview = None
                 view["preview"] = readable_page_url(preview, animation=view["type"] == "ugoira")
+                if compact and view["type"] == "ugoira" and view["preview"]:
+                    view["preview"] += "?v=" + preview.sha256[:16]
                 if view["preview"]:
                     view["preview_status"] = "ready"
                 elif preview and preview.state == "failed":

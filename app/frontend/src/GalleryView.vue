@@ -12,9 +12,12 @@ const props = defineProps<{query: string; startIndex: number; pageSize: number; 
 const emit = defineEmits<{open: [index: number]; artist: [id: number]; message: [text: string]; anchor: [index: number, workId: number]; total: [count: number]; page: [index: number]}>()
 const viewport = ref<HTMLDivElement | null>(null), windowElement = ref<HTMLDivElement | null>(null), works = ref<WorkCard[]>([]), total = ref(0)
 const page = ref(0), start = ref(0), columns = ref(5), width = ref(1000), loading = ref(false), error = ref('')
+const animationSuspended = ref(false)
 const request = new LatestIntent()
 let observer: ResizeObserver | null = null, restoreIndex = 0, refreshTimer = 0, restoring = false, scrollFrame = 0
+let animationIdleTimer = 0
 const REFRESH_MS = 12000
+const ANIMATION_RESUME_MS = 220
 let catalogueRevision: number | undefined
 const rowHeight = computed(() => ((width.value - 16 * (columns.value - 1)) / columns.value) * 1.225 + 84)
 const virtual = useVirtualizer(computed(() => ({count: Math.ceil(works.value.length / columns.value),
@@ -120,6 +123,12 @@ async function extend(direction: number) {
   finally { if (ticket.current()) { loading.value = false; queueRefresh() } }
 }
 function scroll() {
+  animationSuspended.value = true
+  clearTimeout(animationIdleTimer)
+  animationIdleTimer = window.setTimeout(() => {
+    animationIdleTimer = 0
+    animationSuspended.value = false
+  }, ANIMATION_RESUME_MS)
   if (scrollFrame) return
   scrollFrame = requestAnimationFrame(() => { scrollFrame = 0; readScroll() })
 }
@@ -153,7 +162,7 @@ onMounted(() => {
   document.addEventListener('visibilitychange', visibilityChanged)
   restart()
 })
-onBeforeUnmount(() => { request.cancel(); observer?.disconnect(); clearTimeout(refreshTimer); cancelAnimationFrame(scrollFrame); window.removeEventListener('archive-updated', archiveUpdated); document.removeEventListener('visibilitychange', visibilityChanged) })
+onBeforeUnmount(() => { request.cancel(); observer?.disconnect(); clearTimeout(refreshTimer); clearTimeout(animationIdleTimer); cancelAnimationFrame(scrollFrame); window.removeEventListener('archive-updated', archiveUpdated); document.removeEventListener('visibilitychange', visibilityChanged) })
 defineExpose({isAtBeginning: () => (!props.continuous ? page.value === 0 : start.value === 0) && (viewport.value?.scrollTop || 0) < 4})
 </script>
 <template>
@@ -164,7 +173,7 @@ defineExpose({isAtBeginning: () => (!props.continuous ? page.value === 0 : start
         <div v-for="row in rows" :key="String(row.key)" class="gallery-row" :style="{transform: `translateY(${row.start}px)`, gridTemplateColumns: `repeat(${columns},minmax(0,1fr))`}">
           <article v-for="(work, col) in works.slice(row.index * columns, (row.index + 1) * columns)" :key="work.id"
             class="work-card" :class="{'is-hidden': work.is_hidden}" :data-work-id="work.id">
-            <button class="card-open" :aria-label="`查看 ${work.title}${work.x_restrict === 2 ? '，R-18G' : work.x_restrict === 1 ? '，R-18' : ''}${cardSourceLabel(work) ? `，${cardSourceLabel(work)}：${cardSourceReason(work) || '详情可查看原因'}` : ''}`" @click="emit('open', start + row.index * columns + col)"><div class="card-picture"><GalleryCardImage :thumbnail="work.thumbnail" :preview="work.preview || null" :media-revision="catalogueRevision" :preview-status="work.preview_status || 'pending'" :recovery="work.recovery" :archive="work.archive" :processing="work.processing" :animation="work.type === 'ugoira'" :label="work.title" /><RestrictionBadge :value="work.x_restrict" /><span v-if="cardSourceLabel(work)" class="card-source" :title="cardSourceReason(work) || cardSourceLabel(work) || undefined">{{ cardSourceLabel(work) }}</span><span v-if="work.type === 'ugoira' || work.page_count > 1" class="card-count">{{ work.type === 'ugoira' ? '动图' : work.page_count + ' 页' }}</span></div><strong>{{ work.title }}</strong></button>
+            <button class="card-open" :aria-label="`查看 ${work.title}${work.x_restrict === 2 ? '，R-18G' : work.x_restrict === 1 ? '，R-18' : ''}${cardSourceLabel(work) ? `，${cardSourceLabel(work)}：${cardSourceReason(work) || '详情可查看原因'}` : ''}`" @click="emit('open', start + row.index * columns + col)"><div class="card-picture"><GalleryCardImage :thumbnail="work.thumbnail" :preview="work.preview || null" :media-revision="catalogueRevision" :preview-status="work.preview_status || 'pending'" :recovery="work.recovery" :archive="work.archive" :processing="work.processing" :animation="work.type === 'ugoira'" :suspended="animationSuspended" :label="work.title" /><RestrictionBadge :value="work.x_restrict" /><span v-if="cardSourceLabel(work)" class="card-source" :title="cardSourceReason(work) || cardSourceLabel(work) || undefined">{{ cardSourceLabel(work) }}</span><span v-if="work.type === 'ugoira' || work.page_count > 1" class="card-count">{{ work.type === 'ugoira' ? '动图' : work.page_count + ' 页' }}</span></div><strong>{{ work.title }}</strong></button>
             <button class="card-artist" @click="emit('artist', work.artist_id)">{{ work.artist_name }}<span v-if="work.is_hidden"> · 已隐藏</span></button>
             <BookmarkButton :work-id="work.id" :initial="work.bookmark" @message="emit('message', $event)" />
           </article>

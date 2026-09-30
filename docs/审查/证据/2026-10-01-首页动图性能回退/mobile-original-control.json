@@ -1,0 +1,1232 @@
+{
+  "media": {
+    "width": 1280,
+    "height": 960,
+    "frames": 16,
+    "frame_duration_ms": 50,
+    "bytes": 3517985,
+    "sha256": "fa2b75431c6f7dc295e01f01fbe54afed166704c1be11effb08645a51872412a"
+  },
+  "source_media": {
+    "width": 1280,
+    "height": 960,
+    "frames": 16,
+    "frame_duration_ms": 50,
+    "bytes": 3517985,
+    "sha256": "fa2b75431c6f7dc295e01f01fbe54afed166704c1be11effb08645a51872412a"
+  },
+  "frontend": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b9-perf-baseline-dist-05\\dist",
+  "widths": [
+    390,
+    320
+  ],
+  "rounds": [
+    {
+      "name": "390-r1-animation",
+      "mode": "animation",
+      "width": 390,
+      "observed_media": [
+        {
+          "src": "http://127.0.0.1:50090/performance-fixture/80.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/performance-fixture/79.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/performance-fixture/78.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/performance-fixture/77.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/performance-fixture/76.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/performance-fixture/75.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100074-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100073-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100072-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100071-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        }
+      ],
+      "frame_hashes": [
+        "4d2d331f3278961cb697181cc558431cba6ce864e0e0c8682c0fc0b20f257ab6",
+        "694cc893a45e99cec8e1de348340b650a0231602f69c1806d9cf1cc608533d5a",
+        "131a64baf90fc20f06da7dcb2e66ba923bcde2c8cd677c408a2056d4e53d8b36"
+      ],
+      "frame_mean_channel_deltas": [
+        71.70580580580581,
+        97.05158491825159
+      ],
+      "initial_cards": 10,
+      "initial_animations": 6,
+      "phases": {
+        "idle": {
+          "frames": 512,
+          "mean_ms": 5.8822265625,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6.100000000000364,
+          "max_ms": 6.5,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.0,
+          "wheel_events": 0,
+          "cpu_seconds": 2.597338,
+          "cpu_by_process": [
+            {
+              "id": "16136",
+              "type": "browser",
+              "cpu_seconds": 0.009419999999999984
+            },
+            {
+              "id": "55640",
+              "type": "renderer",
+              "cpu_seconds": 5.7000000000001494e-05
+            },
+            {
+              "id": "8592",
+              "type": "renderer",
+              "cpu_seconds": 1.4614470000000002
+            },
+            {
+              "id": "49548",
+              "type": "renderer",
+              "cpu_seconds": 0.0002629999999999577
+            },
+            {
+              "id": "57964",
+              "type": "GPU",
+              "cpu_seconds": 1.105893
+            },
+            {
+              "id": "49876",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.020032999999999995
+            },
+            {
+              "id": "20148",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0002249999999999995
+            }
+          ],
+          "main_thread_task_seconds": 0.231105,
+          "long_tasks": [],
+          "cards": 10,
+          "animations": 6,
+          "scroll_top": 0
+        },
+        "scroll": {
+          "frames": 480,
+          "mean_ms": 6.666458333333333,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 11.799999999999272,
+          "p99_ms": 17.700000000000728,
+          "max_ms": 35.30000000000109,
+          "over_33ms": 1,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.187000000034459,
+          "wheel_events": 30,
+          "cpu_seconds": 3.540128,
+          "cpu_by_process": [
+            {
+              "id": "16136",
+              "type": "browser",
+              "cpu_seconds": 0.11248400000000003
+            },
+            {
+              "id": "55640",
+              "type": "renderer",
+              "cpu_seconds": 0.0005259999999999987
+            },
+            {
+              "id": "8592",
+              "type": "renderer",
+              "cpu_seconds": 1.9225369999999997
+            },
+            {
+              "id": "49548",
+              "type": "renderer",
+              "cpu_seconds": 0.0011510000000000131
+            },
+            {
+              "id": "57964",
+              "type": "GPU",
+              "cpu_seconds": 1.3761370000000004
+            },
+            {
+              "id": "49876",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.12724999999999997
+            },
+            {
+              "id": "20148",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 4.29999999999979e-05
+            }
+          ],
+          "main_thread_task_seconds": 0.525495,
+          "long_tasks": [],
+          "cards": 14,
+          "animations": 6,
+          "scroll_top": 960
+        },
+        "settled": {
+          "frames": 516,
+          "mean_ms": 5.88217054263566,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6.099999999998545,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.0320000000065193,
+          "wheel_events": 0,
+          "cpu_seconds": 2.2894400000000004,
+          "cpu_by_process": [
+            {
+              "id": "16136",
+              "type": "browser",
+              "cpu_seconds": 0.006844000000000072
+            },
+            {
+              "id": "55640",
+              "type": "renderer",
+              "cpu_seconds": 0.0
+            },
+            {
+              "id": "8592",
+              "type": "renderer",
+              "cpu_seconds": 1.4376069999999999
+            },
+            {
+              "id": "49548",
+              "type": "renderer",
+              "cpu_seconds": 6.60000000000105e-05
+            },
+            {
+              "id": "57964",
+              "type": "GPU",
+              "cpu_seconds": 0.8405430000000003
+            },
+            {
+              "id": "49876",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.004379999999999995
+            },
+            {
+              "id": "20148",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0
+            }
+          ],
+          "main_thread_task_seconds": 0.153982,
+          "long_tasks": [],
+          "cards": 14,
+          "animations": 6,
+          "scroll_top": 960
+        }
+      }
+    },
+    {
+      "name": "390-r1-static",
+      "mode": "static",
+      "width": 390,
+      "observed_media": [
+        {
+          "src": "http://127.0.0.1:50090/images/100080-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100079-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100078-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100077-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100076-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100075-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100074-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100073-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100072-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100071-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 181,
+            "height": 221
+          }
+        }
+      ],
+      "frame_hashes": [
+        "aa0717ac6a0c0977f3e624be733bfd44d6ed99223c1be0cfb08721bf86deb4e3",
+        "1451c8c4a8a96b79f236f5dcdb23cdc64ba1ab52ed1c36c6f7578fdfc6f85b9d",
+        "1451c8c4a8a96b79f236f5dcdb23cdc64ba1ab52ed1c36c6f7578fdfc6f85b9d"
+      ],
+      "frame_mean_channel_deltas": [
+        6.67334000667334e-05,
+        0.0
+      ],
+      "initial_cards": 10,
+      "initial_animations": 0,
+      "phases": {
+        "idle": {
+          "frames": 521,
+          "mean_ms": 5.881381957773512,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6.199999999999818,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.077999999979511,
+          "wheel_events": 0,
+          "cpu_seconds": 0.2725780000000002,
+          "cpu_by_process": [
+            {
+              "id": "16136",
+              "type": "browser",
+              "cpu_seconds": 0.03785300000000014
+            },
+            {
+              "id": "40008",
+              "type": "renderer",
+              "cpu_seconds": 5.000000000000143e-05
+            },
+            {
+              "id": "41132",
+              "type": "renderer",
+              "cpu_seconds": 0.15571900000000005
+            },
+            {
+              "id": "53180",
+              "type": "renderer",
+              "cpu_seconds": 0.0005099999999999549
+            },
+            {
+              "id": "57964",
+              "type": "GPU",
+              "cpu_seconds": 0.07391300000000012
+            },
+            {
+              "id": "49876",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.004349999999999965
+            },
+            {
+              "id": "20148",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0001830000000000026
+            }
+          ],
+          "main_thread_task_seconds": 0.120866,
+          "long_tasks": [],
+          "cards": 10,
+          "animations": 0,
+          "scroll_top": 0
+        },
+        "scroll": {
+          "frames": 495,
+          "mean_ms": 5.882222222222223,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6.0000000000009095,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 2.9070000000065193,
+          "wheel_events": 30,
+          "cpu_seconds": 0.8041910000000003,
+          "cpu_by_process": [
+            {
+              "id": "16136",
+              "type": "browser",
+              "cpu_seconds": 0.0400640000000001
+            },
+            {
+              "id": "40008",
+              "type": "renderer",
+              "cpu_seconds": 0.0
+            },
+            {
+              "id": "41132",
+              "type": "renderer",
+              "cpu_seconds": 0.391332
+            },
+            {
+              "id": "53180",
+              "type": "renderer",
+              "cpu_seconds": 7.20000000000165e-05
+            },
+            {
+              "id": "57964",
+              "type": "GPU",
+              "cpu_seconds": 0.3489040000000001
+            },
+            {
+              "id": "49876",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.023819000000000035
+            },
+            {
+              "id": "20148",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0
+            }
+          ],
+          "main_thread_task_seconds": 0.289362,
+          "long_tasks": [],
+          "cards": 14,
+          "animations": 0,
+          "scroll_top": 960
+        },
+        "settled": {
+          "frames": 524,
+          "mean_ms": 5.882061068702291,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6.5,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.0790000000270084,
+          "wheel_events": 0,
+          "cpu_seconds": 0.24524500000000038,
+          "cpu_by_process": [
+            {
+              "id": "16136",
+              "type": "browser",
+              "cpu_seconds": 0.007929999999999993
+            },
+            {
+              "id": "40008",
+              "type": "renderer",
+              "cpu_seconds": 0.0003549999999999942
+            },
+            {
+              "id": "41132",
+              "type": "renderer",
+              "cpu_seconds": 0.16216500000000011
+            },
+            {
+              "id": "53180",
+              "type": "renderer",
+              "cpu_seconds": 0.0008299999999999974
+            },
+            {
+              "id": "57964",
+              "type": "GPU",
+              "cpu_seconds": 0.07396500000000028
+            },
+            {
+              "id": "49876",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.0
+            },
+            {
+              "id": "20148",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0
+            }
+          ],
+          "main_thread_task_seconds": 0.123398,
+          "long_tasks": [],
+          "cards": 14,
+          "animations": 0,
+          "scroll_top": 960
+        }
+      }
+    },
+    {
+      "name": "320-r1-animation",
+      "mode": "animation",
+      "width": 320,
+      "observed_media": [
+        {
+          "src": "http://127.0.0.1:50090/performance-fixture/80.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/performance-fixture/79.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/performance-fixture/78.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/performance-fixture/77.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/performance-fixture/76.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/performance-fixture/75.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100074-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100073-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100072-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100071-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        }
+      ],
+      "frame_hashes": [
+        "568db87beab8a8b2aded0bee80cc31cf434056be09514ab5d4571674d90bb85b",
+        "57f9991b22c8ea07c0bd53b6468f01a3a4bbdaf75a035fdb2808d568160ed4ce",
+        "02db98752bfc65f42d5c6bd734a240d7eb1fb775b0a22e2c56cc7382d8c52b77"
+      ],
+      "frame_mean_channel_deltas": [
+        82.09700659563673,
+        102.70740740740742
+      ],
+      "initial_cards": 10,
+      "initial_animations": 6,
+      "phases": {
+        "idle": {
+          "frames": 524,
+          "mean_ms": 5.882061068702289,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6.200000000000728,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.077999999979511,
+          "wheel_events": 0,
+          "cpu_seconds": 2.2050739999999998,
+          "cpu_by_process": [
+            {
+              "id": "16136",
+              "type": "browser",
+              "cpu_seconds": 0.013873999999999942
+            },
+            {
+              "id": "21612",
+              "type": "renderer",
+              "cpu_seconds": 5.6000000000000494e-05
+            },
+            {
+              "id": "5880",
+              "type": "renderer",
+              "cpu_seconds": 1.3436579999999998
+            },
+            {
+              "id": "56600",
+              "type": "renderer",
+              "cpu_seconds": 0.0004789999999999517
+            },
+            {
+              "id": "57964",
+              "type": "GPU",
+              "cpu_seconds": 0.843852
+            },
+            {
+              "id": "49876",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.0029879999999999907
+            },
+            {
+              "id": "20148",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.00016700000000000048
+            }
+          ],
+          "main_thread_task_seconds": 0.130893,
+          "long_tasks": [],
+          "cards": 10,
+          "animations": 6,
+          "scroll_top": 0
+        },
+        "scroll": {
+          "frames": 500,
+          "mean_ms": 6.5764,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 11.800000000000182,
+          "p99_ms": 17.599999999999454,
+          "max_ms": 23.600000000000364,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.280999999959022,
+          "wheel_events": 30,
+          "cpu_seconds": 3.578884000000001,
+          "cpu_by_process": [
+            {
+              "id": "16136",
+              "type": "browser",
+              "cpu_seconds": 0.12624299999999966
+            },
+            {
+              "id": "21612",
+              "type": "renderer",
+              "cpu_seconds": 0.0003779999999999964
+            },
+            {
+              "id": "5880",
+              "type": "renderer",
+              "cpu_seconds": 2.0696730000000003
+            },
+            {
+              "id": "56600",
+              "type": "renderer",
+              "cpu_seconds": 0.0009280000000000399
+            },
+            {
+              "id": "57964",
+              "type": "GPU",
+              "cpu_seconds": 1.2593700000000005
+            },
+            {
+              "id": "49876",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.12229200000000007
+            },
+            {
+              "id": "20148",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0
+            }
+          ],
+          "main_thread_task_seconds": 0.5547359999999999,
+          "long_tasks": [],
+          "cards": 16,
+          "animations": 6,
+          "scroll_top": 960
+        },
+        "settled": {
+          "frames": 500,
+          "mean_ms": 5.9762,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 47,
+          "over_33ms": 1,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.0,
+          "wheel_events": 0,
+          "cpu_seconds": 2.087342999999998,
+          "cpu_by_process": [
+            {
+              "id": "16136",
+              "type": "browser",
+              "cpu_seconds": 0.009289000000000325
+            },
+            {
+              "id": "21612",
+              "type": "renderer",
+              "cpu_seconds": 0.0
+            },
+            {
+              "id": "5880",
+              "type": "renderer",
+              "cpu_seconds": 1.2836659999999993
+            },
+            {
+              "id": "56600",
+              "type": "renderer",
+              "cpu_seconds": 5.099999999996774e-05
+            },
+            {
+              "id": "57964",
+              "type": "GPU",
+              "cpu_seconds": 0.7942969999999985
+            },
+            {
+              "id": "49876",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 2.599999999997049e-05
+            },
+            {
+              "id": "20148",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 1.4000000000000123e-05
+            }
+          ],
+          "main_thread_task_seconds": 0.134383,
+          "long_tasks": [],
+          "cards": 16,
+          "animations": 6,
+          "scroll_top": 960
+        }
+      }
+    },
+    {
+      "name": "320-r1-static",
+      "mode": "static",
+      "width": 320,
+      "observed_media": [
+        {
+          "src": "http://127.0.0.1:50090/images/100080-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100079-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100078-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100077-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100076-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100075-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100074-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100073-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100072-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        },
+        {
+          "src": "http://127.0.0.1:50090/images/100071-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 146,
+            "height": 178
+          }
+        }
+      ],
+      "frame_hashes": [
+        "7685a0e00d048cbade9a2acbd829c69620e747105855cc323e18c7bfde1c07fd",
+        "7685a0e00d048cbade9a2acbd829c69620e747105855cc323e18c7bfde1c07fd",
+        "7685a0e00d048cbade9a2acbd829c69620e747105855cc323e18c7bfde1c07fd"
+      ],
+      "frame_mean_channel_deltas": [
+        0.0,
+        0.0
+      ],
+      "initial_cards": 10,
+      "initial_animations": 0,
+      "phases": {
+        "idle": {
+          "frames": 522,
+          "mean_ms": 5.881992337164751,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6.200000000000728,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.0630000000819564,
+          "wheel_events": 0,
+          "cpu_seconds": 0.2476779999999996,
+          "cpu_by_process": [
+            {
+              "id": "16136",
+              "type": "browser",
+              "cpu_seconds": 0.01254299999999997
+            },
+            {
+              "id": "28204",
+              "type": "renderer",
+              "cpu_seconds": 5.2999999999997494e-05
+            },
+            {
+              "id": "30196",
+              "type": "renderer",
+              "cpu_seconds": 0.15696700000000002
+            },
+            {
+              "id": "55536",
+              "type": "renderer",
+              "cpu_seconds": 0.0004629999999999912
+            },
+            {
+              "id": "57964",
+              "type": "GPU",
+              "cpu_seconds": 0.07583499999999965
+            },
+            {
+              "id": "49876",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.0016319999999999668
+            },
+            {
+              "id": "20148",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.00018499999999999767
+            }
+          ],
+          "main_thread_task_seconds": 0.12039599999999999,
+          "long_tasks": [],
+          "cards": 10,
+          "animations": 0,
+          "scroll_top": 0
+        },
+        "scroll": {
+          "frames": 503,
+          "mean_ms": 5.882107355864809,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6.0000000000009095,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 2.9540000000270084,
+          "wheel_events": 30,
+          "cpu_seconds": 0.819930000000001,
+          "cpu_by_process": [
+            {
+              "id": "16136",
+              "type": "browser",
+              "cpu_seconds": 0.04681399999999991
+            },
+            {
+              "id": "28204",
+              "type": "renderer",
+              "cpu_seconds": 0.0
+            },
+            {
+              "id": "30196",
+              "type": "renderer",
+              "cpu_seconds": 0.40768499999999996
+            },
+            {
+              "id": "55536",
+              "type": "renderer",
+              "cpu_seconds": 6.20000000000065e-05
+            },
+            {
+              "id": "57964",
+              "type": "GPU",
+              "cpu_seconds": 0.3388780000000011
+            },
+            {
+              "id": "49876",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.02647900000000003
+            },
+            {
+              "id": "20148",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 1.1999999999998123e-05
+            }
+          ],
+          "main_thread_task_seconds": 0.29918300000000003,
+          "long_tasks": [],
+          "cards": 16,
+          "animations": 0,
+          "scroll_top": 960
+        },
+        "settled": {
+          "frames": 522,
+          "mean_ms": 5.882375478927201,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6.100000000000364,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.0790000000270084,
+          "wheel_events": 0,
+          "cpu_seconds": 0.24622500000000036,
+          "cpu_by_process": [
+            {
+              "id": "16136",
+              "type": "browser",
+              "cpu_seconds": 0.008772999999999698
+            },
+            {
+              "id": "28204",
+              "type": "renderer",
+              "cpu_seconds": 0.0003840000000000024
+            },
+            {
+              "id": "30196",
+              "type": "renderer",
+              "cpu_seconds": 0.15996999999999995
+            },
+            {
+              "id": "55536",
+              "type": "renderer",
+              "cpu_seconds": 0.0011030000000000206
+            },
+            {
+              "id": "57964",
+              "type": "GPU",
+              "cpu_seconds": 0.07453300000000063
+            },
+            {
+              "id": "49876",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.0014620000000000744
+            },
+            {
+              "id": "20148",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0
+            }
+          ],
+          "main_thread_task_seconds": 0.124479,
+          "long_tasks": [],
+          "cards": 16,
+          "animations": 0,
+          "scroll_top": 960
+        }
+      }
+    }
+  ],
+  "errors": [
+    "Traceback (most recent call last):\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261001.1\\app\\tests\\client_animation_performance.py\", line 304, in main\n    assert not violations, f\"Animation CPU budget exceeded: {violations}\"\n           ^^^^^^^^^^^^^^\nAssertionError: Animation CPU budget exceeded: [{'width': 390, 'round': 1, 'phase': 'idle', 'animation_cpu_cores': 0.8657793333333333, 'static_cpu_cores': 0.0885568551013043}, {'width': 390, 'round': 1, 'phase': 'scroll', 'animation_cpu_cores': 1.1108026356955516, 'static_cpu_cores': 0.27663949088345263}, {'width': 390, 'round': 1, 'phase': 'settled', 'animation_cpu_cores': 0.7550923482833369, 'static_cpu_cores': 0.07965086066834984}, {'width': 320, 'round': 1, 'phase': 'idle', 'animation_cpu_cores': 0.7163983105960617, 'static_cpu_cores': 0.0808612471411598}, {'width': 320, 'round': 1, 'phase': 'scroll', 'animation_cpu_cores': 1.090790612631728, 'static_cpu_cores': 0.27756601218432786}, {'width': 320, 'round': 1, 'phase': 'settled', 'animation_cpu_cores': 0.6957809999999993, 'static_cpu_cores': 0.07996914582586571}]\n"
+  ],
+  "real_library_used": false,
+  "real_account_used": false,
+  "limits": "Headless Chromium; rAF gaps observe main-thread scheduling, CPU includes browser/renderer/GPU processes; synthetic geometry, no device/EXE claim",
+  "browser_version": "154.0.8037.58",
+  "budget_violations": [
+    {
+      "width": 390,
+      "round": 1,
+      "phase": "idle",
+      "animation_cpu_cores": 0.8657793333333333,
+      "static_cpu_cores": 0.0885568551013043
+    },
+    {
+      "width": 390,
+      "round": 1,
+      "phase": "scroll",
+      "animation_cpu_cores": 1.1108026356955516,
+      "static_cpu_cores": 0.27663949088345263
+    },
+    {
+      "width": 390,
+      "round": 1,
+      "phase": "settled",
+      "animation_cpu_cores": 0.7550923482833369,
+      "static_cpu_cores": 0.07965086066834984
+    },
+    {
+      "width": 320,
+      "round": 1,
+      "phase": "idle",
+      "animation_cpu_cores": 0.7163983105960617,
+      "static_cpu_cores": 0.0808612471411598
+    },
+    {
+      "width": 320,
+      "round": 1,
+      "phase": "scroll",
+      "animation_cpu_cores": 1.090790612631728,
+      "static_cpu_cores": 0.27756601218432786
+    },
+    {
+      "width": 320,
+      "round": 1,
+      "phase": "settled",
+      "animation_cpu_cores": 0.6957809999999993,
+      "static_cpu_cores": 0.07996914582586571
+    }
+  ],
+  "gif_requests": {
+    "75": 2,
+    "77": 2,
+    "79": 2,
+    "80": 2,
+    "76": 2,
+    "78": 2,
+    "74": 2,
+    "73": 2,
+    "72": 2,
+    "71": 2,
+    "69": 2,
+    "70": 2,
+    "68": 1,
+    "67": 1
+  }
+}

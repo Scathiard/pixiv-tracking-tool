@@ -13,6 +13,7 @@ from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import aliased
 
 from .models import ApplicationState, ArchiveIntent, Asset, Derivative, Operation, OperationItem, Work, utcnow
+from .media import CARD_MOTION_SPEC
 from .tasks import ACTIVE
 
 
@@ -202,13 +203,18 @@ class MissingMediaMaintenance:
                 or_(thumbnail.id.is_(None), thumbnail.state.in_(
                     ("missing", "failed", "invalid", "outdated")))), "image")]
             preview = aliased(Derivative)
+            motion = aliased(Derivative)
             gif_ready = [row.id for row in page(select(Work.id).join(ArchiveIntent, eligible).join(
                 preview, and_(preview.work_id == Work.id, preview.kind == "gif", preview.spec_key == "v1",
                               preview.state.in_(("verified", "unknown")), preview.relative_path.is_not(None))).outerjoin(
                 thumbnail, and_(thumbnail.work_id == Work.id, thumbnail.kind == "thumbnail",
-                                thumbnail.page_index == 0, thumbnail.spec_key == "v1")).where(
+                                thumbnail.page_index == 0, thumbnail.spec_key == "v1")).outerjoin(
+                motion, and_(motion.work_id == Work.id, motion.kind == "thumbnail",
+                             motion.page_index == 0, motion.spec_key == CARD_MOTION_SPEC)).where(
                 or_(thumbnail.id.is_(None), thumbnail.state.in_(
-                    ("missing", "failed", "invalid", "outdated")))), "gif")]
+                    ("missing", "failed", "invalid", "mismatch", "outdated")), thumbnail.relative_path.is_(None), motion.id.is_(None),
+                    motion.state.not_in(("verified",)), motion.relative_path.is_(None),
+                    motion.source_version.is_(None), motion.source_version != preview.sha256)), "gif")]
             # A verified ugoira pair can make its preview locally; repair then
             # keeps the existing pair -> GIF -> thumbnail dependency chain.
             zip_asset, timing_asset = aliased(Asset), aliased(Asset)

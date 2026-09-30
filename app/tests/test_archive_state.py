@@ -70,7 +70,9 @@ def test_playable_gif_does_not_replace_required_zip_and_timing(catalogue):
         session.add(Derivative(work_id=1, kind="gif", state="missing", relative_path="legacy.gif"))
     card, detail, feed = views(library)
     assert card["archive"] == {"state": "partial", "total": 2, "verified": 0, "missing": 2, "unknown": 0}
-    assert card["preview"] == detail["pages"][0]["src"] == feed["src"] == "/images/legacy.gif"
+    assert card["preview"] is None and card["preview_status"] == "pending"
+    assert detail["pages"][0]["src"] == feed["src"] == "/images/legacy.gif"
+    assert library.query()["items"][0]["preview"] == "/images/legacy.gif"
 
 
 def test_source_update_and_unavailable_do_not_change_existing_original(catalogue):
@@ -219,11 +221,16 @@ def test_observed_absent_legacy_gif_stops_claiming_readable_preview(tmp_path):
         with runtime.database.write() as session:
             session.add(Derivative(work_id=1, kind="gif", state="missing", relative_path="legacy.gif"))
         before = runtime.library.query(compact=True)
-        assert before["items"][0]["preview"] == "/images/legacy.gif"
+        card, detail, feed = views(runtime.library)
+        assert card["preview"] is None and card["preview_status"] == "pending"
+        assert detail["pages"][0]["src"] == feed["src"] == "/images/legacy.gif"
+        assert runtime.library.query()["items"][0]["preview"] == "/images/legacy.gif"
         assert runtime.media_path("legacy.gif") is None
         card, detail, feed = views(runtime.library)
         assert card["preview"] is detail["pages"][0]["src"] is feed["src"] is None
-        assert card["preview_status"] == "unavailable"
+        assert card["preview_status"] == "pending"
+        original_view = runtime.library.query()["items"][0]
+        assert original_view["preview"] is None and original_view["preview_status"] == "unavailable"
         assert card["archive"] == {"state": "partial", "total": 2, "verified": 0, "missing": 2, "unknown": 0}
         assert runtime.library.query(compact=True)["catalogue_revision"] == before["catalogue_revision"] + 1
     finally:
@@ -282,3 +289,38 @@ def test_window_reads_bound_entities_and_queries_with_5000_works_and_2000_pages(
         event.remove(database.engine, "before_cursor_execute", statement)
         for model in (Asset, OperationItem, Work):
             event.remove(model, "load", load)
+
+
+def test_motion_card_reads_are_batched_for_current_window(catalogue):
+    database, library = catalogue
+    with database.write() as session:
+        session.execute(Work.__table__.insert(), [{"id": index, "pixiv_illust_id": str(index), "artist_id": 1,
+            "title": "synthetic animation", "page_count": 1, "type": "ugoira"} for index in range(1, 62)])
+        session.execute(Derivative.__table__.insert(), [{"id": f"gif-{index}", "work_id": index,
+            "kind": "gif", "spec_key": "v1", "page_index": 0, "state": "verified", "sha256": "a" * 64,
+            "relative_path": f"{index}.gif"} for index in range(1, 62)])
+        session.execute(Derivative.__table__.insert(), [{"id": f"card-{index}", "work_id": index,
+            "kind": "thumbnail", "spec_key": "card-motion-v1", "page_index": 0, "state": "verified",
+            "sha256": "b" * 64, "source_version": "a" * 64,
+            "relative_path": f".thumbnails/{index}_card_motion_v1.webp"} for index in range(1, 62)])
+    statements, loaded = [], []
+    def statement(*args):
+        statements.append(1)
+    def load(record, context):
+        if record.spec_key == "card-motion-v1":
+            loaded.append(record.work_id)
+    event.listen(database.engine, "before_cursor_execute", statement)
+    event.listen(Derivative, "load", load)
+    try:
+        one = library.query(compact=True, limit=1, ceiling=60)
+        single_count = len(statements)
+        assert len(one["items"]) == 1 and len(loaded) == 1
+        statements.clear()
+        loaded.clear()
+        window = library.query(compact=True, limit=60, ceiling=60)
+        assert len(statements) == single_count
+        assert len(loaded) == 60 and set(loaded) == set(range(1, 61))
+        assert all("card_motion_v1.webp?v=" in card["preview"] for card in window["items"])
+    finally:
+        event.remove(database.engine, "before_cursor_execute", statement)
+        event.remove(Derivative, "load", load)

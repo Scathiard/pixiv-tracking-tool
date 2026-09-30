@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import warnings
 import zipfile
@@ -181,6 +182,89 @@ def build_thumbnail(source: Path, destination: Path, size=(360, 360)):
     return verify_media(destination, "thumbnail")
 
 
+CARD_MOTION_SPEC = "card-motion-v1"
+CARD_MOTION_MAX_FRAMES = 120
+CARD_MOTION_MAX_PIXELS = CARD_MOTION_MAX_FRAMES * 360 * 360
+
+
+def build_card_motion(source: Path, destination: Path, *, checkpoint=None,
+                      max_input_frames=20_000, max_input_pixels=1_000_000_000,
+                      max_duration_ms=3_600_000):
+    """Bound the card cache, never alter GIF bytes or the original ZIP/timing.
+
+    Read the GIF sequentially twice: first for bounded timing, then for selected
+    frames. Only reduced RGBA frames survive a seek. Missing/zero GIF delays use
+    100 ms; longer input retains its full duration with fewer preview frames.
+    """
+    checkpoint = checkpoint or (lambda: None)
+    images, durations = [], []
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(source) as image:
+                if image.format != "GIF":
+                    raise InvalidMedia("卡片动图需要有效的本地 GIF，原文件已保留")
+                source_pixels = image.width * image.height
+                timing, total = [], 0
+                # Avoid n_frames: its unbounded internal scan has no stop boundary.
+                for index in range(max_input_frames + 1):
+                    checkpoint()
+                    try:
+                        image.seek(index)
+                    except EOFError:
+                        break
+                    if index >= max_input_frames or source_pixels * (index + 1) > max_input_pixels:
+                        raise InvalidMedia("此动图超过卡片预览的解码上限，原文件已保留")
+                    delay = image.info.get("duration", 100)
+                    delay = delay if type(delay) is int and delay > 0 else 100
+                    total += delay
+                    if total > max_duration_ms:
+                        raise InvalidMedia("此动图超过卡片预览的播放时长上限，原文件已保留")
+                    timing.append(delay)
+                if not timing:
+                    raise InvalidMedia("本地 GIF 不含有效帧，原文件已保留")
+            period = max(100, math.ceil(total / CARD_MOTION_MAX_FRAMES))
+            with Image.open(source) as image:
+                pending = 0
+                for index, delay in enumerate(timing):
+                    checkpoint()
+                    image.seek(index)
+                    if index == len(timing) - 1 and len(images) == 1 and pending:
+                        # Very short loops still need two visible states. Their
+                        # original timing takes precedence over the ~10 fps goal.
+                        durations.append(pending)
+                        pending = 0
+                    if pending == 0:
+                        # Pillow owns one original-size composited frame; discard
+                        # the temporary conversion as soon as it has been reduced.
+                        with image.convert("RGBA") as frame:
+                            frame.thumbnail((360, 360), Image.Resampling.LANCZOS)
+                            images.append(frame.copy())
+                    pending += delay
+                    if pending >= period:
+                        durations.append(pending)
+                        pending = 0
+                if pending:
+                    if len(images) > 2 and pending < 100:
+                        images.pop().close()
+                        durations[-1] += pending
+                    else:
+                        durations.append(pending)
+                if len(images) > CARD_MOTION_MAX_FRAMES or sum(frame.width * frame.height for frame in images) > CARD_MOTION_MAX_PIXELS:
+                    raise InvalidMedia("卡片预览超过输出上限，原文件已保留")
+                checkpoint()
+                images[0].save(destination, format="WEBP", save_all=True, append_images=images[1:],
+                               duration=durations, loop=0, quality=72, method=3)
+        checkpoint()
+        return verify_media(destination, "thumbnail")
+    except (OSError, SyntaxError, EOFError, Image.DecompressionBombWarning,
+            Image.DecompressionBombError) as exc:
+        raise InvalidMedia("本地 GIF 损坏或无法生成卡片预览，原文件已保留") from exc
+    finally:
+        for frame in images:
+            frame.close()
+
+
 class Publisher:
     """A durable intent precedes file moves; replay compares bytes instead of guessing.
 
@@ -260,6 +344,12 @@ class Publisher:
                 record = session.get(Derivative if info["derivative"] else Asset, info["record_id"])
                 requested_url = info.get("requested_url")
                 owner = session.get(Work, record.work_id) if record else None
+                if info["derivative"] and record and record.spec_key == CARD_MOTION_SPEC:
+                    source = session.scalar(select(Derivative).where(Derivative.work_id == record.work_id,
+                        Derivative.kind == "gif", Derivative.spec_key == "v1"))
+                    if source is None or source.state != "verified" or not source.sha256 or source.sha256 != info.get("source_version"):
+                        journal.step, journal.error = "obsolete", "本地 GIF 已改变，旧卡片预览保留在暂存区"
+                        return "obsolete"
                 pending_source = (owner.source_metadata or {}).get("source_updates", {}).get(record.id, {}) if owner and not info["derivative"] else {}
                 changed_fingerprint = pending_source.get("expected_fingerprint") and pending_source["expected_fingerprint"] != info.get("expected_source_fingerprint")
                 if not info["derivative"] and record and (requested_url and record.source_url and requested_url != record.source_url or changed_fingerprint):

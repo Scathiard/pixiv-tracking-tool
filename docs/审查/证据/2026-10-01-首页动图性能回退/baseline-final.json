@@ -1,0 +1,2382 @@
+{
+  "media": {
+    "width": 1280,
+    "height": 960,
+    "frames": 16,
+    "frame_duration_ms": 50,
+    "bytes": 3517985,
+    "sha256": "fa2b75431c6f7dc295e01f01fbe54afed166704c1be11effb08645a51872412a"
+  },
+  "source_media": {
+    "width": 1280,
+    "height": 960,
+    "frames": 16,
+    "frame_duration_ms": 50,
+    "bytes": 3517985,
+    "sha256": "fa2b75431c6f7dc295e01f01fbe54afed166704c1be11effb08645a51872412a"
+  },
+  "frontend": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b9-perf-baseline-dist-05\\dist",
+  "widths": [
+    1440
+  ],
+  "frontend_files_sha256": {
+    "assets\\index-BToNnMTd.css": "eddc5c40a932e0b73d68c2c40a77285d95174b4c118a298ea4184d0e5c688f4c",
+    "assets\\index-CjqCQykZ.js": "d3b875712b71a594cebb65e0399429a68cea9d1487552d109aa68d44db5dd85d",
+    "assets\\index-COk_ezpa.css": "509ea8944893f77fc8e8f9446a8c4409b7d14876f0ccdd9c404db5aa3ee2d32d",
+    "assets\\index-Cumafdjy.js": "122a035819ac3c56fcd7564fb07de64ac2645cffdb2bb5fea38b86bf0b8afe61",
+    "assets\\index-DbKYm95V.js": "a68ac9d9fa48969a60cae3bd37059932ea8111baff111104f9a6487d74b1f6ae",
+    "assets\\index-DI3pBFZW.js": "a68ac9d9fa48969a60cae3bd37059932ea8111baff111104f9a6487d74b1f6ae",
+    "assets\\index-Dp8QBO8T.js": "a68ac9d9fa48969a60cae3bd37059932ea8111baff111104f9a6487d74b1f6ae",
+    "assets\\index-DWkyp854.css": "5421f5d968f2eeca0a2da298e6220d40acf62e53c7de1f72511b83841f57944f",
+    "index.html": "063682f6be2c80f1e68573759f674d07e1fb7ab696e0b946b84cba2557ee46e1"
+  },
+  "real_derivative": false,
+  "fixture_registration": "mock preview URLs",
+  "rounds": [
+    {
+      "name": "1440-r1-animation",
+      "mode": "animation",
+      "width": 1440,
+      "observed_media": [
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/80.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/79.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/78.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/77.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/76.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/75.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/74.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/73.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/72.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/71.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/70.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/69.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/68.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/67.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/66.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100065-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100064-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100063-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100062-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100061-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100060-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100059-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100058-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100057-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100056-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        }
+      ],
+      "frame_hashes": [
+        "fb1fc609c0d21e779c5668a613bbcb50456f8690da060ea987a0db8c38778230",
+        "50edc7715c7546b87d6729302af4a8db9e86e29c8e9f44bc2cc1da523c4ad97e",
+        "3d55d0e030c43d929aaadb88b254be50a5f4fc4d56855a443cf52747ae485a85"
+      ],
+      "frame_mean_channel_deltas": [
+        92.28848937132518,
+        80.42483039348711
+      ],
+      "initial_cards": 25,
+      "initial_animations": 15,
+      "phases": {
+        "idle": {
+          "frames": 519,
+          "mean_ms": 5.904816955684007,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6.200000000000728,
+          "max_ms": 11.800000000000182,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.062999999965541,
+          "wheel_events": 0,
+          "cpu_seconds": 6.637283999999999,
+          "scroll_animation_samples": [],
+          "cpu_by_process": [
+            {
+              "id": "41352",
+              "type": "browser",
+              "cpu_seconds": 0.007622000000000018
+            },
+            {
+              "id": "32232",
+              "type": "renderer",
+              "cpu_seconds": 0.0
+            },
+            {
+              "id": "35540",
+              "type": "renderer",
+              "cpu_seconds": 4.185638999999999
+            },
+            {
+              "id": "38148",
+              "type": "renderer",
+              "cpu_seconds": 0.00019799999999997597
+            },
+            {
+              "id": "16984",
+              "type": "GPU",
+              "cpu_seconds": 2.420472
+            },
+            {
+              "id": "58044",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.02307899999999996
+            },
+            {
+              "id": "41656",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.00027399999999999994
+            }
+          ],
+          "main_thread_task_seconds": 0.229188,
+          "long_tasks": [],
+          "cards": 25,
+          "animations": 15,
+          "scroll_top": 0
+        },
+        "scroll": {
+          "frames": 470,
+          "mean_ms": 10.43744680851064,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 23.600000000000364,
+          "p99_ms": 41.100000000000364,
+          "max_ms": 76.39999999999964,
+          "over_33ms": 12,
+          "over_50ms": 2,
+          "elapsed_seconds": 4.922000000020489,
+          "wheel_events": 30,
+          "cpu_seconds": 12.621039000000003,
+          "scroll_animation_samples": [
+            15,
+            15,
+            15,
+            15,
+            15,
+            20,
+            15,
+            15,
+            15,
+            20,
+            15,
+            15,
+            15,
+            20,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            20,
+            15,
+            15,
+            15,
+            20
+          ],
+          "cpu_by_process": [
+            {
+              "id": "41352",
+              "type": "browser",
+              "cpu_seconds": 0.4296500000000001
+            },
+            {
+              "id": "32232",
+              "type": "renderer",
+              "cpu_seconds": 0.0006600000000000009
+            },
+            {
+              "id": "35540",
+              "type": "renderer",
+              "cpu_seconds": 7.654902000000002
+            },
+            {
+              "id": "38148",
+              "type": "renderer",
+              "cpu_seconds": 0.0011790000000000411
+            },
+            {
+              "id": "16984",
+              "type": "GPU",
+              "cpu_seconds": 3.919531000000001
+            },
+            {
+              "id": "58044",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.6150490000000001
+            },
+            {
+              "id": "41656",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 6.800000000000209e-05
+            }
+          ],
+          "main_thread_task_seconds": 3.3426489999999998,
+          "long_tasks": [
+            {
+              "start": 8924.100000023842,
+              "duration": 53
+            }
+          ],
+          "cards": 40,
+          "animations": 20,
+          "scroll_top": 960
+        },
+        "settled": {
+          "frames": 396,
+          "mean_ms": 7.724242424242423,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 17.700000000000728,
+          "p99_ms": 29.399999999997817,
+          "max_ms": 35.20000000000073,
+          "over_33ms": 1,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.0459999999729916,
+          "wheel_events": 0,
+          "cpu_seconds": 8.072198,
+          "scroll_animation_samples": [],
+          "cpu_by_process": [
+            {
+              "id": "41352",
+              "type": "browser",
+              "cpu_seconds": 0.011397000000000101
+            },
+            {
+              "id": "32232",
+              "type": "renderer",
+              "cpu_seconds": 0.0
+            },
+            {
+              "id": "35540",
+              "type": "renderer",
+              "cpu_seconds": 5.650295
+            },
+            {
+              "id": "38148",
+              "type": "renderer",
+              "cpu_seconds": 0.00015999999999999348
+            },
+            {
+              "id": "16984",
+              "type": "GPU",
+              "cpu_seconds": 2.4064119999999996
+            },
+            {
+              "id": "58044",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.003934000000000104
+            },
+            {
+              "id": "41656",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0
+            }
+          ],
+          "main_thread_task_seconds": 0.167156,
+          "long_tasks": [],
+          "cards": 40,
+          "animations": 20,
+          "scroll_top": 960
+        }
+      },
+      "requested_media": [
+        "http://127.0.0.1:62617/images/100080-thumb.webp",
+        "http://127.0.0.1:62617/images/100079-thumb.webp",
+        "http://127.0.0.1:62617/images/100078-thumb.webp",
+        "http://127.0.0.1:62617/images/100077-thumb.webp",
+        "http://127.0.0.1:62617/images/100076-thumb.webp",
+        "http://127.0.0.1:62617/images/100075-thumb.webp",
+        "http://127.0.0.1:62617/images/100074-thumb.webp",
+        "http://127.0.0.1:62617/images/100073-thumb.webp",
+        "http://127.0.0.1:62617/images/100072-thumb.webp",
+        "http://127.0.0.1:62617/images/100071-thumb.webp",
+        "http://127.0.0.1:62617/images/100070-thumb.webp",
+        "http://127.0.0.1:62617/images/100069-thumb.webp",
+        "http://127.0.0.1:62617/images/100068-thumb.webp",
+        "http://127.0.0.1:62617/images/100067-thumb.webp",
+        "http://127.0.0.1:62617/images/100066-thumb.webp",
+        "http://127.0.0.1:62617/images/100065-thumb.webp",
+        "http://127.0.0.1:62617/images/100064-thumb.webp",
+        "http://127.0.0.1:62617/images/100063-thumb.webp",
+        "http://127.0.0.1:62617/images/100062-thumb.webp",
+        "http://127.0.0.1:62617/images/100061-thumb.webp",
+        "http://127.0.0.1:62617/images/100060-thumb.webp",
+        "http://127.0.0.1:62617/images/100059-thumb.webp",
+        "http://127.0.0.1:62617/images/100058-thumb.webp",
+        "http://127.0.0.1:62617/images/100057-thumb.webp",
+        "http://127.0.0.1:62617/images/100056-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/77.gif",
+        "http://127.0.0.1:62617/performance-fixture/80.gif",
+        "http://127.0.0.1:62617/performance-fixture/71.gif",
+        "http://127.0.0.1:62617/performance-fixture/73.gif",
+        "http://127.0.0.1:62617/performance-fixture/79.gif",
+        "http://127.0.0.1:62617/performance-fixture/72.gif",
+        "http://127.0.0.1:62617/performance-fixture/76.gif",
+        "http://127.0.0.1:62617/performance-fixture/67.gif",
+        "http://127.0.0.1:62617/performance-fixture/68.gif",
+        "http://127.0.0.1:62617/performance-fixture/75.gif",
+        "http://127.0.0.1:62617/performance-fixture/69.gif",
+        "http://127.0.0.1:62617/performance-fixture/78.gif",
+        "http://127.0.0.1:62617/performance-fixture/66.gif",
+        "http://127.0.0.1:62617/performance-fixture/70.gif",
+        "http://127.0.0.1:62617/performance-fixture/74.gif",
+        "http://127.0.0.1:62617/images/100055-thumb.webp",
+        "http://127.0.0.1:62617/images/100054-thumb.webp",
+        "http://127.0.0.1:62617/images/100053-thumb.webp",
+        "http://127.0.0.1:62617/images/100052-thumb.webp",
+        "http://127.0.0.1:62617/images/100051-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/61.gif",
+        "http://127.0.0.1:62617/performance-fixture/62.gif",
+        "http://127.0.0.1:62617/performance-fixture/65.gif",
+        "http://127.0.0.1:62617/performance-fixture/63.gif",
+        "http://127.0.0.1:62617/performance-fixture/64.gif",
+        "http://127.0.0.1:62617/images/100050-thumb.webp",
+        "http://127.0.0.1:62617/images/100049-thumb.webp",
+        "http://127.0.0.1:62617/images/100048-thumb.webp",
+        "http://127.0.0.1:62617/images/100047-thumb.webp",
+        "http://127.0.0.1:62617/images/100046-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/59.gif",
+        "http://127.0.0.1:62617/performance-fixture/60.gif",
+        "http://127.0.0.1:62617/performance-fixture/58.gif",
+        "http://127.0.0.1:62617/performance-fixture/56.gif",
+        "http://127.0.0.1:62617/performance-fixture/57.gif",
+        "http://127.0.0.1:62617/images/100075-thumb.webp",
+        "http://127.0.0.1:62617/images/100073-thumb.webp",
+        "http://127.0.0.1:62617/images/100074-thumb.webp",
+        "http://127.0.0.1:62617/images/100071-thumb.webp",
+        "http://127.0.0.1:62617/images/100072-thumb.webp",
+        "http://127.0.0.1:62617/images/100045-thumb.webp",
+        "http://127.0.0.1:62617/images/100044-thumb.webp",
+        "http://127.0.0.1:62617/images/100043-thumb.webp",
+        "http://127.0.0.1:62617/images/100042-thumb.webp",
+        "http://127.0.0.1:62617/images/100041-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/53.gif",
+        "http://127.0.0.1:62617/performance-fixture/55.gif",
+        "http://127.0.0.1:62617/performance-fixture/52.gif",
+        "http://127.0.0.1:62617/performance-fixture/54.gif",
+        "http://127.0.0.1:62617/performance-fixture/51.gif",
+        "http://127.0.0.1:62617/performance-fixture/75.gif",
+        "http://127.0.0.1:62617/performance-fixture/73.gif",
+        "http://127.0.0.1:62617/performance-fixture/74.gif",
+        "http://127.0.0.1:62617/performance-fixture/71.gif",
+        "http://127.0.0.1:62617/performance-fixture/72.gif",
+        "http://127.0.0.1:62617/images/100059-thumb.webp",
+        "http://127.0.0.1:62617/images/100056-thumb.webp",
+        "http://127.0.0.1:62617/images/100057-thumb.webp",
+        "http://127.0.0.1:62617/images/100060-thumb.webp",
+        "http://127.0.0.1:62617/images/100058-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/77.gif",
+        "http://127.0.0.1:62617/images/100064-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/80.gif",
+        "http://127.0.0.1:62617/images/100061-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/78.gif",
+        "http://127.0.0.1:62617/performance-fixture/79.gif",
+        "http://127.0.0.1:62617/images/100065-thumb.webp",
+        "http://127.0.0.1:62617/images/100062-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/76.gif",
+        "http://127.0.0.1:62617/images/100063-thumb.webp",
+        "http://127.0.0.1:62617/images/100055-thumb.webp",
+        "http://127.0.0.1:62617/images/100054-thumb.webp",
+        "http://127.0.0.1:62617/images/100053-thumb.webp",
+        "http://127.0.0.1:62617/images/100052-thumb.webp",
+        "http://127.0.0.1:62617/images/100051-thumb.webp",
+        "http://127.0.0.1:62617/images/100077-thumb.webp",
+        "http://127.0.0.1:62617/images/100080-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/61.gif",
+        "http://127.0.0.1:62617/images/100079-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/65.gif",
+        "http://127.0.0.1:62617/performance-fixture/62.gif",
+        "http://127.0.0.1:62617/images/100076-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/63.gif",
+        "http://127.0.0.1:62617/performance-fixture/64.gif",
+        "http://127.0.0.1:62617/images/100078-thumb.webp",
+        "http://127.0.0.1:62617/images/100050-thumb.webp",
+        "http://127.0.0.1:62617/images/100049-thumb.webp",
+        "http://127.0.0.1:62617/images/100048-thumb.webp",
+        "http://127.0.0.1:62617/images/100047-thumb.webp",
+        "http://127.0.0.1:62617/images/100046-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/59.gif",
+        "http://127.0.0.1:62617/performance-fixture/60.gif",
+        "http://127.0.0.1:62617/performance-fixture/58.gif",
+        "http://127.0.0.1:62617/performance-fixture/56.gif",
+        "http://127.0.0.1:62617/performance-fixture/57.gif",
+        "http://127.0.0.1:62617/images/100075-thumb.webp",
+        "http://127.0.0.1:62617/images/100073-thumb.webp",
+        "http://127.0.0.1:62617/images/100074-thumb.webp",
+        "http://127.0.0.1:62617/images/100071-thumb.webp",
+        "http://127.0.0.1:62617/images/100072-thumb.webp",
+        "http://127.0.0.1:62617/images/100045-thumb.webp",
+        "http://127.0.0.1:62617/images/100044-thumb.webp",
+        "http://127.0.0.1:62617/images/100043-thumb.webp",
+        "http://127.0.0.1:62617/images/100042-thumb.webp",
+        "http://127.0.0.1:62617/images/100041-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/51.gif",
+        "http://127.0.0.1:62617/performance-fixture/52.gif",
+        "http://127.0.0.1:62617/performance-fixture/55.gif",
+        "http://127.0.0.1:62617/performance-fixture/54.gif",
+        "http://127.0.0.1:62617/performance-fixture/53.gif"
+      ]
+    },
+    {
+      "name": "1440-r1-static",
+      "mode": "static",
+      "width": 1440,
+      "observed_media": [
+        {
+          "src": "http://127.0.0.1:62617/images/100080-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100079-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100078-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100077-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100076-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100075-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100074-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100073-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100072-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100071-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100070-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100069-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100068-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100067-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100066-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100065-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100064-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100063-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100062-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100061-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100060-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100059-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100058-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100057-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100056-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        }
+      ],
+      "frame_hashes": [
+        "6f5309d92c275b58e1dcbf8458038cccd7357a43f09535ae8443a802357d98b3",
+        "6f5309d92c275b58e1dcbf8458038cccd7357a43f09535ae8443a802357d98b3",
+        "6f5309d92c275b58e1dcbf8458038cccd7357a43f09535ae8443a802357d98b3"
+      ],
+      "frame_mean_channel_deltas": [
+        0.0,
+        0.0
+      ],
+      "initial_cards": 25,
+      "initial_animations": 0,
+      "phases": {
+        "idle": {
+          "frames": 527,
+          "mean_ms": 5.882352941176471,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6.100000000000364,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.0929999999934807,
+          "wheel_events": 0,
+          "cpu_seconds": 0.2545420000000001,
+          "scroll_animation_samples": [],
+          "cpu_by_process": [
+            {
+              "id": "41352",
+              "type": "browser",
+              "cpu_seconds": 0.013176000000000077
+            },
+            {
+              "id": "60348",
+              "type": "renderer",
+              "cpu_seconds": 5.2999999999997494e-05
+            },
+            {
+              "id": "48376",
+              "type": "renderer",
+              "cpu_seconds": 0.16172199999999998
+            },
+            {
+              "id": "16404",
+              "type": "renderer",
+              "cpu_seconds": 0.0005050000000000332
+            },
+            {
+              "id": "16984",
+              "type": "GPU",
+              "cpu_seconds": 0.07720899999999986
+            },
+            {
+              "id": "58044",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.001615000000000144
+            },
+            {
+              "id": "41656",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.00026199999999999835
+            }
+          ],
+          "main_thread_task_seconds": 0.148787,
+          "long_tasks": [],
+          "cards": 25,
+          "animations": 0,
+          "scroll_top": 0
+        },
+        "scroll": {
+          "frames": 552,
+          "mean_ms": 5.9036231884057955,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 11.800000000000182,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.26500000001397,
+          "wheel_events": 30,
+          "cpu_seconds": 1.138723000000001,
+          "scroll_animation_samples": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "cpu_by_process": [
+            {
+              "id": "41352",
+              "type": "browser",
+              "cpu_seconds": 0.07024700000000017
+            },
+            {
+              "id": "60348",
+              "type": "renderer",
+              "cpu_seconds": 0.00044700000000000295
+            },
+            {
+              "id": "48376",
+              "type": "renderer",
+              "cpu_seconds": 0.5389140000000001
+            },
+            {
+              "id": "16404",
+              "type": "renderer",
+              "cpu_seconds": 0.0008909999999999751
+            },
+            {
+              "id": "16984",
+              "type": "GPU",
+              "cpu_seconds": 0.4913520000000009
+            },
+            {
+              "id": "58044",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.036871999999999794
+            },
+            {
+              "id": "41656",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0
+            }
+          ],
+          "main_thread_task_seconds": 0.479018,
+          "long_tasks": [],
+          "cards": 40,
+          "animations": 0,
+          "scroll_top": 960
+        },
+        "settled": {
+          "frames": 522,
+          "mean_ms": 5.882183908045977,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.077999999979511,
+          "wheel_events": 0,
+          "cpu_seconds": 0.2719119999999997,
+          "scroll_animation_samples": [],
+          "cpu_by_process": [
+            {
+              "id": "41352",
+              "type": "browser",
+              "cpu_seconds": 0.032505000000000006
+            },
+            {
+              "id": "60348",
+              "type": "renderer",
+              "cpu_seconds": 0.0
+            },
+            {
+              "id": "48376",
+              "type": "renderer",
+              "cpu_seconds": 0.16266400000000014
+            },
+            {
+              "id": "16404",
+              "type": "renderer",
+              "cpu_seconds": 0.00010100000000001774
+            },
+            {
+              "id": "16984",
+              "type": "GPU",
+              "cpu_seconds": 0.07477899999999948
+            },
+            {
+              "id": "58044",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.0017480000000000828
+            },
+            {
+              "id": "41656",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.00011500000000000399
+            }
+          ],
+          "main_thread_task_seconds": 0.133714,
+          "long_tasks": [],
+          "cards": 40,
+          "animations": 0,
+          "scroll_top": 960
+        }
+      },
+      "requested_media": [
+        "http://127.0.0.1:62617/images/100080-thumb.webp",
+        "http://127.0.0.1:62617/images/100079-thumb.webp",
+        "http://127.0.0.1:62617/images/100078-thumb.webp",
+        "http://127.0.0.1:62617/images/100077-thumb.webp",
+        "http://127.0.0.1:62617/images/100076-thumb.webp",
+        "http://127.0.0.1:62617/images/100075-thumb.webp",
+        "http://127.0.0.1:62617/images/100074-thumb.webp",
+        "http://127.0.0.1:62617/images/100073-thumb.webp",
+        "http://127.0.0.1:62617/images/100072-thumb.webp",
+        "http://127.0.0.1:62617/images/100071-thumb.webp",
+        "http://127.0.0.1:62617/images/100070-thumb.webp",
+        "http://127.0.0.1:62617/images/100069-thumb.webp",
+        "http://127.0.0.1:62617/images/100068-thumb.webp",
+        "http://127.0.0.1:62617/images/100067-thumb.webp",
+        "http://127.0.0.1:62617/images/100066-thumb.webp",
+        "http://127.0.0.1:62617/images/100065-thumb.webp",
+        "http://127.0.0.1:62617/images/100064-thumb.webp",
+        "http://127.0.0.1:62617/images/100063-thumb.webp",
+        "http://127.0.0.1:62617/images/100062-thumb.webp",
+        "http://127.0.0.1:62617/images/100061-thumb.webp",
+        "http://127.0.0.1:62617/images/100060-thumb.webp",
+        "http://127.0.0.1:62617/images/100059-thumb.webp",
+        "http://127.0.0.1:62617/images/100058-thumb.webp",
+        "http://127.0.0.1:62617/images/100057-thumb.webp",
+        "http://127.0.0.1:62617/images/100056-thumb.webp",
+        "http://127.0.0.1:62617/images/100055-thumb.webp",
+        "http://127.0.0.1:62617/images/100054-thumb.webp",
+        "http://127.0.0.1:62617/images/100053-thumb.webp",
+        "http://127.0.0.1:62617/images/100052-thumb.webp",
+        "http://127.0.0.1:62617/images/100051-thumb.webp",
+        "http://127.0.0.1:62617/images/100050-thumb.webp",
+        "http://127.0.0.1:62617/images/100049-thumb.webp",
+        "http://127.0.0.1:62617/images/100048-thumb.webp",
+        "http://127.0.0.1:62617/images/100047-thumb.webp",
+        "http://127.0.0.1:62617/images/100046-thumb.webp",
+        "http://127.0.0.1:62617/images/100045-thumb.webp",
+        "http://127.0.0.1:62617/images/100044-thumb.webp",
+        "http://127.0.0.1:62617/images/100043-thumb.webp",
+        "http://127.0.0.1:62617/images/100042-thumb.webp",
+        "http://127.0.0.1:62617/images/100041-thumb.webp"
+      ]
+    },
+    {
+      "name": "1440-r2-static",
+      "mode": "static",
+      "width": 1440,
+      "observed_media": [
+        {
+          "src": "http://127.0.0.1:62617/images/100080-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100079-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100078-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100077-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100076-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100075-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100074-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100073-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100072-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100071-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100070-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100069-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100068-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100067-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100066-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100065-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100064-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100063-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100062-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100061-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100060-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100059-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100058-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100057-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100056-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        }
+      ],
+      "frame_hashes": [],
+      "frame_mean_channel_deltas": [],
+      "initial_cards": 25,
+      "initial_animations": 0,
+      "phases": {
+        "idle": {
+          "frames": 523,
+          "mean_ms": 5.882217973231358,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.077999999979511,
+          "wheel_events": 0,
+          "cpu_seconds": 0.25967000000000107,
+          "scroll_animation_samples": [],
+          "cpu_by_process": [
+            {
+              "id": "41352",
+              "type": "browser",
+              "cpu_seconds": 0.015575000000000117
+            },
+            {
+              "id": "52520",
+              "type": "renderer",
+              "cpu_seconds": 0.0002349999999999991
+            },
+            {
+              "id": "32284",
+              "type": "renderer",
+              "cpu_seconds": 0.16190800000000005
+            },
+            {
+              "id": "44004",
+              "type": "renderer",
+              "cpu_seconds": 0.0006849999999999912
+            },
+            {
+              "id": "16984",
+              "type": "GPU",
+              "cpu_seconds": 0.07685400000000087
+            },
+            {
+              "id": "58044",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.004151000000000016
+            },
+            {
+              "id": "41656",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.00026199999999999835
+            }
+          ],
+          "main_thread_task_seconds": 0.134934,
+          "long_tasks": [],
+          "cards": 25,
+          "animations": 0,
+          "scroll_top": 0
+        },
+        "scroll": {
+          "frames": 531,
+          "mean_ms": 5.882297551789077,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6.100000000000364,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.1410000000614673,
+          "wheel_events": 30,
+          "cpu_seconds": 1.0740489999999994,
+          "scroll_animation_samples": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "cpu_by_process": [
+            {
+              "id": "41352",
+              "type": "browser",
+              "cpu_seconds": 0.06766199999999989
+            },
+            {
+              "id": "52520",
+              "type": "renderer",
+              "cpu_seconds": 0.0
+            },
+            {
+              "id": "32284",
+              "type": "renderer",
+              "cpu_seconds": 0.5208809999999999
+            },
+            {
+              "id": "44004",
+              "type": "renderer",
+              "cpu_seconds": 0.000146000000000035
+            },
+            {
+              "id": "16984",
+              "type": "GPU",
+              "cpu_seconds": 0.45612799999999964
+            },
+            {
+              "id": "58044",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.02921599999999991
+            },
+            {
+              "id": "41656",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 1.5999999999995185e-05
+            }
+          ],
+          "main_thread_task_seconds": 0.420335,
+          "long_tasks": [],
+          "cards": 40,
+          "animations": 0,
+          "scroll_top": 960
+        },
+        "settled": {
+          "frames": 519,
+          "mean_ms": 5.882273603082851,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 6,
+          "max_ms": 6.100000000000364,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.047000000020489,
+          "wheel_events": 0,
+          "cpu_seconds": 0.266957999999999,
+          "scroll_animation_samples": [],
+          "cpu_by_process": [
+            {
+              "id": "41352",
+              "type": "browser",
+              "cpu_seconds": 0.008828999999999976
+            },
+            {
+              "id": "52520",
+              "type": "renderer",
+              "cpu_seconds": 0.0002879999999999966
+            },
+            {
+              "id": "32284",
+              "type": "renderer",
+              "cpu_seconds": 0.17189600000000005
+            },
+            {
+              "id": "44004",
+              "type": "renderer",
+              "cpu_seconds": 0.0009460000000000024
+            },
+            {
+              "id": "16984",
+              "type": "GPU",
+              "cpu_seconds": 0.07837099999999886
+            },
+            {
+              "id": "58044",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.006628000000000078
+            },
+            {
+              "id": "41656",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0
+            }
+          ],
+          "main_thread_task_seconds": 0.151476,
+          "long_tasks": [],
+          "cards": 40,
+          "animations": 0,
+          "scroll_top": 960
+        }
+      },
+      "requested_media": [
+        "http://127.0.0.1:62617/images/100080-thumb.webp",
+        "http://127.0.0.1:62617/images/100079-thumb.webp",
+        "http://127.0.0.1:62617/images/100078-thumb.webp",
+        "http://127.0.0.1:62617/images/100077-thumb.webp",
+        "http://127.0.0.1:62617/images/100076-thumb.webp",
+        "http://127.0.0.1:62617/images/100075-thumb.webp",
+        "http://127.0.0.1:62617/images/100074-thumb.webp",
+        "http://127.0.0.1:62617/images/100073-thumb.webp",
+        "http://127.0.0.1:62617/images/100072-thumb.webp",
+        "http://127.0.0.1:62617/images/100071-thumb.webp",
+        "http://127.0.0.1:62617/images/100070-thumb.webp",
+        "http://127.0.0.1:62617/images/100069-thumb.webp",
+        "http://127.0.0.1:62617/images/100068-thumb.webp",
+        "http://127.0.0.1:62617/images/100067-thumb.webp",
+        "http://127.0.0.1:62617/images/100066-thumb.webp",
+        "http://127.0.0.1:62617/images/100065-thumb.webp",
+        "http://127.0.0.1:62617/images/100064-thumb.webp",
+        "http://127.0.0.1:62617/images/100063-thumb.webp",
+        "http://127.0.0.1:62617/images/100062-thumb.webp",
+        "http://127.0.0.1:62617/images/100061-thumb.webp",
+        "http://127.0.0.1:62617/images/100060-thumb.webp",
+        "http://127.0.0.1:62617/images/100059-thumb.webp",
+        "http://127.0.0.1:62617/images/100058-thumb.webp",
+        "http://127.0.0.1:62617/images/100057-thumb.webp",
+        "http://127.0.0.1:62617/images/100056-thumb.webp",
+        "http://127.0.0.1:62617/images/100055-thumb.webp",
+        "http://127.0.0.1:62617/images/100054-thumb.webp",
+        "http://127.0.0.1:62617/images/100053-thumb.webp",
+        "http://127.0.0.1:62617/images/100052-thumb.webp",
+        "http://127.0.0.1:62617/images/100051-thumb.webp",
+        "http://127.0.0.1:62617/images/100050-thumb.webp",
+        "http://127.0.0.1:62617/images/100049-thumb.webp",
+        "http://127.0.0.1:62617/images/100048-thumb.webp",
+        "http://127.0.0.1:62617/images/100047-thumb.webp",
+        "http://127.0.0.1:62617/images/100046-thumb.webp",
+        "http://127.0.0.1:62617/images/100045-thumb.webp",
+        "http://127.0.0.1:62617/images/100044-thumb.webp",
+        "http://127.0.0.1:62617/images/100043-thumb.webp",
+        "http://127.0.0.1:62617/images/100042-thumb.webp",
+        "http://127.0.0.1:62617/images/100041-thumb.webp"
+      ]
+    },
+    {
+      "name": "1440-r2-animation",
+      "mode": "animation",
+      "width": 1440,
+      "observed_media": [
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/80.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/79.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/78.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/77.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/76.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/75.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/74.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/73.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/72.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/71.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/70.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/69.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/68.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/67.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/performance-fixture/66.gif",
+          "naturalWidth": 1280,
+          "naturalHeight": 960,
+          "source": "animation",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100065-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100064-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100063-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100062-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100061-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100060-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100059-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100058-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100057-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        },
+        {
+          "src": "http://127.0.0.1:62617/images/100056-thumb.webp",
+          "naturalWidth": 360,
+          "naturalHeight": 360,
+          "source": "thumbnail",
+          "rect": {
+            "width": 218,
+            "height": 267
+          }
+        }
+      ],
+      "frame_hashes": [],
+      "frame_mean_channel_deltas": [],
+      "initial_cards": 25,
+      "initial_animations": 15,
+      "phases": {
+        "idle": {
+          "frames": 500,
+          "mean_ms": 6.0116000000000005,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 6,
+          "p99_ms": 11.699999999999818,
+          "max_ms": 17.599999999999454,
+          "over_33ms": 0,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.01500000001397,
+          "wheel_events": 0,
+          "cpu_seconds": 6.433105999999997,
+          "scroll_animation_samples": [],
+          "cpu_by_process": [
+            {
+              "id": "41352",
+              "type": "browser",
+              "cpu_seconds": 0.015973999999999933
+            },
+            {
+              "id": "58292",
+              "type": "renderer",
+              "cpu_seconds": 9.800000000000086e-05
+            },
+            {
+              "id": "22268",
+              "type": "renderer",
+              "cpu_seconds": 4.219277999999999
+            },
+            {
+              "id": "31856",
+              "type": "renderer",
+              "cpu_seconds": 0.0005809999999999982
+            },
+            {
+              "id": "16984",
+              "type": "GPU",
+              "cpu_seconds": 2.195256999999998
+            },
+            {
+              "id": "58044",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.00173499999999982
+            },
+            {
+              "id": "41656",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.00018299999999999567
+            }
+          ],
+          "main_thread_task_seconds": 0.22474499999999997,
+          "long_tasks": [],
+          "cards": 25,
+          "animations": 15,
+          "scroll_top": 0
+        },
+        "scroll": {
+          "frames": 450,
+          "mean_ms": 15.293777777777779,
+          "p50_ms": 6,
+          "p95_ms": 47,
+          "p99_ms": 82.30000000000018,
+          "max_ms": 94.10000000000036,
+          "over_33ms": 58,
+          "over_50ms": 18,
+          "elapsed_seconds": 6.875,
+          "wheel_events": 30,
+          "cpu_seconds": 16.012586,
+          "scroll_animation_samples": [
+            15,
+            15,
+            15,
+            15,
+            15,
+            20,
+            15,
+            15,
+            15,
+            20,
+            20,
+            15,
+            15,
+            20,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            15,
+            20,
+            15,
+            15,
+            15,
+            20
+          ],
+          "cpu_by_process": [
+            {
+              "id": "41352",
+              "type": "browser",
+              "cpu_seconds": 0.42037800000000036
+            },
+            {
+              "id": "58292",
+              "type": "renderer",
+              "cpu_seconds": 0.00035800000000000415
+            },
+            {
+              "id": "22268",
+              "type": "renderer",
+              "cpu_seconds": 10.490179
+            },
+            {
+              "id": "31856",
+              "type": "renderer",
+              "cpu_seconds": 0.0010940000000000116
+            },
+            {
+              "id": "16984",
+              "type": "GPU",
+              "cpu_seconds": 4.511264999999998
+            },
+            {
+              "id": "58044",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.5893120000000003
+            },
+            {
+              "id": "41656",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0
+            }
+          ],
+          "main_thread_task_seconds": 5.308609000000001,
+          "long_tasks": [
+            {
+              "start": 8885.399999976158,
+              "duration": 50
+            },
+            {
+              "start": 8943,
+              "duration": 73
+            },
+            {
+              "start": 9031.299999952316,
+              "duration": 57
+            },
+            {
+              "start": 9111.399999976158,
+              "duration": 61
+            },
+            {
+              "start": 10027.600000023842,
+              "duration": 77
+            },
+            {
+              "start": 10110.600000023842,
+              "duration": 60
+            },
+            {
+              "start": 10175.899999976158,
+              "duration": 51
+            },
+            {
+              "start": 12793.299999952316,
+              "duration": 54
+            },
+            {
+              "start": 12851.799999952316,
+              "duration": 52
+            }
+          ],
+          "cards": 40,
+          "animations": 20,
+          "scroll_top": 960
+        },
+        "settled": {
+          "frames": 329,
+          "mean_ms": 9.261398176291793,
+          "p50_ms": 5.899999999999636,
+          "p95_ms": 29.399999999999636,
+          "p99_ms": 29.5,
+          "max_ms": 35.400000000001455,
+          "over_33ms": 3,
+          "over_50ms": 0,
+          "elapsed_seconds": 3.047000000020489,
+          "wheel_events": 0,
+          "cpu_seconds": 7.5781680000000025,
+          "scroll_animation_samples": [],
+          "cpu_by_process": [
+            {
+              "id": "41352",
+              "type": "browser",
+              "cpu_seconds": 0.021255999999999275
+            },
+            {
+              "id": "58292",
+              "type": "renderer",
+              "cpu_seconds": 0.0003470000000000001
+            },
+            {
+              "id": "22268",
+              "type": "renderer",
+              "cpu_seconds": 5.340924000000001
+            },
+            {
+              "id": "31856",
+              "type": "renderer",
+              "cpu_seconds": 0.0005089999999999817
+            },
+            {
+              "id": "16984",
+              "type": "GPU",
+              "cpu_seconds": 2.205460000000002
+            },
+            {
+              "id": "58044",
+              "type": "network.mojom.NetworkService",
+              "cpu_seconds": 0.008763999999999772
+            },
+            {
+              "id": "41656",
+              "type": "storage.mojom.StorageService",
+              "cpu_seconds": 0.0009079999999999991
+            }
+          ],
+          "main_thread_task_seconds": 0.16195500000000002,
+          "long_tasks": [],
+          "cards": 40,
+          "animations": 20,
+          "scroll_top": 960
+        }
+      },
+      "requested_media": [
+        "http://127.0.0.1:62617/images/100080-thumb.webp",
+        "http://127.0.0.1:62617/images/100079-thumb.webp",
+        "http://127.0.0.1:62617/images/100078-thumb.webp",
+        "http://127.0.0.1:62617/images/100077-thumb.webp",
+        "http://127.0.0.1:62617/images/100076-thumb.webp",
+        "http://127.0.0.1:62617/images/100075-thumb.webp",
+        "http://127.0.0.1:62617/images/100074-thumb.webp",
+        "http://127.0.0.1:62617/images/100073-thumb.webp",
+        "http://127.0.0.1:62617/images/100072-thumb.webp",
+        "http://127.0.0.1:62617/images/100071-thumb.webp",
+        "http://127.0.0.1:62617/images/100070-thumb.webp",
+        "http://127.0.0.1:62617/images/100069-thumb.webp",
+        "http://127.0.0.1:62617/images/100068-thumb.webp",
+        "http://127.0.0.1:62617/images/100067-thumb.webp",
+        "http://127.0.0.1:62617/images/100066-thumb.webp",
+        "http://127.0.0.1:62617/images/100065-thumb.webp",
+        "http://127.0.0.1:62617/images/100064-thumb.webp",
+        "http://127.0.0.1:62617/images/100063-thumb.webp",
+        "http://127.0.0.1:62617/images/100062-thumb.webp",
+        "http://127.0.0.1:62617/images/100061-thumb.webp",
+        "http://127.0.0.1:62617/images/100060-thumb.webp",
+        "http://127.0.0.1:62617/images/100059-thumb.webp",
+        "http://127.0.0.1:62617/images/100058-thumb.webp",
+        "http://127.0.0.1:62617/images/100057-thumb.webp",
+        "http://127.0.0.1:62617/images/100056-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/72.gif",
+        "http://127.0.0.1:62617/performance-fixture/67.gif",
+        "http://127.0.0.1:62617/performance-fixture/75.gif",
+        "http://127.0.0.1:62617/performance-fixture/77.gif",
+        "http://127.0.0.1:62617/performance-fixture/80.gif",
+        "http://127.0.0.1:62617/performance-fixture/78.gif",
+        "http://127.0.0.1:62617/performance-fixture/70.gif",
+        "http://127.0.0.1:62617/performance-fixture/76.gif",
+        "http://127.0.0.1:62617/performance-fixture/66.gif",
+        "http://127.0.0.1:62617/performance-fixture/74.gif",
+        "http://127.0.0.1:62617/performance-fixture/71.gif",
+        "http://127.0.0.1:62617/performance-fixture/68.gif",
+        "http://127.0.0.1:62617/performance-fixture/73.gif",
+        "http://127.0.0.1:62617/performance-fixture/69.gif",
+        "http://127.0.0.1:62617/performance-fixture/79.gif",
+        "http://127.0.0.1:62617/images/100055-thumb.webp",
+        "http://127.0.0.1:62617/images/100054-thumb.webp",
+        "http://127.0.0.1:62617/images/100053-thumb.webp",
+        "http://127.0.0.1:62617/images/100052-thumb.webp",
+        "http://127.0.0.1:62617/images/100051-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/61.gif",
+        "http://127.0.0.1:62617/performance-fixture/62.gif",
+        "http://127.0.0.1:62617/performance-fixture/64.gif",
+        "http://127.0.0.1:62617/performance-fixture/65.gif",
+        "http://127.0.0.1:62617/performance-fixture/63.gif",
+        "http://127.0.0.1:62617/images/100050-thumb.webp",
+        "http://127.0.0.1:62617/images/100049-thumb.webp",
+        "http://127.0.0.1:62617/images/100048-thumb.webp",
+        "http://127.0.0.1:62617/images/100047-thumb.webp",
+        "http://127.0.0.1:62617/images/100046-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/57.gif",
+        "http://127.0.0.1:62617/performance-fixture/56.gif",
+        "http://127.0.0.1:62617/performance-fixture/60.gif",
+        "http://127.0.0.1:62617/performance-fixture/58.gif",
+        "http://127.0.0.1:62617/performance-fixture/59.gif",
+        "http://127.0.0.1:62617/images/100072-thumb.webp",
+        "http://127.0.0.1:62617/images/100073-thumb.webp",
+        "http://127.0.0.1:62617/images/100074-thumb.webp",
+        "http://127.0.0.1:62617/images/100071-thumb.webp",
+        "http://127.0.0.1:62617/images/100075-thumb.webp",
+        "http://127.0.0.1:62617/images/100045-thumb.webp",
+        "http://127.0.0.1:62617/images/100044-thumb.webp",
+        "http://127.0.0.1:62617/images/100043-thumb.webp",
+        "http://127.0.0.1:62617/images/100042-thumb.webp",
+        "http://127.0.0.1:62617/images/100041-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/53.gif",
+        "http://127.0.0.1:62617/performance-fixture/52.gif",
+        "http://127.0.0.1:62617/performance-fixture/55.gif",
+        "http://127.0.0.1:62617/performance-fixture/54.gif",
+        "http://127.0.0.1:62617/performance-fixture/51.gif",
+        "http://127.0.0.1:62617/performance-fixture/72.gif",
+        "http://127.0.0.1:62617/performance-fixture/73.gif",
+        "http://127.0.0.1:62617/performance-fixture/74.gif",
+        "http://127.0.0.1:62617/performance-fixture/71.gif",
+        "http://127.0.0.1:62617/performance-fixture/75.gif",
+        "http://127.0.0.1:62617/images/100057-thumb.webp",
+        "http://127.0.0.1:62617/images/100056-thumb.webp",
+        "http://127.0.0.1:62617/images/100060-thumb.webp",
+        "http://127.0.0.1:62617/images/100058-thumb.webp",
+        "http://127.0.0.1:62617/images/100059-thumb.webp",
+        "http://127.0.0.1:62617/images/100061-thumb.webp",
+        "http://127.0.0.1:62617/images/100062-thumb.webp",
+        "http://127.0.0.1:62617/images/100064-thumb.webp",
+        "http://127.0.0.1:62617/images/100065-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/77.gif",
+        "http://127.0.0.1:62617/performance-fixture/80.gif",
+        "http://127.0.0.1:62617/performance-fixture/78.gif",
+        "http://127.0.0.1:62617/images/100063-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/79.gif",
+        "http://127.0.0.1:62617/performance-fixture/76.gif",
+        "http://127.0.0.1:62617/images/100055-thumb.webp",
+        "http://127.0.0.1:62617/images/100054-thumb.webp",
+        "http://127.0.0.1:62617/images/100053-thumb.webp",
+        "http://127.0.0.1:62617/images/100052-thumb.webp",
+        "http://127.0.0.1:62617/images/100051-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/61.gif",
+        "http://127.0.0.1:62617/performance-fixture/62.gif",
+        "http://127.0.0.1:62617/performance-fixture/64.gif",
+        "http://127.0.0.1:62617/images/100077-thumb.webp",
+        "http://127.0.0.1:62617/images/100080-thumb.webp",
+        "http://127.0.0.1:62617/images/100078-thumb.webp",
+        "http://127.0.0.1:62617/images/100076-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/65.gif",
+        "http://127.0.0.1:62617/performance-fixture/63.gif",
+        "http://127.0.0.1:62617/images/100079-thumb.webp",
+        "http://127.0.0.1:62617/images/100050-thumb.webp",
+        "http://127.0.0.1:62617/images/100049-thumb.webp",
+        "http://127.0.0.1:62617/images/100048-thumb.webp",
+        "http://127.0.0.1:62617/images/100047-thumb.webp",
+        "http://127.0.0.1:62617/images/100046-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/57.gif",
+        "http://127.0.0.1:62617/performance-fixture/56.gif",
+        "http://127.0.0.1:62617/performance-fixture/60.gif",
+        "http://127.0.0.1:62617/performance-fixture/58.gif",
+        "http://127.0.0.1:62617/performance-fixture/59.gif",
+        "http://127.0.0.1:62617/images/100072-thumb.webp",
+        "http://127.0.0.1:62617/images/100073-thumb.webp",
+        "http://127.0.0.1:62617/images/100074-thumb.webp",
+        "http://127.0.0.1:62617/images/100071-thumb.webp",
+        "http://127.0.0.1:62617/images/100075-thumb.webp",
+        "http://127.0.0.1:62617/images/100045-thumb.webp",
+        "http://127.0.0.1:62617/images/100044-thumb.webp",
+        "http://127.0.0.1:62617/images/100043-thumb.webp",
+        "http://127.0.0.1:62617/images/100042-thumb.webp",
+        "http://127.0.0.1:62617/images/100041-thumb.webp",
+        "http://127.0.0.1:62617/performance-fixture/51.gif",
+        "http://127.0.0.1:62617/performance-fixture/53.gif",
+        "http://127.0.0.1:62617/performance-fixture/52.gif",
+        "http://127.0.0.1:62617/performance-fixture/55.gif",
+        "http://127.0.0.1:62617/performance-fixture/54.gif"
+      ]
+    }
+  ],
+  "errors": [
+    "Traceback (most recent call last):\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261001.1\\app\\tests\\client_animation_performance.py\", line 382, in main\n    assert not violations, f\"Animation CPU budget exceeded: {violations}\"\n           ^^^^^^^^^^^^^^\nAssertionError: Animation CPU budget exceeded: [{'width': 1440, 'round': 1, 'phase': 'idle', 'animation_cpu_cores': 2.166922624901949, 'static_cpu_cores': 0.08229615260282463}, {'width': 1440, 'round': 1, 'phase': 'scroll', 'animation_cpu_cores': 2.564209467685385, 'static_cpu_cores': 0.34876661561872246}, {'width': 1440, 'round': 1, 'phase': 'settled', 'animation_cpu_cores': 2.6500978332473983, 'static_cpu_cores': 0.08834048083229686}, {'width': 1440, 'round': 2, 'phase': 'idle', 'animation_cpu_cores': 2.133700165827592, 'static_cpu_cores': 0.08436322287255672}, {'width': 1440, 'round': 2, 'phase': 'scroll', 'animation_cpu_cores': 2.329103418181818, 'static_cpu_cores': 0.3419449219926714}, {'width': 1440, 'round': 2, 'phase': 'settled', 'animation_cpu_cores': 2.4870915654575136, 'static_cpu_cores': 0.08761339021929894}]\n"
+  ],
+  "real_library_used": false,
+  "real_account_used": false,
+  "limits": "Headless Chromium; rAF gaps observe main-thread scheduling, CPU includes browser/renderer/GPU processes; synthetic geometry, no device/EXE claim",
+  "browser_version": "154.0.8037.58",
+  "budget_violations": [
+    {
+      "width": 1440,
+      "round": 1,
+      "phase": "idle",
+      "animation_cpu_cores": 2.166922624901949,
+      "static_cpu_cores": 0.08229615260282463
+    },
+    {
+      "width": 1440,
+      "round": 1,
+      "phase": "scroll",
+      "animation_cpu_cores": 2.564209467685385,
+      "static_cpu_cores": 0.34876661561872246
+    },
+    {
+      "width": 1440,
+      "round": 1,
+      "phase": "settled",
+      "animation_cpu_cores": 2.6500978332473983,
+      "static_cpu_cores": 0.08834048083229686
+    },
+    {
+      "width": 1440,
+      "round": 2,
+      "phase": "idle",
+      "animation_cpu_cores": 2.133700165827592,
+      "static_cpu_cores": 0.08436322287255672
+    },
+    {
+      "width": 1440,
+      "round": 2,
+      "phase": "scroll",
+      "animation_cpu_cores": 2.329103418181818,
+      "static_cpu_cores": 0.3419449219926714
+    },
+    {
+      "width": 1440,
+      "round": 2,
+      "phase": "settled",
+      "animation_cpu_cores": 2.4870915654575136,
+      "static_cpu_cores": 0.08761339021929894
+    }
+  ],
+  "gif_requests": {
+    "69": 2,
+    "71": 4,
+    "68": 2,
+    "77": 4,
+    "79": 4,
+    "74": 4,
+    "73": 4,
+    "67": 2,
+    "80": 4,
+    "75": 4,
+    "66": 2,
+    "70": 2,
+    "72": 4,
+    "76": 4,
+    "78": 4,
+    "61": 4,
+    "62": 4,
+    "65": 4,
+    "63": 4,
+    "64": 4,
+    "59": 4,
+    "60": 4,
+    "58": 4,
+    "56": 4,
+    "57": 4,
+    "53": 4,
+    "52": 4,
+    "55": 4,
+    "54": 4,
+    "51": 4
+  }
+}
