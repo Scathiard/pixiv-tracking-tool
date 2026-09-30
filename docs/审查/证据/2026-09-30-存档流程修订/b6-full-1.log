@@ -1,0 +1,88 @@
+........................................................................ [ 25%]
+........................................................................ [ 50%]
+........................................................................ [ 76%]
+................................................FFF................      [100%]
+================================== FAILURES ===================================
+_____ test_automatic_pause_survives_queue_recreation_and_manual_jobs_run ______
+
+tmp_path = WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/.devtools/test-runs/b6-full-1/test_automatic_pause_survives_0')
+
+    def test_automatic_pause_survives_queue_recreation_and_manual_jobs_run(tmp_path):
+        database = ArchiveDatabase.create(tmp_path / "tasks.db")
+        handler = Handler()
+        queue = TaskQueue(database, {"check": handler})
+        automatic = queue.submit("check", {}, "scheduled", source="automatic")
+        queue.set_automatic_paused(True)
+        assert not queue.run_round()
+        assert queue.snapshot()["next_round_count"] == 1
+        manual = queue.submit("check", {}, "manual")
+        assert queue.run_round()
+        assert queue.details(manual["operation_id"])["state"] == "finished"
+>       assert queue.details(automatic["operation_id"])["state"] == "queued"
+E       AssertionError: assert 'finished' == 'queued'
+E
+E         - queued
+E         + finished
+
+tests\test_v022_api.py:79: AssertionError
+_ test_pause_between_round_claim_and_automatic_start_defers_only_unstarted_job _
+
+tmp_path = WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/.devtools/test-runs/b6-full-1/test_pause_between_round_claim0')
+
+    def test_pause_between_round_claim_and_automatic_start_defers_only_unstarted_job(tmp_path):
+        database = ArchiveDatabase.create(tmp_path / "boundary.db")
+        handler = Handler()
+        queue = TaskQueue(database, {"check": handler})
+        manual = queue.submit("check", {"kind": "manual"}, "manual")
+        automatic = queue.submit("check", {"kind": "automatic"}, "scheduled", source="automatic")
+        handler.on_plan = lambda parameters, _: queue.set_automatic_paused(True) if parameters["kind"] == "manual" else None
+>       assert queue.run_round()
+E       assert False
+E        +  where False = run_round()
+E        +    where run_round = <src.core.tasks.TaskQueue object at 0x000002092C34C350>.run_round
+
+tests\test_v022_api.py:95: AssertionError
+______________ test_started_automatic_round_finishes_after_pause ______________
+
+tmp_path = WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/.devtools/test-runs/b6-full-1/test_started_automatic_round_f0')
+
+    def test_started_automatic_round_finishes_after_pause(tmp_path):
+        database = ArchiveDatabase.create(tmp_path / "started.db")
+        handler = Handler()
+        queue = TaskQueue(database, {"check": handler})
+        first = queue.submit("check", {"artist": 1}, "first", source="automatic")
+        second = queue.submit("check", {"artist": 2}, "second", source="automatic")
+        handler.on_execute = lambda *_: queue.set_automatic_paused(True)
+>       assert queue.run_round()
+E       assert False
+E        +  where False = run_round()
+E        +    where run_round = <src.core.tasks.TaskQueue object at 0x000002092C4E7890>.run_round
+
+tests\test_v022_api.py:113: AssertionError
+============================== warnings summary ===============================
+..\..\..\.devtools\v012-env\Lib\site-packages\starlette\testclient.py:45
+  D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_file_index.py: 2 warnings
+tests/test_filter_routes.py: 168 warnings
+tests/test_tombstones.py: 2 warnings
+  D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\sql\schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/test_filter_routes.py::test_explicit_empty_artist_filter_means_no_results
+tests/test_filter_routes.py::test_detail_and_pagination_links_keep_encoded_filter_context
+tests/test_filter_routes.py::test_detail_navigation_applies_type_tag_and_hidden_filters
+  D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20260930.2\app\tests\test_filter_routes.py:38: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_filter_routes.py::test_detail_and_pagination_links_keep_encoded_filter_context
+  D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20260930.2\app\src\routes\works.py:83: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_v022_api.py::test_automatic_pause_survives_queue_recreation_and_manual_jobs_run
+FAILED tests/test_v022_api.py::test_pause_between_round_claim_and_automatic_start_defers_only_unstarted_job
+FAILED tests/test_v022_api.py::test_started_automatic_round_finishes_after_pause
+3 failed, 280 passed, 177 warnings in 693.23s (0:11:33)

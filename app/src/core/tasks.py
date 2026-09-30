@@ -147,10 +147,17 @@ class TaskQueue:
             raise ValueError("不支持的任务类型或来源")
         if not self._accepting and parent_id is None:
             raise RuntimeError("图库正在切换，暂时不能提交任务")
-        # Purpose and scope determine identity; origin only determines priority.
+        # An automatic check has a separate deferred scheduling intent and
+        # selection policy; a manual check must not consume that paused batch.
         canonical = json.dumps([kind, parameters], sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-        key = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-        operation = session.scalar(select(Operation).where(Operation.dedupe_key == key, Operation.state.in_(ACTIVE)))
+        legacy_key = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        automatic_check = kind == "check" and source == "automatic"
+        key = hashlib.sha256((canonical + ":automatic-check").encode("utf-8")).hexdigest() if automatic_check else legacy_key
+        statement = select(Operation).where(Operation.dedupe_key.in_((key, legacy_key)), Operation.state.in_(ACTIVE))
+        if kind == "check":
+            # Also distinguish existing unfinished records made with the former hash.
+            statement = statement.where(Operation.source == "automatic" if automatic_check else Operation.source != "automatic")
+        operation = session.scalar(statement)
         created = operation is None
         if created:
             operation = Operation(kind=kind, parameters=parameters, source=source, label=label, dedupe_key=key)
@@ -248,7 +255,7 @@ class TaskQueue:
 
     @staticmethod
     def _lane(item):
-        if item.kind in ("metadata_artist", "metadata_work", "bookmark_artist", "discover_work"):
+        if item.phase == "checking" or item.kind in ("metadata_artist", "metadata_work", "bookmark_artist", "discover_work"):
             return "check"
         return "download" if item.kind == "download" or item.phase == "downloading" and item.kind not in ("timing", "error") else "local"
 
@@ -293,7 +300,10 @@ class TaskQueue:
                         continue
                     paused = session.get(ApplicationState, "automatic_paused")
                     if operation.source == "automatic" and operation.started_at is None and paused and paused.value is True:
+                        previous_round = operation.round_id
                         operation.round_id = None
+                        session.flush()
+                        self._finalize_round(session, previous_round)
                         continue
                     operation.state = "planning"
                     operation.started_at = operation.started_at or utcnow()
@@ -302,7 +312,7 @@ class TaskQueue:
                     break
             if claim is None:
                 download = or_(OperationItem.kind == "download", and_(OperationItem.phase == "downloading", ~OperationItem.kind.in_(("timing", "error"))))
-                check = OperationItem.kind.in_(("metadata_artist", "metadata_work", "bookmark_artist", "discover_work"))
+                check = or_(OperationItem.phase == "checking", OperationItem.kind.in_(("metadata_artist", "metadata_work", "bookmark_artist", "discover_work")))
                 lane_filter = check if lane == "check" else and_(~check, download) if lane == "download" else and_(~check, ~download)
                 dependency = aliased(OperationItem)
                 dependency_keys = func.json_each(OperationItem.depends_on).table_valued("value").alias("dependency_keys")
@@ -520,20 +530,24 @@ class TaskQueue:
             session.flush()
             pending.extend(operation.result.get("parent_operation_ids", []))
         for round_id in rounds:
-            current = session.get(TaskRound, round_id)
-            planning = session.scalar(select(Operation.id).where(Operation.round_id == round_id, or_(Operation.state.in_(("queued", "planning")), Operation.result["planning_complete"].as_boolean().is_(False))).limit(1))
-            if not planning:
-                current.state, current.frozen_at = "running", current.frozen_at or utcnow()
-            unfinished = session.scalar(select(Operation.id).where(Operation.round_id == round_id, Operation.state != "finished").limit(1))
-            if not unfinished:
-                counts = self._round_counts(session, round_id)
-                aggregate_failures = session.scalar(select(Operation.id).where(Operation.round_id == round_id,
-                    Operation.result["outcome"].as_string().in_(("failed", "partial_failure"))).limit(1))
-                final_outcome = outcome(counts)
-                if aggregate_failures and final_outcome not in ("failed", "partial_failure"):
-                    final_outcome = "partial_failure" if counts.get("succeeded") or counts.get("skipped") else "failed"
-                current.result = {**counts, "outcome": final_outcome}
-                current.state, current.finished_at = "finished", utcnow()
+            self._finalize_round(session, round_id)
+
+    def _finalize_round(self, session, round_id):
+        current = session.get(TaskRound, round_id)
+        planning = session.scalar(select(Operation.id).where(Operation.round_id == round_id, or_(Operation.state.in_(("queued", "planning")), Operation.result["planning_complete"].as_boolean().is_(False))).limit(1))
+        if not planning:
+            current.state, current.frozen_at = "running", current.frozen_at or utcnow()
+        unfinished = session.scalar(select(Operation.id).where(Operation.round_id == round_id, Operation.state != "finished").limit(1))
+        if not unfinished:
+            counts = self._round_counts(session, round_id)
+            aggregate_failures = session.scalar(select(Operation.id).where(Operation.round_id == round_id,
+                Operation.result["outcome"].as_string().in_(("failed", "partial_failure"))).limit(1))
+            final_outcome = outcome(counts)
+            if aggregate_failures and final_outcome not in ("failed", "partial_failure"):
+                final_outcome = "partial_failure" if counts.get("succeeded") or counts.get("skipped") else "failed"
+            current.result = {**counts, "outcome": final_outcome}
+            current.state, current.finished_at = "finished", utcnow()
+
 
     @staticmethod
     def _round_counts(session, round_id):

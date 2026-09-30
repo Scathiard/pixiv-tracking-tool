@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from src.core.database import ArchiveDatabase
 from src.core.library import Library, LibraryFilter
-from src.core.models import Artist, Asset, RemoteBookmark, Work, WorkTag, utcnow
+from src.core.models import Artist, Asset, Operation, RemoteBookmark, Work, WorkTag, utcnow
 from src.core.tasks import ItemResult, ItemSpec, TaskQueue
 from src.routes.archive_api import create_router
 
@@ -74,14 +74,18 @@ def test_automatic_pause_survives_queue_recreation_and_manual_jobs_run(tmp_path)
     assert not queue.run_round()
     assert queue.snapshot()["next_round_count"] == 1
     manual = queue.submit("check", {}, "manual")
+    assert manual["operation_id"] != automatic["operation_id"]
     assert queue.run_round()
     assert queue.details(manual["operation_id"])["state"] == "finished"
+    assert queue.details(manual["operation_id"])["result"]["outcome"] == "succeeded"
     assert queue.details(automatic["operation_id"])["state"] == "queued"
+    assert queue.details(automatic["operation_id"])["source"] == "automatic"
     reopened = TaskQueue(database, {"check": handler})
     assert reopened.automatic_paused() is True
     reopened.set_automatic_paused(False)
     assert reopened.run_round()
     assert reopened.details(automatic["operation_id"])["state"] == "finished"
+    assert reopened.details(automatic["operation_id"])["result"]["outcome"] == "succeeded"
     database.close()
 
 
@@ -94,12 +98,17 @@ def test_pause_between_round_claim_and_automatic_start_defers_only_unstarted_job
     handler.on_plan = lambda parameters, _: queue.set_automatic_paused(True) if parameters["kind"] == "manual" else None
     assert queue.run_round()
     assert queue.details(manual["operation_id"])["state"] == "finished"
+    assert queue.details(manual["operation_id"])["result"]["outcome"] == "succeeded"
     assert queue.details(automatic["operation_id"])["state"] == "queued"
     assert queue.snapshot()["next_round_count"] == 1
+    assert queue.snapshot()["round"]["state"] == "finished"
+    with database.read() as session:
+        assert session.get(Operation, automatic["operation_id"]).started_at is None
     handler.on_plan = None
     queue.set_automatic_paused(False)
     assert queue.run_round()
     assert queue.details(automatic["operation_id"])["state"] == "finished"
+    assert queue.details(automatic["operation_id"])["result"]["outcome"] == "succeeded"
     database.close()
 
 
@@ -109,10 +118,19 @@ def test_started_automatic_round_finishes_after_pause(tmp_path):
     queue = TaskQueue(database, {"check": handler})
     first = queue.submit("check", {"artist": 1}, "first", source="automatic")
     second = queue.submit("check", {"artist": 2}, "second", source="automatic")
-    handler.on_execute = lambda *_: queue.set_automatic_paused(True)
+    def pause_only_after_both_jobs_started(*_):
+        with database.read() as session:
+            assert all(session.get(Operation, submitted["operation_id"]).started_at is not None
+                       for submitted in (first, second))
+        queue.set_automatic_paused(True)
+
+    handler.on_execute = pause_only_after_both_jobs_started
     assert queue.run_round()
     assert queue.details(first["operation_id"])["state"] == "finished"
     assert queue.details(second["operation_id"])["state"] == "finished"
+    assert queue.details(first["operation_id"])["result"]["outcome"] == "succeeded"
+    assert queue.details(second["operation_id"])["result"]["outcome"] == "succeeded"
+    assert queue.automatic_paused() is True
     database.close()
 
 
