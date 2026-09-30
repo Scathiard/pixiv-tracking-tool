@@ -1,0 +1,29 @@
+{
+  "status": "SMOKE_OK",
+  "version": "0.2.0",
+  "build": "20260930.3",
+  "fixture": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b7-packaged2\\pixiv-isolated-smoke-saivig46",
+  "checks": {
+    "/api/status": 200,
+    "/api/library": 200,
+    "/api/progress": 200,
+    "/api/settings": 200,
+    "/api/artists": 200,
+    "/api/works/1/bookmark": 200,
+    "/": 200,
+    "/illust/1": 200,
+    "/artists": 200,
+    "/artist/1": 200,
+    "/settings": 200,
+    "/flow": 200,
+    "/reader/assets/index-3IJ40613.js": 200,
+    "/reader/assets/index-axe714yx.css": 200,
+    "original_download_verified_and_thumbnail_published": 200,
+    "selected_animation_originals_downloaded_and_verified": 200,
+    "unselected_legacy_animation_remains_deferred": 200,
+    "packaged_browser_service": 200
+  },
+  "real_account_used": false,
+  "real_library_used": false,
+  "reading_ui": true
+}

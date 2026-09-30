@@ -178,6 +178,8 @@ def main():
             mobile.get_by_role("navigation", name="主导航").get_by_role("button", name="设置", exact=True).tap()
             mobile.locator(".settings-page").wait_for()
             assert mobile.get_by_role("button", name="打开菜单", exact=True).is_visible()
+            mobile.wait_for_function("""() => !document.querySelector('.app-header').classList.contains('is-open')
+                && document.querySelector('.sidebar-body').getBoundingClientRect().right <= 0""")
             mobile.mouse.move(270, 650)
             mobile.mouse.wheel(0, 10000)
             mobile.wait_for_function("""() => {const pane=document.querySelector('.settings-page');
