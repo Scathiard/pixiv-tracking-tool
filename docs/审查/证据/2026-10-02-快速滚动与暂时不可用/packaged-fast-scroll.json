@@ -1,0 +1,846 @@
+{
+  "checks": [
+    {
+      "name": "1440-exe-static-recovers-same-url-after-first-503",
+      "details": {
+        "attempts": {
+          "thumbnail": 2,
+          "original": 1
+        },
+        "metadata_changed": false,
+        "url_changed": false
+      }
+    },
+    {
+      "name": "1440-exe-lightweight-animation-loads",
+      "details": "/images/.thumbnails/2_card_motion_v1.webp?v=dce2a570fedfea0d"
+    },
+    {
+      "name": "1440-exe-append-plain-text-503-auto-recovers-without-manual-retry",
+      "details": {
+        "injected_offset": 240,
+        "requests": [
+          {
+            "offset": 0,
+            "limit": 1,
+            "status": 200
+          },
+          {
+            "offset": 0,
+            "limit": 1,
+            "status": 200
+          },
+          {
+            "offset": 0,
+            "limit": 1,
+            "status": 200
+          },
+          {
+            "offset": 0,
+            "limit": 1,
+            "status": 200
+          },
+          {
+            "offset": 0,
+            "limit": 240,
+            "status": 200
+          },
+          {
+            "offset": 240,
+            "limit": 190,
+            "status": 503
+          },
+          {
+            "offset": 240,
+            "limit": 190,
+            "status": 200
+          },
+          {
+            "offset": 430,
+            "limit": 190,
+            "status": 200
+          },
+          {
+            "offset": 620,
+            "limit": 190,
+            "status": 200
+          }
+        ],
+        "final": {
+          "offset": 320,
+          "window_size": 480,
+          "scroll_top": 32893,
+          "visible_ids": [
+            15,
+            14,
+            13,
+            12,
+            11,
+            10,
+            9,
+            8,
+            7,
+            6,
+            5,
+            4,
+            3,
+            2,
+            1
+          ],
+          "readable_images": 15,
+          "error": "",
+          "horizontal_overflow": false
+        }
+      }
+    },
+    {
+      "name": "1440-exe-fast-scroll-reaches-readable-last-clone-with-bounded-window",
+      "details": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 32893,
+        "visible_ids": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 15,
+        "error": "",
+        "horizontal_overflow": false
+      }
+    },
+    {
+      "name": "390-exe-static-recovers-same-url-after-first-503",
+      "details": {
+        "attempts": {
+          "thumbnail": 2,
+          "original": 1
+        },
+        "metadata_changed": false,
+        "url_changed": false
+      }
+    },
+    {
+      "name": "390-exe-lightweight-animation-loads",
+      "details": "/images/.thumbnails/2_card_motion_v1.webp?v=dce2a570fedfea0d"
+    },
+    {
+      "name": "390-exe-trusted-cdp-touch-scrolls-gallery",
+      "details": {
+        "before": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 0,
+          "visible_ids": [
+            800,
+            799,
+            798,
+            797,
+            796,
+            795
+          ],
+          "readable_images": 6,
+          "error": "",
+          "horizontal_overflow": false
+        },
+        "after": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 7227,
+          "visible_ids": [
+            752,
+            751,
+            750,
+            749,
+            748,
+            747
+          ],
+          "readable_images": 6,
+          "error": "",
+          "horizontal_overflow": false
+        }
+      }
+    },
+    {
+      "name": "390-exe-append-plain-text-503-auto-recovers-without-manual-retry",
+      "details": {
+        "injected_offset": 240,
+        "requests": [
+          {
+            "offset": 0,
+            "limit": 1,
+            "status": 200
+          },
+          {
+            "offset": 0,
+            "limit": 1,
+            "status": 200
+          },
+          {
+            "offset": 0,
+            "limit": 1,
+            "status": 200
+          },
+          {
+            "offset": 0,
+            "limit": 1,
+            "status": 200
+          },
+          {
+            "offset": 0,
+            "limit": 240,
+            "status": 200
+          },
+          {
+            "offset": 240,
+            "limit": 192,
+            "status": 503
+          },
+          {
+            "offset": 240,
+            "limit": 192,
+            "status": 200
+          },
+          {
+            "offset": 432,
+            "limit": 192,
+            "status": 200
+          },
+          {
+            "offset": 624,
+            "limit": 192,
+            "status": 200
+          }
+        ],
+        "final": {
+          "offset": 320,
+          "window_size": 480,
+          "scroll_top": 71462,
+          "visible_ids": [
+            6,
+            5,
+            4,
+            3,
+            2,
+            1
+          ],
+          "readable_images": 6,
+          "error": "",
+          "horizontal_overflow": false
+        }
+      }
+    },
+    {
+      "name": "390-exe-fast-scroll-reaches-readable-last-clone-with-bounded-window",
+      "details": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 71462,
+        "visible_ids": [
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 6,
+        "error": "",
+        "horizontal_overflow": false
+      }
+    },
+    {
+      "name": "320-exe-static-recovers-same-url-after-first-503",
+      "details": {
+        "attempts": {
+          "thumbnail": 2,
+          "original": 1
+        },
+        "metadata_changed": false,
+        "url_changed": false
+      }
+    },
+    {
+      "name": "320-exe-lightweight-animation-loads",
+      "details": "/images/.thumbnails/2_card_motion_v1.webp?v=dce2a570fedfea0d"
+    },
+    {
+      "name": "320-exe-trusted-cdp-touch-scrolls-gallery",
+      "details": {
+        "before": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 0,
+          "visible_ids": [
+            800,
+            799,
+            798,
+            797,
+            796,
+            795
+          ],
+          "readable_images": 6,
+          "error": "",
+          "horizontal_overflow": false
+        },
+        "after": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 4489,
+          "visible_ids": [
+            766,
+            765,
+            764,
+            763,
+            762,
+            761
+          ],
+          "readable_images": 6,
+          "error": "",
+          "horizontal_overflow": false
+        }
+      }
+    },
+    {
+      "name": "320-exe-append-plain-text-503-auto-recovers-without-manual-retry",
+      "details": {
+        "injected_offset": 240,
+        "requests": [
+          {
+            "offset": 0,
+            "limit": 1,
+            "status": 200
+          },
+          {
+            "offset": 0,
+            "limit": 1,
+            "status": 200
+          },
+          {
+            "offset": 0,
+            "limit": 1,
+            "status": 200
+          },
+          {
+            "offset": 0,
+            "limit": 1,
+            "status": 200
+          },
+          {
+            "offset": 0,
+            "limit": 240,
+            "status": 200
+          },
+          {
+            "offset": 240,
+            "limit": 192,
+            "status": 503
+          },
+          {
+            "offset": 240,
+            "limit": 192,
+            "status": 200
+          },
+          {
+            "offset": 432,
+            "limit": 192,
+            "status": 200
+          },
+          {
+            "offset": 624,
+            "limit": 192,
+            "status": 200
+          }
+        ],
+        "final": {
+          "offset": 320,
+          "window_size": 480,
+          "scroll_top": 61296,
+          "visible_ids": [
+            6,
+            5,
+            4,
+            3,
+            2,
+            1
+          ],
+          "readable_images": 6,
+          "error": "",
+          "horizontal_overflow": false
+        }
+      }
+    },
+    {
+      "name": "320-exe-fast-scroll-reaches-readable-last-clone-with-bounded-window",
+      "details": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 61296,
+        "visible_ids": [
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 6,
+        "error": "",
+        "horizontal_overflow": false
+      }
+    }
+  ],
+  "failures": [],
+  "errors": [],
+  "metrics": {
+    "1440": {
+      "library_requests": [
+        {
+          "offset": 0,
+          "limit": 1,
+          "status": 200
+        },
+        {
+          "offset": 0,
+          "limit": 1,
+          "status": 200
+        },
+        {
+          "offset": 0,
+          "limit": 1,
+          "status": 200
+        },
+        {
+          "offset": 0,
+          "limit": 1,
+          "status": 200
+        },
+        {
+          "offset": 0,
+          "limit": 240,
+          "status": 200
+        },
+        {
+          "offset": 240,
+          "limit": 190,
+          "status": 503
+        },
+        {
+          "offset": 240,
+          "limit": 190,
+          "status": 200
+        },
+        {
+          "offset": 430,
+          "limit": 190,
+          "status": 200
+        },
+        {
+          "offset": 620,
+          "limit": 190,
+          "status": 200
+        }
+      ],
+      "static_media_attempts": {
+        "thumbnail": 2,
+        "original": 1
+      },
+      "window_samples": [
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        430,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480,
+        480
+      ],
+      "final": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 32893,
+        "visible_ids": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 15,
+        "error": "",
+        "horizontal_overflow": false
+      },
+      "touch": null,
+      "syntax_notices": []
+    },
+    "390": {
+      "library_requests": [
+        {
+          "offset": 0,
+          "limit": 1,
+          "status": 200
+        },
+        {
+          "offset": 0,
+          "limit": 1,
+          "status": 200
+        },
+        {
+          "offset": 0,
+          "limit": 1,
+          "status": 200
+        },
+        {
+          "offset": 0,
+          "limit": 1,
+          "status": 200
+        },
+        {
+          "offset": 0,
+          "limit": 240,
+          "status": 200
+        },
+        {
+          "offset": 240,
+          "limit": 192,
+          "status": 503
+        },
+        {
+          "offset": 240,
+          "limit": 192,
+          "status": 200
+        },
+        {
+          "offset": 432,
+          "limit": 192,
+          "status": 200
+        },
+        {
+          "offset": 624,
+          "limit": 192,
+          "status": 200
+        }
+      ],
+      "static_media_attempts": {
+        "thumbnail": 2,
+        "original": 2
+      },
+      "window_samples": [
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        432,
+        480,
+        480
+      ],
+      "final": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 71462,
+        "visible_ids": [
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 6,
+        "error": "",
+        "horizontal_overflow": false
+      },
+      "touch": {
+        "before": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 0,
+          "visible_ids": [
+            800,
+            799,
+            798,
+            797,
+            796,
+            795
+          ],
+          "readable_images": 6,
+          "error": "",
+          "horizontal_overflow": false
+        },
+        "after": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 7227,
+          "visible_ids": [
+            752,
+            751,
+            750,
+            749,
+            748,
+            747
+          ],
+          "readable_images": 6,
+          "error": "",
+          "horizontal_overflow": false
+        }
+      },
+      "syntax_notices": []
+    },
+    "320": {
+      "library_requests": [
+        {
+          "offset": 0,
+          "limit": 1,
+          "status": 200
+        },
+        {
+          "offset": 0,
+          "limit": 1,
+          "status": 200
+        },
+        {
+          "offset": 0,
+          "limit": 1,
+          "status": 200
+        },
+        {
+          "offset": 0,
+          "limit": 1,
+          "status": 200
+        },
+        {
+          "offset": 0,
+          "limit": 240,
+          "status": 200
+        },
+        {
+          "offset": 240,
+          "limit": 192,
+          "status": 503
+        },
+        {
+          "offset": 240,
+          "limit": 192,
+          "status": 200
+        },
+        {
+          "offset": 432,
+          "limit": 192,
+          "status": 200
+        },
+        {
+          "offset": 624,
+          "limit": 192,
+          "status": 200
+        }
+      ],
+      "static_media_attempts": {
+        "thumbnail": 2,
+        "original": 2
+      },
+      "window_samples": [
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        240,
+        432,
+        480,
+        480
+      ],
+      "final": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 61296,
+        "visible_ids": [
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 6,
+        "error": "",
+        "horizontal_overflow": false
+      },
+      "touch": {
+        "before": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 0,
+          "visible_ids": [
+            800,
+            799,
+            798,
+            797,
+            796,
+            795
+          ],
+          "readable_images": 6,
+          "error": "",
+          "horizontal_overflow": false
+        },
+        "after": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 4489,
+          "visible_ids": [
+            766,
+            765,
+            764,
+            763,
+            762,
+            761
+          ],
+          "readable_images": 6,
+          "error": "",
+          "horizontal_overflow": false
+        }
+      },
+      "syntax_notices": []
+    }
+  },
+  "exe": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261002.1\\release\\v0.2.0\\build-20261002.1\\PixivTracker_v0.2.0_build20261002.1.exe",
+  "exe_sha256": "651e41ef10f8e87059c885db37347c7fd17b302f3a4d1bb68d39c6d5368e56be",
+  "real_library_used": false,
+  "real_account_used": false,
+  "real_phone_tested": false,
+  "actual_exe_database_works": 3,
+  "browser_only_cloned_cards": 800,
+  "coverage": "packaged frontend fault replay; 800 items are browser metadata, not EXE database rows",
+  "mobile_interaction": "trusted CDP touch checks native scrolling; real wheel drives complete 800-card traversal",
+  "package_identity": {
+    "version": "0.2.0",
+    "build": "20261002.1",
+    "actual_db_work_ids": [
+      1,
+      2,
+      3
+    ]
+  },
+  "served_reader_sha256": {
+    "index.html": "b1db2caffe8091337ec3d6b3f442a7669d20777a64a644ced78a3d741f4f43fd",
+    "/reader/assets/index-5FRLax0i.js": "b3f323c4bfff691975672fa298c79bce1dd2e915d29382f2e82c11477bf505c1",
+    "/reader/assets/index-COk_ezpa.css": "509ea8944893f77fc8e8f9446a8c4409b7d14876f0ccdd9c404db5aa3ee2d32d"
+  },
+  "exe_exit_code": 0,
+  "duration_seconds": 50.36,
+  "isolated_exe_stopped": true,
+  "smoke_report_exists": true,
+  "smoke_identity": {
+    "status": "SMOKE_OK",
+    "version": "0.2.0",
+    "build": "20261002.1"
+  },
+  "passed": true
+}

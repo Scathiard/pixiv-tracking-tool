@@ -11,4 +11,6 @@
 
 可复现入口为 `app/frontend/tests/api.test.ts`、`app/tests/client_fast_scroll_browser.py --artifacts 新目录 --recovery-suite`；使用项目现有 Node24、Python3.12 和 Playwright，临时目录只能取主仓库 `.devtools/test-runs/b10-*`，每次新建，不重复使用会覆盖证据的路径。原始运行及额外帧截图保留在该目录。
 
-独立 EXE 结果待构建后补充；原始运行目录为 `b10-fast-scroll-red-20261002-02`、`b10-fast-scroll-red-delay500-20261002-03`、`b10-fast-scroll-red-delay2000-20261002-05`、`b10-fast-scroll-green-20261002-06`、`b10-cache-green-1`、`b10-animation-green-1`。失败的初始化与早采样运行也原位保留，不清理。
+独立 EXE 的[原有流程回归](packaged-reading.json) 28 项、[故障专项](packaged-fast-scroll.json) 14 项通过，两个进程正常退出；[核心冒烟](packaged-smoke.json) 19 项通过。[最终包的 320px 末端](packaged-320-final.png) 是浏览器合成元数据重放，数据库实际只有 3 件合成作品，媒体和编译界面由 EXE 供给。手机触点确认自然滚动，800 件全路径由滚轮驱动。
+
+原始运行目录为 `b10-fast-scroll-red-20261002-02`、`b10-fast-scroll-red-delay500-20261002-03`、`b10-fast-scroll-red-delay2000-20261002-05`、`b10-fast-scroll-green-20261002-06`、`b10-cache-green-1`、`b10-animation-green-1`、`b10-packaged-reading-1`、`b10-packaged-fast-scroll-1`。失败的初始化与早采样运行也原位保留，不清理。
