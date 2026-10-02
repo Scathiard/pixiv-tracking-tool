@@ -1,5 +1,15 @@
 export interface FilterSelection { all: boolean; values: string[]; excluded?: boolean }
 
+/** A profile belongs only to one explicitly included local artist. */
+export function singleArtistScope(query: string): number | null {
+  const params = new URLSearchParams(query)
+  if (params.has('artist_ids_exclude')) return null
+  const values = [...new Set(params.getAll('artist_ids').flatMap(value => value.split(',')).filter(Boolean))]
+  if (values.length !== 1 || !/^[1-9]\d*$/.test(values[0]!)) return null
+  const id = Number(values[0])
+  return Number.isSafeInteger(id) ? id : null
+}
+
 export function readTagValues(query: URLSearchParams, key = 'tags'): string[] {
   const values = query.getAll(key)
   return [...new Set((values.length > 1 ? values : (values[0] || '').split(',')).filter(Boolean))]

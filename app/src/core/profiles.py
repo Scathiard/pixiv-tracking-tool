@@ -5,22 +5,21 @@ import os
 
 from .download import AssetDownloader
 from .media import build_thumbnail, contained_path, verify_media
-from .models import Artist, utcnow
+from .models import ApplicationState, Artist, utcnow
+from .catalogue_revision import bump_catalogue_revision
+from .source_status import ARTIST_PREFIX, SourceStatus, SourceIdentityMismatch
 
 
 class ArtistProfiles:
-    def __init__(self, database, publisher, remote, downloader=None):
+    def __init__(self, database, publisher, remote, downloader=None, *, source_status=None):
         self.database, self.publisher, self.remote = database, publisher, remote
         self.downloader = downloader or AssetDownloader(max_bytes=8 * 1024 * 1024)
+        self.source_status = source_status or SourceStatus(database, remote)
 
     def refresh(self, artist_id):
-        with self.database.read() as session:
-            artist = session.get(Artist, artist_id)
-            if artist is None:
-                raise KeyError(artist_id)
-            remote_id = artist.pixiv_user_id
-        data = self.remote.get_artist_detail(remote_id)
-        self.save(artist_id, data)
+        data = self.source_status.fetch_artist(artist_id)
+        if data is not None:
+            self.save(artist_id, data)
 
     def save(self, artist_id, data):
         # Profile text is independently useful when the avatar download fails.
@@ -28,6 +27,10 @@ class ArtistProfiles:
             artist = session.get(Artist, artist_id)
             if artist is None:
                 raise KeyError(artist_id)
+            if str(data.get("user_id", "")) != artist.pixiv_user_id:
+                raise SourceIdentityMismatch()
+            if not self._owns_observation(session, artist, data):
+                return
             if isinstance(data.get("name"), str):
                 artist.name = data["name"]
             if isinstance(data.get("account"), str):
@@ -36,10 +39,10 @@ class ArtistProfiles:
                 artist.biography = data["biography"]
             if isinstance(data.get("avatar_url"), str):
                 artist.avatar_url = data["avatar_url"]
+            artist.profile_refreshed_at = utcnow()
+            bump_catalogue_revision(session)
         url = data.get("avatar_url")
         if not url:
-            with self.database.write() as session:
-                session.get(Artist, artist_id).profile_refreshed_at = utcnow()
             return
         _, original = self.publisher.staging()
         _, preview = self.publisher.staging()
@@ -61,6 +64,17 @@ class ArtistProfiles:
             os.rename(preview, target)
         with self.database.write() as session:
             artist = session.get(Artist, artist_id)
-            if artist is not None:
+            if artist is not None and self._owns_observation(session, artist, data):
                 artist.avatar_path = relative
                 artist.profile_refreshed_at = utcnow()
+                bump_catalogue_revision(session)
+
+    @staticmethod
+    def _owns_observation(session, artist, data):
+        observation = data.get("_source_observation")
+        if not isinstance(observation, dict):
+            return True
+        record = session.get(ApplicationState, ARTIST_PREFIX + artist.pixiv_user_id)
+        value = record.value if record is not None and isinstance(record.value, dict) else {}
+        return (value.get("version") == observation.get("version")
+                and value.get("observation_account_id") == observation.get("account_id"))

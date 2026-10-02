@@ -154,6 +154,8 @@ class TaskQueue:
         """Register metadata and its durable follow-up under the caller's transaction."""
         if kind not in self.handlers or source not in ("manual", "automatic", "maintenance"):
             raise ValueError("不支持的任务类型或来源")
+        if kind == "reconcile" and source != "manual":
+            raise ValueError("全库维护只允许手动启动")
         if not self._accepting and parent_id is None:
             raise RuntimeError("图库正在切换，暂时不能提交任务")
         # An automatic check has a separate deferred scheduling intent and
@@ -287,6 +289,11 @@ class TaskQueue:
     def _item_resources(self, session, item):
         resources = {self._resource(item)}
         work_id = item.target.get("work_id")
+        if work_id and item.kind.startswith("reconcile_"):
+            resources.add(("work", work_id))
+            if item.kind in ("reconcile_prepare", "reconcile_pair", "reconcile_snapshot"):
+                resources.update(("asset", value) for value in session.scalars(select(Asset.id).where(Asset.work_id == work_id)))
+                resources.update(("derivative", value) for value in session.scalars(select(Derivative.id).where(Derivative.work_id == work_id)))
         if work_id and item.kind in ("gif", "thumbnail", "ugoira_pair"):
             work = session.get(Work, work_id)
             if item.kind in ("gif", "ugoira_pair"):

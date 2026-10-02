@@ -1,34 +1,62 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { api, url, write } from '../api'
-import type { Artist } from '../types'
+import { confirmedDeleted, sourceStatusLabel, type Artist } from '../types'
+import { LatestIntent } from '../interaction'
 import Icon from '../components/Icon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import MediaImage from '../MediaImage.vue'
 import RestrictionBadge from '../components/RestrictionBadge.vue'
 const props = defineProps<{artistId?: number | null}>()
-const emit = defineEmits<{works: [id: number]; work: [artistId: number, workId: number]; message: [text: string, isError?: boolean]}>()
+const emit = defineEmits<{works: [id: number]; work: [artistId: number, workId: number]; message: [text: string, isError?: boolean]; taskQueued: [id: string]}>()
 const artists = ref<Artist[]>([]), total = ref(0), offset = ref(0), query = ref(''), draft = ref('')
 const layout = ref<'grid' | 'row'>('grid'), loading = ref(false), error = ref(''), busy = ref(false)
 const adding = ref(false), newPixivId = ref('')
 const deleteTarget = ref<Artist | null>(null)
+const checks = ref(new Map<number, string>())
+const request = new LatestIntent()
 const drag = {id: -1, x: 0, left: 0, moved: false, target: null as HTMLElement | null}
 let timer = 0, generation = 0, suppressClickUntil = 0
 const LIMIT = 50
 async function load(reset = false) {
   if (reset) offset.value = 0
-  const epoch = ++generation
+  const epoch = ++generation, ticket = request.begin()
   loading.value = true; error.value = ''
   try {
     if (props.artistId) {
-      const artist = await api<Artist>(`/api/artists/${props.artistId}`)
+      const artist = await api<Artist>(`/api/artists/${props.artistId}`, {signal: ticket.signal})
       if (epoch === generation) { artists.value = [artist]; total.value = 1 }
     } else {
-      const data = await api<{items: Artist[]; total: number}>(url('/api/artists', '', {offset: offset.value, limit: LIMIT, q: query.value}))
+      const data = await api<{items: Artist[]; total: number}>(url('/api/artists', '', {offset: offset.value, limit: LIMIT, q: query.value}), {signal: ticket.signal})
       if (epoch === generation) { artists.value = data.items; total.value = data.total }
     }
-  } catch (failure) { if (epoch === generation) error.value = failure instanceof Error ? failure.message : '画师列表暂时无法读取' }
+  } catch (failure) { if (epoch === generation && ticket.current()) error.value = failure instanceof Error ? failure.message : '画师列表暂时无法读取' }
   finally { if (epoch === generation) loading.value = false }
+}
+async function checkSource(artist: Artist) {
+  if (checks.value.has(artist.id)) return
+  checks.value.set(artist.id, '')
+  try {
+    const data = await api<{operation?: {id: string}; id?: string; operation_id?: string}>(`/api/artists/${artist.id}/check-source`, {method: 'POST'})
+    const operationId = data.operation?.id || data.operation_id || data.id
+    if (!operationId) throw new Error('未能确认核对任务，请重试')
+    checks.value.set(artist.id, operationId)
+    emit('taskQueued', operationId)
+    emit('message', `已排队核对 ${artist.name} 的主站主页，进度见任务提示`)
+  } catch (failure) {
+    checks.value.delete(artist.id)
+    emit('message', failure instanceof Error ? failure.message : '主页核对未能提交', true)
+  }
+}
+function refreshArtists() { if (document.visibilityState === 'visible') void load() }
+function taskCompleted(event: Event) {
+  const id = (event as CustomEvent<{id: string}>).detail?.id
+  for (const [artistId, operationId] of checks.value) if (operationId === id) checks.value.delete(artistId)
+  refreshArtists()
+}
+function visibilityChanged() {
+  if (document.visibilityState === 'visible') refreshArtists()
+  else { request.cancel(); generation++; loading.value = false }
 }
 function search() { clearTimeout(timer); timer = window.setTimeout(() => { query.value = draft.value; void load(true) }, 280) }
 async function addArtist() {
@@ -71,8 +99,8 @@ function stripUp(event: PointerEvent) {
 }
 function openWork(artistId: number, workId: number) { if (Date.now() >= suppressClickUntil) emit('work', artistId, workId) }
 watch(() => props.artistId, () => { void load(true) })
-onMounted(() => { try { layout.value = localStorage.getItem('pixiv-local-artist-layout') === 'row' ? 'row' : 'grid' } catch { /* optional */ }; void load() })
-onBeforeUnmount(() => { generation++; clearTimeout(timer) })
+onMounted(() => { try { layout.value = localStorage.getItem('pixiv-local-artist-layout') === 'row' ? 'row' : 'grid' } catch { /* optional */ }; void load(); window.addEventListener('archive-updated', refreshArtists); window.addEventListener('task-completed', taskCompleted); document.addEventListener('visibilitychange', visibilityChanged) })
+onBeforeUnmount(() => { generation++; request.cancel(); clearTimeout(timer); window.removeEventListener('archive-updated', refreshArtists); window.removeEventListener('task-completed', taskCompleted); document.removeEventListener('visibilitychange', visibilityChanged) })
 function setLayout(next: 'grid' | 'row') { layout.value = next; try { localStorage.setItem('pixiv-local-artist-layout', next) } catch { /* optional */ } }
 </script>
 <template>
@@ -83,8 +111,8 @@ function setLayout(next: 'grid' | 'row') { layout.value = next; try { localStora
     <p v-if="error" class="notice error" role="alert">{{ error }} <button @click="load()">重试</button></p>
     <div v-if="!loading && !artists.length && !error" class="empty"><h2>没有找到画师</h2><p>试试别的名称，或添加一位画师。</p></div>
     <div class="artists-list" :class="layout"><article v-for="artist in artists" :key="artist.id" class="artist-profile">
-      <div class="artist-identity"><div class="artist-profile-head"><img v-if="artist.avatar" class="artist-avatar" :src="artist.avatar" :alt="`${artist.name}头像`"><div v-else class="artist-avatar avatar-empty" aria-hidden="true"><Icon name="artists" /></div><div><h2>{{ artist.name }}</h2><small>{{ artist.work_count ?? 0 }} 件作品 · {{ artist.mode === 'active' ? '追踪中' : artist.mode === 'paused' ? '已暂停' : '已停止' }}</small><a class="artist-pixiv-link" :href="`https://www.pixiv.net/users/${encodeURIComponent(artist.pixiv_id)}`" target="_blank" rel="noopener noreferrer" :aria-label="`在 Pixiv 查看 ${artist.name}`">Pixiv 主页 <Icon name="external" /></a></div></div><p class="artist-bio">{{ artist.biography || '暂无画师简介' }}</p><div class="artist-controls"><button class="text-link" @click="emit('works', artist.id)">查看全部作品 <Icon name="right" /></button><button class="quiet" :disabled="busy" @click="track(artist, artist.mode === 'active' ? 'paused' : 'active')">{{ artist.mode === 'active' ? '暂停追踪' : '恢复追踪' }}</button><button v-if="artist.mode !== 'stopped'" class="quiet" :disabled="busy" @click="track(artist, 'stopped')">停止追踪，保留存档</button><button class="danger-link" :disabled="busy" @click="deleteTarget = artist">删除存档</button></div></div>
-      <div class="artist-workarea"><div class="artist-workbar"><span>最近保存</span><div class="strip-nav"><button :aria-label="`向左看 ${artist.name} 的作品`" @click="($event.currentTarget as HTMLElement).closest('.artist-workarea')?.querySelector('.artist-recent-strip')?.scrollBy({left: -250, behavior: 'smooth'})"><Icon name="left" /></button><button :aria-label="`向右看 ${artist.name} 的作品`" @click="($event.currentTarget as HTMLElement).closest('.artist-workarea')?.querySelector('.artist-recent-strip')?.scrollBy({left: 250, behavior: 'smooth'})"><Icon name="right" /></button></div></div><div class="artist-recent-strip" @pointerdown="stripDown" @pointermove="stripMove" @pointerup="stripUp" @pointercancel="stripUp"><button v-for="work in (artist.recent_works || []).slice(0, layout === 'grid' ? 3 : 12)" :key="work.id" class="artist-work" @click="openWork(artist.id, work.id)"><div class="artist-work-image"><MediaImage :src="work.thumbnail" :label="work.title" thumbnail /><RestrictionBadge :value="work.x_restrict" /></div><span>{{ work.title }}</span></button><p v-if="!artist.recent_works?.length" class="muted">还没有本地作品</p></div></div>
+      <div class="artist-identity"><div class="artist-profile-head"><img v-if="artist.avatar" class="artist-avatar" :class="{'source-deleted': confirmedDeleted(artist.availability)}" :src="artist.avatar" :alt="`${artist.name}头像`"><div v-else class="artist-avatar avatar-empty" :class="{'source-deleted': confirmedDeleted(artist.availability)}" aria-hidden="true"><Icon name="artists" /></div><div><h2>{{ artist.name }}</h2><small>{{ artist.work_count ?? 0 }} 件作品 · {{ artist.mode === 'active' ? '追踪中' : artist.mode === 'paused' ? '已暂停' : '已停止' }}</small><a class="artist-pixiv-link" :href="`https://www.pixiv.net/users/${encodeURIComponent(artist.pixiv_id)}`" target="_blank" rel="noopener noreferrer" :aria-label="`在 Pixiv 查看 ${artist.name}`">Pixiv 主页 <Icon name="external" /></a></div></div><p v-if="sourceStatusLabel(artist.availability, 'artist')" class="artist-source-status">{{ sourceStatusLabel(artist.availability, 'artist') }}<span v-if="artist.availability?.reason"> · {{ artist.availability.reason }}</span></p><p class="artist-bio">{{ artist.biography || '暂无画师简介' }}</p><div class="artist-controls"><button class="text-link" @click="emit('works', artist.id)">查看全部作品 <Icon name="right" /></button><button class="quiet" :disabled="busy" @click="track(artist, artist.mode === 'active' ? 'paused' : 'active')">{{ artist.mode === 'active' ? '暂停追踪' : '恢复追踪' }}</button><button v-if="artist.mode !== 'stopped'" class="quiet" :disabled="busy" @click="track(artist, 'stopped')">停止追踪，保留存档</button><button class="quiet artist-check-source" :disabled="checks.has(artist.id)" @click="checkSource(artist)">{{ checks.has(artist.id) ? '已排队核对' : '核对主站主页' }}</button><button class="danger-link" :disabled="busy" @click="deleteTarget = artist">删除存档</button></div></div>
+      <div class="artist-workarea"><div class="artist-workbar"><span>最近保存</span><div class="strip-nav"><button :aria-label="`向左看 ${artist.name} 的作品`" @click="($event.currentTarget as HTMLElement).closest('.artist-workarea')?.querySelector('.artist-recent-strip')?.scrollBy({left: -250, behavior: 'smooth'})"><Icon name="left" /></button><button :aria-label="`向右看 ${artist.name} 的作品`" @click="($event.currentTarget as HTMLElement).closest('.artist-workarea')?.querySelector('.artist-recent-strip')?.scrollBy({left: 250, behavior: 'smooth'})"><Icon name="right" /></button></div></div><div class="artist-recent-strip" @pointerdown="stripDown" @pointermove="stripMove" @pointerup="stripUp" @pointercancel="stripUp"><button v-for="work in (artist.recent_works || []).slice(0, 12)" :key="work.id" class="artist-work" @click="openWork(artist.id, work.id)"><div class="artist-work-image"><MediaImage :src="work.thumbnail" :label="work.title" thumbnail /><RestrictionBadge :value="work.x_restrict" /></div><span>{{ work.title }}</span></button><p v-if="!artist.recent_works?.length" class="muted">还没有本地作品</p></div></div>
     </article></div>
     <nav v-if="!artistId && total > LIMIT" class="pagination" aria-label="画师页码"><button :disabled="offset === 0 || loading" @click="offset = Math.max(0, offset - LIMIT); load()">上一页</button><span>第 {{ Math.floor(offset / LIMIT) + 1 }} / {{ Math.ceil(total / LIMIT) }} 页</span><button :disabled="offset + LIMIT >= total || loading" @click="offset += LIMIT; load()">下一页</button></nav>
     <ConfirmDialog v-if="deleteTarget" title="删除画师存档" :description="`将永久删除 ${deleteTarget.name} 的本地作品和文件。这项操作无法撤销。`" action="永久删除" danger @cancel="deleteTarget = null" @confirm="deleteArtist" />

@@ -81,6 +81,9 @@ async function poll() {
     previousRoundState = data.round?.state || ''
     for (const op of data.operations) {
       if (shouldNotifyFailure(op, previousOperations?.get(op.id), requestedIds.has(op.id))) showFailure(op)
+      if (!activeStates.has(op.state) && (activeStates.has(previousOperations?.get(op.id) || '') || requestedIds.has(op.id))) {
+        window.dispatchEvent(new CustomEvent('task-completed', {detail: {id: op.id, state: op.state}}))
+      }
       if (!activeStates.has(op.state)) requestedIds.delete(op.id)
     }
     previousOperations = new Map(data.operations.map(op => [op.id, op.state]))

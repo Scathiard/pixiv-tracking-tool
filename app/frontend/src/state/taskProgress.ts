@@ -7,7 +7,7 @@ export interface Operation {
 }
 
 export const activeStates = new Set(['queued', 'planning', 'ready', 'running', 'interrupted'])
-const phases: Record<string, string> = {waiting: '等待', checking: '检查', inventory: '清点', metadata: '画师信息', captions: '作品信息', bookmarks: '收藏状态', downloading: '下载', converting: '生成预览', verifying: '核验', thumbnails: '缩略图', deleting: '删除'}
+const phases: Record<string, string> = {waiting: '等待', checking: '检查', inventory: '清点', metadata: '画师信息', captions: '作品信息', bookmarks: '收藏状态', downloading: '下载', converting: '生成预览', verifying: '核验', reconciling: '整理缺项', repairing: '补齐', thumbnails: '缩略图', deleting: '删除'}
 const units: Record<string, string> = {artists: '位画师', works: '件作品', pages: '页', assets: '项原件', previews: '件预览', files: '个文件', items: '项'}
 
 export function selectPrimary(operations: Operation[], focusedId: string | null, runningId: string | null = null, requestedIds: string[] = []): Operation | null {

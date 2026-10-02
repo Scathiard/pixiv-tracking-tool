@@ -1,6 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { invertSelection, loadArtistCatalogue, readTagValues, selectionCount, selectionQuery, toggleSelection, writeTagValues } from '../src/state/filterSelection.ts'
+import { invertSelection, loadArtistCatalogue, readTagValues, selectionCount, selectionQuery, singleArtistScope, toggleSelection, writeTagValues } from '../src/state/filterSelection.ts'
+
+test('artist profile scope accepts one positive include and rejects all, multi, excluded and malformed scopes', () => {
+  assert.equal(singleArtistScope('artist_ids=42&sort=oldest'), 42)
+  assert.equal(singleArtistScope('artist_ids=42&artist_ids=42'), 42)
+  for (const query of ['', 'artist_ids=', 'artist_ids=0', 'artist_ids=-2', 'artist_ids=abc', 'artist_ids=1,2',
+    'artist_ids=1&artist_ids=2', 'artist_ids_exclude=1', 'artist_ids=1&artist_ids_exclude=2', 'artist_ids=999999999999999999']) {
+    assert.equal(singleArtistScope(query), null, query)
+  }
+})
 
 test('all, empty, toggled and inverse selections remain distinct across catalogue', () => {
   const catalogue = ['1', '2', '3']

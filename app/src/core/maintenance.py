@@ -25,7 +25,7 @@ LEDGER_PREFIX = "maintenance_work:"
 REMOTE_HOLD_KEY = "maintenance_remote_hold"
 SCAN_WINDOW = 128
 ATTENTION_CODES = frozenset(("work_unavailable", "work_private",
-    "ugoira_metadata_unavailable", "work_metadata_conflict"))
+    "ugoira_metadata_unavailable", "work_metadata_conflict", "work_deleted"))
 
 
 def _legacy_attention(track, failure=None, *, work_type=None):
@@ -169,7 +169,7 @@ class MissingMediaMaintenance:
         with self.database.read() as session:
             eligible = and_(ArchiveIntent.mode == "keep", ArchiveIntent.pixiv_illust_id == Work.pixiv_illust_id)
             remote_eligible = and_(eligible, func.coalesce(
-                Work.source_metadata["remote_availability"]["state"].as_string(), "").not_in(("unavailable", "private")))
+                Work.source_metadata["remote_availability"]["state"].as_string(), "").not_in(("unavailable", "private", "deleted")))
             windows = {}
             def page(statement, name):
                 cursor = self._cursors[name]
@@ -240,6 +240,12 @@ class MissingMediaMaintenance:
             return []
         self._next_scan = clock + SCAN_SECONDS
         now = self.now()
+        # The manual operation already owns verification and repair for its
+        # fixed scope. Do not create duplicate automatic operations mid-flight.
+        with self.database.read() as session:
+            if session.scalar(select(Operation.id).where(Operation.kind == "reconcile",
+                    Operation.state.in_(ACTIVE)).limit(1)):
+                return []
         self._reconcile(now)
         remote, local, gif_from_pair, ledgers, hold, windows = self._candidates()
         for work_id in set(remote) | set(local):

@@ -47,7 +47,7 @@ class SyntheticRemote:
         return iter(())
 
     def get_artist_detail(self, remote_id):
-        return {"name": f"本地画师 {remote_id}", "biography": "隔离测试资料"}
+        return {"user_id": str(remote_id), "name": f"本地画师 {remote_id}", "biography": "隔离测试资料"}
 
 
 def make_library(root: Path, works=5000):

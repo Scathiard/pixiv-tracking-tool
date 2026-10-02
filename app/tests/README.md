@@ -1,5 +1,9 @@
 # 测试目录约定
 
+- `test_reconcile.py`、`test_reconcile_api.py`：一个持久维护任务的逐项本地核验、缺项修复、资料／收藏共用响应、暂停／停止／隐藏范围、删除与重启恢复及 HTTP 边界；仅合成图库和本机媒体，不写真实主站收藏。
+- `test_source_status.py`、`client_maintenance_browser.py`：有版本的来源事实、身份核对、明确删除证据与 404 的区分、分页具体缺项，以及统一设置入口、画师主页核对、两布局同尺寸和随滚动离屏的图库资料头；浏览器故障重放与真实后端覆盖分别记录。
+- 自本轮起，来源异常提示仅在设置来源一览和画师管理页；旧 `client_availability_browser.py`、`client_originals_browser.py` 保留为原交互的历史验证脚本，当前行为由 `client_maintenance_browser.py` 与更新后的 EXE 验证覆盖。
+
 - `test_security.py`：网络边界、路径边界和 HTML 清洗。
 - `test_jobs.py`：后台任务排队、去重、状态和错误保留。
 - `test_file_index.py`：作品文件路径 JSON 编解码与单次目录扫描。

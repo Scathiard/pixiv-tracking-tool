@@ -363,13 +363,26 @@ class PixivClient:
 
     def get_artist_detail(self, user_id):
         """获取画师详细信息。"""
-        result = self._get("/v1/user/detail", {"user_id": user_id})
-        user = result["user"]
+        try:
+            result = self._get("/v1/user/detail", {"user_id": user_id})
+        except PixivRequestError as exc:
+            if exc.status == 404:
+                raise PixivRequestError(404, "主站暂时无法获取画师主页，尚不能确认删除",
+                    retryable=False, failure_code="artist_unavailable") from exc
+            raise
+        user = result.get("user")
+        if not isinstance(user, dict) or str(user.get("id", "")) != str(user_id):
+            raise PixivRequestError(200, "主站未返回对应画师的有效资料，已有资料保留",
+                retryable=False, failure_code="api_invalid_response")
+        if not isinstance(user.get("name"), str):
+            raise PixivRequestError(200, "主站画师资料不完整，已有资料保留",
+                retryable=False, failure_code="api_invalid_response")
+        images = user.get("profile_image_urls")
         return {
             "user_id": str(user["id"]),
             "name": user["name"],
-            "account": user["account"],
-            "avatar_url": user["profile_image_urls"]["medium"],
+            "account": user.get("account") if isinstance(user.get("account"), str) else None,
+            "avatar_url": images.get("medium") if isinstance(images, dict) and isinstance(images.get("medium"), str) else None,
             "biography": user.get("comment") if isinstance(user.get("comment"), str) else None,
             "total_illusts": user.get("total_illusts", 0),
         }

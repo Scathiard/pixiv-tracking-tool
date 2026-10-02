@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from pathlib import PurePosixPath
 from urllib.parse import quote
 
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import String, and_, case, cast, func, literal, or_, select
 from sqlalchemy.orm import load_only, selectinload
 
 from ..security import sanitize_caption
@@ -14,8 +14,10 @@ from ..security import sanitize_caption
 from .archive_state import work_states
 from .media import CARD_MOTION_SPEC
 from .tag_translations import tag_details
+from .source_status import ARTIST_PREFIX, availability_snapshot
+from .catalogue_revision import catalogue_revision
 from .models import (
-    ArchiveIntent, Artist, Asset, BookmarkOperation, Derivative, LocalPreference, RemoteBookmark,
+    ApplicationState, ArchiveIntent, Artist, Asset, BookmarkOperation, Derivative, LocalPreference, RemoteBookmark,
     TrackingPolicy, Work, WorkTag, utcnow,
 )
 
@@ -57,13 +59,9 @@ def readable_page_url(record, *, animation=False):
     return media_url(record.relative_path)
 
 
-def remote_availability(work):
+def remote_availability(work, account_id=None):
     value = (work.source_metadata or {}).get("remote_availability")
-    if (isinstance(value, dict) and value.get("state") in ("available", "unavailable", "private")
-            and isinstance(value.get("checked_at"), str)):
-        return {"state": value["state"], "checked_at": value["checked_at"],
-                "reason": value.get("reason") if isinstance(value.get("reason"), str) else None}
-    return None
+    return availability_snapshot(value, account_id)
 
 
 class Library:
@@ -158,16 +156,18 @@ class Library:
             "bookmark_count": work.bookmark_count, "view_count": work.view_count,
             "posted_at": work.posted_at.isoformat() if work.posted_at else None,
             "time_basis": work.time_basis, "x_restrict": work.x_restrict,
-            "availability": remote_availability(work),
+            "availability": remote_availability(work, self.account_id),
             "restriction_verified": work.restriction_verified}
 
     def artists(self):
         # Existing HTML pages need the full selector, but no artwork previews.
         with self.database.read() as session:
-            artists = session.scalars(select(Artist).options(selectinload(Artist.policy)).order_by(Artist.name, Artist.id))
+            artists = list(session.scalars(select(Artist).options(selectinload(Artist.policy)).order_by(Artist.name, Artist.id)))
+            availability = self._artist_availability(session, artists)
             return [{"id": artist.id, "pixiv_id": artist.pixiv_user_id, "name": artist.name,
                 "account": artist.account, "avatar_url": media_url(artist.avatar_path),
                 "mode": artist.policy.mode if artist.policy else "stopped",
+                "availability": availability.get(artist.id),
                 "added_at": artist.added_at.isoformat() if artist.added_at else None,
                 "last_checked_at": artist.last_checked_at.isoformat() if artist.last_checked_at else None}
                 for artist in artists]
@@ -196,9 +196,9 @@ class Library:
                 raise KeyError(artist_id)
             return self._artist_views(session, [artist])[0]
 
-    @staticmethod
-    def _artist_views(session, artists):
+    def _artist_views(self, session, artists):
         ids = [artist.id for artist in artists]
+        availability = self._artist_availability(session, artists)
         counts = dict(session.execute(select(Work.artist_id, func.count()).where(
             Work.artist_id.in_(ids), ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(
                 ArchiveIntent.mode == "suppressed"))).group_by(Work.artist_id)).all()) if ids else {}
@@ -228,6 +228,7 @@ class Library:
         return [{"id": artist.id, "pixiv_id": artist.pixiv_user_id, "name": artist.name,
             "account": artist.account, "avatar_url": media_url(artist.avatar_path),
             "avatar": media_url(artist.avatar_path), "biography": artist.biography,
+            "availability": availability.get(artist.id),
             "profile_refreshed_at": artist.profile_refreshed_at.isoformat() if artist.profile_refreshed_at else None,
             "mode": artist.policy.mode if artist.policy else "stopped",
             "added_at": artist.added_at.isoformat() if artist.added_at else None,
@@ -279,7 +280,7 @@ class Library:
                       "is_hidden": bool(work.preference and work.preference.is_hidden),
                       "posted_at": work.posted_at.isoformat() if work.posted_at else None,
                       "bookmark": self._bookmark_view(work, operations.get(work.id)),
-                      "availability": remote_availability(work)} for work in works] if compact else [self._work_view(work, operations.get(work.id)) for work in works]
+                      "availability": remote_availability(work, self.account_id)} for work in works] if compact else [self._work_view(work, operations.get(work.id)) for work in works]
             if compact:
                 for view in views:
                     view["is_bookmarked"] = bool(view["bookmark"]["value"])
@@ -444,7 +445,7 @@ class Library:
                         "type": work.type, "x_restrict": work.x_restrict,
                         "next_work_index": row["page_start"] + row["page_count"],
                         "bookmark": bookmark_views[work.id],
-                        "availability": remote_availability(work),
+                        "availability": remote_availability(work, self.account_id),
                         **states[work.id],
                         "src": readable_page_url(media, animation=work.type == "ugoira"),
                         "width": media.width if media else None, "height": media.height if media else None,
@@ -462,3 +463,140 @@ class Library:
             operations = self._bookmark_operations(session, [work.id for work in works])
             states, _ = work_states(session, works)
             return [{**self._work_view(work, operations.get(work.id)), **states[work.id]} for work in works]
+
+    def _artist_availability(self, session, artists):
+        keys = {ARTIST_PREFIX + artist.pixiv_user_id: artist.id for artist in artists}
+        if not keys:
+            return {}
+        return {keys[row.key]: availability_snapshot(row.value, self.account_id)
+                for row in session.scalars(select(ApplicationState).where(ApplicationState.key.in_(keys)))}
+
+    def _source_statement(self, kind):
+        if kind == "works":
+            statement = select(Work).where(~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(
+                ArchiveIntent.mode == "suppressed")))
+            value = Work.source_metadata["remote_availability"]
+        else:
+            statement = select(Artist).join(ApplicationState,
+                ApplicationState.key == literal(ARTIST_PREFIX) + Artist.pixiv_user_id)
+            value = ApplicationState.value
+        state = value["state"].as_string()
+        scoped = value["account_id"].as_string()
+        account_matches = literal(True) if self.account_id is None else or_(scoped.is_(None), scoped == str(self.account_id))
+        deleted = and_(state == "deleted", value["confirmed"].as_boolean().is_(True),
+                       value["deletion_evidence"].as_boolean().is_(True), account_matches)
+        unavailable = and_(state.in_(("unavailable", "private", "deleted", "available")), ~func.coalesce(deleted, False),
+                           or_(state != "available", ~account_matches))
+        return statement, deleted, unavailable
+
+    @staticmethod
+    def _local_work(work, assets, derivatives):
+        assets = {(item.role, item.page_index): item for item in assets}
+        derivatives = {(item.kind, item.page_index, item.spec_key): item for item in derivatives}
+        required = [("ugoira_zip", 0), ("ugoira_timing", 0)] if work.type == "ugoira" else [("image", page) for page in range(work.page_count)]
+        missing, unknown = [], False
+        bad = ("missing", "failed", "invalid", "mismatch", "corrupt")
+        for role, page in required:
+            record = assets.get((role, page))
+            if record is None or record.state in bad or not record.relative_path:
+                label = f"第 {page + 1} 页原图" if role == "image" else "动图原包" if role == "ugoira_zip" else "动图播放时序"
+                missing.append({"role": role, "page": page if role == "image" else None,
+                                "label": label, "kind": "original"})
+            elif record.state != "verified":
+                unknown = True
+        required_derivatives = [("thumbnail", 0, "v1", "缩略图")]
+        if work.type == "ugoira":
+            required_derivatives.append(("gif", 0, "v1", "动图预览"))
+        for role, page, spec, label in required_derivatives:
+            record = derivatives.get((role, page, spec))
+            if record is None or record.state in bad or not record.relative_path:
+                missing.append({"role": role, "page": None, "label": label, "kind": "derivative"})
+            elif record.state != "verified":
+                unknown = True
+        if work.caption_state in ("unavailable", "missing", "failed"):
+            missing.append({"role": "caption", "page": None, "label": "作品简介资料", "kind": "metadata"})
+        elif work.caption_state not in ("available", "empty"):
+            unknown = True
+        return {"state": "incomplete" if missing else "unknown" if unknown else "complete", "missing": missing}
+
+    @staticmethod
+    def _artist_local_summaries(session, artists):
+        ids = [artist.id for artist in artists]
+        if not ids:
+            return {}
+        # Aggregate local work facts in SQL. No per-artist/per-work queries or
+        # loading every image-page record just to obtain two summary counts.
+        required = or_(and_(Work.type != "ugoira", Asset.role == "image", Asset.page_index < Work.page_count),
+                       and_(Work.type == "ugoira", Asset.role.in_(("ugoira_zip", "ugoira_timing")), Asset.page_index == 0))
+        counts = select(Asset.work_id.label("work_id"), func.count().label("recorded"),
+            func.sum(case((and_(Asset.state == "verified", func.length(Asset.relative_path) > 0), 1), else_=0)).label("verified"),
+            func.sum(case((or_(Asset.state.in_(("missing", "failed", "invalid", "mismatch", "corrupt")),
+                                  Asset.relative_path.is_(None), Asset.relative_path == ""), 1), else_=0)).label("missing")
+            ).join(Work, Work.id == Asset.work_id).where(Work.artist_id.in_(ids), required).group_by(Asset.work_id).subquery()
+        total = case((Work.type == "ugoira", 2), else_=Work.page_count)
+        thumbnail_base = select(Derivative.id).where(Derivative.work_id == Work.id, Derivative.kind == "thumbnail",
+            Derivative.page_index == 0, Derivative.spec_key == "v1", func.length(Derivative.relative_path) > 0)
+        gif_base = select(Derivative.id).where(Derivative.work_id == Work.id, Derivative.kind == "gif", Derivative.page_index == 0,
+            Derivative.spec_key == "v1", func.length(Derivative.relative_path) > 0)
+        bad = ("missing", "failed", "invalid", "mismatch", "corrupt")
+        thumbnail = thumbnail_base.where(~Derivative.state.in_(bad)).exists()
+        gif = gif_base.where(~Derivative.state.in_(bad)).exists()
+        thumbnail_verified = thumbnail_base.where(Derivative.state == "verified").exists()
+        gif_verified = gif_base.where(Derivative.state == "verified").exists()
+        incomplete = or_(func.coalesce(counts.c.recorded, 0) < total, func.coalesce(counts.c.missing, 0) > 0,
+                         ~thumbnail, and_(Work.type == "ugoira", ~gif), Work.caption_state.in_(("unavailable", "missing", "failed")))
+        unknown = or_(func.coalesce(counts.c.verified, 0) < total, ~Work.caption_state.in_(("available", "empty")),
+                      ~thumbnail_verified, and_(Work.type == "ugoira", ~gif_verified))
+        rows = session.execute(select(Work.artist_id, func.count().label("total"),
+            func.sum(case((incomplete, 1), else_=0)).label("incomplete"),
+            func.sum(case((and_(~incomplete, unknown), 1), else_=0)).label("unknown")
+            ).outerjoin(counts, counts.c.work_id == Work.id).where(Work.artist_id.in_(ids),
+            ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(ArchiveIntent.mode == "suppressed")))
+            .group_by(Work.artist_id)).all()
+        counts_by_artist = {row.artist_id: row for row in rows}
+        result = {}
+        for artist in artists:
+            row = counts_by_artist.get(artist.id)
+            incomplete_count, unknown_count = (row.incomplete or 0, row.unknown or 0) if row else (0, 0)
+            missing = []
+            if incomplete_count:
+                missing.append({"role": "saved_works", "page": None,
+                                "label": f"{incomplete_count} 件已保存作品有本地缺项", "kind": "original"})
+            if artist.avatar_url and not artist.avatar_path:
+                missing.append({"role": "avatar", "page": None, "label": "画师头像缓存", "kind": "derivative"})
+            unknown = bool(unknown_count or artist.profile_refreshed_at is None)
+            result[artist.id] = {"work_count": row.total if row else 0, "incomplete_work_count": incomplete_count,
+                "local": {"state": "incomplete" if missing else "unknown" if unknown else "complete", "missing": missing}}
+        return result
+
+    def source_overview(self, *, kind="works", group="all", offset=0, limit=50):
+        if kind not in ("works", "artists") or group not in ("all", "deleted", "unavailable"):
+            raise ValueError("来源一览筛选不合法")
+        if type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("来源一览分页不合法")
+        with self.database.read() as session:
+            counts = {}
+            for category in ("works", "artists"):
+                base, deleted, unavailable = self._source_statement(category)
+                count = session.execute(base.with_only_columns(func.sum(case((deleted, 1), else_=0)),
+                    func.sum(case((unavailable, 1), else_=0)))).one()
+                counts[category] = {"deleted": count[0] or 0, "unavailable": count[1] or 0}
+            base, deleted, unavailable = self._source_statement(kind)
+            selected = base.where(deleted if group == "deleted" else unavailable if group == "unavailable" else or_(deleted, unavailable))
+            total = counts[kind][group] if group != "all" else sum(counts[kind].values())
+            if kind == "works":
+                works = list(session.scalars(selected.options(selectinload(Work.artist), selectinload(Work.assets),
+                    selectinload(Work.derivatives)).order_by(Work.id).offset(offset).limit(limit)))
+                items = [{"kind": "work", "id": work.id, "pixiv_id": work.pixiv_illust_id, "title": work.title,
+                    "type": work.type, "page_count": work.page_count, "artist_id": work.artist_id,
+                    "artist_name": work.artist.name, "availability": remote_availability(work, self.account_id),
+                    "local": self._local_work(work, work.assets, work.derivatives)} for work in works]
+            else:
+                artists = list(session.scalars(selected.order_by(Artist.id).offset(offset).limit(limit)))
+                availability = self._artist_availability(session, artists)
+                local = self._artist_local_summaries(session, artists)
+                items = [{"kind": "artist", "id": artist.id, "pixiv_id": artist.pixiv_user_id, "name": artist.name,
+                    "avatar": media_url(artist.avatar_path), "availability": availability.get(artist.id),
+                    **local[artist.id]} for artist in artists]
+            return {"items": items, "total": total, "offset": offset, "limit": limit,
+                    "counts": counts, "catalogue_revision": catalogue_revision(session)}

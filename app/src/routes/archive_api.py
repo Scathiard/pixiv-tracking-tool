@@ -17,7 +17,7 @@ from ..core.tasks import safe_failure
 
 class TaskSubmission(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    kind: Literal["check", "metadata", "bookmarks", "repair", "verify", "backfill", "thumbnails"]
+    kind: Literal["check", "metadata", "bookmarks", "repair", "verify", "backfill", "thumbnails", "reconcile"]
     artist_ids: list[int] | None = Field(default=None, max_length=1000)
     work_ids: list[int] | None = Field(default=None, max_length=1000)
 
@@ -49,7 +49,7 @@ class ArtistAdd(BaseModel):
 
 
 LABELS = {"check": "检查新作品", "metadata": "刷新信息", "bookmarks": "同步收藏状态", "repair": "补下载", "verify": "全量核验本地文件",
-          "backfill": "补回所选动图原包", "thumbnails": "生成缩略图"}
+          "backfill": "补回所选动图原包", "thumbnails": "生成缩略图", "reconcile": "检查并补齐图库"}
 
 
 def parse_filters(parameters) -> LibraryFilter:
@@ -223,6 +223,23 @@ def create_router(get_runtime):
             return runtime().library.artist_detail(artist_id)
         except KeyError as exc:
             raise HTTPException(404, "画师不存在") from exc
+
+    @router.post("/api/artists/{artist_id}/check-source")
+    def check_artist_source(artist_id: int):
+        try:
+            cached = runtime().library.artist_detail(artist_id)
+            return runtime().queue.submit("artist_source", {"artist_ids": [artist_id]},
+                                          f"核对 {cached['name']} 的主站主页")
+        except KeyError as exc:
+            raise HTTPException(404, "画师不存在") from exc
+        except RuntimeError as exc:
+            raise HTTPException(409, safe_failure(exc)["message"]) from exc
+
+    @router.get("/api/library/source-status")
+    def source_overview(kind: Literal["works", "artists"] = "works",
+                        group: Literal["all", "deleted", "unavailable"] = "all",
+                        offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=100)):
+        return runtime().library.source_overview(kind=kind, group=group, offset=offset, limit=limit)
 
     @router.post("/api/artists")
     def add_artist(request: ArtistAdd):

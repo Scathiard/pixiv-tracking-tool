@@ -19,7 +19,33 @@ export interface RecoveryState {
   next_retry_at: string | null; reason: string | null
 }
 export interface AvailabilityState {
-  state: 'available' | 'unavailable' | 'private'; checked_at: string; reason: string | null
+  state: 'available' | 'unavailable' | 'private' | 'deleted'; checked_at: string | null; reason: string | null
+  confirmation?: 'confirmed' | 'unconfirmed'
+}
+export interface SourceStatusItem {
+  kind: 'work' | 'artist'; id: number; pixiv_id: string; title?: string; name?: string
+  artist_id?: number; artist_name?: string; avatar?: string | null
+  availability: AvailabilityState
+  local: {state: 'complete' | 'incomplete' | 'unknown'; missing: {role: string; page?: number; label: string; kind: 'original' | 'derivative' | 'metadata'}[]}
+  work_count?: number; incomplete_work_count?: number
+}
+export interface SourceStatusBatch {
+  items: SourceStatusItem[]; total: number; offset: number; limit: number; catalogue_revision?: number
+  counts: {works: {deleted: number; unavailable: number}; artists: {deleted: number; unavailable: number}}
+}
+export function confirmedDeleted(availability?: AvailabilityState | null): boolean {
+  return availability?.state === 'deleted' && availability.confirmation === 'confirmed'
+}
+export function sourceStatusLabel(availability?: AvailabilityState | null, kind: 'work' | 'artist' = 'work'): string | null {
+  if (confirmedDeleted(availability)) return kind === 'artist' ? '已确认主页不存在' : '已确认原作不存在'
+  if (availability && availability.state !== 'available') return '无法访问，待确认'
+  return null
+}
+export function localSourceStatus(item: SourceStatusItem): string {
+  if (item.local.state === 'complete') return '本地存档完整'
+  const missing = item.local.missing.map(part => part.label).filter(Boolean)
+  if (missing.length) return `本地缺少：${missing.join('、')}`
+  return item.local.state === 'unknown' ? '本地存档尚未核验' : '本地存档尚未齐全'
 }
 export interface BookmarkState {
   work_id: number; operation_id: string | null; status: 'idle' | 'pending' | 'confirmed' | 'failed' | 'unconfirmed'
@@ -70,18 +96,10 @@ export function needsCardRefresh(work: WorkCard): boolean {
 }
 export function cardSourceLabel(work: WorkCard): string | null {
   if (work.archive?.state === 'partial') return work.archive.missing > 0 ? `存档缺 ${work.archive.missing} 项` : '部分存档'
-  if (work.source_update?.pending) return '主站内容有变化'
-  if (work.archive?.state === 'complete') return null
-  if (work.recovery?.status === 'attention') return '补齐待核对'
-  if (work.availability?.state === 'private') return '主站非公开'
-  if (work.availability?.state === 'unavailable') return '主站不可获取'
   return null
 }
 export function cardSourceReason(work: WorkCard): string | null {
-  if (work.archive?.state === 'partial') return work.processing?.reason || work.recovery?.reason || '本地尚未存齐；可在详情中补下载此作品'
-  if (work.source_update?.pending) return work.source_update.reason || '主站内容有变化；已有存档保留'
-  if (work.recovery?.status === 'attention') return work.recovery.reason || '缺项需要手动核对'
-  return work.availability?.reason || null
+  return work.archive?.state === 'partial' ? '本地尚未存齐；可在作品整理中补下载此作品' : null
 }
 export function needsPageRefresh(page: PageData): boolean {
   if (page.processing?.state === 'attention') return false
@@ -92,9 +110,6 @@ export function needsPageRefresh(page: PageData): boolean {
 export function archiveNotice(work: ArchiveProjection): string | null {
   const parts: string[] = []
   if (work.archive?.state === 'partial') parts.push(work.archive.missing > 0 ? `本地存档缺 ${work.archive.missing} 项` : '本地存档尚未齐全')
-  const source = sourceNotice(work.availability, work.recovery)
-  if (source) parts.push(source)
-  if (work.source_update?.pending) parts.push(work.source_update.reason || '主站内容有变化；已有存档保留')
   return parts.length ? [...new Set(parts)].join('；') : null
 }
 export function archiveStatus(archive?: ArchiveState): string {
@@ -105,7 +120,7 @@ export function archiveStatus(archive?: ArchiveState): string {
 }
 export function mediaPlaceholder(work: ArchiveProjection, previewStatus?: string, animation = false): {label: string; reason: string | null} {
   const state = work.processing?.state || work.recovery?.status
-  const reason = work.processing?.reason || work.recovery?.reason || null
+  const reason = localAssetReason(work.processing?.reason || work.recovery?.reason)
   // A saved original and a missing derived preview are separate facts.
   if (animation && previewStatus !== 'ready' && work.archive?.state === 'complete') {
     return {label: previewStatus === 'failed' ? '原件已存，动图预览生成失败' : '原件已存，动图预览待生成', reason}
@@ -116,6 +131,10 @@ export function mediaPlaceholder(work: ArchiveProjection, previewStatus?: string
   if (state === 'attention') return {label: '本地缺少此页', reason: reason || '暂时无法补齐；可在作品整理中手动核对'}
   if (animation) return {label: previewStatus === 'failed' ? '动图预览生成失败' : previewStatus === 'unavailable' ? '动图预览不可用' : '动图预览尚未生成', reason}
   return {label: previewStatus === 'failed' ? '原图下载失败' : previewStatus === 'unavailable' ? '本地原图不可用' : previewStatus === 'pending' ? '原图尚未下载' : '本地缺少此页', reason}
+}
+export function localAssetReason(reason?: string | null): string | null {
+  return reason && /主站|原作|删除|非公开|404|Pixiv|不可获取|无法访问/i.test(reason)
+    ? '本地缺项尚未补齐，可在作品整理中重新尝试' : reason || null
 }
 export function sourceNotice(availability?: AvailabilityState | null, recovery?: RecoveryState | null): string | null {
   const reason = recovery?.status === 'attention' ? recovery.reason || '主站暂时无法获取' :
@@ -130,5 +149,5 @@ export function hasNewWorks(fresh: GalleryBatch, ceiling: number, total: number)
   return fresh.ceiling > ceiling && (fresh.total > total || !!fresh.items[0] && fresh.items[0].id > ceiling)
 }
 export interface Anchor {work_id: number; page: number; offset: number; index: number; work_index: number}
-export interface Artist {id: number; pixiv_id: string; name: string; mode: 'active' | 'paused' | 'stopped'; biography?: string | null; avatar?: string | null; profile_refreshed_at?: string | null; work_count?: number; recent_works?: WorkCard[]}
+export interface Artist {id: number; pixiv_id: string; name: string; mode: 'active' | 'paused' | 'stopped'; biography?: string | null; avatar?: string | null; profile_refreshed_at?: string | null; work_count?: number; recent_works?: WorkCard[]; availability?: AvailabilityState | null}
 export type PageLoader = (offset: number, limit: number, signal: AbortSignal) => Promise<PageBatch>

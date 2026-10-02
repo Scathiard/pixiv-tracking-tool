@@ -8,7 +8,7 @@ from .catalogue_revision import catalogue_revision
 from .models import ApplicationState, Asset, Derivative, Operation, OperationItem, Work
 
 ACTIVE = ("queued", "planning", "ready", "running", "interrupted")
-LOCAL_KINDS = ("check", "metadata", "repair", "verify", "backfill", "thumbnails")
+LOCAL_KINDS = ("check", "metadata", "repair", "verify", "backfill", "thumbnails", "reconcile")
 
 
 def _operation_window(ids):

@@ -17,6 +17,8 @@ from .maintenance import MissingMediaMaintenance
 from .models import ArchiveIntent, Artist, Asset, Derivative, Operation, PublicationJournal, TrackingPolicy, Work, utcnow
 from .ownership import LibraryLease
 from .profiles import ArtistProfiles
+from .reconcile import ReconcileHandler
+from .source_status import ArtistSourceHandler, SourceStatus
 from .tasks import TaskQueue
 
 
@@ -53,8 +55,8 @@ class RemoteAccess:
         account_id = client.get_account_id()
         # Local catalogue responses remain explicitly cached. An OAuth identity
         # alone does not prove that the current network can reach Pixiv.
-        self.runtime.account_id = account_id
-        return account_id
+        self.runtime.account_id = self.runtime.library.account_id = str(account_id) if account_id is not None else None
+        return self.runtime.account_id
 
 
 class Runtime:
@@ -78,11 +80,15 @@ class Runtime:
                                          is_available=lambda: self.client is not None,
                                          current_account=lambda: self.account_id)
         self.library.bookmarks = self.bookmarks
-        self.profiles = ArtistProfiles(self.database, self.publisher, remote)
+        self.source_status = SourceStatus(self.database, remote)
+        self.profiles = ArtistProfiles(self.database, self.publisher, remote, source_status=self.source_status)
         self.queue = TaskQueue(self.database, {
             kind: ArchiveHandler(kind, self.database, self.publisher, remote, downloader,
-                                 bookmarks=self.bookmarks, profiles=self.profiles)
+                                 bookmarks=self.bookmarks, profiles=self.profiles, source_status=self.source_status)
             for kind in ("check", "metadata", "bookmarks", "repair", "verify", "backfill", "thumbnails", "delete")})
+        self.queue.handlers["reconcile"] = ReconcileHandler(self.database, self.publisher, remote, downloader,
+            bookmarks=self.bookmarks, profiles=self.profiles, source_status=self.source_status)
+        self.queue.handlers["artist_source"] = ArtistSourceHandler(self.source_status)
         self.maintenance = MissingMediaMaintenance(self.database, self.queue,
                                                     remote_available=lambda: self.client is not None)
         self.queue.maintenance = self.maintenance

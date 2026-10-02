@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { archiveNotice, archiveStatus, cardSourceLabel, cardSourceReason, isOlderCatalogue, mediaPlaceholder, needsCardRefresh, needsPageRefresh, sourceNotice, type PageData, type WorkCard } from '../src/types.ts'
+import { archiveNotice, archiveStatus, cardSourceLabel, cardSourceReason, confirmedDeleted, isOlderCatalogue, localSourceStatus, mediaPlaceholder, needsCardRefresh, needsPageRefresh, sourceNotice, sourceStatusLabel, type PageData, type SourceStatusItem, type WorkCard } from '../src/types.ts'
 
 const attention = {status: 'attention' as const, kind: 'repair', next_retry_at: null, reason: '主站仅显示尚无此页'}
 const waiting = {status: 'waiting' as const, kind: 'repair', next_retry_at: '2026-09-29T12:00:00Z', reason: '连接暂时中断'}
@@ -26,7 +26,7 @@ test('readable p0 does not turn a work with missing p1 into a complete archive',
     archive: {state: 'partial', total: 2, verified: 1, missing: 1, unknown: 0},
     processing: {state: 'waiting', operation_id: 'repair', next_retry_at: '2026-09-30T12:00:00Z', reason: '连接暂时中断'}} as WorkCard
   assert.equal(cardSourceLabel(work), '存档缺 1 项')
-  assert.equal(cardSourceReason(work), '连接暂时中断')
+  assert.match(cardSourceReason(work)!, /本地尚未存齐/)
   assert.match(archiveNotice(work)!, /本地存档缺 1 项/)
   assert.equal(work.preview, '/images/p0.jpg')
   assert.equal(mediaPlaceholder(work).label, '等待自动重试')
@@ -51,9 +51,8 @@ test('old unknown and source updates retain readable local pages without claimin
   assert.equal(page.src, '/images/old.jpg')
   assert.match(archiveStatus(page.archive), /尚未全部核验/)
   assert.doesNotMatch(archiveStatus(page.archive), /已核验完整/)
-  assert.match(archiveNotice(page)!, /已有存档保留/)
-  assert.match(archiveNotice(page)!, /已存内容仍可阅览/)
-  assert.equal(cardSourceLabel({...page, thumbnail: '/images/old.webp'} as unknown as WorkCard), '主站内容有变化')
+  assert.equal(archiveNotice(page), null)
+  assert.equal(cardSourceLabel({...page, thumbnail: '/images/old.webp'} as unknown as WorkCard), null)
 })
 
 test('stopped remote repair does not poll a missing page, while queued and waiting repairs do', () => {
@@ -71,12 +70,37 @@ test('stopped remote repair still lets a saved original receive a generated thum
   assert.equal(needsCardRefresh({...card, recovery: waiting}), true)
 })
 
-test('gallery source badges name only confirmed exceptional states and keep the reason available', () => {
+test('gallery and reading omit remote source facts while management classifies only confirmed deletion', () => {
   const saved = {thumbnail: '/images/thumb.webp', recovery: attention,
     availability: {state: 'unavailable', checked_at: '2026-09-29T10:00:00Z', reason: '尚无此页'}} as WorkCard
-  assert.equal(cardSourceLabel(saved), '补齐待核对')
-  assert.equal(cardSourceReason(saved), attention.reason)
-  assert.equal(cardSourceLabel({...saved, recovery: null}), '主站不可获取')
-  assert.equal(cardSourceLabel({...saved, recovery: null, availability: {...saved.availability!, state: 'private'}}), '主站非公开')
+  assert.equal(cardSourceLabel(saved), null)
+  assert.equal(cardSourceReason(saved), null)
+  assert.equal(cardSourceLabel({...saved, recovery: null}), null)
+  assert.equal(cardSourceLabel({...saved, recovery: null, availability: {...saved.availability!, state: 'private'}}), null)
   assert.equal(cardSourceLabel({...saved, recovery: null, availability: null}), null)
+  const deleted = {...saved.availability!, state: 'deleted' as const, confirmation: 'confirmed' as const}
+  assert.equal(confirmedDeleted(deleted), true)
+  assert.equal(sourceStatusLabel(deleted), '已确认原作不存在')
+  assert.equal(sourceStatusLabel(deleted, 'artist'), '已确认主页不存在')
+  assert.equal(confirmedDeleted({...deleted, confirmation: 'unconfirmed'}), false)
+  assert.equal(sourceStatusLabel({...deleted, confirmation: 'unconfirmed'}), '无法访问，待确认')
+  assert.equal(confirmedDeleted({...deleted, state: 'available'}), false)
+  assert.equal(sourceStatusLabel({...deleted, state: 'available'}), null)
+  assert.equal(archiveNotice({...saved, availability: deleted}), null)
+})
+
+test('complete deleted archives remain meaningful management rows and missing labels stay specific', () => {
+  const item: SourceStatusItem = {kind: 'work', id: 4, pixiv_id: '14', title: '保存的作品',
+    availability: {state: 'deleted', confirmation: 'confirmed', checked_at: '2026-10-03T10:00:00Z', reason: '已确认原作不存在'},
+    local: {state: 'complete', missing: []}}
+  assert.equal(localSourceStatus(item), '本地存档完整')
+  assert.equal(localSourceStatus({...item, local: {state: 'unknown', missing: []}}), '本地存档尚未核验')
+  assert.equal(localSourceStatus({...item, local: {state: 'incomplete', missing: [
+    {role: 'image', page: 1, label: '第 2 页原图', kind: 'original'},
+    {role: 'ugoira_zip', label: '动图原包', kind: 'original'},
+    {role: 'ugoira_timing', label: '播放时序', kind: 'metadata'},
+    {role: 'thumbnail', label: '缩略图', kind: 'derivative'},
+  ]}}), '本地缺少：第 2 页原图、动图原包、播放时序、缩略图')
+  assert.equal(mediaPlaceholder({recovery: {...attention, reason: '主站原作已删除'}}).label, '本地缺少此页')
+  assert.doesNotMatch(mediaPlaceholder({recovery: {...attention, reason: '主站原作已删除'}}).reason!, /主站|已删除/)
 })

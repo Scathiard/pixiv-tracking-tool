@@ -20,7 +20,7 @@ class Remote:
         return "42"
 
     def get_artist_detail(self, remote_id):
-        return {"name": "画师的新名字", "biography": "本地可读的简介", "avatar_url": "https://i.pximg.net/avatar.png"}
+        return {"user_id": str(remote_id), "name": "画师的新名字", "biography": "本地可读的简介", "avatar_url": "https://i.pximg.net/avatar.png"}
 
     def add_bookmark(self, remote_id, restrict="public"):
         self.saved = True

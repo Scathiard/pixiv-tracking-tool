@@ -116,13 +116,14 @@ def main():
                 animation_page.goto(origin, wait_until="domcontentloaded")
                 animation_frames(animation_page, width)
                 animation_page.goto(origin + '/settings', wait_until='domcontentloaded')
-                source = animation_page.locator('.missing-work[data-work-id="3"]')
+                source = animation_page.locator('.source-status-item[data-source-id="3"]')
                 source.scroll_into_view_if_needed()
-                assert '原作已无法访问' in source.inner_text() and '上次核对' in source.inner_text()
-                assert '已删除' not in source.inner_text()
+                assert '无法访问，待确认' in source.inner_text() and '上次核对' in source.inner_text()
+                assert '本地缺少' in source.inner_text() and '动图原包' in source.inner_text() and '动图播放时序' in source.inner_text()
+                assert '已确认原作不存在' not in source.inner_text()
                 assert animation_page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 animation_page.screenshot(path=str(artifacts / f'exe-originals-unavailable-{width}.png'))
-                checks.append(f'exe-missing-originals-availability-readable-{width}')
+                checks.append(f'exe-source-overview-pending-and-exact-local-gaps-readable-{width}')
                 animation_phone.close()
             scrolling_phone = browser.new_context(viewport={"width":390,"height":420}, is_mobile=True, has_touch=True)
             scrolling_page = scrolling_phone.new_page()
@@ -187,9 +188,12 @@ def main():
             checks.append("exe-zoom-and-feed-share-synthetic-library")
             page.goto(origin + "/settings", wait_until="domcontentloaded")
             page.locator(".settings-page").wait_for()
-            source = page.locator('.missing-work[data-work-id="3"]')
-            assert '原作已无法访问' in source.inner_text() and source.locator('button').inner_text() == '重新核对'
-            checks.append('exe-unavailable-originals-retained-with-explicit-recheck')
+            source = page.locator('.source-status-item[data-source-id="3"]')
+            assert '无法访问，待确认' in source.inner_text() and '动图原包' in source.inner_text()
+            assert page.get_by_role('button', name='检查并补齐图库', exact=True).count() == 1
+            for old_label in ('补下载', '刷新作品信息', '同步收藏状态', '全量核验本地文件'):
+                assert page.get_by_role('button', name=old_label, exact=True).count() == 0
+            checks.append('exe-unified-maintenance-entry-and-unavailable-archive-retained')
             page.get_by_text("离线，本地图库仍可阅读", exact=True).wait_for()
             checks.append("exe-real-settings-remain-usable-offline")
             from src.version import __version__, __build__

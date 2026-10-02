@@ -120,7 +120,7 @@ def run_smoke_test() -> int:
     from .config import resource_path
     from .core.runtime import Runtime
     from .core.download import AssetDownloader
-    from .core.models import ArchiveIntent, Artist, Asset, Derivative, Work, WorkTag
+    from .core.models import ArchiveIntent, Artist, Asset, Derivative, Operation, Work, WorkTag
     from .version import __version__, __build__
     from .web import create_app
     import requests
@@ -224,6 +224,61 @@ def run_smoke_test() -> int:
         if (detail["tags"] != ["本地单图"] or detail["tag_details"][0]["translated_name"] != "测试单图"
                 or detail["tag_details"][0]["source"] != "pixiv"):
             raise RuntimeError("打包程序未保留合成主站标签译名及原标签身份")
+        # Exercise the delivered unified workflow, including a formerly verified
+        # original that becomes corrupt. All metadata and media remain synthetic.
+        profile_reads, maintenance_reads = [], []
+
+        def maintenance_detail(remote_id):
+            maintenance_reads.append(remote_id)
+            if remote_id == "3":
+                raise PixivRequestError(404, "合成不可访问作品", failure_code="work_unavailable", retryable=False)
+            if remote_id not in ("1", "2"):
+                raise RuntimeError("统一维护请求了本地清单之外的作品")
+            return PixivClient._parse_illust({"id": int(remote_id),
+                "title": "isolated" if remote_id == "1" else "legacy animation 2",
+                "type": "illust" if remote_id == "1" else "ugoira", "page_count": 1,
+                "caption": "", "user": {"id": 1, "name": "smoke"}, "image_urls": {},
+                "meta_single_page": {"original_image_url": source_url} if remote_id == "1" else {},
+                "tags": [{"name": "本地单图", "translated_name": "测试单图"}] if remote_id == "1" else [{"name": "本地动图"}]})
+
+        def maintenance_profile(remote_id):
+            profile_reads.append(remote_id)
+            if remote_id != "1":
+                raise RuntimeError("主页核对请求了其他画师")
+            return {"user_id": "1", "name": "smoke", "biography": "隔离测试，本地保存的画师简介"}
+
+        def forbidden_write(*_args, **_kwargs):
+            raise RuntimeError("统一维护不允许写入主站收藏")
+
+        runtime.client = SimpleNamespace(get_account_id=lambda: None, get_illust_detail=maintenance_detail,
+            get_artist_detail=maintenance_profile, get_ugoira_metadata=animation_metadata,
+            add_bookmark=forbidden_write, delete_bookmark=forbidden_write)
+        original_path = runtime.images / "1_p0.png"
+        original_bytes = original_path.read_bytes()
+        original_path.write_bytes(b"")
+        maintenance = runtime.queue.submit("reconcile", {}, "检查并补齐图库")
+        runtime.queue.run_round()
+        maintenance_result = runtime.queue.details(maintenance["operation_id"])
+        if maintenance_result["result"]["outcome"] != "succeeded" or maintenance_result["counts"].get("failed"):
+            raise RuntimeError("打包程序统一维护未完成合成本地缺项修复")
+        if original_path.read_bytes() != original_bytes or maintenance_reads != ["1", "2", "3"]:
+            raise RuntimeError("统一维护未精确补齐损坏原件，或重复读取作品资料")
+        if profile_reads != ["1"] or (runtime.images / "3.gif").read_bytes() != unavailable_gif:
+            raise RuntimeError("统一维护未按画师去重，或改动了不可获取作品的本地存档")
+        with runtime.database.read() as session:
+            operation = session.get(Operation, maintenance["operation_id"])
+            if operation.result.get("child_operation_ids"):
+                raise RuntimeError("统一维护被错误实现为多个旧维护任务")
+        overview = runtime.library.source_overview()
+        if ([row["id"] for row in overview["items"]] != [3]
+                or overview["counts"]["works"] != {"deleted": 0, "unavailable": 1}
+                or overview["items"][0]["local"]["state"] != "incomplete"):
+            raise RuntimeError("来源一览未将合成 404 与已确认不存在分开，或丢失本地缺项")
+        profile_check = runtime.queue.submit("artist_source", {"artist_ids": [1]}, "核对 smoke 的主站主页")
+        runtime.queue.run_round()
+        if (runtime.queue.details(profile_check["operation_id"])["result"]["outcome"] != "succeeded"
+                or profile_reads != ["1", "1"] or maintenance_reads != ["1", "2", "3"]):
+            raise RuntimeError("主页核对未保持独立画师范围")
     transport.close()
     if runtime.queue.snapshot()["round"]["outcome"] != "succeeded":
         raise RuntimeError("打包程序的下载、原件核验或缩略图生成失败")
@@ -239,7 +294,7 @@ def run_smoke_test() -> int:
     async def exercise():
         result = {}
         async with application.router.lifespan_context(application):
-            paths = ["/api/status", "/api/library", "/api/progress", "/api/settings", "/api/artists",
+            paths = ["/api/status", "/api/library", "/api/library/source-status", "/api/progress", "/api/settings", "/api/artists",
                      "/api/works/1/bookmark", "/", "/illust/1", "/artists", "/artist/1", "/settings"]
             if reading_ui:
                 paths.extend(["/flow", *asset_paths])
@@ -256,6 +311,10 @@ def run_smoke_test() -> int:
     checks["unavailable_animation_skipped_without_repeated_requests_gif_retained"] = 200
     checks["bounded_card_animation_published_original_gif_retained"] = 200
     checks["tag_translation_parsed_saved_and_cached"] = 200
+    checks["unified_maintenance_repairs_corrupt_original_in_one_operation"] = 200
+    checks["unified_snapshot_reads_once_and_never_writes_bookmarks"] = 200
+    checks["source_overview_separates_404_and_lists_specific_local_gaps"] = 200
+    checks["artist_homepage_check_has_no_work_or_download_side_effects"] = 200
     if args.smoke_serve_port is not None:
         import uvicorn
         # The ASGI checks closed their runtime; serve the same synthetic files
