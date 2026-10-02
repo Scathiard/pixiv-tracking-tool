@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "build": "20261003.1",
+  "backend_full": {
+    "passed": 380,
+    "warnings": 177,
+    "seconds": 606.66,
+    "command": "python -m pytest -q tests --basetemp ROOT/.devtools/test-runs/b11-backend-full-1-temp",
+    "cwd": "app"
+  },
+  "backend_targeted": {
+    "passed": 88,
+    "seconds": 156.07
+  },
+  "frontend": {
+    "passed": 67,
+    "failed": 0,
+    "typecheck": "passed",
+    "vite": "passed"
+  },
+  "synthetic_only": true,
+  "real_library_used": false,
+  "real_account_used": false,
+  "real_phone_tested": false
+}

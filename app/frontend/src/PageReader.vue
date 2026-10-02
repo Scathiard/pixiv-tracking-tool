@@ -9,7 +9,7 @@ import MediaImage from './MediaImage.vue'
 import RestrictionBadge from './components/RestrictionBadge.vue'
 
 const props = defineProps<{mode: 'reader' | 'feed'; loader: PageLoader; initial: Anchor | null; sessionKey: string; inactive?: boolean}>()
-const emit = defineEmits<{focus: [page: PageData, anchor: Anchor]; navigate: [delta: number]; zoom: [page: PageData]}>()
+const emit = defineEmits<{focus: [page: PageData, anchor: Anchor]; navigate: [delta: number]; artist: [id: number]; zoom: [page: PageData]}>()
 const viewport = ref<HTMLDivElement | null>(null), pages = ref<PageData[]>([]), total = ref(0)
 const before = ref<HTMLDivElement | null>(null), beforeHeight = ref(0)
 const size = ref({width: 1000, height: 760}), loading = ref(false), error = ref('')
@@ -17,6 +17,7 @@ const gesture = new DirectionGesture(), intent = new LatestIntent()
 let observer: ResizeObserver | null = null, restoring = false, frame = 0, lastAnchor: Anchor | null = null
 let refreshTimer = 0, refreshController: AbortController | null = null, refreshing = false, forceRefreshPending = false
 let failedAction: (() => void) | null = null
+let targetIndex: number | null = null
 const MAX_PAGES = 120, CHUNK = 40
 const REFRESH_MS = 12000, REFRESH_LIMIT = 24
 let catalogueRevision: number | undefined
@@ -50,41 +51,57 @@ function current(): {page: PageData; anchor: Anchor} | null {
 }
 function readAnchor() { return current()?.anchor || lastAnchor }
 const paint = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
-async function restore(anchor: Anchor | null) {
+async function restore(anchor: Anchor | null, ownsView: () => boolean = () => true) {
   if (!anchor) return
   const index = pages.value.findIndex(page => page.index === anchor.index)
   if (index < 0) return
   await nextTick()
+  if (!ownsView()) return
   virtual.value.measure()
   virtual.value.scrollToIndex(index, {align: 'start'})
   await paint(); await nextTick()
+  if (!ownsView()) return
   virtual.value.scrollToIndex(index, {align: 'start'})
   if (anchor.offset) virtual.value.scrollToOffset((viewport.value?.scrollTop || 0) + anchor.offset)
   await paint()
 }
-async function jump(index: number, offset = 0) {
+async function jump(index: number, offset = 0, showIntro = true) {
+  if (props.inactive) return
+  index = Math.max(0, total.value ? Math.min(total.value - 1, index) : index)
   stopRefresh()
   const request = intent.begin()
+  targetIndex = index
   loading.value = true; restoring = true; error.value = ''
-  failedAction = () => { void jump(index, offset) }
+  failedAction = () => { void jump(index, offset, showIntro) }
   try {
-    const batch = await props.loader(Math.max(0, index - 16), 64, request.signal)
+    const cached = pages.value.find(page => page.index === index)
+    const batch = cached ? {items: pages.value, total: total.value, catalogue_revision: catalogueRevision}
+      : await props.loader(Math.max(0, index - 16), 64, request.signal)
     if (!request.current() || isOlderCatalogue(batch.catalogue_revision, catalogueRevision)) return
-    catalogueRevision = batch.catalogue_revision ?? catalogueRevision
-    const target = batch.items.find(page => page.index === index) || batch.items[0]
+    const target = batch.items.find(page => page.index === index)
+    if (!target && batch.total) throw new Error('目标图片页已不在当前范围内，请重试')
     if (target && pages.value.length) await prepareImage(target.src, request.signal)
     if (!request.current()) return
+    catalogueRevision = batch.catalogue_revision ?? catalogueRevision
     pages.value = batch.items; total.value = batch.total
     observeCatalogueData(batch.catalogue_revision)
-    if (target && target.index === 0 && index === 0 && offset === 0) {
-      await nextTick(); viewport.value?.scrollTo({top: 0, behavior: 'instant'}); await paint()
-    } else if (target) await restore({work_id: target.work_id, page: target.page, offset, index: target.index, work_index: target.work_index})
+    if (target && target.index === 0 && offset === 0 && showIntro) {
+      await nextTick(); if (!request.current()) return
+      viewport.value?.scrollTo({top: 0, behavior: 'instant'}); await paint()
+    } else if (target) await restore({work_id: target.work_id, page: target.page, offset, index: target.index, work_index: target.work_index}, request.current)
     else viewport.value?.scrollTo({top: 0})
   } catch (failure) {
     if (request.current()) error.value = failure instanceof Error ? failure.message : '图片页未能载入'
   } finally {
-    if (request.current()) { loading.value = false; restoring = false; report(); queueRefresh() }
+    if (request.current()) { targetIndex = null; loading.value = false; restoring = false; report(); queueRefresh() }
   }
+}
+function stepPage(direction: number) {
+  if (props.inactive || !total.value) return
+  const selected = targetIndex ?? readAnchor()?.index
+  if (selected === undefined) return
+  const target = Math.max(0, Math.min(total.value - 1, selected + Math.sign(direction)))
+  if (target !== selected) void jump(target, 0, false)
 }
 async function extend(direction: number) {
   if (loading.value || restoring || !pages.value.length) return
@@ -105,7 +122,7 @@ async function extend(direction: number) {
     next = direction > 0 ? next.slice(-MAX_PAGES) : next.slice(0, MAX_PAGES)
     pages.value = next; total.value = batch.total
     observeCatalogueData(batch.catalogue_revision)
-    await restore(anchor)
+    await restore(anchor, request.current)
   } catch (failure) {
     if (request.current()) error.value = failure instanceof Error ? failure.message : '暂时无法载入更多图片'
   } finally {
@@ -198,9 +215,10 @@ async function refreshMissing(force = false) {
       restoring = true
       try {
         pages.value = updated
-        if (inHeader) { await nextTick(); if (viewport.value) viewport.value.scrollTop = previousTop }
-        else await restore(anchor)
-      } finally { restoring = false }
+        if (inHeader) { await nextTick(); if (!controller.signal.aborted && viewport.value) viewport.value.scrollTop = previousTop }
+        else await restore(anchor, () => !controller.signal.aborted && session === props.sessionKey)
+      } finally { if (!controller.signal.aborted) restoring = false }
+      if (controller.signal.aborted || session !== props.sessionKey) return
       report()
     }
   } catch {
@@ -237,7 +255,7 @@ onMounted(() => {
   void jump(props.initial?.index || 0, props.initial?.offset || 0)
 })
 onBeforeUnmount(() => { intent.cancel(); stopRefresh(); observer?.disconnect(); cancelAnimationFrame(frame); document.removeEventListener('visibilitychange', visibilityChanged); window.removeEventListener('archive-updated', archiveUpdated) })
-defineExpose({readAnchor, jump, scrollBy: (delta: number) => viewport.value?.scrollBy({top: delta, behavior: 'auto'})})
+defineExpose({readAnchor, jump, stepPage, scrollBy: (delta: number) => viewport.value?.scrollBy({top: delta, behavior: 'auto'})})
 </script>
 <template>
   <div class="reading-surface">
@@ -248,7 +266,7 @@ defineExpose({readAnchor, jump, scrollBy: (delta: number) => viewport.value?.scr
         <figure v-for="row in rows" :key="String(row.key)" :ref="measure" class="image-page" :data-index="row.index"
           :data-global-index="pages[row.index]!.index" :data-work-id="pages[row.index]!.work_id" :data-page="pages[row.index]!.page"
           :style="{transform: `translateY(${row.start - beforeHeight}px)`}">
-          <figcaption><span v-if="mode === 'feed' && pages[row.index]!.page === 0" class="page-title">{{ pages[row.index]!.title }} <small>{{ pages[row.index]!.artist_name }}</small></span>
+          <figcaption><span v-if="mode === 'feed' && pages[row.index]!.page === 0" class="page-title"><span class="page-work-title">{{ pages[row.index]!.title }}</span><button class="text-link page-artist" @click="emit('artist', pages[row.index]!.artist_id)">{{ pages[row.index]!.artist_name }}</button></span>
             <RestrictionBadge v-if="mode === 'feed' && pages[row.index]!.page === 0" :value="pages[row.index]!.x_restrict" />
             <span class="page-number">{{ pages[row.index]!.page + 1 }} / {{ pages[row.index]!.page_count }}</span>
             <button class="quiet" :disabled="!pages[row.index]!.src" @click="emit('zoom', pages[row.index]!)" aria-label="放大此页">放大</button>

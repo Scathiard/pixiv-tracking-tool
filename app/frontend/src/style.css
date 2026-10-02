@@ -119,7 +119,7 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
 .task-track{height:3px;margin:8px 0 0;background:var(--surface2)}
 .status-dot{flex:none;background:var(--accent)}
 
-.reader-stage{inset:0}
+.reader-stage{inset:0 0 calc(74px + env(safe-area-inset-bottom))}
 .detail-head{max-width:960px;padding:13px 22px 10px}
 .detail-nav{margin-bottom:6px;font-size:12px}
 .detail-title-row h1{font-size:19px;font-weight:570}
@@ -128,11 +128,16 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
 .detail-actions{padding:7px 0 10px;border-bottom:0}
 .detail-actions .softbtn,.detail-action-right .softbtn{border-color:transparent;background:none;color:var(--muted);font-size:12px}
 .tag{min-height:28px;padding:4px 7px;color:var(--accent);font-size:11px}
+.tag-label{display:inline-flex;align-items:baseline;flex-wrap:wrap;gap:4px 6px;max-width:100%;text-align:left;overflow-wrap:anywhere}
+.tag-translation{color:var(--muted);font-size:11px;font-weight:400}
+.tags .tag-label{background:none;border-radius:0;padding:0}
 .reader .page-picture,.reader .image-page figcaption{max-width:960px}
 .page-picture{border-radius:3px;background:var(--art-bg)}
 .image-page figcaption{height:34px}
 .feed .page-picture,.feed .image-page figcaption{max-width:940px}
-.feed .image-page figcaption .page-title{font-size:14px;font-weight:550}
+.feed .image-page figcaption .page-title{display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:visible;font-size:14px;font-weight:550}
+.feed .image-page figcaption:has(.page-title){height:auto;min-height:44px}
+.page-work-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .detail-caption{max-width:760px;margin:42px auto 65px;padding:0 10px;border:0;border-radius:0;background:none;color:var(--muted);font-size:13px;line-height:1.8}
 .detail-caption h2{font-size:13px;font-weight:650}
 .detail-bottom-actions{max-width:960px;margin:12px auto 0}
@@ -151,6 +156,16 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
 .reading-toolbar button.primary:hover:not(:disabled){background:var(--accent);color:#fff}
 .reading-toolbar .bookmark-button{flex:0 0 44px;color:var(--muted)}
 .reading-toolbar .bookmark-button.on{color:var(--danger)}
+.reading-toolbar.is-detail{width:min(520px,calc(100% - 24px))}
+.reading-toolbar.is-detail .reading-toolbar-inner{display:grid;grid-template-columns:96px minmax(0,1fr) 44px 96px;width:100%;gap:6px}
+.reading-toolbar.is-detail .reading-counter{min-width:0;padding-inline:4px;text-align:center}
+.reading-toolbar.is-detail .reading-counter small{white-space:nowrap}
+.reading-toolbar .reader-nav-button{min-width:0;white-space:nowrap;padding-inline:12px}
+.reader-nav-label{white-space:nowrap}
+.bookmark-button.acknowledging,.reading-toolbar .bookmark-button.acknowledging{color:var(--danger);opacity:1;transition:none}
+.bookmark-button.acknowledging .icon{fill:currentColor}
+.feed .image-page figcaption .page-artist{flex:0 1 auto;max-width:48%;min-width:0;min-height:44px;padding:2px 0;margin-left:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:11px;font-weight:400;vertical-align:middle}
+.feed .image-page figcaption .page-artist:hover{color:var(--accent)}
 .info-panel{bottom:0;border-left-color:var(--line);background:var(--surface)}
 .reader-layout>.notice.error{position:absolute;z-index:15;top:12px;left:50%;transform:translateX(-50%);width:min(760px,calc(100% - 24px));background:var(--surface);box-shadow:0 8px 28px var(--shadow);flex-wrap:wrap}
 .toast.error{color:var(--danger)}
@@ -236,6 +251,13 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
   .gallery-row{gap:9px}
   .detail-action-right{margin-left:0}
   .reading-toolbar .reading-counter{min-width:52px}
+}
+@media(max-width:520px){
+  .reading-toolbar.is-detail{width:calc(100% - 16px)}
+  .reading-toolbar.is-detail .reading-toolbar-inner{grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:4px}
+  .reading-toolbar .reader-nav-button{width:44px;padding:7px}
+  .reader-nav-label{display:none}
+  .reading-toolbar.is-detail .reading-counter small{white-space:normal;line-height:1.4}
 }
 .source-notice{margin:4px 0 8px;color:var(--muted);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
 .feed .image-page figcaption:has(.page-source){height:auto;min-height:48px;flex-wrap:wrap;padding-block:5px}

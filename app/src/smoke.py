@@ -133,7 +133,8 @@ def run_smoke_test() -> int:
     transport.trust_env = False  # Synthetic loopback must never use a proxy or account.
     with _image_source() as (source_url, received):
         from PIL import Image
-        from .client import PixivRequestError
+        from .client import PixivClient, PixivRequestError
+        from .core.archive import ArchiveHandler
         metadata_reads = []
         detail_reads = []
 
@@ -215,6 +216,14 @@ def run_smoke_test() -> int:
             raise RuntimeError("打包程序将详情原 GIF 替换成了缩略图")
         if received != [True, True]:
             raise RuntimeError("打包程序的图片下载请求未通过兼容性验证")
+        parsed = PixivClient._parse_illust({"id": 1, "title": "isolated", "type": "illust", "page_count": 1,
+            "image_urls": {}, "meta_single_page": {"original_image_url": source_url},
+            "tags": [{"name": "本地单图", "translated_name": "测试单图"}]})
+        ArchiveHandler("metadata", runtime.database, runtime.publisher, runtime.remote)._save_remote_work(1, parsed)
+        detail = runtime.library.detail(1)
+        if (detail["tags"] != ["本地单图"] or detail["tag_details"][0]["translated_name"] != "测试单图"
+                or detail["tag_details"][0]["source"] != "pixiv"):
+            raise RuntimeError("打包程序未保留合成主站标签译名及原标签身份")
     transport.close()
     if runtime.queue.snapshot()["round"]["outcome"] != "succeeded":
         raise RuntimeError("打包程序的下载、原件核验或缩略图生成失败")
@@ -246,6 +255,7 @@ def run_smoke_test() -> int:
     checks["manual_scope_animation_originals_downloaded_and_verified"] = 200
     checks["unavailable_animation_skipped_without_repeated_requests_gif_retained"] = 200
     checks["bounded_card_animation_published_original_gif_retained"] = 200
+    checks["tag_translation_parsed_saved_and_cached"] = 200
     if args.smoke_serve_port is not None:
         import uvicorn
         # The ASGI checks closed their runtime; serve the same synthetic files

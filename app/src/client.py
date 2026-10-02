@@ -3,6 +3,7 @@ import time
 import requests
 from . import config as _cfg
 from .request_policy import ShutdownRequested, is_rate_limit, retry_after_seconds
+from .core.tag_translations import REQUESTED_LOCALE, parse_tag_details
 
 
 def _token_file():
@@ -139,7 +140,7 @@ class PixivClient:
         self._checkpoint()
 
         headers = _get_auth_header()
-        headers["Accept-Language"] = "zh-cn"
+        headers["Accept-Language"] = REQUESTED_LOCALE
         headers["App-OS"] = "ios"
         headers["App-OS-Version"] = "16.7.2"
         headers["App-Version"] = "7.19.1"
@@ -178,7 +179,7 @@ class PixivClient:
         self._checkpoint()
 
         headers = _get_auth_header()
-        headers["Accept-Language"] = "zh-cn"
+        headers["Accept-Language"] = REQUESTED_LOCALE
         headers["App-OS"] = "ios"
         headers["App-OS-Version"] = "16.7.2"
         headers["App-Version"] = "7.19.1"
@@ -232,7 +233,7 @@ class PixivClient:
             raise PixivRequestError(401, "当前 Pixiv 账号已变化")
         return {
             "Authorization": f"Bearer {token['access_token']}",
-            "Accept-Language": "zh-cn", "App-OS": "ios",
+            "Accept-Language": REQUESTED_LOCALE, "App-OS": "ios",
             "App-OS-Version": "16.7.2", "App-Version": "7.19.1",
             "User-Agent": "PixivIOSApp/7.19.1 (iOS 16.7.2; iPhone14,2)",
         }
@@ -439,7 +440,8 @@ class PixivClient:
 
     @staticmethod
     def _parse_illust(illust):
-        tags = [t["name"] for t in illust.get("tags", [])]
+        tag_details = parse_tag_details(illust)
+        tags = [tag["name"] for tag in tag_details]
 
         if illust.get("meta_pages"):
             urls = [
@@ -465,6 +467,7 @@ class PixivClient:
             "type": illust.get("type", "illust"),
             "page_count": illust.get("page_count", 1),
             "tags": tags,
+            "tag_details": tag_details,
             "bookmark_count": illust.get("total_bookmarks"),
             "view_count": illust.get("total_view"),
             "posted_at": illust.get("create_date"),

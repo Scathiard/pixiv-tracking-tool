@@ -250,7 +250,7 @@ def create_router(get_runtime):
 
     @router.post("/api/tasks")
     def submit(request: TaskSubmission):
-        if request.work_ids is not None and request.kind in ("check", "metadata", "bookmarks"):
+        if request.work_ids is not None and request.kind in ("check", "bookmarks"):
             raise HTTPException(422, "此操作需要指定画师范围")
         if request.work_ids is not None and request.artist_ids is not None:
             raise HTTPException(422, "请选择一种任务范围")

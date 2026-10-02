@@ -27,10 +27,15 @@ export interface BookmarkState {
   version: number; cached: boolean; verified: boolean
   fact_account_id: string | null; current_account_id: string | null; account_epoch: number
 }
+export interface TagDetail {
+  name: string; translated_name: string | null; language: 'zh-cn' | null; source: 'pixiv' | null
+  source_field: string | null; requested_locale: string | null
+  language_basis: 'requested_locale' | 'explicit_language_key' | null; checked_at: string | null
+}
 export interface WorkSummary extends ArchiveProjection {
   id: number; pixiv_id: string; title: string; artist_id: number; artist_name: string
   type: string; page_count: number; x_restrict: number | null; thumbnail: string | null; preview?: string | null
-  caption: string; caption_state: string; tags: string[]; is_hidden: boolean
+  caption: string; caption_state: string; tags: string[]; tag_details?: TagDetail[]; is_hidden: boolean
   is_bookmarked: boolean; bookmark?: BookmarkState; rating: number; posted_at: string | null
   bookmark_count: number | null; view_count: number | null
   recovery?: RecoveryState | null

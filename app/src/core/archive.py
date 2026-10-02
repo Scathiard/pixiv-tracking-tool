@@ -18,6 +18,7 @@ from .models import (
     TrackingPolicy, Work, WorkTag, utcnow,
 )
 from .tasks import ItemResult, ItemSpec, safe_failure
+from .tag_translations import merge_tag_translations, stored_translations
 
 
 class WorkMetadataConflict(InvalidMedia):
@@ -156,7 +157,8 @@ class ArchiveHandler:
             new_work = work is None
             before = None if new_work else (work.title, work.caption, work.x_restrict, work.bookmark_count, work.view_count,
                 (work.source_metadata or {}).get("remote_availability", {}).get("state"),
-                dict((work.source_metadata or {}).get("source_updates", {})), tuple(sorted(tag.tag for tag in work.tags)))
+                dict((work.source_metadata or {}).get("source_updates", {})), tuple(sorted(tag.tag for tag in work.tags)),
+                stored_translations(work.source_metadata))
             if work is None:
                 posted = datetime.fromisoformat(data["posted_at"]) if data.get("posted_at") else None
                 work = Work(pixiv_illust_id=remote_id, artist_id=artist_id,
@@ -186,6 +188,8 @@ class ArchiveHandler:
             work.source_metadata = {**(work.source_metadata or {}), "urls": data.get("urls", []),
                 "remote_availability": {"state": "available",
                     "checked_at": utcnow().replace(tzinfo=timezone.utc).isoformat(), "reason": None}}
+            work.source_metadata = merge_tag_translations(work.source_metadata, data.get("tag_details"),
+                checked_at=utcnow().replace(tzinfo=timezone.utc).isoformat())
             session.flush()
             existing_assets = {(asset.role, asset.page_index): asset for asset in work.assets}
             roles = [("ugoira_zip", 0), ("ugoira_timing", 0)] if work.type == "ugoira" else [("image", page) for page in range(count)]
@@ -224,7 +228,8 @@ class ArchiveHandler:
                 self._remember_timing_source(session, work, metadata)
             after = (work.title, work.caption, work.x_restrict, work.bookmark_count, work.view_count,
                 (work.source_metadata or {}).get("remote_availability", {}).get("state"),
-                dict((work.source_metadata or {}).get("source_updates", {})), tuple(sorted(tag.tag for tag in work.tags)))
+                dict((work.source_metadata or {}).get("source_updates", {})), tuple(sorted(tag.tag for tag in work.tags)),
+                stored_translations(work.source_metadata))
             if new_work or before != after:
                 bump_catalogue_revision(session)
             if context is not None:
@@ -336,6 +341,9 @@ class ArchiveHandler:
                     specs.append(ItemSpec(f"delete-{journal_id}", "delete", {"work_id": work_id, "journal_id": journal_id}, "deleting", "files"))
             return specs
         if self.kind in ("metadata", "bookmarks"):
+            if self.kind == "metadata" and "work_ids" in parameters:
+                return [ItemSpec(f"metadata-work-{work_id}", "metadata_work",
+                    {"work_id": work_id}, "metadata", "works") for work_id in self._work_ids(parameters)]
             ids = self._artist_ids(parameters, context)
             for artist_id in ids:
                 specs.append(ItemSpec(f"{self.kind}-artist-{artist_id}",

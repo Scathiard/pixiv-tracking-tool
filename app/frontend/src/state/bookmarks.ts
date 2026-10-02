@@ -3,8 +3,12 @@ import { api, write } from '../api'
 import type { BookmarkState } from '../types'
 import { acceptsBookmarkUpdate, nextBookmarkIntent } from './bookmarkRules'
 import { requestId } from './requestId'
+import { createBookmarkFeedback, type BookmarkFeedback } from './bookmarkFeedback'
 
 const states = reactive(new Map<number, BookmarkState>())
+const feedback = createBookmarkFeedback({now: () => performance.now(),
+  setTimer: (callback, delay) => window.setTimeout(callback, delay),
+  clearTimer: timer => window.clearTimeout(timer)}, reactive(new Map<number, BookmarkFeedback>()))
 const lastRead = new Map<number, number>()
 const polling = new Map<number, number>()
 const inFlight = reactive(new Set<number>())
@@ -27,11 +31,12 @@ function unwrap(value: unknown): Incoming | null {
 }
 export function bookmarkState(id: number) { return states.get(id) }
 export function bookmarkBusy(id: number) { return inFlight.has(id) || states.get(id)?.status === 'pending' }
+export function bookmarkAcknowledging(id: number) { return feedback.active(id) }
 function trim() {
   if (states.size <= 600) return
   for (const [id, state] of states) {
     if (states.size <= 600) break
-    if (state.status !== 'pending' && !inFlight.has(id)) { states.delete(id); lastRead.delete(id); lastRefresh.delete(id) }
+    if (state.status !== 'pending' && !inFlight.has(id) && !feedback.active(id)) { states.delete(id); lastRead.delete(id); lastRefresh.delete(id) }
   }
 }
 export function ingestBookmark(id: number, incoming: unknown, schedulePolling = true) {
@@ -45,6 +50,7 @@ export function ingestBookmark(id: number, incoming: unknown, schedulePolling = 
   if (accountEpoch < latestAccountEpoch) return states.get(id)
   if (accountEpoch > latestAccountEpoch) {
     latestAccountEpoch = accountEpoch
+    feedback.clear()
     lastRead.clear(); lastRefresh.clear()
     clearTimeout(refreshTimer); queuedRefresh = 0; lastRemoteRefresh = 0
     for (const [workId, previousState] of states) {
@@ -68,6 +74,7 @@ export function ingestBookmark(id: number, incoming: unknown, schedulePolling = 
     current_account_id: currentAccountId, account_epoch: accountEpoch,
   }
   states.delete(id); states.set(id, normalized); trim()
+  feedback.observe(id, normalized)
   if (normalized.status === 'pending' && normalized.operation_id) {
     if (schedulePolling) poll(id, normalized.operation_id)
   }
@@ -125,19 +132,22 @@ export function refreshBookmark(id: number) {
 }
 export async function toggleBookmark(id: number) {
   const state = states.get(id)
-  if (inFlight.has(id) || state?.status === 'pending') throw new Error('正在核对收藏状态，请稍后再试')
+  if (inFlight.has(id) || state?.status === 'pending' || feedback.active(id)) throw new Error('正在核对收藏状态，请稍后再试')
   if (!state?.current_account_id) throw new Error('请先连接 Pixiv，再核对当前账号的收藏状态')
   const desired = nextBookmarkIntent(state)
+  const feedbackToken = feedback.start(id, state)!
   inFlight.add(id)
   try {
     const result = ingestBookmark(id, await write<unknown>(`/api/works/${id}/bookmark`, {
       desired, request_id: requestId(), expected_account_id: state.current_account_id,
     }))
+    feedback.receipt(id, feedbackToken, result)
     if (result?.status === 'pending' && result.operation_id) poll(id, result.operation_id)
     return result
   } catch (failure) {
     inFlight.delete(id)
-    await readBookmark(id, true).catch(() => undefined)
+    const recovered = await readBookmark(id, true).catch(() => undefined)
+    feedback.receipt(id, feedbackToken, recovered)
     throw failure
   } finally { inFlight.delete(id) }
 }

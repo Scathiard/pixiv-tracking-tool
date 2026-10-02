@@ -13,6 +13,7 @@ from ..security import sanitize_caption
 
 from .archive_state import work_states
 from .media import CARD_MOTION_SPEC
+from .tag_translations import tag_details
 from .models import (
     ArchiveIntent, Artist, Asset, BookmarkOperation, Derivative, LocalPreference, RemoteBookmark,
     TrackingPolicy, Work, WorkTag, utcnow,
@@ -149,6 +150,7 @@ class Library:
             "type": work.type, "page_count": work.page_count,
             "caption": sanitize_caption(work.caption), "caption_state": work.caption_state,
             "tags": [tag.tag for tag in work.tags],
+            "tag_details": tag_details([tag.tag for tag in work.tags], work.source_metadata),
             "is_hidden": bool(work.preference and work.preference.is_hidden),
             "rating": work.preference.rating if work.preference else 0,
             "is_bookmarked": bool(bookmark["value"]), "bookmark": bookmark,
