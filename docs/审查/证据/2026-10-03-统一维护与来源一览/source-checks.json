@@ -1,0 +1,75 @@
+{
+  "version": "0.2.0",
+  "build": "20261003.2",
+  "source_commit": "bb1bfd63dbd683970b678531d2b048061a549700",
+  "backend": {
+    "passed": 448,
+    "warnings": 177,
+    "elapsed_seconds": 739.4,
+    "evidence": "backend-final.txt"
+  },
+  "api_targeted": {
+    "passed": 22,
+    "scope": "test_reconcile_api.py and test_v022_integration.py; also included in final full regression"
+  },
+  "source_conflict_fix": {
+    "passed": 68,
+    "evidence": "backend-conflict-fix.txt",
+    "initial_failure_retained": "backend-first-failure.txt"
+  },
+  "frontend": {
+    "tests_passed": 69,
+    "typecheck": "passed",
+    "build": "passed",
+    "node": "24.15.0",
+    "vite": "8.3.1"
+  },
+  "source_browser": {
+    "base_passed": 11,
+    "maintenance_passed": 19,
+    "actual_base_works": 5000,
+    "actual_long_work_pages": 2000,
+    "maintenance_actual_works": 144,
+    "single_artist_browser_replay_works": 960,
+    "max_gallery_window": 480,
+    "max_reader_window": 120
+  },
+  "source_smoke": {
+    "passed": 24,
+    "status": "SMOKE_OK",
+    "evidence": "source-smoke-final.json"
+  },
+  "packaged": {
+    "base_browser_passed": 29,
+    "maintenance_browser_passed": 19,
+    "reader_browser_passed": 36,
+    "smoke_passed": 25,
+    "base_exe_exit_code": 0,
+    "specialist_exe_exit_code": "not separately recorded; runners passed",
+    "actual_database_works": 3,
+    "single_artist_browser_replay_works": 960,
+    "reader_browser_replay_pages": 2000,
+    "frontend_sha256": {
+      "index.html": "74f5b0d1ea8beee88cd3d45f62e39bef3c6f476d45640e156d4033af0e16eac5",
+      "/reader/assets/index-DXl0lIsY.js": "4b966d923309fe3f65acf0f5427e31d04a35ce349862571e23f8edc98772b977",
+      "/reader/assets/index-9o_FkB_f.css": "49cedbfd5a25e3672ac7b722d2d62010a3531d75cf2599a2edb12bff6fc40cc1"
+    }
+  },
+  "exe": {
+    "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\release\\v0.2.0\\build-20261003.2\\PixivTracker_v0.2.0_build20261003.2.exe",
+    "sha256": "bc9526a6f4e2c32ae18ee9d77a009846be7060c536d1169ec8783822eba08559",
+    "size_bytes": 74937394,
+    "daily_copy": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261003.2.exe",
+    "daily_copy_sha256_verified": true,
+    "daily_instance_started": false
+  },
+  "database_schema": "0002_client",
+  "database_schema_changed": false,
+  "database_upgrade_required": false,
+  "real_library_used": false,
+  "real_account_used": false,
+  "real_phone_tested": false,
+  "published": false,
+  "user_acceptance": false,
+  "source_deletion_limit": "No verified live Pixiv deletion protocol; real 404/private stays pending. Reviewed explicit synthetic evidence covers confirmed deletion/red avatar/version races."
+}
