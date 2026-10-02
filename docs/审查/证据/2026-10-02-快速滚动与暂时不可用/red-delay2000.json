@@ -1,0 +1,1021 @@
+{
+  "checks": [
+    {
+      "name": "natural-fast-wheel-reaches-readable-final-card",
+      "details": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 32893,
+        "scroll_height": 33724,
+        "visible_ids": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 6,
+        "error": ""
+      }
+    }
+  ],
+  "failures": [],
+  "errors": [],
+  "metrics": {
+    "natural-fast-wheel_request_counts": {
+      "other": 5,
+      "library": 8,
+      "thumbnail": 155
+    },
+    "natural_fast_wheel": {
+      "state": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 32893,
+        "scroll_height": 33724,
+        "visible_ids": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 6,
+        "error": ""
+      },
+      "requests": [
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091435.796
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091435.828
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091435.828
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091435.828
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091435.859
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091436.0
+        },
+        {
+          "path": "/api/library",
+          "offset": 430,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091436.046
+        },
+        {
+          "path": "/api/library",
+          "offset": 620,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091436.125
+        }
+      ],
+      "peak_connections": 6,
+      "peak_tasks": 49,
+      "samples": [
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 0
+        },
+        {
+          "connections": 2,
+          "tasks": 0
+        },
+        {
+          "connections": 2,
+          "tasks": 0
+        },
+        {
+          "connections": 2,
+          "tasks": 0
+        },
+        {
+          "connections": 2,
+          "tasks": 1
+        },
+        {
+          "connections": 2,
+          "tasks": 1
+        },
+        {
+          "connections": 2,
+          "tasks": 1
+        },
+        {
+          "connections": 4,
+          "tasks": 4
+        },
+        {
+          "connections": 4,
+          "tasks": 4
+        },
+        {
+          "connections": 4,
+          "tasks": 1
+        },
+        {
+          "connections": 4,
+          "tasks": 1
+        },
+        {
+          "connections": 4,
+          "tasks": 0
+        },
+        {
+          "connections": 4,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 17
+        },
+        {
+          "connections": 6,
+          "tasks": 17
+        },
+        {
+          "connections": 6,
+          "tasks": 17
+        },
+        {
+          "connections": 5,
+          "tasks": 17
+        },
+        {
+          "connections": 6,
+          "tasks": 28
+        },
+        {
+          "connections": 6,
+          "tasks": 28
+        },
+        {
+          "connections": 6,
+          "tasks": 28
+        },
+        {
+          "connections": 6,
+          "tasks": 28
+        },
+        {
+          "connections": 6,
+          "tasks": 38
+        },
+        {
+          "connections": 6,
+          "tasks": 38
+        },
+        {
+          "connections": 6,
+          "tasks": 38
+        },
+        {
+          "connections": 6,
+          "tasks": 38
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 49
+        },
+        {
+          "connections": 6,
+          "tasks": 44
+        },
+        {
+          "connections": 6,
+          "tasks": 43
+        },
+        {
+          "connections": 6,
+          "tasks": 43
+        },
+        {
+          "connections": 6,
+          "tasks": 43
+        },
+        {
+          "connections": 6,
+          "tasks": 43
+        },
+        {
+          "connections": 6,
+          "tasks": 42
+        },
+        {
+          "connections": 6,
+          "tasks": 33
+        },
+        {
+          "connections": 6,
+          "tasks": 33
+        },
+        {
+          "connections": 6,
+          "tasks": 33
+        },
+        {
+          "connections": 6,
+          "tasks": 21
+        },
+        {
+          "connections": 6,
+          "tasks": 21
+        },
+        {
+          "connections": 6,
+          "tasks": 21
+        },
+        {
+          "connections": 6,
+          "tasks": 21
+        },
+        {
+          "connections": 6,
+          "tasks": 21
+        },
+        {
+          "connections": 6,
+          "tasks": 21
+        },
+        {
+          "connections": 6,
+          "tasks": 11
+        },
+        {
+          "connections": 6,
+          "tasks": 11
+        },
+        {
+          "connections": 6,
+          "tasks": 11
+        },
+        {
+          "connections": 6,
+          "tasks": 11
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        }
+      ],
+      "503_count": 0
+    }
+  },
+  "real_library_used": false,
+  "real_account_used": false,
+  "real_phone_tested": false,
+  "service_overload_reproduced": false,
+  "uvicorn_limit_concurrency": 128,
+  "fault_origin": "browser protocol replay, not reduced server concurrency",
+  "frontend_sha256": {
+    "index.html": "9195e3e506201e957d7ba5b60d81ca34626ff7c23ae6743fb5b267cf900386d1",
+    "assets\\index-DTG05y3f.js": "fc3e9523b6904246391d2e92ed2bbc23a32867dfbb3f834c17278bb8b5bcc7b9",
+    "assets\\index-COk_ezpa.css": "509ea8944893f77fc8e8f9446a8c4409b7d14876f0ccdd9c404db5aa3ee2d32d"
+  },
+  "controlled_media_delay_ms": 2000,
+  "server_stopped": true,
+  "passed": true
+}

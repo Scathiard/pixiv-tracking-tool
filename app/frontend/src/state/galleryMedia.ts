@@ -21,3 +21,9 @@ export const MEDIA_RETRY_MS = 12000
 export function mediaRetryDelay(failedAt: number, now: number) {
   return Math.max(0, MEDIA_RETRY_MS - (now - failedAt))
 }
+
+/** A local static response can fail temporarily without changing catalogue metadata. */
+export function staticMediaRetryDelay(failures: number, failedAt: number, now: number): number | null {
+  const delay = [700, 2500][failures - 1]
+  return delay === undefined ? null : Math.max(0, delay - (now - failedAt))
+}

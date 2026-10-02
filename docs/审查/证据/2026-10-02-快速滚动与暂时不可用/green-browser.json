@@ -1,0 +1,3083 @@
+{
+  "checks": [
+    {
+      "name": "natural-fast-wheel-reaches-readable-final-card",
+      "details": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 32893,
+        "scroll_height": 33724,
+        "visible_ids": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 15,
+        "error": ""
+      }
+    },
+    {
+      "name": "plain-text-503-has-readable-status-feedback",
+      "details": ""
+    },
+    {
+      "name": "restored-list-auto-retries-without-manual-button",
+      "details": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 32893,
+        "scroll_height": 33724,
+        "visible_ids": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 15,
+        "error": ""
+      }
+    },
+    {
+      "name": "list-continues-to-final-work-after-recovery",
+      "details": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 32893,
+        "scroll_height": 33724,
+        "visible_ids": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 15,
+        "error": ""
+      }
+    },
+    {
+      "name": "temporary-static-503-was-observed",
+      "details": null
+    },
+    {
+      "name": "lightweight-animation-actually-plays-while-static-fails",
+      "details": {
+        "unique_frames": 2
+      }
+    },
+    {
+      "name": "same-url-static-media-recovers-without-metadata-update",
+      "details": {
+        "before": {
+          "static-thumb.webp": 2,
+          "animation.webp": 1,
+          "static-original.webp": 1
+        },
+        "after": {
+          "static-thumb.webp": 2,
+          "animation.webp": 1,
+          "static-original.webp": 1
+        },
+        "visible_text": "山与海 · 本地作品 00799\n本地画师 08"
+      }
+    },
+    {
+      "name": "no-real-account-writes",
+      "details": null
+    },
+    {
+      "name": "1440-persistent-503-stops-after-three-safe-get-attempts",
+      "details": {
+        "offset": 0,
+        "window_size": 240,
+        "scroll_top": 16031,
+        "scroll_height": 16862,
+        "visible_ids": [
+          575,
+          574,
+          573,
+          572,
+          571,
+          570,
+          569,
+          568,
+          567,
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 15,
+        "error": "服务暂不可用（503），请稍后重试 重试"
+      }
+    },
+    {
+      "name": "1440-background-refresh-keeps-failed-extension-and-retry-button",
+      "details": {
+        "offset": 0,
+        "window_size": 240,
+        "scroll_top": 16031,
+        "scroll_height": 16862,
+        "visible_ids": [
+          575,
+          574,
+          573,
+          572,
+          571,
+          570,
+          569,
+          568,
+          567,
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 15,
+        "error": "服务暂不可用（503），请稍后重试 重试"
+      }
+    },
+    {
+      "name": "1440-manual-extension-retries-original-offset-and-keeps-position",
+      "details": {
+        "failure": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 16031,
+          "scroll_height": 16862,
+          "visible_ids": [
+            575,
+            574,
+            573,
+            572,
+            571,
+            570,
+            569,
+            568,
+            567,
+            566,
+            565,
+            564,
+            563,
+            562,
+            561
+          ],
+          "readable_images": 15,
+          "error": "服务暂不可用（503），请稍后重试 重试"
+        },
+        "manual": {
+          "offset": 0,
+          "window_size": 430,
+          "scroll_top": 16031,
+          "scroll_height": 30211,
+          "visible_ids": [
+            575,
+            574,
+            573,
+            572,
+            571,
+            570,
+            569,
+            568,
+            567,
+            566,
+            565,
+            564,
+            563,
+            562,
+            561
+          ],
+          "readable_images": 15,
+          "error": ""
+        },
+        "requests": [
+          {
+            "path": "/api/library",
+            "offset": 240,
+            "limit": 190,
+            "status": 200,
+            "content_type": "application/json",
+            "at": 1091794.968
+          }
+        ]
+      }
+    },
+    {
+      "name": "1440-first-static-503-recovers-at-same-url-without-metadata-update",
+      "details": {
+        "799-thumb.webp": 2,
+        "798-thumb.webp": 2,
+        "800-animation.webp": 1,
+        "799-original.webp": 1,
+        "798-original.webp": 2
+      }
+    },
+    {
+      "name": "1440-animation-remains-actually-playing",
+      "details": {
+        "unique_frames": 2
+      }
+    },
+    {
+      "name": "1440-permanent-static-media-has-three-attempt-budget-per-url",
+      "details": {
+        "799-thumb.webp": 2,
+        "798-thumb.webp": 3,
+        "800-animation.webp": 1,
+        "799-original.webp": 1,
+        "798-original.webp": 3
+      }
+    },
+    {
+      "name": "1440-unrelated-catalogue-revisions-cannot-reset-static-retry-budget",
+      "details": {
+        "before": {
+          "799-thumb.webp": 2,
+          "798-thumb.webp": 3,
+          "800-animation.webp": 1,
+          "799-original.webp": 1,
+          "798-original.webp": 3
+        },
+        "after": {
+          "799-thumb.webp": 2,
+          "798-thumb.webp": 3,
+          "800-animation.webp": 1,
+          "799-original.webp": 1,
+          "798-original.webp": 3
+        },
+        "catalogue_revision": 4
+      }
+    },
+    {
+      "name": "1440-background-cancels-pending-static-retries-and-animation-requests",
+      "details": {
+        "before": {
+          "798-thumb.webp": 4,
+          "798-original.webp": 4,
+          "800-animation.webp": 2
+        },
+        "after": {
+          "798-thumb.webp": 4,
+          "798-original.webp": 4,
+          "800-animation.webp": 2
+        }
+      }
+    },
+    {
+      "name": "1440-offscreen-cancels-pending-static-retries",
+      "details": {
+        "before": {
+          "798-thumb.webp": 7,
+          "798-original.webp": 7,
+          "800-animation.webp": 4
+        },
+        "after": {
+          "798-thumb.webp": 7,
+          "798-original.webp": 7,
+          "800-animation.webp": 4
+        },
+        "state": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 2400,
+          "scroll_height": 16862,
+          "visible_ids": [
+            770,
+            769,
+            768,
+            767,
+            766,
+            765,
+            764,
+            763,
+            762,
+            761,
+            760,
+            759,
+            758,
+            757,
+            756,
+            755,
+            754,
+            753,
+            752,
+            751
+          ],
+          "readable_images": 20,
+          "error": ""
+        }
+      }
+    },
+    {
+      "name": "390-persistent-503-stops-after-three-safe-get-attempts",
+      "details": {
+        "offset": 0,
+        "window_size": 240,
+        "scroll_top": 35363,
+        "scroll_height": 36099,
+        "visible_ids": [
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 6,
+        "error": "服务暂不可用（503），请稍后重试 重试"
+      }
+    },
+    {
+      "name": "390-background-refresh-keeps-failed-extension-and-retry-button",
+      "details": {
+        "offset": 0,
+        "window_size": 240,
+        "scroll_top": 35363,
+        "scroll_height": 36099,
+        "visible_ids": [
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 6,
+        "error": "服务暂不可用（503），请稍后重试 重试"
+      }
+    },
+    {
+      "name": "390-manual-extension-retries-original-offset-and-keeps-position",
+      "details": {
+        "failure": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 35363,
+          "scroll_height": 36099,
+          "visible_ids": [
+            566,
+            565,
+            564,
+            563,
+            562,
+            561
+          ],
+          "readable_images": 6,
+          "error": "服务暂不可用（503），请稍后重试 重试"
+        },
+        "manual": {
+          "offset": 0,
+          "window_size": 432,
+          "scroll_top": 35363,
+          "scroll_height": 64978,
+          "visible_ids": [
+            566,
+            565,
+            564,
+            563,
+            562,
+            561
+          ],
+          "readable_images": 6,
+          "error": ""
+        },
+        "requests": [
+          {
+            "path": "/api/library",
+            "offset": 240,
+            "limit": 192,
+            "status": 200,
+            "content_type": "application/json",
+            "at": 1091826.187
+          }
+        ]
+      }
+    },
+    {
+      "name": "390-first-static-503-recovers-at-same-url-without-metadata-update",
+      "details": {
+        "799-thumb.webp": 2,
+        "798-thumb.webp": 2,
+        "800-animation.webp": 1,
+        "799-original.webp": 1,
+        "798-original.webp": 2
+      }
+    },
+    {
+      "name": "390-animation-remains-actually-playing",
+      "details": {
+        "unique_frames": 2
+      }
+    },
+    {
+      "name": "390-permanent-static-media-has-three-attempt-budget-per-url",
+      "details": {
+        "799-thumb.webp": 2,
+        "798-thumb.webp": 3,
+        "800-animation.webp": 1,
+        "799-original.webp": 1,
+        "798-original.webp": 3
+      }
+    },
+    {
+      "name": "390-unrelated-catalogue-revisions-cannot-reset-static-retry-budget",
+      "details": {
+        "before": {
+          "799-thumb.webp": 2,
+          "798-thumb.webp": 3,
+          "800-animation.webp": 1,
+          "799-original.webp": 1,
+          "798-original.webp": 3
+        },
+        "after": {
+          "799-thumb.webp": 2,
+          "798-thumb.webp": 3,
+          "800-animation.webp": 1,
+          "799-original.webp": 1,
+          "798-original.webp": 3
+        },
+        "catalogue_revision": 4
+      }
+    },
+    {
+      "name": "390-background-cancels-pending-static-retries-and-animation-requests",
+      "details": {
+        "before": {
+          "798-thumb.webp": 4,
+          "798-original.webp": 4,
+          "800-animation.webp": 2
+        },
+        "after": {
+          "798-thumb.webp": 4,
+          "798-original.webp": 4,
+          "800-animation.webp": 2
+        }
+      }
+    },
+    {
+      "name": "390-offscreen-cancels-pending-static-retries",
+      "details": {
+        "before": {
+          "798-thumb.webp": 7,
+          "798-original.webp": 7,
+          "800-animation.webp": 4
+        },
+        "after": {
+          "798-thumb.webp": 7,
+          "798-original.webp": 7,
+          "800-animation.webp": 4
+        },
+        "state": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 2400,
+          "scroll_height": 36099,
+          "visible_ids": [
+            784,
+            783,
+            782,
+            781,
+            780,
+            779
+          ],
+          "readable_images": 6,
+          "error": ""
+        }
+      }
+    },
+    {
+      "name": "320-persistent-503-stops-after-three-safe-get-attempts",
+      "details": {
+        "offset": 0,
+        "window_size": 240,
+        "scroll_top": 30342,
+        "scroll_height": 30954,
+        "visible_ids": [
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 6,
+        "error": "服务暂不可用（503），请稍后重试 重试"
+      }
+    },
+    {
+      "name": "320-background-refresh-keeps-failed-extension-and-retry-button",
+      "details": {
+        "offset": 0,
+        "window_size": 240,
+        "scroll_top": 30342,
+        "scroll_height": 30954,
+        "visible_ids": [
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 6,
+        "error": "服务暂不可用（503），请稍后重试 重试"
+      }
+    },
+    {
+      "name": "320-manual-extension-retries-original-offset-and-keeps-position",
+      "details": {
+        "failure": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 30342,
+          "scroll_height": 30954,
+          "visible_ids": [
+            566,
+            565,
+            564,
+            563,
+            562,
+            561
+          ],
+          "readable_images": 6,
+          "error": "服务暂不可用（503），请稍后重试 重试"
+        },
+        "manual": {
+          "offset": 0,
+          "window_size": 432,
+          "scroll_top": 30342,
+          "scroll_height": 55717,
+          "visible_ids": [
+            566,
+            565,
+            564,
+            563,
+            562,
+            561
+          ],
+          "readable_images": 6,
+          "error": ""
+        },
+        "requests": [
+          {
+            "path": "/api/library",
+            "offset": 240,
+            "limit": 192,
+            "status": 200,
+            "content_type": "application/json",
+            "at": 1091857.234
+          }
+        ]
+      }
+    },
+    {
+      "name": "320-first-static-503-recovers-at-same-url-without-metadata-update",
+      "details": {
+        "799-thumb.webp": 2,
+        "798-thumb.webp": 2,
+        "800-animation.webp": 1,
+        "799-original.webp": 1,
+        "798-original.webp": 2
+      }
+    },
+    {
+      "name": "320-animation-remains-actually-playing",
+      "details": {
+        "unique_frames": 2
+      }
+    },
+    {
+      "name": "320-permanent-static-media-has-three-attempt-budget-per-url",
+      "details": {
+        "799-thumb.webp": 2,
+        "798-thumb.webp": 3,
+        "800-animation.webp": 1,
+        "799-original.webp": 1,
+        "798-original.webp": 3
+      }
+    },
+    {
+      "name": "320-unrelated-catalogue-revisions-cannot-reset-static-retry-budget",
+      "details": {
+        "before": {
+          "799-thumb.webp": 2,
+          "798-thumb.webp": 3,
+          "800-animation.webp": 1,
+          "799-original.webp": 1,
+          "798-original.webp": 3
+        },
+        "after": {
+          "799-thumb.webp": 2,
+          "798-thumb.webp": 3,
+          "800-animation.webp": 1,
+          "799-original.webp": 1,
+          "798-original.webp": 3
+        },
+        "catalogue_revision": 4
+      }
+    },
+    {
+      "name": "320-background-cancels-pending-static-retries-and-animation-requests",
+      "details": {
+        "before": {
+          "798-thumb.webp": 4,
+          "798-original.webp": 4,
+          "800-animation.webp": 2
+        },
+        "after": {
+          "798-thumb.webp": 4,
+          "798-original.webp": 4,
+          "800-animation.webp": 2
+        }
+      }
+    },
+    {
+      "name": "320-offscreen-cancels-pending-static-retries",
+      "details": {
+        "before": {
+          "798-thumb.webp": 7,
+          "798-original.webp": 7,
+          "800-animation.webp": 4
+        },
+        "after": {
+          "798-thumb.webp": 7,
+          "798-original.webp": 7,
+          "800-animation.webp": 4
+        },
+        "state": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 2400,
+          "scroll_height": 30954,
+          "visible_ids": [
+            782,
+            781,
+            780,
+            779,
+            778,
+            777
+          ],
+          "readable_images": 6,
+          "error": ""
+        }
+      }
+    }
+  ],
+  "failures": [],
+  "errors": [],
+  "metrics": {
+    "natural-fast-wheel_request_counts": {
+      "other": 5,
+      "library": 8,
+      "thumbnail": 155
+    },
+    "natural_fast_wheel": {
+      "state": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 32893,
+        "scroll_height": 33724,
+        "visible_ids": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 15,
+        "error": ""
+      },
+      "requests": [
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091768.781
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091768.828
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091768.828
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091768.828
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091768.875
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091769.109
+        },
+        {
+          "path": "/api/library",
+          "offset": 430,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091769.296
+        },
+        {
+          "path": "/api/library",
+          "offset": 620,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091769.468
+        }
+      ],
+      "peak_connections": 6,
+      "peak_tasks": 10,
+      "samples": [
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 2,
+          "tasks": 2
+        },
+        {
+          "connections": 2,
+          "tasks": 2
+        },
+        {
+          "connections": 2,
+          "tasks": 0
+        },
+        {
+          "connections": 2,
+          "tasks": 0
+        },
+        {
+          "connections": 2,
+          "tasks": 0
+        },
+        {
+          "connections": 2,
+          "tasks": 1
+        },
+        {
+          "connections": 2,
+          "tasks": 1
+        },
+        {
+          "connections": 4,
+          "tasks": 4
+        },
+        {
+          "connections": 4,
+          "tasks": 4
+        },
+        {
+          "connections": 4,
+          "tasks": 3
+        },
+        {
+          "connections": 4,
+          "tasks": 1
+        },
+        {
+          "connections": 4,
+          "tasks": 1
+        },
+        {
+          "connections": 4,
+          "tasks": 1
+        },
+        {
+          "connections": 4,
+          "tasks": 0
+        },
+        {
+          "connections": 4,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 3
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 8
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 1
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 5
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 7
+        },
+        {
+          "connections": 6,
+          "tasks": 7
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 1
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 10
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 1
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 10
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        }
+      ],
+      "503_count": 0
+    },
+    "plain-text-list-503_request_counts": {
+      "other": 7,
+      "library": 9,
+      "thumbnail": 155
+    },
+    "plain_text_list_503": {
+      "fault": {
+        "injected": true,
+        "offset": 240
+      },
+      "failed_state": {
+        "offset": 0,
+        "window_size": 430,
+        "scroll_top": 16031,
+        "scroll_height": 30211,
+        "visible_ids": [
+          575,
+          574,
+          573,
+          572,
+          571,
+          570,
+          569,
+          568,
+          567,
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 15,
+        "error": ""
+      },
+      "restored_service_state": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 32893,
+        "scroll_height": 33724,
+        "visible_ids": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 15,
+        "error": ""
+      },
+      "requests_after_service_restored": [
+        {
+          "path": "/api/library",
+          "offset": 430,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091771.531
+        },
+        {
+          "path": "/api/library",
+          "offset": 620,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091772.109
+        }
+      ],
+      "requests": [
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091770.625
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091770.671
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091770.687
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091770.687
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091770.734
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 190,
+          "status": 503,
+          "content_type": "text/plain; charset=utf-8",
+          "at": 1091770.859
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091771.265
+        },
+        {
+          "path": "/api/library",
+          "offset": 430,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091771.531
+        },
+        {
+          "path": "/api/library",
+          "offset": 620,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091772.109
+        }
+      ],
+      "exact_syntax_error": false,
+      "final_state": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 32893,
+        "scroll_height": 33724,
+        "visible_ids": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 15,
+        "error": ""
+      }
+    },
+    "unchanged-static-media-503_request_counts": {
+      "other": 5,
+      "library": 5,
+      "thumbnail": 26,
+      "media": 2
+    },
+    "unchanged_static_media_503": {
+      "initial_static_readable": false,
+      "static_recovered": true,
+      "static_visible_text": "山与海 · 本地作品 00799\n本地画师 08",
+      "counts_before_restore": {
+        "static-thumb.webp": 2,
+        "animation.webp": 1,
+        "static-original.webp": 1
+      },
+      "counts_after_restore": {
+        "static-thumb.webp": 2,
+        "animation.webp": 1,
+        "static-original.webp": 1
+      },
+      "animation_unique_frames": 2,
+      "requests": [
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091788.328
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091788.39
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091788.39
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091788.39
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091788.421
+        },
+        {
+          "path": "/fast-scroll-fixture/static-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain; charset=utf-8",
+          "at": 1091788.468
+        },
+        {
+          "path": "/fast-scroll-fixture/static-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain; charset=utf-8",
+          "at": 1091788.468
+        }
+      ],
+      "metadata_changed_on_recovery": false,
+      "url_changed_on_recovery": false
+    },
+    "1440-persistent-library_request_counts": {
+      "other": 5,
+      "library": 11,
+      "thumbnail": 60
+    },
+    "1440_persistent_library": {
+      "failed_state": {
+        "offset": 0,
+        "window_size": 240,
+        "scroll_top": 16031,
+        "scroll_height": 16862,
+        "visible_ids": [
+          575,
+          574,
+          573,
+          572,
+          571,
+          570,
+          569,
+          568,
+          567,
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 15,
+        "error": "服务暂不可用（503），请稍后重试 重试"
+      },
+      "manual_state": {
+        "offset": 0,
+        "window_size": 430,
+        "scroll_top": 16031,
+        "scroll_height": 30211,
+        "visible_ids": [
+          575,
+          574,
+          573,
+          572,
+          571,
+          570,
+          569,
+          568,
+          567,
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 15,
+        "error": ""
+      },
+      "requests": [
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091790.218
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091790.265
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091790.265
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091790.281
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091790.39
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 190,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091790.453
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 190,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091790.828
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 190,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091791.828
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091794.453
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091794.5
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091794.968
+        }
+      ],
+      "failed_offset": 240
+    },
+    "1440-media-lifecycle_request_counts": {
+      "other": 18,
+      "library": 25,
+      "thumbnail": 116,
+      "media": 12
+    },
+    "1440_media_lifecycle": {
+      "budget": {
+        "799-thumb.webp": 2,
+        "798-thumb.webp": 3,
+        "800-animation.webp": 1,
+        "799-original.webp": 1,
+        "798-original.webp": 3
+      },
+      "animation_unique_frames": 2,
+      "metadata_changed_on_recovery": false,
+      "url_changed_on_recovery": false,
+      "background": {
+        "before": {
+          "798-thumb.webp": 4,
+          "798-original.webp": 4,
+          "800-animation.webp": 2
+        },
+        "after": {
+          "798-thumb.webp": 4,
+          "798-original.webp": 4,
+          "800-animation.webp": 2
+        },
+        "foreground": {
+          "799-thumb.webp": 3,
+          "798-thumb.webp": 6,
+          "800-animation.webp": 3,
+          "799-original.webp": 1,
+          "798-original.webp": 6
+        },
+        "visibility_test": "synthetic visibilitychange in actual Chromium"
+      },
+      "offscreen": {
+        "before": {
+          "798-thumb.webp": 7,
+          "798-original.webp": 7,
+          "800-animation.webp": 4
+        },
+        "after": {
+          "798-thumb.webp": 7,
+          "798-original.webp": 7,
+          "800-animation.webp": 4
+        },
+        "state": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 2400,
+          "scroll_height": 16862,
+          "visible_ids": [
+            770,
+            769,
+            768,
+            767,
+            766,
+            765,
+            764,
+            763,
+            762,
+            761,
+            760,
+            759,
+            758,
+            757,
+            756,
+            755,
+            754,
+            753,
+            752,
+            751
+          ],
+          "readable_images": 20,
+          "error": ""
+        }
+      },
+      "requests": [
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091795.484
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091795.562
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091795.562
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091795.562
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091795.625
+        },
+        {
+          "path": "/fast-scroll-suite/799-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091795.656
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091795.671
+        },
+        {
+          "path": "/fast-scroll-suite/799-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091795.671
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091795.671
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091796.375
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091796.39
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091798.89
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091798.89
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091804.609
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091804.64
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091804.734
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091804.781
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091804.875
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091804.921
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091805.015
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091805.062
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091808.843
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091808.953
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091808.953
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091808.968
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091809.0
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091809.031
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091809.031
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091812.984
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091812.984
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091815.484
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091815.5
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091817.046
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091817.093
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091817.109
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091817.109
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091817.14
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091817.281
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091817.328
+        }
+      ]
+    },
+    "390-persistent-library_request_counts": {
+      "other": 5,
+      "library": 11,
+      "thumbnail": 24
+    },
+    "390_persistent_library": {
+      "failed_state": {
+        "offset": 0,
+        "window_size": 240,
+        "scroll_top": 35363,
+        "scroll_height": 36099,
+        "visible_ids": [
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 6,
+        "error": "服务暂不可用（503），请稍后重试 重试"
+      },
+      "manual_state": {
+        "offset": 0,
+        "window_size": 432,
+        "scroll_top": 35363,
+        "scroll_height": 64978,
+        "visible_ids": [
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 6,
+        "error": ""
+      },
+      "requests": [
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091821.578
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091821.625
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091821.625
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091821.64
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091821.671
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 192,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091821.734
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 192,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091822.093
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 192,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091823.109
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091825.703
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091825.734
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 192,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091826.187
+        }
+      ],
+      "failed_offset": 240
+    },
+    "390-media-lifecycle_request_counts": {
+      "other": 18,
+      "library": 25,
+      "thumbnail": 52,
+      "media": 12
+    },
+    "390_media_lifecycle": {
+      "budget": {
+        "799-thumb.webp": 2,
+        "798-thumb.webp": 3,
+        "800-animation.webp": 1,
+        "799-original.webp": 1,
+        "798-original.webp": 3
+      },
+      "animation_unique_frames": 2,
+      "metadata_changed_on_recovery": false,
+      "url_changed_on_recovery": false,
+      "background": {
+        "before": {
+          "798-thumb.webp": 4,
+          "798-original.webp": 4,
+          "800-animation.webp": 2
+        },
+        "after": {
+          "798-thumb.webp": 4,
+          "798-original.webp": 4,
+          "800-animation.webp": 2
+        },
+        "foreground": {
+          "799-thumb.webp": 3,
+          "798-thumb.webp": 6,
+          "800-animation.webp": 3,
+          "799-original.webp": 1,
+          "798-original.webp": 6
+        },
+        "visibility_test": "synthetic visibilitychange in actual Chromium"
+      },
+      "offscreen": {
+        "before": {
+          "798-thumb.webp": 7,
+          "798-original.webp": 7,
+          "800-animation.webp": 4
+        },
+        "after": {
+          "798-thumb.webp": 7,
+          "798-original.webp": 7,
+          "800-animation.webp": 4
+        },
+        "state": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 2400,
+          "scroll_height": 36099,
+          "visible_ids": [
+            784,
+            783,
+            782,
+            781,
+            780,
+            779
+          ],
+          "readable_images": 6,
+          "error": ""
+        }
+      },
+      "requests": [
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091826.687
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091826.75
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091826.75
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091826.75
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091826.843
+        },
+        {
+          "path": "/fast-scroll-suite/799-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091826.875
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091826.875
+        },
+        {
+          "path": "/fast-scroll-suite/799-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091826.89
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091826.89
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091827.593
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091827.593
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091830.109
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091830.109
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091835.718
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091835.75
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091835.843
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091835.89
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091835.984
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091836.015
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091836.125
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091836.234
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091839.906
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091839.968
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091839.968
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091839.968
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091840.0
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091840.031
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091840.031
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091844.031
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091844.046
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091846.546
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091846.546
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091848.093
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091848.14
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091848.156
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091848.156
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091848.187
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091848.203
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091848.218
+        }
+      ]
+    },
+    "320-persistent-library_request_counts": {
+      "other": 5,
+      "library": 11,
+      "thumbnail": 24
+    },
+    "320_persistent_library": {
+      "failed_state": {
+        "offset": 0,
+        "window_size": 240,
+        "scroll_top": 30342,
+        "scroll_height": 30954,
+        "visible_ids": [
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 6,
+        "error": "服务暂不可用（503），请稍后重试 重试"
+      },
+      "manual_state": {
+        "offset": 0,
+        "window_size": 432,
+        "scroll_top": 30342,
+        "scroll_height": 55717,
+        "visible_ids": [
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 6,
+        "error": ""
+      },
+      "requests": [
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091852.531
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091852.593
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091852.593
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091852.593
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091852.64
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 192,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091852.75
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 192,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091853.109
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 192,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091854.109
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091856.734
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091856.781
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 192,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091857.234
+        }
+      ],
+      "failed_offset": 240
+    },
+    "320-media-lifecycle_request_counts": {
+      "other": 18,
+      "library": 24,
+      "thumbnail": 50,
+      "media": 12
+    },
+    "320_media_lifecycle": {
+      "budget": {
+        "799-thumb.webp": 2,
+        "798-thumb.webp": 3,
+        "800-animation.webp": 1,
+        "799-original.webp": 1,
+        "798-original.webp": 3
+      },
+      "animation_unique_frames": 2,
+      "metadata_changed_on_recovery": false,
+      "url_changed_on_recovery": false,
+      "background": {
+        "before": {
+          "798-thumb.webp": 4,
+          "798-original.webp": 4,
+          "800-animation.webp": 2
+        },
+        "after": {
+          "798-thumb.webp": 4,
+          "798-original.webp": 4,
+          "800-animation.webp": 2
+        },
+        "foreground": {
+          "799-thumb.webp": 3,
+          "798-thumb.webp": 6,
+          "800-animation.webp": 3,
+          "799-original.webp": 1,
+          "798-original.webp": 6
+        },
+        "visibility_test": "synthetic visibilitychange in actual Chromium"
+      },
+      "offscreen": {
+        "before": {
+          "798-thumb.webp": 7,
+          "798-original.webp": 7,
+          "800-animation.webp": 4
+        },
+        "after": {
+          "798-thumb.webp": 7,
+          "798-original.webp": 7,
+          "800-animation.webp": 4
+        },
+        "state": {
+          "offset": 0,
+          "window_size": 240,
+          "scroll_top": 2400,
+          "scroll_height": 30954,
+          "visible_ids": [
+            782,
+            781,
+            780,
+            779,
+            778,
+            777
+          ],
+          "readable_images": 6,
+          "error": ""
+        }
+      },
+      "requests": [
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091857.75
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091857.812
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091857.812
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091857.812
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091857.921
+        },
+        {
+          "path": "/fast-scroll-suite/799-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091857.953
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091857.953
+        },
+        {
+          "path": "/fast-scroll-suite/799-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091857.968
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091857.968
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091858.656
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091858.671
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091861.187
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091861.187
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091866.765
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091866.781
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091866.89
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091866.921
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091867.046
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091867.156
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091867.171
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091870.984
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091871.015
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091871.031
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091871.031
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091871.062
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091871.093
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091871.093
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091875.093
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091875.109
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091877.609
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091877.609
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091879.156
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091879.218
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091879.218
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091879.218
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091879.25
+        },
+        {
+          "path": "/fast-scroll-suite/798-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091879.281
+        },
+        {
+          "path": "/fast-scroll-suite/798-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain",
+          "at": 1091879.281
+        }
+      ]
+    }
+  },
+  "real_library_used": false,
+  "real_account_used": false,
+  "real_phone_tested": false,
+  "service_overload_reproduced": false,
+  "uvicorn_limit_concurrency": 128,
+  "fault_origin": "browser protocol replay, not reduced server concurrency",
+  "frontend_sha256": {
+    "index.html": "b1db2caffe8091337ec3d6b3f442a7669d20777a64a644ced78a3d741f4f43fd",
+    "assets\\index-5FRLax0i.js": "b3f323c4bfff691975672fa298c79bce1dd2e915d29382f2e82c11477bf505c1",
+    "assets\\index-COk_ezpa.css": "509ea8944893f77fc8e8f9446a8c4409b7d14876f0ccdd9c404db5aa3ee2d32d"
+  },
+  "controlled_media_delay_ms": 0,
+  "server_stopped": true,
+  "passed": true
+}

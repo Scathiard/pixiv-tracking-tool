@@ -16,6 +16,7 @@ const animationSuspended = ref(false)
 const request = new LatestIntent()
 let observer: ResizeObserver | null = null, restoreIndex = 0, refreshTimer = 0, restoring = false, scrollFrame = 0
 let animationIdleTimer = 0
+let failedExtension: number | null = null
 const REFRESH_MS = 12000
 const ANIMATION_RESUME_MS = 220
 let catalogueRevision: number | undefined
@@ -52,7 +53,8 @@ function queueRefresh() {
   if (!refreshTimer) refreshTimer = window.setTimeout(() => { refreshTimer = 0; backgroundRefresh() }, REFRESH_MS)
 }
 async function fetchRange(offset: number, limit: number, anchor: number, background = false, quiet = false) {
-  const ticket = request.begin(); loading.value = true; error.value = ''
+  if (!background) { failedExtension = null; error.value = '' }
+  const ticket = request.begin(); loading.value = true
   try {
     const data = await api<GalleryBatch>(url('/api/library', props.query, {offset, limit, compact: 1}), {signal: ticket.signal})
     if (!ticket.current() || isOlderCatalogue(data.catalogue_revision, catalogueRevision)) return
@@ -99,7 +101,7 @@ async function extend(direction: number) {
   const amount = Math.floor(192 / columns.value) * columns.value
   const end = start.value + works.value.length
   if (direction < 0 && start.value === 0 || direction > 0 && end >= total.value) return
-  const ticket = request.begin(); loading.value = true
+  const ticket = request.begin(); loading.value = true; error.value = ''; failedExtension = null
   try {
     const offset = direction > 0 ? end : Math.max(0, start.value - amount)
     const limit = direction > 0 ? amount : start.value - offset
@@ -119,8 +121,14 @@ async function extend(direction: number) {
     start.value = first; works.value = items; total.value = data.total
     observeCatalogueData(data.catalogue_revision)
     await restore(anchor, pixel); if (!ticket.current()) return
-  } catch (failure) { if (ticket.current()) error.value = failure instanceof Error ? failure.message : '更多作品暂时无法载入' }
+  } catch (failure) {
+    if (ticket.current()) { failedExtension = direction; error.value = failure instanceof Error ? failure.message : '更多作品暂时无法载入' }
+  }
   finally { if (ticket.current()) { loading.value = false; queueRefresh() } }
+}
+function retryFailedRange() {
+  if (failedExtension !== null) void extend(failedExtension)
+  else restart()
 }
 function scroll() {
   animationSuspended.value = true
@@ -167,7 +175,7 @@ defineExpose({isAtBeginning: () => (!props.continuous ? page.value === 0 : start
 </script>
 <template>
   <section class="gallery-view" aria-label="本地图库">
-    <div v-if="error" class="notice error" role="alert">{{ error }} <button @click="restart">重试</button></div>
+    <div v-if="error" class="notice error" role="alert">{{ error }} <button @click="retryFailedRange">重试</button></div>
     <div ref="viewport" class="gallery-viewport" @scroll.passive="scroll" :aria-busy="loading">
       <div ref="windowElement" class="gallery-window" :data-window-size="works.length" :data-start="start" :style="{height: `${virtual.getTotalSize()}px`}">
         <div v-for="row in rows" :key="String(row.key)" class="gallery-row" :style="{transform: `translateY(${row.start}px)`, gridTemplateColumns: `repeat(${columns},minmax(0,1fr))`}">

@@ -1,0 +1,1051 @@
+{
+  "checks": [
+    {
+      "name": "natural-fast-wheel-reaches-readable-final-card",
+      "details": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 32893,
+        "scroll_height": 33724,
+        "visible_ids": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 15,
+        "error": ""
+      }
+    },
+    {
+      "name": "manual-list-retry-restores-readable-cards",
+      "details": {
+        "offset": 165,
+        "window_size": 240,
+        "scroll_top": 4216,
+        "scroll_height": 16862,
+        "visible_ids": [
+          575,
+          574,
+          573,
+          572,
+          571,
+          570,
+          569,
+          568,
+          567,
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 15,
+        "error": ""
+      }
+    },
+    {
+      "name": "list-continues-to-final-work-after-recovery",
+      "details": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 32893,
+        "scroll_height": 33724,
+        "visible_ids": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 15,
+        "error": ""
+      }
+    },
+    {
+      "name": "temporary-static-503-was-observed",
+      "details": null
+    },
+    {
+      "name": "lightweight-animation-actually-plays-while-static-fails",
+      "details": {
+        "unique_frames": 2
+      }
+    },
+    {
+      "name": "no-real-account-writes",
+      "details": null
+    }
+  ],
+  "failures": [
+    {
+      "name": "plain-text-503-has-readable-status-feedback",
+      "details": "Unexpected token 'S', \"Service Unavailable\" is not valid JSON 重试"
+    },
+    {
+      "name": "restored-list-auto-retries-without-manual-button",
+      "details": {
+        "offset": 0,
+        "window_size": 240,
+        "scroll_top": 16093,
+        "scroll_height": 16862,
+        "visible_ids": [
+          575,
+          574,
+          573,
+          572,
+          571,
+          570,
+          569,
+          568,
+          567,
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 15,
+        "error": "Unexpected token 'S', \"Service Unavailable\" is not valid JSON 重试"
+      }
+    },
+    {
+      "name": "same-url-static-media-recovers-without-metadata-update",
+      "details": {
+        "before": {
+          "static-thumb.webp": 1,
+          "animation.webp": 1,
+          "static-original.webp": 1
+        },
+        "after": {
+          "static-thumb.webp": 1,
+          "animation.webp": 1,
+          "static-original.webp": 1
+        },
+        "visible_text": "本地图片暂时无法显示\n可打开作品重试图片\n山与海 · 本地作品 00799\n本地画师 08"
+      }
+    }
+  ],
+  "errors": [],
+  "metrics": {
+    "natural_fast_wheel": {
+      "state": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 32893,
+        "scroll_height": 33724,
+        "visible_ids": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 15,
+        "error": ""
+      },
+      "requests": [
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091083.421
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091083.484
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091083.484
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091083.5
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091083.546
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091083.796
+        },
+        {
+          "path": "/api/library",
+          "offset": 430,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091083.921
+        },
+        {
+          "path": "/api/library",
+          "offset": 620,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091084.078
+        }
+      ],
+      "peak_connections": 6,
+      "peak_tasks": 9,
+      "samples": [
+        {
+          "connections": 0,
+          "tasks": 0
+        },
+        {
+          "connections": 0,
+          "tasks": 0
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 1,
+          "tasks": 1
+        },
+        {
+          "connections": 2,
+          "tasks": 2
+        },
+        {
+          "connections": 2,
+          "tasks": 2
+        },
+        {
+          "connections": 2,
+          "tasks": 2
+        },
+        {
+          "connections": 2,
+          "tasks": 2
+        },
+        {
+          "connections": 2,
+          "tasks": 2
+        },
+        {
+          "connections": 2,
+          "tasks": 1
+        },
+        {
+          "connections": 2,
+          "tasks": 1
+        },
+        {
+          "connections": 2,
+          "tasks": 1
+        },
+        {
+          "connections": 2,
+          "tasks": 1
+        },
+        {
+          "connections": 2,
+          "tasks": 0
+        },
+        {
+          "connections": 2,
+          "tasks": 0
+        },
+        {
+          "connections": 2,
+          "tasks": 1
+        },
+        {
+          "connections": 2,
+          "tasks": 1
+        },
+        {
+          "connections": 2,
+          "tasks": 1
+        },
+        {
+          "connections": 2,
+          "tasks": 1
+        },
+        {
+          "connections": 4,
+          "tasks": 4
+        },
+        {
+          "connections": 4,
+          "tasks": 4
+        },
+        {
+          "connections": 4,
+          "tasks": 3
+        },
+        {
+          "connections": 4,
+          "tasks": 1
+        },
+        {
+          "connections": 4,
+          "tasks": 1
+        },
+        {
+          "connections": 4,
+          "tasks": 1
+        },
+        {
+          "connections": 4,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 4
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 9
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 7
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 7
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 7
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 7
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 1
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 5
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 1
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 4
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 8
+        },
+        {
+          "connections": 6,
+          "tasks": 8
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 6
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        },
+        {
+          "connections": 6,
+          "tasks": 0
+        }
+      ],
+      "503_count": 0
+    },
+    "plain_text_list_503": {
+      "fault": {
+        "injected": true,
+        "offset": 240
+      },
+      "failed_state": {
+        "offset": 0,
+        "window_size": 240,
+        "scroll_top": 16093,
+        "scroll_height": 16862,
+        "visible_ids": [
+          575,
+          574,
+          573,
+          572,
+          571,
+          570,
+          569,
+          568,
+          567,
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 15,
+        "error": "Unexpected token 'S', \"Service Unavailable\" is not valid JSON 重试"
+      },
+      "restored_service_state": {
+        "offset": 0,
+        "window_size": 240,
+        "scroll_top": 16093,
+        "scroll_height": 16862,
+        "visible_ids": [
+          575,
+          574,
+          573,
+          572,
+          571,
+          570,
+          569,
+          568,
+          567,
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 15,
+        "error": "Unexpected token 'S', \"Service Unavailable\" is not valid JSON 重试"
+      },
+      "requests_after_service_restored": [],
+      "requests": [
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091085.375
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091085.421
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091085.421
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091085.421
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091085.468
+        },
+        {
+          "path": "/api/library",
+          "offset": 240,
+          "limit": 190,
+          "status": 503,
+          "content_type": "text/plain; charset=utf-8",
+          "at": 1091085.546
+        },
+        {
+          "path": "/api/library",
+          "offset": 165,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091101.546
+        },
+        {
+          "path": "/api/library",
+          "offset": 405,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091102.125
+        },
+        {
+          "path": "/api/library",
+          "offset": 595,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091102.281
+        },
+        {
+          "path": "/api/library",
+          "offset": 785,
+          "limit": 190,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091102.453
+        }
+      ],
+      "exact_syntax_error": true,
+      "manual_retry_state": {
+        "offset": 165,
+        "window_size": 240,
+        "scroll_top": 4216,
+        "scroll_height": 16862,
+        "visible_ids": [
+          575,
+          574,
+          573,
+          572,
+          571,
+          570,
+          569,
+          568,
+          567,
+          566,
+          565,
+          564,
+          563,
+          562,
+          561
+        ],
+        "readable_images": 15,
+        "error": ""
+      },
+      "final_state": {
+        "offset": 320,
+        "window_size": 480,
+        "scroll_top": 32893,
+        "scroll_height": 33724,
+        "visible_ids": [
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+        ],
+        "readable_images": 15,
+        "error": ""
+      }
+    },
+    "unchanged_static_media_503": {
+      "initial_static_readable": false,
+      "static_recovered": false,
+      "static_visible_text": "本地图片暂时无法显示\n可打开作品重试图片\n山与海 · 本地作品 00799\n本地画师 08",
+      "counts_before_restore": {
+        "static-thumb.webp": 1,
+        "animation.webp": 1,
+        "static-original.webp": 1
+      },
+      "counts_after_restore": {
+        "static-thumb.webp": 1,
+        "animation.webp": 1,
+        "static-original.webp": 1
+      },
+      "animation_unique_frames": 2,
+      "requests": [
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091103.671
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091103.734
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091103.734
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 1,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091103.734
+        },
+        {
+          "path": "/api/library",
+          "offset": 0,
+          "limit": 240,
+          "status": 200,
+          "content_type": "application/json",
+          "at": 1091103.781
+        },
+        {
+          "path": "/fast-scroll-fixture/static-thumb.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain; charset=utf-8",
+          "at": 1091103.812
+        },
+        {
+          "path": "/fast-scroll-fixture/static-original.webp",
+          "offset": 0,
+          "limit": 0,
+          "status": 503,
+          "content_type": "text/plain; charset=utf-8",
+          "at": 1091103.812
+        }
+      ],
+      "metadata_changed_on_recovery": false,
+      "url_changed_on_recovery": false
+    }
+  },
+  "real_library_used": false,
+  "real_account_used": false,
+  "real_phone_tested": false,
+  "service_overload_reproduced": false,
+  "uvicorn_limit_concurrency": 128,
+  "fault_origin": "browser protocol replay, not reduced server concurrency",
+  "server_stopped": true,
+  "passed": false
+}

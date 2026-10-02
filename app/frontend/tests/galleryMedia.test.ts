@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { galleryMediaSource, mediaRetryDelay, newerMediaRevision } from '../src/state/galleryMedia.ts'
+import { galleryMediaSource, mediaRetryDelay, newerMediaRevision, staticMediaRetryDelay } from '../src/state/galleryMedia.ts'
 
 const animation = {thumbnail: '/thumb.webp', preview: '/preview.gif', animation: true}
 
@@ -36,4 +36,15 @@ test('unrelated rapid catalogue updates cannot retry failed media more than once
   assert.equal(mediaRetryDelay(1000, 5000), 8000)
   assert.equal(mediaRetryDelay(1000, 13000), 0)
   assert.equal(mediaRetryDelay(1000, 20000), 0)
+})
+
+test('static media can recover twice without a catalogue update and then stops', () => {
+  assert.equal(staticMediaRetryDelay(1, 1000, 1000), 700)
+  assert.equal(staticMediaRetryDelay(1, 1000, 1500), 200)
+  assert.equal(staticMediaRetryDelay(1, 1000, 1700), 0)
+  assert.equal(staticMediaRetryDelay(2, 2000, 2000), 2500)
+  assert.equal(staticMediaRetryDelay(2, 2000, 5000), 0)
+  assert.equal(staticMediaRetryDelay(3, 6000, 6000), null)
+  assert.equal(staticMediaRetryDelay(20, 6000, 999999), null)
+  assert.equal(staticMediaRetryDelay(0, 1000, 1000), null)
 })

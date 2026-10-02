@@ -22,6 +22,7 @@
 - `reading_browser.py`：生成大型合成图库，用实际 Chromium 验证普通／流式阅览、真实触控事件、乱序请求、长时间滚动与后台下载；`--artifacts` 每次用新目录。
 - `reading_deep_browser.py`：复用前项生成的 `.devtools/test-runs/` 合成图库，验证第 5000 件作品、流式末端及浏览器返回位置；拒绝真实图库路径。
 - `packaged_reading_browser.py`：让当前 EXE 只在本机启动自己的合成图库服务，验证实际下载、整件存档事实、目录版本、有界进度及图库、详情、流式、画师、设置与主题；动图卡片须使用 360×270 轻量缓存、滚动暂停和恢复，详情保留 1280×960 原 GIF；`--exe` 与 `--artifacts` 指向交付文件和新证据目录。
+- `packaged_fast_scroll_browser.py`：最终 EXE 自带 3 件合成数据，浏览器克隆为 800 件元数据重放快速滚轮、一次纯文本 503 追加恢复、同 URL 静态图恢复及窗口上限；1440／390／320px，手机尺寸另用实际 CDP 触摸验证滚动，完整 800 件路径由滚轮驱动。`--exe` 必需，`--artifacts` 须为主仓库 `.devtools/test-runs/b10-packaged-fast-scroll-*` 新目录；记录 EXE 与实际供给前端的散列，不表示 800 件真实 EXE 数据库或实体手机验收。
 - `test_bookmarks_v022.py`、`test_bookmark_client_v022.py`：收藏请求只写一次、同账号明确回读、旧响应、限流、未知字段、离线启动与仅回读恢复。
 - `test_upgrade_v022.py`：0001 → 0002 显式转换、源库保留、未知收藏空值及失败回退；仅合成 SQLite。
 - `test_v022_api.py`、`test_v022_integration.py`：统一筛选、画师资料、设置与暂停、跨模块收藏竞争及登录就绪后的恢复。
@@ -40,6 +41,7 @@
 - `client_reader_wheel_browser.py`：2560px 下图库／详情／流式的图片与外侧留白真实滚轮，以及 390px CDP 触摸；要求全内容区能滚动。
 - `client_reader_recovery_browser.py`：详情可见缺页持续轮询、同 URL 图片加载失败后自动恢复、流式存档更新事件与位置保留；使用模拟接口，无账号操作。
 - `client_cache_browser.py`：合成已确认收藏的首次显示、同卡片刷新和流式冷启动；缺原图与缺缩略图区分、可见原图兜底、503 后保留卡片并连续浏览 601 件；不访问真实账号。
+- `client_fast_scroll_browser.py`：800 件合成图库的实际快速滚轮、生产 128 并发上限下连接／任务峰值、下一批纯文本 503 与同 URL 静态图片恢复、轻量 WebP 实际播放对照；`--recovery-suite` 加测 1440／390／320px 的持续失败预算、后台刷新、原位手动重试、离屏与后台停止；`--probe-only --media-delay-ms 500`（或 2000）仅给合成媒体增加异步响应延迟，不降低并发上限。`--artifacts` 须为主仓库 `.devtools/test-runs/b10-fast-scroll-*` 新目录，协议故障注入和受控延迟不等于复现用户服务过载。
 - `client_animation_browser.py`：两帧本地 GIF 在桌面／390／320px 卡片的实际画面变化、静态回退、离屏／模拟后台释放、同地址恢复和限频；统计卡片／媒体／请求上限，不表示实体后台或超大 GIF 内存已测。
 - `client_animation_performance.py`：80 件同图库的 1280×960／16 帧 GIF 与静态缩略图 AB／BA 对照，固定真实滚轮轨迹；保存浏览器进程 CPU、原始 rAF 间隔和可选解码／绘制迹线。`--frontend` 可指定已构建候选，`--media` 复用既有合成 GIF，`--preview-size 360` 仅改变供给尺寸并保持时序；`--real-derivative` 调用生产生成器并使用真实 compact API，检查无原 GIF 请求、滚动暂停、停止和返回后的实际播放。此模式生成一次同样本后用硬链接注册 80 件，任务队列生成／发布另由核心测试覆盖。`--assert-animation-budget` 令明显超出静态 CPU 预算的轮次失败。`--artifacts` 必须是主仓库 `.devtools/test-runs/b9-perf-*` 新目录；不读真实库、账号或配置，不等于 EXE／实体手机验收。
 - `client_originals_browser.py`：合成缺包清单的来源与临时原因、普通补下载／显式重新核对、完成后原位移出、读取失败保留事实，以及使用主站用户 ID 的画师链接；桌面／390／320px，不执行真实账号操作。
