@@ -21,7 +21,7 @@
 - `archive_browser.py`：新核心的桌面与手机尺寸浏览器验证；`--artifacts` 必须指定新的隔离目录，保留结果和截图；不是手机实机验收。
 - `reading_browser.py`：生成大型合成图库，用实际 Chromium 验证普通／流式阅览、真实触控事件、乱序请求、长时间滚动与后台下载；`--artifacts` 每次用新目录。
 - `reading_deep_browser.py`：复用前项生成的 `.devtools/test-runs/` 合成图库，验证第 5000 件作品、流式末端及浏览器返回位置；拒绝真实图库路径。
-- `packaged_reading_browser.py`：让当前 EXE 只在本机启动自己的合成图库服务，验证实际下载、整件存档事实、目录版本、有界进度及图库、详情、流式、画师、设置与主题；动图卡片须使用 360×270 轻量缓存、滚动暂停和恢复，详情保留 1280×960 原 GIF；`--exe` 与 `--artifacts` 指向交付文件和新证据目录。
+- `packaged_reading_browser.py`：让当前 EXE 只在本机启动自己的合成图库服务，验证实际下载、整件存档事实、目录版本、有界进度及图库、详情、流式、画师、设置与主题；主站译名须经过 EXE 解析、实际入库、详情接口与灰色展示，保留原标签身份；动图卡片须使用 360×270 轻量缓存、滚动暂停和恢复，详情保留 1280×960 原 GIF；`--exe` 与 `--artifacts` 指向交付文件和新证据目录。
 - `packaged_fast_scroll_browser.py`：最终 EXE 自带 3 件合成数据，浏览器克隆为 800 件元数据重放快速滚轮、一次纯文本 503 追加恢复、同 URL 静态图恢复及窗口上限；1440／390／320px，手机尺寸另用实际 CDP 触摸验证滚动，完整 800 件路径由滚轮驱动。`--exe` 必需，`--artifacts` 须为主仓库 `.devtools/test-runs/b10-packaged-fast-scroll-*` 新目录；记录 EXE 与实际供给前端的散列，不表示 800 件真实 EXE 数据库或实体手机验收。
 - `test_bookmarks_v022.py`、`test_bookmark_client_v022.py`：收藏请求只写一次、同账号明确回读、旧响应、限流、未知字段、离线启动与仅回读恢复。
 - `test_upgrade_v022.py`：0001 → 0002 显式转换、源库保留、未知收藏空值及失败回退；仅合成 SQLite。

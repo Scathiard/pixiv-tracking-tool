@@ -172,6 +172,11 @@ def main():
             assert page.locator('.image-page img').first.get_attribute('src').endswith('/images/1_p0.png')
             page.screenshot(path=str(artifacts / "exe-ordinary.png"))
             checks.append("exe-ordinary-reader-loads-original")
+            tag_detail = page.request.get(origin + "/api/works/1?page_limit=1").json()["tag_details"][0]
+            assert tag_detail["name"] == "本地单图" and tag_detail["translated_name"] == "测试单图"
+            assert tag_detail["source"] == "pixiv" and tag_detail["language_basis"] == "requested_locale"
+            assert page.locator('.tag-translation[data-source="pixiv"]').inner_text() == "测试单图"
+            checks.append("exe-tag-translation-renders-from-persisted-local-metadata")
             page.get_by_role("button", name="放大此页", exact=True).first.click()
             page.get_by_role("dialog", name="放大查看").wait_for()
             page.get_by_role("button", name="关闭放大", exact=False).click()

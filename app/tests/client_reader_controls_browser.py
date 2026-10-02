@@ -281,6 +281,7 @@ def main():
                 if args.suite == "full":
                     scenario(label + "-footer-layout", layout)
                 if theme == "light":
+                    page.unroute_all(behavior="wait")
                     context.close()
                     continue
 
@@ -505,6 +506,7 @@ def main():
                             assert actual["status"] == "confirmed" and actual["value"] is True and actual["verified"] is True
                             passed("desktop-real-synthetic-backend-bookmark-write-and-readback", actual)
                         scenario("desktop-real-synthetic-backend-bookmark", actual_bookmark_chain)
+                page.unroute_all(behavior="wait")
                 context.close()
             browser.close()
     finally:
