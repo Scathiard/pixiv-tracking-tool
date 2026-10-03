@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, prepareImage, url, write } from './api'
 import { LatestIntent } from './interaction'
-import { positions, savePosition } from './positions'
+import { galleryEntryIndex, freshLibraryQuery } from './positions'
 import { archiveNotice, archiveStatus, localAssetReason, hasNewWorks, isOlderCatalogue, type Anchor, type GalleryBatch, type Mode, type PageBatch, type PageData, type PageLoader, type WorkDetail } from './types'
 import { observeCatalogueData, queueCatalogueUpdate } from './state/catalogue'
 import { writeTagValues } from './state/filterSelection'
@@ -34,7 +34,7 @@ const filterOpen = ref(false), infoOpen = ref(false), notification = ref(''), er
 const sidebarCollapsed = ref(false), mobileMenuOpen = ref(false), notificationError = ref(false)
 const mobileMenuButton = ref<HTMLButtonElement | null>(null)
 const removePrompt = ref(false)
-const galleryAnchor = ref(0), galleryWorkId = ref<number | null>(null), pageSize = ref(100), ordinaryIndex = ref(0), desiredIndex = ref(0)
+const galleryAnchor = ref(0), galleryReset = ref(0), readerReset = ref(0), pageSize = ref(100), ordinaryIndex = ref(0), desiredIndex = ref(0)
 const continuous = ref(false)
 const galleryView = ref<InstanceType<typeof GalleryView> | null>(null), checkingNewContent = ref(false)
 const currentWork = ref<WorkDetail | null>(null), infoWork = ref<WorkDetail | null>(null), activePage = ref<PageData | null>(null)
@@ -43,8 +43,8 @@ const reader = ref<InstanceType<typeof PageReader> | null>(null), taskPanel = re
 const navigation = new LatestIntent(), infoRequest = new LatestIntent(), statusRequest = new LatestIntent()
 const newContentRequest = new LatestIntent()
 let newContentAgain = false, revealNewContent = false, hiddenCatalogueUpdate = false
-let saveTime = 0, toastTimer = 0, lastKeyTime = 0, failedNavigation: (() => void) | null = null
-const sessionKey = computed(() => mode.value + ':' + (mode.value === 'reader' ? currentWork.value?.id : '') + ':' + scope.value)
+let toastTimer = 0, lastKeyTime = 0, failedNavigation: (() => void) | null = null
+const sessionKey = computed(() => mode.value + ':' + (mode.value === 'reader' ? currentWork.value?.id : '') + ':' + scope.value + ':' + readerReset.value)
 const heading = computed(() => mode.value === 'gallery' ? new URLSearchParams(scope.value).has('favorites') ? '收藏作品' : new URLSearchParams(scope.value).has('recent') ? '最近存入' : '我的图库' : activePage.value?.title || currentWork.value?.title || '阅览')
 const filterSummary = computed(() => {
   const params = new URLSearchParams(scope.value)
@@ -79,16 +79,10 @@ function navHome() { closeMobileMenu(); brandHome() }
 function navArtists() { closeMobileMenu(); showArtists() }
 function navFeed() {
   closeMobileMenu()
-  if (section.value !== 'library') void initialize(homeScope.value, '/flow', true, true)
-  else void enterFeed()
+  void initialize(section.value === 'library' ? scope.value : homeScope.value, '/flow', true)
 }
 function navSettings() { closeMobileMenu(); showSettings() }
 function navRail(rail: 'all' | 'recent' | 'favorites') { closeMobileMenu(); changeRail(rail) }
-function remember() {
-  if (mode.value === 'gallery') { savePosition(scope.value, 'gallery', galleryWorkId.value ? {work_id: galleryWorkId.value, index: galleryAnchor.value} : galleryAnchor.value); return }
-  const anchor = reader.value?.readAnchor() || currentAnchor.value
-  if (anchor) { savePosition(scope.value, mode.value, anchor); galleryAnchor.value = anchor.work_index; galleryWorkId.value = anchor.work_id; savePosition(scope.value, 'gallery', {work_id: anchor.work_id, index: anchor.work_index}) }
-}
 function route(push: boolean) {
   const path = section.value === 'settings' ? '/settings' : section.value === 'artists' ? artistId.value ? `/artist/${artistId.value}` : '/artists' :
     mode.value === 'gallery' ? '/' : mode.value === 'feed' ? '/flow' : '/illust/' + currentWork.value!.id
@@ -104,10 +98,11 @@ function route(push: boolean) {
     query[name] = previous === undefined ? value : Array.isArray(previous) ? [...previous, value] : [previous, value]
   }
   const target = router.resolve({path, query})
+  if (target.fullPath === browserRoute.fullPath) { internalRoute = ''; return }
   internalRoute = target.fullPath
   void router[push ? 'push' : 'replace'](target).catch(() => { internalRoute = '' })
 }
-async function initialize(query: string, path = '/', push = false, restoreHistory = false) {
+async function initialize(query: string, path = '/', push = false) {
   newContentRequest.cancel(); checkingNewContent.value = false; newContentAgain = false; revealNewContent = false
   if (path === '/settings' || path === '/artists' || /^\/artist\/\d+$/.test(path)) {
     navigation.cancel(); infoRequest.cancel()
@@ -117,14 +112,15 @@ async function initialize(query: string, path = '/', push = false, restoreHistor
     if (push) route(true)
     return
   }
-  const ticket = navigation.begin(); pending.value = true; error.value = ''
+  const ticket = navigation.begin(); infoRequest.cancel(); pending.value = true; error.value = ''
+  failedNavigation = () => { void initialize(query, path, push) }
   try {
-    const params = new URLSearchParams(query)
+    const params = new URLSearchParams(freshLibraryQuery(query))
     if (/^\/illust\/\d+$/.test(path)) {
-      detailOrigin.value = params.get('origin') === 'artists' ? 'artists' : params.get('origin') === 'feed' ? 'feed' : 'gallery'
-      originArtistId.value = Number(params.get('origin_artist')) || null
+      const origin = new URLSearchParams(query)
+      detailOrigin.value = origin.get('origin') === 'artists' ? 'artists' : origin.get('origin') === 'feed' ? 'feed' : 'gallery'
+      originArtistId.value = Number(origin.get('origin_artist')) || null
     }
-    const explicitPage = params.get('page')
     for (const name of ['page', 'offset', 'limit', 'page_offset', 'mode', 'origin', 'origin_artist']) params.delete(name)
     const batch = await api<GalleryBatch>(url('/api/library', params.toString(), {limit: 1}), {signal: ticket.signal})
     if (!ticket.current()) return
@@ -133,52 +129,42 @@ async function initialize(query: string, path = '/', push = false, restoreHistor
     void updateRailCounts(scope.value, ticket)
     section.value = 'library'
     searchText.value = params.get('q') || ''; sortChoice.value = params.get('sort') || 'newest'
-    const pageAnchor = explicitPage ? Math.max(0, Number(explicitPage) - 1) * pageSize.value : 0
-    const savedGallery = positions(scope.value).gallery
-    const savedIndex = typeof savedGallery === 'number' ? savedGallery : savedGallery?.index
-    let wantedAnchor = restoreHistory || !explicitPage ? savedIndex ?? pageAnchor : pageAnchor
-    if (restoreHistory && typeof savedGallery === 'object' && savedGallery.work_id) {
-      try { const found = await api<Anchor>(url('/api/library/locate', params.toString(), {work_id: savedGallery.work_id}), {signal: ticket.signal}); wantedAnchor = found.work_index; galleryWorkId.value = savedGallery.work_id }
-      catch { /* A removed work falls back to its former position. */ }
-    }
-    if (!ticket.current()) return
-    galleryAnchor.value = Math.min(Math.max(0, batch.total - 1), wantedAnchor)
-    mode.value = 'gallery'; ready.value = true; pending.value = false; newContent.value = restoreHistory && wantedAnchor > 0 && newContent.value
-    filterOpen.value = false; infoOpen.value = false; activePage.value = null; currentAnchor.value = null
+    galleryAnchor.value = path === '/' ? galleryEntryIndex(query, pageSize.value, batch.total) : 0
+    galleryReset.value++
+    mode.value = 'gallery'; ready.value = true; pending.value = false; newContent.value = false
+    filterOpen.value = false; infoOpen.value = false; activePage.value = null; currentAnchor.value = null; zoomPage.value = null
     const match = path.match(/^\/illust\/(\d+)$/)
     if (match) {
-      const id = Number(match[1]), saved = positions(scope.value).reader
+      const id = Number(match[1])
       const position = await api<Anchor>(url('/api/library/locate', scope.value, {work_id: id}), {signal: ticket.signal})
-      if (ticket.current()) await openWork(position.work_index, saved?.work_id === id ? saved : null, false)
+      if (ticket.current()) await openWork(position.work_index, false)
     } else if (path === '/flow') { if (total.value) await enterFeed(push); else route(push) }
     else route(push)
   } catch (failure) {
     if (ticket.current()) { error.value = failure instanceof Error ? failure.message : '图库未能载入'; pending.value = false; ready.value = true }
   }
 }
-async function openWork(index: number, saved: Anchor | null = null, push = true) {
+async function openWork(index: number, push = true) {
   if (!total.value) return
-  remember()
   index = Math.max(0, Math.min(total.value - 1, index))
   desiredIndex.value = index
   const ticket = navigation.begin(); pending.value = true; error.value = ''
-  failedNavigation = () => { void openWork(index, saved, push) }
+  failedNavigation = () => { void openWork(index, push) }
   try {
     const batch = await api<GalleryBatch>(url('/api/library', scope.value, {offset: index, limit: 1}), {signal: ticket.signal})
     const work = batch.items[0]
     if (!work) throw new Error('目标作品已不在这个范围内，请刷新图库')
-    const detail = await api<WorkDetail>(`/api/works/${work.id}?page_limit=1&page_offset=${saved?.page || 0}`, {signal: ticket.signal})
+    const detail = await api<WorkDetail>(`/api/works/${work.id}?page_limit=1&page_offset=0`, {signal: ticket.signal})
     await prepareImage(detail.pages[0]?.src || null, ticket.signal)
     if (!ticket.current()) return
     const previousMode = mode.value
     currentWork.value = infoWork.value = detail; ordinaryIndex.value = index; total.value = batch.total
     ingestBookmark(detail.id, detail.bookmark)
     refreshBookmark(detail.id)
-    initialAnchor.value = {work_id: work.id, work_index: index, page: Math.min(saved?.page || 0, detail.display_page_count - 1),
-      index: Math.min(saved?.page || 0, detail.display_page_count - 1), offset: saved?.offset || 0}
+    initialAnchor.value = {work_id: work.id, work_index: index, page: 0, index: 0, offset: 0}
     activePage.value = null; currentAnchor.value = initialAnchor.value
     if (previousMode === 'feed') detailOrigin.value = 'feed'
-    mode.value = 'reader'; section.value = 'library'; filterOpen.value = false; galleryAnchor.value = index; galleryWorkId.value = work.id
+    readerReset.value++; mode.value = 'reader'; section.value = 'library'; filterOpen.value = false; galleryAnchor.value = index
     observeCatalogueData(detail.catalogue_revision)
     route(push && previousMode !== 'reader')
     await nextTick()
@@ -188,34 +174,23 @@ async function openWork(index: number, saved: Anchor | null = null, push = true)
 }
 function navigate(delta: number) { if (!zoomPage.value) void openWork(desiredIndex.value + delta) }
 async function enterFeed(push = true) {
-  if (mode.value === 'feed') return
   if (!total.value) return
-  remember()
   const ticket = navigation.begin(); pending.value = true; error.value = ''
   failedNavigation = () => { void enterFeed(push) }
   try {
-    let saved = positions(scope.value).feed
-    let found: Anchor | null = null
-    if (saved) {
-      try { found = await api<Anchor>(url('/api/library/locate', scope.value, {work_id: saved.work_id, page: saved.page}), {signal: ticket.signal}) }
-      catch (failure) { if (ticket.signal.aborted) throw failure; saved = undefined }
-    }
-    if (!found) {
-      const batch = await api<GalleryBatch>(url('/api/library', scope.value, {offset: galleryAnchor.value, limit: 1}), {signal: ticket.signal})
-      if (!batch.items[0]) throw new Error('当前范围已变化，请刷新图库')
-      found = await api<Anchor>(url('/api/library/locate', scope.value, {work_id: batch.items[0].id}), {signal: ticket.signal})
-    }
+    const batch = await api<GalleryBatch>(url('/api/library', scope.value, {offset: 0, limit: 1}), {signal: ticket.signal})
+    if (!batch.items[0]) throw new Error('当前范围已变化，请刷新图库')
+    const found = await api<Anchor>(url('/api/library/locate', scope.value, {work_id: batch.items[0].id, page: 0}), {signal: ticket.signal})
     if (!ticket.current()) return
-    initialAnchor.value = {...found, offset: saved?.offset || 0}; currentAnchor.value = initialAnchor.value
+    initialAnchor.value = {...found, offset: 0}; currentAnchor.value = initialAnchor.value
+    readerReset.value++
     activePage.value = null; infoWork.value = null; infoOpen.value = false; filterOpen.value = false
     mode.value = 'feed'; section.value = 'library'; route(push)
   } catch (failure) { if (ticket.current()) error.value = failure instanceof Error ? failure.message : '流式阅览未能打开' }
   finally { if (ticket.current()) pending.value = false }
 }
 function gallery(push = true) {
-  if (section.value !== 'library') { void initialize(homeScope.value, '/', push, true); return }
-  remember(); navigation.cancel(); infoRequest.cancel(); pending.value = false; error.value = ''
-  mode.value = 'gallery'; infoOpen.value = false; zoomPage.value = null; route(push)
+  void initialize(freshLibraryQuery(section.value === 'library' ? scope.value : homeScope.value, true), '/', push)
 }
 const loader = computed<PageLoader>(() => {
   const query = scope.value
@@ -234,7 +209,6 @@ function focused(page: PageData, anchor: Anchor) {
   if (page.bookmark) ingestBookmark(page.work_id, page.bookmark)
   activePage.value = page; currentAnchor.value = anchor
   if (changedWork) refreshBookmark(page.work_id)
-  if (Date.now() - saveTime > 400) { saveTime = Date.now(); savePosition(scope.value, mode.value === 'feed' ? 'feed' : 'reader', anchor) }
   if (infoOpen.value && infoWork.value?.id !== page.work_id) void loadInfo(page.work_id)
 }
 async function loadInfo(id: number, refreshRemote = true) {
@@ -252,7 +226,7 @@ async function task(kind: string, workId?: number) {
 }
 async function hidden() {
   if (!infoWork.value) return
-  try { await write(`/api/works/${infoWork.value.id}/preferences`, {hidden: !infoWork.value.is_hidden}, 'PATCH'); const text = infoWork.value.is_hidden ? '已取消隐藏' : '已隐藏作品'; gallery(); message(text + '，已回到对应图库位置') }
+  try { await write(`/api/works/${infoWork.value.id}/preferences`, {hidden: !infoWork.value.is_hidden}, 'PATCH'); const text = infoWork.value.is_hidden ? '已取消隐藏' : '已隐藏作品'; gallery(); message(text + '，已回到图库开头') }
   catch (failure) { message(failure instanceof Error ? failure.message : '操作失败', true) }
 }
 async function bookmarkSync() { if (infoWork.value) try { await syncBookmark(infoWork.value.id) } catch (failure) { message(failure instanceof Error ? failure.message : '收藏状态未能核对', true) } }
@@ -286,8 +260,8 @@ function setHomeScope(query: string) {
   homeScope.value = params.toString()
   try { localStorage.setItem('pixiv-local-home-scope', homeScope.value) } catch { /* optional */ }
 }
-function galleryFocused(index: number, workId: number) { galleryAnchor.value = index; galleryWorkId.value = workId }
-function filter(query: string) { remember(); setHomeScope(query); void initialize(query, '/', true) }
+function galleryFocused(index: number) { galleryAnchor.value = index }
+function filter(query: string) { setHomeScope(query); void initialize(query, '/', true) }
 function refresh() { const params = new URLSearchParams(scope.value); params.delete('ceiling'); params.delete('as_of'); void initialize(params.toString()) }
 function retryNavigation() { if (failedNavigation) failedNavigation(); else refresh() }
 function changeRail(rail: 'all' | 'recent' | 'favorites') {
@@ -327,10 +301,10 @@ function sort() {
   for (const name of ['ceiling', 'as_of', 'page']) params.delete(name)
   params.set('sort', sortChoice.value); setHomeScope(params.toString()); void initialize(homeScope.value, '/', true)
 }
-function showArtists(id: number | null = null) { remember(); navigation.cancel(); infoRequest.cancel(); pending.value = false; section.value = 'artists'; artistId.value = id; filterOpen.value = false; infoOpen.value = false; route(true) }
-function showSettings() { remember(); navigation.cancel(); infoRequest.cancel(); pending.value = false; section.value = 'settings'; filterOpen.value = false; infoOpen.value = false; route(true) }
+function showArtists(id: number | null = null) { navigation.cancel(); infoRequest.cancel(); pending.value = false; section.value = 'artists'; artistId.value = id; filterOpen.value = false; infoOpen.value = false; route(true) }
+function showSettings() { navigation.cancel(); infoRequest.cancel(); pending.value = false; section.value = 'settings'; filterOpen.value = false; infoOpen.value = false; route(true) }
 function openArtistGallery(id: number) {
-  remember(); detailOrigin.value = 'gallery'; originArtistId.value = null
+  detailOrigin.value = 'gallery'; originArtistId.value = null
   const params = new URLSearchParams({artist_ids: String(id), sort: sortChoice.value})
   void initialize(params.toString(), '/', true)
 }
@@ -353,7 +327,7 @@ function backFromDetail() {
   if (detailOrigin.value === 'feed') { void enterFeed(); return }
   gallery()
 }
-function brandHome() { remember(); detailOrigin.value = 'gallery'; void initialize(homeScope.value, '/', true, true) }
+function brandHome() { detailOrigin.value = 'gallery'; void initialize(homeScope.value, '/', true) }
 function foreground() { resumeBookmarkPolling(); if (hiddenCatalogueUpdate) void checkForNewWorks(); if (section.value === 'library' && mode.value !== 'gallery') { const id = activePage.value?.work_id || currentWork.value?.id; if (id) refreshBookmark(id) } }
 function chooseTheme(theme: 'dark' | 'light', _event: MouseEvent) {
   document.body.dataset.theme = theme
@@ -361,13 +335,13 @@ function chooseTheme(theme: 'dark' | 'light', _event: MouseEvent) {
 }
 watch(() => browserRoute.fullPath, path => {
   if (path === internalRoute) { internalRoute = ''; return }
-  remember(); void initialize(browserRoute.fullPath.slice(browserRoute.path.length).replace(/^\?/, ''), browserRoute.path, false, true)
+  void initialize(browserRoute.fullPath.slice(browserRoute.path.length).replace(/^\?/, ''), browserRoute.path, false)
 })
 onMounted(async () => {
   try { document.body.dataset.theme = localStorage.getItem('pixiv-local-theme') === 'light' ? 'light' : 'dark' } catch { document.body.dataset.theme = 'dark' }
   try { sidebarCollapsed.value = localStorage.getItem('pixiv-local-sidebar-collapsed') === '1' } catch { /* optional preference */ }
   try { setHomeScope(localStorage.getItem('pixiv-local-home-scope') || '') } catch { /* optional */ }
-  if (location.pathname === '/') setHomeScope(location.search.replace(/^\?/, ''))
+  if (location.pathname === '/' && location.search) setHomeScope(location.search.replace(/^\?/, ''))
   try {
     const defaults = await api<{page_size: number; pagination_mode: string}>('/api/status')
     if ([50, 100, 200].includes(defaults.page_size)) pageSize.value = defaults.page_size
@@ -376,13 +350,13 @@ onMounted(async () => {
     if (savedSize === 'scroll') continuous.value = true
     else if (savedSize && [50, 100, 200].includes(Number(savedSize))) { continuous.value = false; pageSize.value = Number(savedSize) }
   } catch { /* Defaults do not block local browsing. */ }
-  void initialize(location.search, location.pathname, false, true)
-  window.addEventListener('keydown', key); window.addEventListener('pagehide', remember)
+  void initialize(location.pathname === '/' && !location.search ? homeScope.value : location.search, location.pathname)
+  window.addEventListener('keydown', key)
   window.addEventListener('focus', foreground)
   window.addEventListener('archive-updated', archiveUpdated)
   document.addEventListener('visibilitychange', catalogueVisibilityChanged)
 })
-onBeforeUnmount(() => { remember(); navigation.cancel(); infoRequest.cancel(); statusRequest.cancel(); newContentRequest.cancel(); clearTimeout(toastTimer); clearTimeout(searchTimer); window.removeEventListener('keydown', key); window.removeEventListener('pagehide', remember); window.removeEventListener('focus', foreground); window.removeEventListener('archive-updated', archiveUpdated); document.removeEventListener('visibilitychange', catalogueVisibilityChanged) })
+onBeforeUnmount(() => { navigation.cancel(); infoRequest.cancel(); statusRequest.cancel(); newContentRequest.cancel(); clearTimeout(toastTimer); clearTimeout(searchTimer); window.removeEventListener('keydown', key); window.removeEventListener('focus', foreground); window.removeEventListener('archive-updated', archiveUpdated); document.removeEventListener('visibilitychange', catalogueVisibilityChanged) })
 function changePageSize(value: string) {
   continuous.value = value === 'scroll'
   if (!continuous.value) pageSize.value = Number(value)
@@ -403,9 +377,8 @@ function refreshCurrentWork() {
 function applyFreshScope(data: GalleryBatch, ticket: ReturnType<LatestIntent['begin']>) {
   const params = new URLSearchParams(scope.value)
   params.set('ceiling', String(data.ceiling)); params.set('as_of', data.as_of)
-  galleryAnchor.value = 0; galleryWorkId.value = data.items[0]?.id || null
+  galleryAnchor.value = 0; galleryReset.value++
   total.value = data.total; scope.value = params.toString(); newContent.value = false
-  savePosition(scope.value, 'gallery', galleryWorkId.value ? {work_id: galleryWorkId.value, index: 0} : 0)
   void updateRailCounts(scope.value, ticket)
   route(false)
 }
@@ -464,7 +437,7 @@ function updated() { queueCatalogueUpdate() }
           <main class="gallery-main"><div class="gallery-controls"><div class="gallery-heading"><h1>{{ heading }}</h1><span>{{ total }} 件</span><button v-if="newContent" class="text-link new-work-entry" :disabled="checkingNewContent" @click="checkForNewWorks(true)">有新作品，查看</button></div><div class="gallery-control-actions"><select v-model="sortChoice" aria-label="图库排序" @change="sort"><option value="newest">最新投稿</option><option value="oldest">最早投稿</option><option value="added">最近存入</option><option value="title">作品名称</option></select><button class="softbtn" :aria-expanded="filterOpen" :title="filterSummary" @click="filterOpen = true"><Icon name="filter" />筛选</button><button class="check-button" aria-label="检查新作品" @click="task('check')"><Icon name="refresh" /><span>检查新作品</span></button></div></div>
             <div v-if="filterSummary !== '全部画师 · 全部类型'" class="active-filters"><span>{{ filterSummary }}</span><button class="text-link" @click="filterOpen = true">调整</button></div>
             <div v-if="error" class="notice error" role="alert">{{ error }} <button @click="retryNavigation">重试</button></div>
-            <GalleryView v-if="ready" ref="galleryView" :query="scope" :start-index="galleryAnchor" :page-size="pageSize" :continuous="continuous" @open="openFromGallery" @artist="showArtists" @message="message($event, true)" @anchor="galleryFocused" @total="total = $event" @page="galleryAnchor = $event * pageSize; route(false)" /><div v-else class="empty">正在打开本地图库…</div>
+            <GalleryView v-if="ready" ref="galleryView" :query="scope" :start-index="galleryAnchor" :reset-key="galleryReset" :page-size="pageSize" :continuous="continuous" @open="openFromGallery" @artist="showArtists" @message="message($event, true)" @anchor="galleryFocused" @total="total = $event" @page="galleryAnchor = $event * pageSize; route(false)" /><div v-else class="empty">正在打开本地图库…</div>
           </main></div>
       </template>
       <template v-else><main class="reader-layout" :inert="mobileMenuOpen ? true : undefined">

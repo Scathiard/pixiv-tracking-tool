@@ -10,8 +10,9 @@ import Icon from './components/Icon.vue'
 import GalleryCardImage from './GalleryCardImage.vue'
 import BookmarkButton from './components/BookmarkButton.vue'
 import RestrictionBadge from './components/RestrictionBadge.vue'
-const props = defineProps<{query: string; startIndex: number; pageSize: number; continuous: boolean}>()
+const props = defineProps<{query: string; startIndex: number; pageSize: number; continuous: boolean; resetKey?: number}>()
 const emit = defineEmits<{open: [index: number]; artist: [id: number]; message: [text: string]; anchor: [index: number, workId: number]; total: [count: number]; page: [index: number]}>()
+const viewportRevision = ref(0)
 const viewport = ref<HTMLDivElement | null>(null), windowElement = ref<HTMLDivElement | null>(null), works = ref<WorkCard[]>([]), total = ref(0)
 const page = ref(0), start = ref(0), columns = ref(5), width = ref(1000), loading = ref(false), error = ref('')
 const animationSuspended = ref(false)
@@ -19,10 +20,10 @@ const artistScope = computed(() => singleArtistScope(props.query))
 const artistProfile = ref<Artist | null>(null), profileError = ref(''), profileLoading = ref(false), bioExpanded = ref(false)
 const profileElement = ref<HTMLDivElement | null>(null), profileHeight = ref(0)
 const profileRequest = new LatestIntent()
-const request = new LatestIntent()
+const request = new LatestIntent(), restoration = new LatestIntent()
 let observer: ResizeObserver | null = null, profileObserver: ResizeObserver | null = null, restoreIndex = 0, refreshTimer = 0, restoring = false, scrollFrame = 0
 let animationIdleTimer = 0
-let failedExtension: number | null = null
+let failedExtension: number | null = null, entryPending = false
 const REFRESH_MS = 12000
 const ANIMATION_RESUME_MS = 220
 let catalogueRevision: number | undefined
@@ -31,14 +32,17 @@ const virtual = useVirtualizer(computed(() => ({count: Math.ceil(works.value.len
   getScrollElement: () => viewport.value, estimateSize: () => rowHeight.value, overscan: 2, scrollMargin: profileHeight.value})))
 const rows = computed(() => virtual.value.getVirtualItems())
 const maxPage = computed(() => Math.max(0, Math.ceil(total.value / props.pageSize) - 1))
-async function restore(anchor: number, pixel = 0, showIntro = false) {
+async function restore(anchor: number, pixel = 0, showIntro = false, ownsView: () => boolean = () => true) {
+  const ticket = restoration.begin()
   restoring = true
-  await nextTick()
-  virtual.value.measure()
-  const row = Math.floor(Math.max(0, anchor - start.value) / columns.value)
-  virtual.value.scrollToOffset(showIntro && anchor === 0 ? 0 : profileHeight.value + row * rowHeight.value + Math.min(pixel, rowHeight.value - 1))
-  await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
-  restoring = false
+  try {
+    await nextTick()
+    if (!ticket.current() || !ownsView()) return
+    virtual.value.measure()
+    const row = Math.floor(Math.max(0, anchor - start.value) / columns.value)
+    virtual.value.scrollToOffset(showIntro && anchor === 0 ? 0 : profileHeight.value + row * rowHeight.value + Math.min(pixel, rowHeight.value - 1))
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+  } finally { if (ticket.current()) restoring = false }
 }
 async function loadProfile() {
   const id = artistScope.value, ticket = profileRequest.begin()
@@ -55,6 +59,10 @@ watch(artistScope, () => {
   artistProfile.value = null; profileError.value = ''; bioExpanded.value = false
   void loadProfile()
 }, {immediate: true})
+watch(windowElement, element => {
+  observer?.disconnect()
+  if (element) observer?.observe(element)
+}, {flush: 'post'})
 watch(profileElement, element => {
   profileObserver?.disconnect()
   if (element) profileObserver?.observe(element)
@@ -80,15 +88,24 @@ function queueRefresh() {
   if (!refreshTimer) refreshTimer = window.setTimeout(() => { refreshTimer = 0; backgroundRefresh() }, REFRESH_MS)
 }
 async function fetchRange(offset: number, limit: number, anchor: number, background = false, quiet = false) {
-  if (!background) { failedExtension = null; error.value = '' }
+  if (!background) {
+    failedExtension = null; error.value = ''; entryPending = true
+    restoration.cancel(); restoring = false
+    cancelAnimationFrame(scrollFrame); scrollFrame = 0
+  }
   const ticket = request.begin(); loading.value = true
   try {
     const data = await api<GalleryBatch>(url('/api/library', props.query, {offset, limit, compact: 1}), {signal: ticket.signal})
     if (!ticket.current() || isOlderCatalogue(data.catalogue_revision, catalogueRevision)) return
     catalogueRevision = data.catalogue_revision ?? catalogueRevision
+    if (!background) {
+      // A fresh scroller ends native touch inertia; retain loaded cards until this request succeeds.
+      restoration.cancel(); restoring = false; restoreIndex = anchor
+      viewportRevision.value++
+    }
     start.value = offset; total.value = data.total; works.value = data.items; emit('total', data.total)
     observeCatalogueData(data.catalogue_revision)
-    if (!background) { restoreIndex = anchor; await restore(anchor, 0, true); if (!ticket.current()) return; if (!props.continuous) emit('page', page.value) }
+    if (!background) { restoreIndex = anchor; await restore(anchor, 0, true, ticket.current); if (!ticket.current()) return; if (!props.continuous) emit('page', page.value) }
     await nextTick()
   } catch (failure) {
     if (ticket.current()) {
@@ -97,13 +114,15 @@ async function fetchRange(offset: number, limit: number, anchor: number, backgro
       } else error.value = failure instanceof Error ? failure.message : '图库未能载入'
     }
   }
-  finally { if (ticket.current()) { loading.value = false; queueRefresh() } }
+  finally { if (ticket.current()) { entryPending = false; loading.value = false; queueRefresh() } }
 }
 function load(index: number, anchor = index * props.pageSize) {
   page.value = index
   return fetchRange(index * props.pageSize, props.pageSize, anchor)
 }
 function restart() {
+  restoration.cancel(); restoring = false
+  cancelAnimationFrame(scrollFrame); scrollFrame = 0
   catalogueRevision = undefined
   clearTimeout(refreshTimer); refreshTimer = 0
   if (props.continuous) {
@@ -147,7 +166,7 @@ async function extend(direction: number) {
     }
     start.value = first; works.value = items; total.value = data.total
     observeCatalogueData(data.catalogue_revision)
-    await restore(anchor, pixel); if (!ticket.current()) return
+    await restore(anchor, pixel, false, ticket.current); if (!ticket.current()) return
   } catch (failure) {
     if (ticket.current()) { failedExtension = direction; error.value = failure instanceof Error ? failure.message : '更多作品暂时无法载入' }
   }
@@ -168,7 +187,7 @@ function scroll() {
   scrollFrame = requestAnimationFrame(() => { scrollFrame = 0; readScroll() })
 }
 function readScroll() {
-  if (restoring) return
+  if (restoring || entryPending) return
   const row = rows.value.find(row => row.end > (viewport.value?.scrollTop || 0))
   if (!row) return
   restoreIndex = start.value + row.index * columns.value
@@ -179,28 +198,39 @@ function readScroll() {
   if (row.index > Math.ceil(works.value.length / columns.value) - 12) void extend(1)
   else if (row.index < 6) void extend(-1)
 }
-watch(() => [props.query, props.pageSize, props.continuous], restart)
+watch(() => [props.query, props.pageSize, props.continuous, props.resetKey], restart)
 onMounted(() => {
   profileObserver = new ResizeObserver(entries => {
-    const height = entries[0]?.borderBoxSize?.[0]?.blockSize ?? profileElement.value?.getBoundingClientRect().height ?? 0
+    const entry = entries.find(item => item.target === profileElement.value)
+    if (!entry) return
+    const height = entry.borderBoxSize?.[0]?.blockSize ?? profileElement.value?.getBoundingClientRect().height ?? 0
     const previous = profileHeight.value, top = viewport.value?.scrollTop || 0
     if (Math.abs(height - previous) < 1) return
     profileHeight.value = height
     // Keep visible cards at the same pixel while async profile/bio height changes.
-    if (!restoring && top > previous + 1) void nextTick(() => {
-      virtual.value.measure(); virtual.value.scrollToOffset(Math.max(0, top + height - previous))
-    })
+    if (!restoring && !entryPending && top > previous + 1) {
+      const revision = viewportRevision.value, element = viewport.value
+      void nextTick(() => {
+        if (revision !== viewportRevision.value || element !== viewport.value || entryPending || restoring) return
+        virtual.value.measure(); virtual.value.scrollToOffset(Math.max(0, top + height - previous))
+      })
+    }
   })
   if (profileElement.value) profileObserver.observe(profileElement.value)
   observer = new ResizeObserver(entries => {
-    const rect = entries[0]?.contentRect
+    const entry = entries.find(item => item.target === windowElement.value)
+    if (!entry) return
+    const rect = entry.contentRect
     if (rect && Math.abs(rect.width - width.value) > 1) {
       const anchor = restoreIndex
       const currentRow = rows.value.find(row => row.end > (viewport.value?.scrollTop || 0))
       const pixel = (viewport.value?.scrollTop || 0) - (currentRow?.start || 0)
       width.value = rect.width
       columns.value = Math.max(2, Math.floor((rect.width + 16) / 220))
-      if (works.value.length) void restore(anchor, Math.max(0, pixel))
+      if (works.value.length && !entryPending) {
+        const revision = viewportRevision.value, element = viewport.value
+        void restore(anchor, Math.max(0, pixel), false, () => revision === viewportRevision.value && element === viewport.value && !entryPending)
+      }
     }
   })
   if (windowElement.value) observer.observe(windowElement.value)
@@ -208,13 +238,13 @@ onMounted(() => {
   document.addEventListener('visibilitychange', visibilityChanged)
   restart()
 })
-onBeforeUnmount(() => { request.cancel(); profileRequest.cancel(); observer?.disconnect(); profileObserver?.disconnect(); clearTimeout(refreshTimer); clearTimeout(animationIdleTimer); cancelAnimationFrame(scrollFrame); window.removeEventListener('archive-updated', archiveUpdated); document.removeEventListener('visibilitychange', visibilityChanged) })
+onBeforeUnmount(() => { request.cancel(); restoration.cancel(); profileRequest.cancel(); observer?.disconnect(); profileObserver?.disconnect(); clearTimeout(refreshTimer); clearTimeout(animationIdleTimer); cancelAnimationFrame(scrollFrame); window.removeEventListener('archive-updated', archiveUpdated); document.removeEventListener('visibilitychange', visibilityChanged) })
 defineExpose({isAtBeginning: () => (!props.continuous ? page.value === 0 : start.value === 0) && (viewport.value?.scrollTop || 0) < 4})
 </script>
 <template>
   <section class="gallery-view" aria-label="本地图库">
     <div v-if="error" class="notice error" role="alert">{{ error }} <button @click="retryFailedRange">重试</button></div>
-    <div ref="viewport" class="gallery-viewport" @scroll.passive="scroll" :aria-busy="loading">
+    <div :key="viewportRevision" ref="viewport" class="gallery-viewport" @scroll.passive="scroll" :aria-busy="loading">
       <div v-if="artistScope" ref="profileElement" class="gallery-artist-intro" :data-artist-id="artistScope">
         <template v-if="artistProfile"><div class="gallery-artist-summary"><img v-if="artistProfile.avatar" class="artist-avatar" :src="artistProfile.avatar" :alt="`${artistProfile.name}头像`"><div v-else class="artist-avatar avatar-empty" aria-hidden="true"><Icon name="artists" /></div><div><h2>{{ artistProfile.name }}</h2><p>{{ artistProfile.work_count ?? total }} 件本地作品</p><a class="artist-pixiv-link" :href="`https://www.pixiv.net/users/${encodeURIComponent(artistProfile.pixiv_id)}`" target="_blank" rel="noopener noreferrer">Pixiv 主页 <Icon name="external" /></a></div></div><p class="gallery-artist-bio" :class="{expanded: bioExpanded}">{{ artistProfile.biography || '暂无画师简介' }}</p><button v-if="(artistProfile.biography?.length || 0) > 120 || (artistProfile.biography?.split('\n').length || 0) > 3" class="text-link" :aria-expanded="bioExpanded" @click="bioExpanded = !bioExpanded">{{ bioExpanded ? '收起简介' : '展开简介' }}</button></template>
         <p v-else-if="profileError" class="error" role="alert">{{ profileError }} <button :disabled="profileLoading" @click="loadProfile">重试</button></p><p v-else class="muted">正在读取本地画师资料…</p>

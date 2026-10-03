@@ -1,20 +1,17 @@
-import type { Anchor } from './types'
-export type GalleryAnchor = number | {work_id: number; index: number}
-interface Positions {reader?: Anchor; feed?: Anchor; gallery?: GalleryAnchor; updated: number}
-const key = 'pixiv-local-positions-v1'
-function load(): Record<string, Positions> {
-  try { return JSON.parse(localStorage.getItem(key) || '{}') } catch { return {} }
+// Entry navigation is determined by explicit URLs only. Legacy last-visit storage is ignored.
+export function galleryEntryIndex(query: string, pageSize: number, total: number) {
+  const page = Number(new URLSearchParams(query).get('page'))
+  const wanted = Number.isSafeInteger(page) && page > 0 ? (page - 1) * pageSize : 0
+  return Math.min(Math.max(0, total - 1), wanted)
+}
+export function freshLibraryQuery(query: string, resetPage = false) {
+  const params = new URLSearchParams(query)
+  for (const name of ['ceiling', 'as_of', 'offset', 'limit', 'page_offset', 'mode', 'origin', 'origin_artist']) params.delete(name)
+  if (resetPage) params.delete('page')
+  return params.toString()
 }
 export function positionKey(query: string) {
-  const params = new URLSearchParams(query)
-  for (const name of ['offset', 'page', 'ceiling', 'as_of', 'mode', 'origin', 'origin_artist']) params.delete(name)
+  const params = new URLSearchParams(freshLibraryQuery(query, true))
   params.sort()
   return params.toString() || 'all'
-}
-export function positions(query: string): Positions { return load()[positionKey(query)] || {updated: 0} }
-export function savePosition(query: string, kind: 'reader' | 'feed' | 'gallery', anchor: Anchor | GalleryAnchor) {
-  const all = load(), scope = positionKey(query)
-  all[scope] = {...all[scope], [kind]: anchor, updated: Date.now()}
-  const kept = Object.entries(all).sort((a, b) => b[1].updated - a[1].updated).slice(0, 20)
-  try { localStorage.setItem(key, JSON.stringify(Object.fromEntries(kept))) } catch { /* Browsing also works when storage is unavailable. */ }
 }
