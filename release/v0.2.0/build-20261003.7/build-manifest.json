@@ -20,5 +20,15 @@
   "validation": "Backend regression with targeted fixture correction; frontend 83; source and EXE browser 737 each; packaged smoke 26 passed",
   "database_upgrade_required_from_build_20261003_6": false,
   "validation_report": "docs/审查/2026-10-03-手机遮挡与画师批量核对.md",
-  "daily_activation": "pending"
+  "daily_activation": {
+    "normal": true,
+    "started_at": "2026-10-04T00:38:56.2379106+08:00",
+    "data_root": "D:\\PixivTracker",
+    "port": 1919,
+    "existing_login_connected": true,
+    "automatic_paused": false,
+    "check_interval_minutes": 360,
+    "same_existing_maintenance_resumed": true,
+    "schema_upgrade_performed": false
+  }
 }

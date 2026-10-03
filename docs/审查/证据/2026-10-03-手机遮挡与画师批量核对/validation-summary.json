@@ -49,5 +49,13 @@
     "passed": 5,
     "failed": 0,
     "seconds": 61.86
+  },
+  "daily_activation": {
+    "normal": true,
+    "build": "20261003.7",
+    "logged_in": true,
+    "same_task_resumed": true,
+    "schema_upgrade_required": false,
+    "settings_probe_timeout_follow_up": "BUG-099"
   }
 }
