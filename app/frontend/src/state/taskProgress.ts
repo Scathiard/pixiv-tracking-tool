@@ -51,6 +51,7 @@ export function phaseStatus(op: Operation, automaticPaused = false, workerError 
   if (op.state === 'paused') return '已暂停，继续后处理剩余部分'
   if (op.state === 'pausing') return '正在暂停，当前步骤安全结束后停下'
   if (workerError || op.state === 'interrupted') return '已中断，等待恢复'
+  if (op.phase.name === 'waiting_connection') return '等待连接 Pixiv，任务进度已保留'
   if (op.state === 'queued') return automaticPaused && op.source === 'automatic' ? '等待恢复自动检查' : '已排队，等待处理'
   if (op.state === 'ready') return '已清点，等待执行'
   const phase = phases[op.phase.name] || op.phase.name || '处理'

@@ -100,3 +100,12 @@ test('manual maintenance pause stays visible and resumes without a fake progress
   const automatic = {...operation('automatic', 'queued'), source: 'automatic' as const}
   assert.equal(phaseStatus(automatic, true), '等待恢复自动检查')
 })
+
+test('offline work explains the preserved queue without pretending to run', () => {
+  const task = operation('reconcile', 'queued', 12, 50)
+  task.phase.name = 'waiting_connection'
+  assert.equal(phaseStatus(task), '等待连接 Pixiv，任务进度已保留')
+  assert.equal(hasProgressTrack(task), false)
+  task.state = 'paused'
+  assert.equal(phaseStatus(task), '已暂停，继续后处理剩余部分')
+})

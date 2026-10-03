@@ -86,9 +86,14 @@ class ManualPauseRequested(BaseException):
     """Yield at a safe checkpoint without classifying control as failure."""
 
 
+class ConnectionRequired(BaseException):
+    """Keep remote work pending while its runtime has no connected client."""
+
+
 class TaskContext:
-    def __init__(self, queue: TaskQueue, operation_id: str, item_id: str | None = None):
+    def __init__(self, queue: TaskQueue, operation_id: str, item_id: str | None = None, *, kind=None):
         self.queue, self.operation_id, self.item_id = queue, operation_id, item_id
+        self.kind = kind
 
     def report(self, phase: str, done: int, total: int | None, unit: str, detail: str):
         self.checkpoint()
@@ -128,11 +133,14 @@ class TaskContext:
             raise ShutdownRequested()
         if self.queue.operation_paused(self.operation_id):
             raise ManualPauseRequested()
+        if self.kind is not None and not self.queue.kind_allowed(self.kind):
+            raise ConnectionRequired()
 
 
 class TaskQueue:
-    def __init__(self, database: ArchiveDatabase, handlers: dict[str, Handler]):
+    def __init__(self, database: ArchiveDatabase, handlers: dict[str, Handler], *, allowed_kinds=None):
         self.database, self.handlers = database, handlers
+        self.allowed_kinds = allowed_kinds
         self._run_lock = threading.Lock()
         self._wake = threading.Event()
         self._stop = threading.Event()
@@ -151,6 +159,20 @@ class TaskQueue:
             records = session.execute(select(Operation.id, Operation.pause_requested, Operation.result).where(Operation.state.in_(ACTIVE))).all()
         self._paused_operations = {ident for ident, paused, _ in records if paused}
         self._control_parents = {ident: result.get("parent_operation_ids", []) for ident, _, result in records}
+
+    def kind_allowed(self, kind):
+        allowed = self.allowed_kinds() if self.allowed_kinds else None
+        return allowed is None or kind in allowed
+
+    def _allowed_query(self, query):
+        allowed = self.allowed_kinds() if self.allowed_kinds else None
+        return query if allowed is None else query.where(Operation.kind.in_(allowed))
+
+    @staticmethod
+    def _needs_planning(operation):
+        return (operation.state in ("queued", "planning") or operation.result.get("planning_complete") is False or
+                operation.state == "interrupted" and operation.result.get("planning_complete") is not True and
+                operation.result.get("inventory_complete") is not True)
 
     def accept_submissions(self, accepting):
         with self.database.write():
@@ -294,7 +316,7 @@ class TaskQueue:
         with self.database.write() as session:
             for item in session.scalars(select(OperationItem).where(OperationItem.state == "running")):
                 item.state = "pending"
-            for operation in session.scalars(select(Operation).where(Operation.state.in_(("planning", "running", "interrupted")))):
+            for operation in session.scalars(self._allowed_query(select(Operation).where(Operation.state.in_(("planning", "running", "interrupted"))))):
                 round_record = session.get(TaskRound, operation.round_id)
                 operation.state = "planning" if operation.result.get("planning_complete") is False else "ready" if round_record and round_record.frozen_at else "planning"
                 operation.detail = "上次运行中断，正在核对并继续"
@@ -392,8 +414,8 @@ class TaskQueue:
                 self._claim_round_in_transaction(session)
         claim = None
         with self.database.read() as session:
-            query = select(Operation).where(Operation.state.in_(("queued", "planning", "ready", "running")),
-                Operation.pause_requested.is_(False))
+            query = self._allowed_query(select(Operation).where(Operation.state.in_(("queued", "planning", "ready", "running", "interrupted")),
+                Operation.pause_requested.is_(False)))
             if round_id is not None:
                 query = query.where(Operation.round_id == round_id)
             paused_ids = [ident for ident in self._control_parents if self.operation_paused(ident)]
@@ -413,7 +435,7 @@ class TaskQueue:
             for operation in operations:
                 if self._paused_in_transaction(session, operation):
                     continue
-                if lane == "check" and operation.round_id is not None and (operation.state in ("queued", "planning") or operation.result.get("planning_complete") is False) and operation.id not in self._planning:
+                if lane == "check" and operation.round_id is not None and self._needs_planning(operation) and operation.id not in self._planning:
                     if operation.source == "automatic" and operation.started_at is None and paused and paused.value is True:
                         deferred.append(operation.id)
                         continue
@@ -473,10 +495,10 @@ class TaskQueue:
                         self._finalize_round(session, previous_round)
             for candidate in candidates:
                 operation = session.get(Operation, candidate[1])
-                if operation.state == "finished" or self._paused_in_transaction(session, operation):
+                if operation.state == "finished" or self._paused_in_transaction(session, operation) or not self.kind_allowed(operation.kind):
                     continue
                 if candidate[0] == "plan":
-                    if operation.id in self._planning or not (operation.state in ("queued", "planning") or operation.result.get("planning_complete") is False):
+                    if operation.id in self._planning or not self._needs_planning(operation):
                         continue
                     operation.state = "planning"
                     operation.started_at = operation.started_at or utcnow()
@@ -527,8 +549,8 @@ class TaskQueue:
 
     def _claim_round_in_transaction(self, session):
         paused = session.get(ApplicationState, "automatic_paused")
-        query = select(Operation).where(Operation.state.in_(("queued", "ready")),
-            Operation.round_id.is_(None), Operation.pause_requested.is_(False))
+        query = self._allowed_query(select(Operation).where(Operation.state.in_(("queued", "ready", "planning", "interrupted")),
+            Operation.round_id.is_(None), Operation.pause_requested.is_(False)))
         if paused and paused.value is True:
             query = query.where(or_(Operation.source != "automatic", Operation.started_at.is_not(None)))
         waiting = list(session.scalars(query.order_by(case((Operation.source == "manual", 0),
@@ -555,13 +577,17 @@ class TaskQueue:
 
     def _claim_round(self):
         with self.database.write() as session:
-            current = session.scalar(select(TaskRound).where(TaskRound.state.in_(("planning", "running"))).order_by(TaskRound.created_at))
+            eligible_rounds = self._allowed_query(select(Operation.round_id).where(Operation.state.in_(ACTIVE)))
+            current = session.scalar(select(TaskRound).where(TaskRound.state.in_(("planning", "running")),
+                TaskRound.id.in_(eligible_rounds)).order_by(TaskRound.created_at))
             return current.id if current else self._claim_round_in_transaction(session)
 
     def _plan(self, operation_id):
         from ..request_policy import ShutdownRequested
         with self.database.write() as session:
             operation = session.get(Operation, operation_id)
+            if not self.kind_allowed(operation.kind):
+                return False
             paused = session.get(ApplicationState, "automatic_paused")
             if (operation.source == "automatic" and operation.state == "queued"
                     and operation.started_at is None and paused is not None and paused.value is True):
@@ -572,7 +598,7 @@ class TaskQueue:
             operation.result = {**operation.result, "planning_complete": False}
             operation.started_at = operation.started_at or utcnow()
             kind, parameters = operation.kind, operation.parameters
-        context = TaskContext(self, operation_id)
+        context = TaskContext(self, operation_id, kind=kind)
         failure = None
         try:
             context.checkpoint()
@@ -592,12 +618,14 @@ class TaskQueue:
                 if spec.key in seen:
                     raise ValueError("清单重复或依赖顺序不合法")
                 seen.add(spec.key)
-        except (ShutdownRequested, ManualPauseRequested):
+        except (ShutdownRequested, ManualPauseRequested, ConnectionRequired):
             with self.database.write() as session:
                 operation = session.get(Operation, operation_id)
-                operation.state, operation.detail = ("interrupted", "退出前已保存进度，下次启动继续") if self._stop.is_set() else ("planning", "已暂停，清单进度已保存")
+                operation.state, operation.detail = ("interrupted", "退出前已保存进度，下次启动继续") if self._stop.is_set() else ("planning", "已暂停，清单进度已保存" if self.kind_allowed(kind) else "等待连接 Pixiv，任务进度已保留")
             return False
         except Exception as exc:
+            if not self.kind_allowed(kind):
+                return False
             failure = safe_failure(exc)
             complete = True
             specs = [ItemSpec("inventory-failed", "inventory-failed", {}, "checking")]
@@ -648,13 +676,13 @@ class TaskQueue:
             kind = session.get(Operation, operation_id).kind
             counts = dict(session.execute(select(OperationItem.state, func.count()).where(OperationItem.operation_id == operation_id,
                 OperationItem.phase == item.phase, OperationItem.unit == item.unit).group_by(OperationItem.state)).all())
-        context = TaskContext(self, operation_id, item.id)
+        context = TaskContext(self, operation_id, item.id, kind=kind)
         # Claim happened just before shutdown: leave the item pending rather than
         # classifying cancellation as a failed or successful attempt.
         try:
             context.report(item.phase, sum(counts.get(state, 0) for state in SETTLED), sum(counts.values()), item.unit, "正在处理")
-        except (ShutdownRequested, ManualPauseRequested):
-            self._interrupt_item(item.id, operation_id)
+        except (ShutdownRequested, ManualPauseRequested, ConnectionRequired) as exc:
+            self._interrupt_item(item.id, operation_id, refund_attempt=isinstance(exc, ConnectionRequired))
             return
         if dependency_failed:
             with self.database.read() as session:
@@ -673,10 +701,13 @@ class TaskQueue:
                     result = handler.execute(spec, context)
                 if not isinstance(result, ItemResult) or result.state not in SETTLED and not (item.kind == "bookmark_artist" and result.state == "yielded"):
                     raise TypeError("任务必须返回明确的处理结果")
-            except (ShutdownRequested, ManualPauseRequested):
-                self._interrupt_item(item.id, operation_id)
+            except (ShutdownRequested, ManualPauseRequested, ConnectionRequired) as exc:
+                self._interrupt_item(item.id, operation_id, refund_attempt=isinstance(exc, ConnectionRequired))
                 return
             except Exception as exc:
+                if not self.kind_allowed(kind):
+                    self._interrupt_item(item.id, operation_id, refund_attempt=True)
+                    return
                 detail = safe_failure(exc)
                 if detail.get("retryable") and item.attempts < 3:
                     with self.database.write() as session:
@@ -714,9 +745,12 @@ class TaskQueue:
             if current_items:
                 operation.result = {**operation.result, "current_item": next(iter(current_items.values()))}
 
-    def _interrupt_item(self, item_id, operation_id):
+    def _interrupt_item(self, item_id, operation_id, *, refund_attempt=False):
         with self.database.write() as session:
-            session.get(OperationItem, item_id).state = "pending"
+            item = session.get(OperationItem, item_id)
+            item.state = "pending"
+            if refund_attempt:
+                item.attempts = max(0, item.attempts - 1)
             operation = session.get(Operation, operation_id)
             operation.state, operation.detail = ("interrupted", "退出前已保存进度，下次启动继续") if self._stop.is_set() else ("ready" if operation.result.get("planning_complete") is not False else "planning", "已保存进度，等待继续")
             current_items = dict(operation.result.get("current_items", {}))
@@ -833,8 +867,11 @@ class TaskQueue:
         result = dict(op.result)
         running = []
         manually_paused = self.operation_paused(op.id)
+        waiting_connection = op.state in ACTIVE and not self.kind_allowed(op.kind)
         phase, lane = {"name": op.phase, "unit": op.phase_unit, "done": op.phase_done, "total": op.phase_total, "detail": op.detail}, result.get("lane") or ("check" if op.state == "planning" else None)
-        if session is not None and op.state in ACTIVE:
+        if waiting_connection:
+            lane, phase["name"], phase["detail"] = None, "waiting_connection", "等待连接 Pixiv，任务进度已保留"
+        if session is not None and op.state in ACTIVE and not waiting_connection:
             running = list(session.scalars(select(OperationItem).where(OperationItem.operation_id == op.id, OperationItem.state == "running").order_by(OperationItem.position).limit(4)))
             remote_pages = session.scalar(select(OperationItem.id).where(OperationItem.operation_id == op.id,
                 OperationItem.kind.in_(("discover_page", "bookmark_page", "bookmark_artist")), OperationItem.state.in_(("pending", "running"))).limit(1))
@@ -854,7 +891,7 @@ class TaskQueue:
                     result["current_item"] = current
         return {"id": op.id, "round_id": op.round_id, "kind": op.kind, "label": op.label,
                 "source": op.source, "lane": lane,
-                "state": ("pausing" if running or op.id in self._planning else "paused") if manually_paused else op.state,
+                "state": ("pausing" if running or op.id in self._planning else "paused") if manually_paused else "queued" if waiting_connection else op.state,
                 "pause_requested": op.pause_requested,
                 "control": {"can_pause": op.kind == "reconcile" and op.source == "manual" and op.state in ACTIVE and not op.pause_requested,
                             "can_resume": op.kind == "reconcile" and op.source == "manual" and op.state in ACTIVE and op.pause_requested}, "phase": phase,

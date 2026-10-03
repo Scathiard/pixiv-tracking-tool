@@ -30,7 +30,7 @@ def test_stop_keeps_current_safe_result_and_unclaimed_items(tmp_path, phase, kin
     from sqlalchemy import select
 
     entered, release = Event(), Event()
-    runtime = Runtime(tmp_path / "archive.db", tmp_path / "images", create=True)
+    runtime = Runtime(tmp_path / "archive.db", tmp_path / "images", create=True, client=object())
     runtime.maintenance.tick = lambda: None
 
     class Held:
@@ -56,7 +56,7 @@ def test_stop_keeps_current_safe_result_and_unclaimed_items(tmp_path, phase, kin
         release.set()
         assert runtime.close(timeout=None)
         assert runtime.close()
-        recovered = Runtime(tmp_path / "archive.db", tmp_path / "images")
+        recovered = Runtime(tmp_path / "archive.db", tmp_path / "images", client=object())
         recovered.maintenance.tick = lambda: None
         resumed = []
 

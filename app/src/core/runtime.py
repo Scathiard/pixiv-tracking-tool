@@ -87,7 +87,8 @@ class Runtime:
         self.queue = TaskQueue(self.database, {
             kind: ArchiveHandler(kind, self.database, self.publisher, remote, downloader,
                                  bookmarks=self.bookmarks, profiles=self.profiles, source_status=self.source_status)
-            for kind in ("check", "metadata", "bookmarks", "repair", "verify", "backfill", "thumbnails", "delete")})
+            for kind in ("check", "metadata", "bookmarks", "repair", "verify", "backfill", "thumbnails", "delete")},
+            allowed_kinds=lambda: None if self.client is not None else ("verify", "thumbnails", "delete"))
         self.queue.handlers["reconcile"] = ReconcileHandler(self.database, self.publisher, remote, downloader,
             bookmarks=self.bookmarks, profiles=self.profiles, source_status=self.source_status)
         self.queue.handlers["compare"] = ReconcileHandler(self.database, self.publisher, remote, downloader,

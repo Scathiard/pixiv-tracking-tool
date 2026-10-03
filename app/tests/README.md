@@ -1,5 +1,7 @@
 # 测试目录约定
 
+- `test_offline_task_gate.py`：旧任务离线保持、连接恢复、领取后断开、孤立规划状态、近十万待办及本地任务不饥饿；仅合成库与连接替身。
+
 - `test_task_control_delivery.py`：2,000／20,000／100,000 步骤的索引领取与短写事务、前台／后台公平推进、持久手动暂停、下载子任务与重启、有限冷却重试及 2,000 页分批清单；全部合成数据。
 - `task_acceptance_probe.py --source-db SYNTHETIC_DB --artifacts NEW_DIRECTORY`：复制既有十万项隔离库，实际 localhost 测量远端替身等待期间的 20 次不同单件任务受理、本地详情与计数；每次要求 created=True，不连接真实主站。
 - `client_delivery_touch_browser.py --artifacts NEW_DIRECTORY`：真实隔离后端与 Chromium CDP 手机触摸，验证滑动／多指／长按不误触、单击放大和双指缩放、关闭保留原位、双击仅添加收藏及 320px 底栏几何；不表示实体手机或 EXE 验收。
