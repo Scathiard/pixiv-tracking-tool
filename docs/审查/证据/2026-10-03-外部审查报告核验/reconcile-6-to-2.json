@@ -1,0 +1,508 @@
+{
+  "first": {
+    "id": "988a413043ef4018bba7eeb8467a2885",
+    "round_id": "1a22402bc91b40e4b7fbde327885f86d",
+    "kind": "reconcile",
+    "label": "synthetic",
+    "source": "manual",
+    "lane": null,
+    "state": "finished",
+    "phase": {
+      "name": "thumbnails",
+      "unit": "previews",
+      "done": 1,
+      "total": 1,
+      "detail": "正在处理"
+    },
+    "result": {
+      "planning_complete": true,
+      "phase_snapshots": {
+        "inventory:works": {
+          "phase": "inventory",
+          "unit": "works",
+          "done": 1,
+          "total": 1
+        },
+        "verifying:assets": {
+          "phase": "verifying",
+          "unit": "assets",
+          "done": 6,
+          "total": 6
+        },
+        "checking:works": {
+          "phase": "checking",
+          "unit": "works",
+          "done": 2,
+          "total": 2
+        },
+        "reconciling:works": {
+          "phase": "reconciling",
+          "unit": "works",
+          "done": 1,
+          "total": 1
+        },
+        "thumbnails:previews": {
+          "phase": "thumbnails",
+          "unit": "previews",
+          "done": 1,
+          "total": 1
+        }
+      },
+      "inventory_complete": true,
+      "inventory": {
+        "phase": "inventory",
+        "unit": "works",
+        "done": 1,
+        "total": 1
+      },
+      "lane": null,
+      "current_items": {},
+      "failed": 1,
+      "succeeded": 9,
+      "counts": {
+        "failed": 1,
+        "succeeded": 9
+      },
+      "outcome": "partial_failure"
+    },
+    "needs_attention": true,
+    "created_at": "2026-10-03T09:14:03.869014",
+    "finished_at": "2026-10-03T09:14:06.596330",
+    "counts": {
+      "failed": 1,
+      "succeeded": 9
+    },
+    "has_more_items": false,
+    "phases": [
+      {
+        "phase": "checking",
+        "unit": "works",
+        "state": "failed",
+        "count": 1
+      },
+      {
+        "phase": "checking",
+        "unit": "works",
+        "state": "succeeded",
+        "count": 1
+      },
+      {
+        "phase": "reconciling",
+        "unit": "works",
+        "state": "succeeded",
+        "count": 1
+      },
+      {
+        "phase": "thumbnails",
+        "unit": "previews",
+        "state": "succeeded",
+        "count": 1
+      },
+      {
+        "phase": "verifying",
+        "unit": "assets",
+        "state": "succeeded",
+        "count": 6
+      }
+    ],
+    "items": [
+      {
+        "id": "c9e2313fc4304fe3ae3bcbd5b7a81596",
+        "key": "inspect-asset-fb6155159ba643a7b2fb6fd71b45847f",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": true,
+          "gap": false,
+          "message": "原件核验完成"
+        }
+      },
+      {
+        "id": "85e498204be5481d97d12a3c1d98f836",
+        "key": "inspect-asset-48b14d66083a4c9eae5d948b5436fd09",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": true,
+          "gap": false,
+          "message": "原件核验完成"
+        }
+      },
+      {
+        "id": "b25bae0891b9422dab1c1251d6eeb5c4",
+        "key": "inspect-asset-70317465656f4762b217b71b1af512cf",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": true,
+          "gap": false,
+          "message": "原件核验完成"
+        }
+      },
+      {
+        "id": "0e6b61a710414014989847f867edda51",
+        "key": "inspect-asset-8434ccb313c34a36af01e4f79e5ceee7",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": true,
+          "gap": false,
+          "message": "原件核验完成"
+        }
+      },
+      {
+        "id": "9a1b19de597242b8af93d3ddb76e6152",
+        "key": "inspect-asset-f651bd0a77094354a2fbbba561c11c6f",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": true,
+          "gap": false,
+          "message": "原件核验完成"
+        }
+      },
+      {
+        "id": "de6c43c2e07d42739ac781b08ff85ee4",
+        "key": "inspect-asset-f0c45200650e4d80b059ee132c2247ac",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": true,
+          "gap": false,
+          "message": "原件核验完成"
+        }
+      },
+      {
+        "id": "4c7015fc07814828a1142f20357c1ccd",
+        "key": "snapshot-1",
+        "state": "succeeded",
+        "phase": "checking",
+        "attempts": 1,
+        "result": {
+          "metadata": null,
+          "failure": {
+            "code": "WorkMetadataConflict",
+            "message": "主站当前 2 页，本地记录 6 页；已有存档保留，需核对",
+            "retryable": false,
+            "failure_code": "work_metadata_conflict",
+            "source_state": null
+          },
+          "remote_ready": false,
+          "message": "主站资料本次未取得，继续核验和重建本地内容"
+        }
+      },
+      {
+        "id": "d2e09836fee84cb4b1f949bc51caa69f",
+        "key": "prepare-1",
+        "state": "succeeded",
+        "phase": "reconciling",
+        "attempts": 1,
+        "result": {
+          "gaps": 0,
+          "planned_repairs": 0,
+          "message": "实际缺项已进入同一维护清单"
+        }
+      },
+      {
+        "id": "e5f59b639f5440a2a018d29ecace394c",
+        "key": "source-result-1",
+        "state": "failed",
+        "phase": "checking",
+        "attempts": 1,
+        "result": {
+          "code": "WorkMetadataConflict",
+          "message": "主站当前 2 页，本地记录 6 页；已有存档保留，需核对",
+          "retryable": false,
+          "failure_code": "work_metadata_conflict",
+          "source_state": null,
+          "work_id": 1
+        }
+      },
+      {
+        "id": "29bec54ec7024fcf943d63d1954a2a48",
+        "key": "rebuild-96c85c435a3e432e833a45eff56fe913",
+        "state": "succeeded",
+        "phase": "thumbnails",
+        "attempts": 1,
+        "result": {}
+      }
+    ]
+  },
+  "after_ack_retry": {
+    "id": "9ff542ff08654440b605fd5c72bbba4f",
+    "round_id": "b3c377b145ad43ba92ef65dfcf61ea24",
+    "kind": "reconcile",
+    "label": "synthetic（重新执行）",
+    "source": "manual",
+    "lane": null,
+    "state": "finished",
+    "phase": {
+      "name": "checking",
+      "unit": "works",
+      "done": 2,
+      "total": 2,
+      "detail": "正在处理"
+    },
+    "result": {
+      "planning_complete": true,
+      "phase_snapshots": {
+        "inventory:works": {
+          "phase": "inventory",
+          "unit": "works",
+          "done": 1,
+          "total": 1
+        },
+        "verifying:assets": {
+          "phase": "verifying",
+          "unit": "assets",
+          "done": 6,
+          "total": 6
+        },
+        "checking:works": {
+          "phase": "checking",
+          "unit": "works",
+          "done": 2,
+          "total": 2
+        },
+        "verifying:previews": {
+          "phase": "verifying",
+          "unit": "previews",
+          "done": 1,
+          "total": 1
+        },
+        "reconciling:works": {
+          "phase": "reconciling",
+          "unit": "works",
+          "done": 1,
+          "total": 1
+        }
+      },
+      "inventory_complete": true,
+      "inventory": {
+        "phase": "inventory",
+        "unit": "works",
+        "done": 1,
+        "total": 1
+      },
+      "lane": null,
+      "current_items": {},
+      "failed": 1,
+      "succeeded": 9,
+      "counts": {
+        "failed": 1,
+        "succeeded": 9
+      },
+      "outcome": "partial_failure"
+    },
+    "needs_attention": true,
+    "created_at": "2026-10-03T09:14:06.667938",
+    "finished_at": "2026-10-03T09:14:08.768634",
+    "counts": {
+      "failed": 1,
+      "succeeded": 9
+    },
+    "has_more_items": false,
+    "phases": [
+      {
+        "phase": "checking",
+        "unit": "works",
+        "state": "failed",
+        "count": 1
+      },
+      {
+        "phase": "checking",
+        "unit": "works",
+        "state": "succeeded",
+        "count": 1
+      },
+      {
+        "phase": "reconciling",
+        "unit": "works",
+        "state": "succeeded",
+        "count": 1
+      },
+      {
+        "phase": "verifying",
+        "unit": "assets",
+        "state": "succeeded",
+        "count": 6
+      },
+      {
+        "phase": "verifying",
+        "unit": "previews",
+        "state": "succeeded",
+        "count": 1
+      }
+    ],
+    "items": [
+      {
+        "id": "53d61f9a41814af99a78458928b06327",
+        "key": "inspect-asset-fb6155159ba643a7b2fb6fd71b45847f",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": true,
+          "gap": false,
+          "message": "原件核验完成"
+        }
+      },
+      {
+        "id": "a56624753e234b499aa52c8860751b9f",
+        "key": "inspect-asset-48b14d66083a4c9eae5d948b5436fd09",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": true,
+          "gap": false,
+          "message": "原件核验完成"
+        }
+      },
+      {
+        "id": "360fc32b636f43d885607407b41180f9",
+        "key": "inspect-asset-70317465656f4762b217b71b1af512cf",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": true,
+          "gap": false,
+          "message": "原件核验完成"
+        }
+      },
+      {
+        "id": "6fcb3bfcef1f4da79e66bdeb5a4477ce",
+        "key": "inspect-asset-8434ccb313c34a36af01e4f79e5ceee7",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": true,
+          "gap": false,
+          "message": "原件核验完成"
+        }
+      },
+      {
+        "id": "4585f9a5358f48ffbb8a7c5579e4756b",
+        "key": "inspect-asset-f651bd0a77094354a2fbbba561c11c6f",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": true,
+          "gap": false,
+          "message": "原件核验完成"
+        }
+      },
+      {
+        "id": "03c54b9b526146a1bef1ca9e58b249fc",
+        "key": "inspect-asset-f0c45200650e4d80b059ee132c2247ac",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": true,
+          "gap": false,
+          "message": "原件核验完成"
+        }
+      },
+      {
+        "id": "6561ffe687a24b679d1d4b572681bf42",
+        "key": "inspect-derivative-96c85c435a3e432e833a45eff56fe913",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": true,
+          "gap": false,
+          "message": "预览核验完成"
+        }
+      },
+      {
+        "id": "ae33d7bfc3374660945fcde236996a1b",
+        "key": "snapshot-1",
+        "state": "succeeded",
+        "phase": "checking",
+        "attempts": 1,
+        "result": {
+          "metadata": null,
+          "failure": {
+            "code": "WorkMetadataConflict",
+            "message": "主站当前 2 页，本地记录 6 页；已有存档保留，需核对",
+            "retryable": false,
+            "failure_code": "work_metadata_conflict",
+            "source_state": null
+          },
+          "remote_ready": false,
+          "message": "主站资料本次未取得，继续核验和重建本地内容"
+        }
+      },
+      {
+        "id": "35ef43ee5eae467b9886cc6626d85d2f",
+        "key": "prepare-1",
+        "state": "succeeded",
+        "phase": "reconciling",
+        "attempts": 1,
+        "result": {
+          "gaps": 0,
+          "planned_repairs": 0,
+          "message": "实际缺项已进入同一维护清单"
+        }
+      },
+      {
+        "id": "ac4ea098ec2d42efa4ed7d966095bcc7",
+        "key": "source-result-1",
+        "state": "failed",
+        "phase": "checking",
+        "attempts": 1,
+        "result": {
+          "code": "WorkMetadataConflict",
+          "message": "主站当前 2 页，本地记录 6 页；已有存档保留，需核对",
+          "retryable": false,
+          "failure_code": "work_metadata_conflict",
+          "source_state": null,
+          "work_id": 1
+        }
+      }
+    ]
+  },
+  "archive": {
+    "state": "complete",
+    "total": 6,
+    "verified": 6,
+    "missing": 0,
+    "unknown": 0
+  },
+  "availability": {
+    "state": "available",
+    "reason": null,
+    "checked_at": "2026-10-03T09:14:07.355962+00:00",
+    "confirmed": true,
+    "confirmation": "confirmed",
+    "cached": true
+  },
+  "before": {
+    "101-0.png": "211f24cb4d19fee58970bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c",
+    "101-1.png": "211f24cb4d19fee58970bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c",
+    "101-2.png": "211f24cb4d19fee58970bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c",
+    "101-3.png": "211f24cb4d19fee58970bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c",
+    "101-4.png": "211f24cb4d19fee58970bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c",
+    "101-5.png": "211f24cb4d19fee58970bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c"
+  },
+  "after": {
+    "101-0.png": "211f24cb4d19fee58970bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c",
+    "101-1.png": "211f24cb4d19fee58970bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c",
+    "101-2.png": "211f24cb4d19fee58970bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c",
+    "101-3.png": "211f24cb4d19fee58970bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c",
+    "101-4.png": "211f24cb4d19fee58970bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c",
+    "101-5.png": "211f24cb4d19fee58970bdd6052ba796ee252e1a7621c839b4dfc27d42b02a7c"
+  },
+  "downloads": []
+}

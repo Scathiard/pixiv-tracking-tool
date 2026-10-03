@@ -1,0 +1,193 @@
+{
+  "operation": {
+    "id": "e1fc2b7157c940d8a1097e32ec6d5636",
+    "round_id": "c270df1d2a484030acdaa21678674145",
+    "kind": "repair",
+    "label": "synthetic",
+    "source": "manual",
+    "lane": null,
+    "state": "finished",
+    "phase": {
+      "name": "thumbnails",
+      "unit": "previews",
+      "done": 1,
+      "total": 1,
+      "detail": "正在处理"
+    },
+    "result": {
+      "planning_complete": true,
+      "phase_snapshots": {
+        "inventory:works": {
+          "phase": "inventory",
+          "unit": "works",
+          "done": 1,
+          "total": 1
+        },
+        "downloading:assets": {
+          "phase": "downloading",
+          "unit": "assets",
+          "done": 1,
+          "total": 1
+        },
+        "thumbnails:previews": {
+          "phase": "thumbnails",
+          "unit": "previews",
+          "done": 1,
+          "total": 1
+        }
+      },
+      "inventory_complete": true,
+      "inventory": {
+        "phase": "inventory",
+        "unit": "works",
+        "done": 1,
+        "total": 1
+      },
+      "lane": null,
+      "current_items": {},
+      "succeeded": 2,
+      "counts": {
+        "succeeded": 2
+      },
+      "outcome": "succeeded"
+    },
+    "needs_attention": false,
+    "created_at": "2026-10-03T09:14:15.675142",
+    "finished_at": "2026-10-03T09:14:17.372724",
+    "counts": {
+      "succeeded": 2
+    },
+    "has_more_items": false,
+    "phases": [
+      {
+        "phase": "downloading",
+        "unit": "assets",
+        "state": "succeeded",
+        "count": 1
+      },
+      {
+        "phase": "thumbnails",
+        "unit": "previews",
+        "state": "succeeded",
+        "count": 1
+      }
+    ],
+    "items": [
+      {
+        "id": "78791ef156b2476eaa39987fe6466e23",
+        "key": "asset-9101fea37c5a41058d1d00c698669620",
+        "state": "succeeded",
+        "phase": "downloading",
+        "attempts": 1,
+        "result": {}
+      },
+      {
+        "id": "d20ff1d1d722493ab42b7ac3f3db362e",
+        "key": "thumbnail-ceb039511fa04858bcd2d2d4b783bc45",
+        "state": "succeeded",
+        "phase": "thumbnails",
+        "attempts": 1,
+        "result": {}
+      }
+    ]
+  },
+  "downloads": [
+    "https://i.pximg.net/101_p1.png"
+  ],
+  "remote_requests": [],
+  "detail": {
+    "id": 1,
+    "pixiv_id": "101",
+    "title": "cached title",
+    "artist_id": 1,
+    "artist_name": "cached artist",
+    "type": "manga",
+    "page_count": 2,
+    "caption": "cached caption",
+    "caption_state": "unknown",
+    "tags": [],
+    "tag_details": [],
+    "is_hidden": true,
+    "rating": 0,
+    "is_bookmarked": false,
+    "bookmark": {
+      "work_id": 1,
+      "operation_id": null,
+      "status": "idle",
+      "desired": null,
+      "value": false,
+      "confirmed_at": null,
+      "error": null,
+      "version": 1,
+      "cached": true,
+      "verified": false,
+      "fact_account_id": null,
+      "current_account_id": null,
+      "account_epoch": 0
+    },
+    "bookmark_confirmed_at": null,
+    "bookmark_count": null,
+    "view_count": null,
+    "posted_at": null,
+    "time_basis": "utc",
+    "x_restrict": null,
+    "availability": null,
+    "restriction_verified": false,
+    "archive": {
+      "state": "complete",
+      "total": 2,
+      "verified": 2,
+      "missing": 0,
+      "unknown": 0
+    },
+    "processing": {
+      "state": "idle",
+      "operation_id": null,
+      "next_retry_at": null,
+      "reason": null
+    },
+    "source_update": {
+      "pending": false,
+      "reason": null
+    },
+    "recovery": null,
+    "catalogue_revision": 5,
+    "pages": [
+      {
+        "index": 0,
+        "src": "/images/101-0.png",
+        "width": 16,
+        "height": 12,
+        "state": "verified",
+        "error": null
+      },
+      {
+        "index": 1,
+        "src": "/images/artist_10/101_p1.png",
+        "width": 16,
+        "height": 12,
+        "state": "verified",
+        "error": null
+      }
+    ],
+    "assets": [
+      {
+        "id": "26f511cff6ca4b2688e59f8ff6f118e1",
+        "role": "image",
+        "page": 0,
+        "state": "verified",
+        "error": null
+      },
+      {
+        "id": "9101fea37c5a41058d1d00c698669620",
+        "role": "image",
+        "page": 1,
+        "state": "verified",
+        "error": null
+      }
+    ],
+    "legacy_variants": [],
+    "display_page_count": 2,
+    "has_more_pages": false
+  }
+}

@@ -1,0 +1,330 @@
+{
+  "operation": {
+    "id": "32c5431fa1b64f4b912480c283416948",
+    "round_id": "00fa6de56e50408dbad6b3da1ac0c6a0",
+    "kind": "reconcile",
+    "label": "synthetic",
+    "source": "manual",
+    "lane": null,
+    "state": "finished",
+    "phase": {
+      "name": "thumbnails",
+      "unit": "previews",
+      "done": 1,
+      "total": 1,
+      "detail": "正在处理"
+    },
+    "result": {
+      "planning_complete": true,
+      "phase_snapshots": {
+        "inventory:works": {
+          "phase": "inventory",
+          "unit": "works",
+          "done": 1,
+          "total": 1
+        },
+        "verifying:assets": {
+          "phase": "verifying",
+          "unit": "assets",
+          "done": 2,
+          "total": 2
+        },
+        "checking:works": {
+          "phase": "checking",
+          "unit": "works",
+          "done": 2,
+          "total": 2
+        },
+        "reconciling:works": {
+          "phase": "reconciling",
+          "unit": "works",
+          "done": 1,
+          "total": 1
+        },
+        "repairing:assets": {
+          "phase": "repairing",
+          "unit": "assets",
+          "done": 1,
+          "total": 1
+        },
+        "thumbnails:previews": {
+          "phase": "thumbnails",
+          "unit": "previews",
+          "done": 1,
+          "total": 1
+        }
+      },
+      "inventory_complete": true,
+      "inventory": {
+        "phase": "inventory",
+        "unit": "works",
+        "done": 1,
+        "total": 1
+      },
+      "lane": null,
+      "current_items": {},
+      "failed": 1,
+      "skipped": 1,
+      "succeeded": 5,
+      "counts": {
+        "failed": 1,
+        "skipped": 1,
+        "succeeded": 5
+      },
+      "outcome": "partial_failure"
+    },
+    "needs_attention": true,
+    "created_at": "2026-10-03T09:14:13.384605",
+    "finished_at": "2026-10-03T09:14:15.071693",
+    "counts": {
+      "failed": 1,
+      "skipped": 1,
+      "succeeded": 5
+    },
+    "has_more_items": false,
+    "phases": [
+      {
+        "phase": "checking",
+        "unit": "works",
+        "state": "failed",
+        "count": 1
+      },
+      {
+        "phase": "checking",
+        "unit": "works",
+        "state": "succeeded",
+        "count": 1
+      },
+      {
+        "phase": "reconciling",
+        "unit": "works",
+        "state": "succeeded",
+        "count": 1
+      },
+      {
+        "phase": "repairing",
+        "unit": "assets",
+        "state": "skipped",
+        "count": 1
+      },
+      {
+        "phase": "thumbnails",
+        "unit": "previews",
+        "state": "succeeded",
+        "count": 1
+      },
+      {
+        "phase": "verifying",
+        "unit": "assets",
+        "state": "succeeded",
+        "count": 2
+      }
+    ],
+    "items": [
+      {
+        "id": "f92737ab7faf44de8ffaaefc5133e90f",
+        "key": "inspect-asset-4704acc27d8d4cf794210e9d2a5ca717",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": true,
+          "gap": false,
+          "message": "原件核验完成"
+        }
+      },
+      {
+        "id": "34ee2250745445dfb9f35c9c9098289c",
+        "key": "inspect-asset-e58fb77daa0a487b9e41aee0a227164b",
+        "state": "succeeded",
+        "phase": "verifying",
+        "attempts": 1,
+        "result": {
+          "valid": false,
+          "gap": true,
+          "message": "原件核验完成"
+        }
+      },
+      {
+        "id": "4ea3222a072345e0ba1bd0c956bca705",
+        "key": "snapshot-1",
+        "state": "succeeded",
+        "phase": "checking",
+        "attempts": 1,
+        "result": {
+          "metadata": null,
+          "failure": {
+            "code": "WorkMetadataConflict",
+            "message": "主站当前 3 页，本地记录 2 页；已有存档保留，需核对",
+            "retryable": false,
+            "failure_code": "work_metadata_conflict",
+            "source_state": null
+          },
+          "remote_ready": false,
+          "message": "主站资料本次未取得，继续核验和重建本地内容"
+        }
+      },
+      {
+        "id": "ef9649d5d51a43d3868cc7dbda329fcd",
+        "key": "prepare-1",
+        "state": "succeeded",
+        "phase": "reconciling",
+        "attempts": 1,
+        "result": {
+          "gaps": 1,
+          "planned_repairs": 0,
+          "message": "实际缺项已进入同一维护清单"
+        }
+      },
+      {
+        "id": "6c2e8e7272d64eec865d0d1ba02a85ec",
+        "key": "source-result-1",
+        "state": "failed",
+        "phase": "checking",
+        "attempts": 1,
+        "result": {
+          "code": "WorkMetadataConflict",
+          "message": "主站当前 3 页，本地记录 2 页；已有存档保留，需核对",
+          "retryable": false,
+          "failure_code": "work_metadata_conflict",
+          "source_state": null,
+          "work_id": 1
+        }
+      },
+      {
+        "id": "81188cb84446418cbaa81869768017ec",
+        "key": "gap-e58fb77daa0a487b9e41aee0a227164b",
+        "state": "skipped",
+        "phase": "repairing",
+        "attempts": 1,
+        "result": {
+          "work_id": 1,
+          "asset_id": "e58fb77daa0a487b9e41aee0a227164b",
+          "role": "image",
+          "page_index": 1,
+          "failure_code": "work_metadata_conflict",
+          "message": "主站当前 3 页，本地记录 2 页；已有存档保留，需核对"
+        }
+      },
+      {
+        "id": "ee2a014333bf424a8f6be39c3a18e583",
+        "key": "rebuild-60bd3b9e2d584ba6b6843b459fd2d4d4",
+        "state": "succeeded",
+        "phase": "thumbnails",
+        "attempts": 1,
+        "result": {}
+      }
+    ]
+  },
+  "downloads": [],
+  "remote_requests": [
+    "101"
+  ],
+  "detail": {
+    "id": 1,
+    "pixiv_id": "101",
+    "title": "cached title",
+    "artist_id": 1,
+    "artist_name": "cached artist",
+    "type": "manga",
+    "page_count": 2,
+    "caption": "cached caption",
+    "caption_state": "unknown",
+    "tags": [],
+    "tag_details": [],
+    "is_hidden": true,
+    "rating": 0,
+    "is_bookmarked": false,
+    "bookmark": {
+      "work_id": 1,
+      "operation_id": null,
+      "status": "idle",
+      "desired": null,
+      "value": false,
+      "confirmed_at": null,
+      "error": null,
+      "version": 2,
+      "cached": true,
+      "verified": false,
+      "fact_account_id": null,
+      "current_account_id": null,
+      "account_epoch": 0
+    },
+    "bookmark_confirmed_at": null,
+    "bookmark_count": null,
+    "view_count": null,
+    "posted_at": null,
+    "time_basis": "utc",
+    "x_restrict": null,
+    "availability": {
+      "state": "available",
+      "reason": null,
+      "checked_at": "2026-10-03T09:14:14.083035+00:00",
+      "confirmed": true,
+      "confirmation": "confirmed",
+      "cached": true
+    },
+    "restriction_verified": false,
+    "archive": {
+      "state": "partial",
+      "total": 2,
+      "verified": 1,
+      "missing": 1,
+      "unknown": 0
+    },
+    "processing": {
+      "state": "attention",
+      "operation_id": "32c5431fa1b64f4b912480c283416948",
+      "next_retry_at": null,
+      "reason": "主站当前 3 页，本地记录 2 页；已有存档保留，需核对"
+    },
+    "source_update": {
+      "pending": false,
+      "reason": null
+    },
+    "recovery": {
+      "status": "attention",
+      "kind": null,
+      "next_retry_at": null,
+      "reason": "主站当前 3 页，本地记录 2 页；已有存档保留，需核对"
+    },
+    "catalogue_revision": 4,
+    "pages": [
+      {
+        "index": 0,
+        "src": "/images/101-0.png",
+        "width": 16,
+        "height": 12,
+        "state": "verified",
+        "error": null
+      },
+      {
+        "index": 1,
+        "src": null,
+        "width": null,
+        "height": null,
+        "state": "missing",
+        "error": "缺少原件"
+      }
+    ],
+    "assets": [
+      {
+        "id": "4704acc27d8d4cf794210e9d2a5ca717",
+        "role": "image",
+        "page": 0,
+        "state": "verified",
+        "error": null
+      },
+      {
+        "id": "e58fb77daa0a487b9e41aee0a227164b",
+        "role": "image",
+        "page": 1,
+        "state": "missing",
+        "error": "缺少原件"
+      }
+    ],
+    "legacy_variants": [],
+    "display_page_count": 2,
+    "has_more_pages": false
+  }
+}

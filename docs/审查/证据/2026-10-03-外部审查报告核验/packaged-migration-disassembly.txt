@@ -1,0 +1,277 @@
+EXE SHA-256: 89503bd9d6568d8e5ac2de6fea1f6068c8882c77ffd1c7f2b5394a7b454739e7
+
+129           0 RESUME                   0
+
+130           2 BUILD_MAP                0
+              4 STORE_FAST               2 (result)
+
+131           6 LOAD_GLOBAL              1 (NULL + _iter_copyable_files)
+             16 LOAD_FAST                0 (root)
+             18 CALL                     1
+             26 COPY                     1
+             28 POP_JUMP_IF_TRUE         2 (to 34)
+             30 POP_TOP
+             32 LOAD_CONST               1 (())
+        >>   34 GET_ITER
+        >>   36 FOR_ITER               134 (to 308)
+             40 STORE_FAST               3 (path)
+
+132          42 LOAD_FAST                3 (path)
+             44 LOAD_ATTR                3 (NULL|self + relative_to)
+             64 LOAD_FAST                0 (root)
+             66 CALL                     1
+             74 LOAD_ATTR                5 (NULL|self + as_posix)
+             94 CALL                     0
+            102 STORE_FAST               4 (relative)
+
+133         104 LOAD_FAST                1 (skip_database)
+            106 POP_JUMP_IF_FALSE        6 (to 120)
+            108 LOAD_FAST                4 (relative)
+            110 LOAD_CONST               2 ('pixiv_tracker.db')
+            112 COMPARE_OP              40 (==)
+            116 POP_JUMP_IF_FALSE        1 (to 120)
+
+134         118 JUMP_BACKWARD           42 (to 36)
+
+135     >>  120 LOAD_FAST                3 (path)
+            122 LOAD_ATTR                7 (NULL|self + open)
+            142 LOAD_CONST               3 ('rb')
+            144 CALL                     1
+            152 BEFORE_WITH
+            154 STORE_FAST               5 (stream)
+
+136         156 LOAD_GLOBAL              9 (NULL + hashlib)
+            166 LOAD_ATTR               10 (file_digest)
+            186 LOAD_FAST                5 (stream)
+            188 LOAD_CONST               4 ('sha256')
+            190 CALL                     2
+            198 LOAD_ATTR               13 (NULL|self + hexdigest)
+            218 CALL                     0
+            226 STORE_FAST               6 (digest)
+
+135         228 LOAD_CONST               0 (None)
+            230 LOAD_CONST               0 (None)
+            232 LOAD_CONST               0 (None)
+            234 CALL                     2
+            242 POP_TOP
+
+137     >>  244 LOAD_FAST                3 (path)
+            246 LOAD_ATTR               15 (NULL|self + stat)
+            266 CALL                     0
+            274 LOAD_ATTR               16 (st_size)
+            294 LOAD_FAST_CHECK          6 (digest)
+            296 BUILD_TUPLE              2
+            298 LOAD_FAST                2 (result)
+            300 LOAD_FAST                4 (relative)
+            302 STORE_SUBSCR
+            306 JUMP_BACKWARD          136 (to 36)
+
+131     >>  308 END_FOR
+
+138         310 LOAD_FAST                2 (result)
+            312 RETURN_VALUE
+
+135     >>  314 PUSH_EXC_INFO
+            316 WITH_EXCEPT_START
+            318 POP_JUMP_IF_TRUE         1 (to 322)
+            320 RERAISE                  2
+        >>  322 POP_TOP
+            324 POP_EXCEPT
+            326 POP_TOP
+            328 POP_TOP
+            330 JUMP_BACKWARD           44 (to 244)
+        >>  332 COPY                     3
+            334 POP_EXCEPT
+            336 RERAISE                  1
+ExceptionTable:
+  154 to 226 -> 314 [2] lasti
+  314 to 322 -> 332 [4] lasti
+
+154           0 RESUME                   0
+
+155           2 LOAD_FAST                0 (plan)
+              4 LOAD_ATTR                0 (target_root)
+             24 LOAD_ATTR                3 (NULL|self + exists)
+             44 CALL                     0
+             52 POP_JUMP_IF_FALSE       46 (to 146)
+             54 LOAD_GLOBAL              5 (NULL + any)
+             64 LOAD_FAST                0 (plan)
+             66 LOAD_ATTR                0 (target_root)
+             86 LOAD_ATTR                7 (NULL|self + iterdir)
+            106 CALL                     0
+            114 CALL                     1
+            122 POP_JUMP_IF_FALSE       11 (to 146)
+
+156         124 LOAD_GLOBAL              9 (NULL + MigrationError)
+            134 LOAD_CONST               1 ('目标目录在迁移开始前已不再为空')
+            136 CALL                     1
+            144 RAISE_VARARGS            1
+
+157     >>  146 LOAD_FAST                0 (plan)
+            148 LOAD_ATTR                0 (target_root)
+            168 LOAD_ATTR               11 (NULL|self + mkdir)
+            188 LOAD_CONST               2 (True)
+            190 LOAD_CONST               2 (True)
+            192 KW_NAMES                 3 (('parents', 'exist_ok'))
+            194 CALL                     2
+            202 POP_TOP
+
+158         204 LOAD_FAST                0 (plan)
+            206 LOAD_ATTR                0 (target_root)
+            226 LOAD_CONST               4 ('data')
+            228 BINARY_OP               11 (/)
+            232 STORE_FAST               1 (target_data)
+
+159         234 LOAD_FAST                0 (plan)
+            236 LOAD_ATTR                0 (target_root)
+            256 LOAD_CONST               5 ('images')
+            258 BINARY_OP               11 (/)
+            262 STORE_FAST               2 (target_images)
+
+160         264 LOAD_FAST                1 (target_data)
+            266 LOAD_ATTR               11 (NULL|self + mkdir)
+            286 CALL                     0
+            294 POP_TOP
+
+161         296 LOAD_FAST                2 (target_images)
+            298 LOAD_ATTR               11 (NULL|self + mkdir)
+            318 CALL                     0
+            326 POP_TOP
+
+163         328 LOAD_GLOBAL             13 (NULL + _manifest)
+            338 LOAD_FAST                0 (plan)
+            340 LOAD_ATTR               14 (source_root)
+            360 LOAD_CONST               4 ('data')
+            362 BINARY_OP               11 (/)
+            366 LOAD_CONST               2 (True)
+            368 KW_NAMES                 6 (('skip_database',))
+            370 CALL                     2
+            378 STORE_FAST               3 (source_data_manifest)
+
+164         380 LOAD_GLOBAL             13 (NULL + _manifest)
+            390 LOAD_FAST                0 (plan)
+            392 LOAD_ATTR               14 (source_root)
+            412 LOAD_CONST               5 ('images')
+            414 BINARY_OP               11 (/)
+            418 CALL                     1
+            426 STORE_FAST               4 (source_image_manifest)
+
+166         428 LOAD_GLOBAL             17 (NULL + _backup_sqlite)
+
+167         438 LOAD_FAST                0 (plan)
+            440 LOAD_ATTR               14 (source_root)
+            460 LOAD_CONST               4 ('data')
+            462 BINARY_OP               11 (/)
+            466 LOAD_CONST               7 ('pixiv_tracker.db')
+            468 BINARY_OP               11 (/)
+
+168         472 LOAD_FAST                1 (target_data)
+            474 LOAD_CONST               7 ('pixiv_tracker.db')
+            476 BINARY_OP               11 (/)
+
+166         480 CALL                     2
+            488 STORE_FAST               5 (database_ok)
+
+170         490 LOAD_FAST                5 (database_ok)
+            492 POP_JUMP_IF_TRUE        11 (to 516)
+
+171         494 LOAD_GLOBAL              9 (NULL + MigrationError)
+            504 LOAD_CONST               8 ('迁移后的数据库完整性检查失败')
+            506 CALL                     1
+            514 RAISE_VARARGS            1
+
+173     >>  516 LOAD_GLOBAL             19 (NULL + _copy_tree)
+            526 LOAD_FAST                0 (plan)
+            528 LOAD_ATTR               14 (source_root)
+            548 LOAD_CONST               4 ('data')
+            550 BINARY_OP               11 (/)
+            554 LOAD_FAST                1 (target_data)
+            556 LOAD_CONST               2 (True)
+            558 KW_NAMES                 6 (('skip_database',))
+            560 CALL                     3
+            568 POP_TOP
+
+174         570 LOAD_GLOBAL             19 (NULL + _copy_tree)
+            580 LOAD_FAST                0 (plan)
+            582 LOAD_ATTR               14 (source_root)
+            602 LOAD_CONST               5 ('images')
+            604 BINARY_OP               11 (/)
+            608 LOAD_FAST                2 (target_images)
+            610 CALL                     2
+            618 POP_TOP
+
+176         620 LOAD_GLOBAL             13 (NULL + _manifest)
+            630 LOAD_FAST                1 (target_data)
+            632 LOAD_CONST               2 (True)
+            634 KW_NAMES                 6 (('skip_database',))
+            636 CALL                     2
+            644 STORE_FAST               6 (target_data_manifest)
+
+177         646 LOAD_GLOBAL             13 (NULL + _manifest)
+            656 LOAD_FAST                2 (target_images)
+            658 CALL                     1
+            666 STORE_FAST               7 (target_image_manifest)
+
+178         668 LOAD_FAST                6 (target_data_manifest)
+            670 LOAD_FAST                3 (source_data_manifest)
+            672 COMPARE_OP              55 (!=)
+            676 POP_JUMP_IF_FALSE       11 (to 700)
+
+179         678 LOAD_GLOBAL              9 (NULL + MigrationError)
+            688 LOAD_CONST               9 ('data 文件清单或大小校验失败')
+            690 CALL                     1
+            698 RAISE_VARARGS            1
+
+180     >>  700 LOAD_FAST                7 (target_image_manifest)
+            702 LOAD_FAST                4 (source_image_manifest)
+            704 COMPARE_OP              55 (!=)
+            708 POP_JUMP_IF_FALSE       11 (to 732)
+
+181         710 LOAD_GLOBAL              9 (NULL + MigrationError)
+            720 LOAD_CONST              10 ('图片文件清单或大小校验失败')
+            722 CALL                     1
+            730 RAISE_VARARGS            1
+
+182     >>  732 LOAD_GLOBAL             21 (NULL + sum)
+            742 LOAD_CONST              11 (<code object <genexpr> at 0x000001B8B7F63960, file "src\data_migration.py", line 182>)
+            744 MAKE_FUNCTION            0
+            746 LOAD_FAST                7 (target_image_manifest)
+            748 LOAD_ATTR               23 (NULL|self + values)
+            768 CALL                     0
+            776 GET_ITER
+            778 CALL                     0
+            786 CALL                     1
+            794 STORE_FAST               8 (image_bytes)
+
+183         796 LOAD_GLOBAL             25 (NULL + len)
+            806 LOAD_FAST                7 (target_image_manifest)
+            808 CALL                     1
+            816 LOAD_FAST                0 (plan)
+            818 LOAD_ATTR               26 (image_files)
+            838 COMPARE_OP              55 (!=)
+            842 POP_JUMP_IF_FALSE       11 (to 866)
+
+184         844 LOAD_GLOBAL              9 (NULL + MigrationError)
+            854 LOAD_CONST              12 ('迁移期间源图片清单发生变化')
+            856 CALL                     1
+            864 RAISE_VARARGS            1
+
+185     >>  866 LOAD_GLOBAL             29 (NULL + MigrationReport)
+
+186         876 LOAD_FAST                0 (plan)
+            878 LOAD_ATTR               14 (source_root)
+
+187         898 LOAD_FAST                0 (plan)
+            900 LOAD_ATTR                0 (target_root)
+
+188         920 LOAD_FAST                5 (database_ok)
+
+189         922 LOAD_GLOBAL             25 (NULL + len)
+            932 LOAD_FAST                7 (target_image_manifest)
+            934 CALL                     1
+
+190         942 LOAD_FAST                8 (image_bytes)
+
+185         944 KW_NAMES                13 (('source_root', 'target_root', 'database_ok', 'image_files', 'image_bytes'))
+            946 CALL                     5
+            954 RETURN_VALUE
