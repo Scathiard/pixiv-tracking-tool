@@ -131,8 +131,8 @@ def test_offline_preserves_cached_available_fact_but_known_other_account_require
     library.account_id = "42"
     assert library.source_overview()["total"] == 0
     library.account_id = "43"
-    assert library.source_overview()["total"] == 1
-    assert library.source_overview(kind="artists")["total"] == 1
+    assert library.source_overview()["total"] == 0
+    assert library.source_overview(kind="artists")["total"] == 0
 
 
 def test_unknown_derived_media_is_unverified_not_missing_in_artist_summary(archive):
@@ -194,7 +194,7 @@ def test_profile_avatar_failure_is_still_positive_source_fact(archive):
 
 def _blocked(session, works):
     for work in works:
-        work.source_metadata = {"remote_availability": {"state": "unavailable", "checked_at": "2026-10-03", "reason": "safe"}}
+        work.source_metadata = {"remote_availability": {"state": "unavailable", "checked_at": "2026-10-03", "reason": "safe", "confirmed": True, "policy": "source-v2"}}
 
 
 def test_overview_all_types_unregistered_pages_and_complete_archives(archive):
@@ -215,10 +215,12 @@ def test_overview_all_types_unregistered_pages_and_complete_archives(archive):
     assert result["counts"]["works"] == {"deleted": 0, "unavailable": 4}
     rows = {row["id"]: row for row in result["items"]}
     assert [item["page"] for item in rows[1]["local"]["missing"]] == [1, 2]
-    assert rows[2]["local"] == {"state": "complete", "missing": []}
+    assert rows[2]["local"]["state"] == "complete" and rows[2]["local"]["missing"] == []
+    assert rows[2]["local"]["default_revision_id"] is None
+    assert rows[2]["local"]["latest_revision_id"] is None
     assert {item["role"] for item in rows[3]["local"]["missing"]} == {"ugoira_zip", "ugoira_timing", "thumbnail"}
-    assert rows[4]["local"] == {"state": "unknown", "missing": []}
-    assert all(row["availability"]["confirmed"] is False for row in rows.values())
+    assert rows[4]["local"]["state"] == "unknown" and rows[4]["local"]["missing"] == []
+    assert all(row["availability"]["effective"] is True for row in rows.values())
 
 
 def test_artist_summary_pagination_suppression_and_batched_reads(archive):
@@ -229,7 +231,7 @@ def test_artist_summary_pagination_suppression_and_batched_reads(archive):
         artist.profile_refreshed_at = datetime(2026, 10, 3)
         for number in range(2, 122):
             session.add(Artist(id=number, pixiv_user_id=str(number + 100), name=f"artist {number}"))
-            session.add(ApplicationState(key=ARTIST_PREFIX + str(number + 100), value={"state": "unavailable"}))
+            session.add(ApplicationState(key=ARTIST_PREFIX + str(number + 100), value={"state": "unavailable", "confirmed": True, "policy": "source-v2"}))
         saved = session.get(Work, 1)
         saved.page_count = 1
         session.add(Asset(work_id=1, role="image", state="verified", relative_path="saved.png"))
@@ -268,3 +270,24 @@ def test_artist_client_validates_identity_and_zero_works_is_not_missing():
     assert client.get_artist_detail("123")["user_id"] == "123"
     with pytest.raises(PixivRequestError):
         client.get_artist_detail("456")
+
+
+@pytest.mark.parametrize("failure", [PixivRequestError(401, "synthetic", failure_code="work_unavailable"), PixivRequestError(429, "synthetic"), PixivRequestError(503, "synthetic"), TimeoutError("synthetic")])
+def test_first_transient_observation_does_not_create_unreachable_source(archive, failure):
+    source = SourceStatus(archive)
+    for kind in ("artist", "work"):
+        source.apply_failure(kind, 1, failure, source.begin(kind, 1))
+        assert source.snapshot(kind, 1) is None
+    library = Library(archive)
+    assert library.source_overview()["total"] == 0
+    assert library.source_overview(kind="artists")["total"] == 0
+
+
+def test_legacy_weak_failure_is_kept_but_absent_from_source_overview(archive):
+    with archive.write() as session:
+        session.get(Work, 1).source_metadata = {"remote_availability": {"state":"unavailable", "confirmed":True}}
+        session.add(ApplicationState(key=ARTIST_PREFIX + "100", value={"state":"unavailable", "confirmed":False}))
+    library = Library(archive)
+    assert library.source_overview()["total"] == 0
+    assert library.source_overview(kind="artists")["total"] == 0
+    assert library.artist_detail(1)["availability"]["effective"] is False

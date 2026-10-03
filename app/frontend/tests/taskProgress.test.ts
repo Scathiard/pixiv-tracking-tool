@@ -87,3 +87,16 @@ test('progress distinguishes real phase counts, unknown totals, queues and inter
   task.state = 'interrupted'
   assert.equal(phaseStatus(task), '已中断，等待恢复')
 })
+
+
+test('manual maintenance pause stays visible and resumes without a fake progress bar', () => {
+  const paused = {...operation('reconcile', 'paused', 7, 30), kind: 'reconcile', pause_requested: true,
+    control: {can_pause: false, can_resume: true}}
+  assert.equal(selectPrimary([paused], null)?.id, paused.id)
+  assert.equal(phaseStatus(paused), '已暂停，继续后处理剩余部分')
+  assert.equal(hasProgressTrack(paused), false)
+  paused.state = 'pausing'
+  assert.equal(phaseStatus(paused), '正在暂停，当前步骤安全结束后停下')
+  const automatic = {...operation('automatic', 'queued'), source: 'automatic' as const}
+  assert.equal(phaseStatus(automatic, true), '等待恢复自动检查')
+})

@@ -111,7 +111,8 @@ def test_bulk_sync_reports_unconfirmed_fields_and_includes_stopped_artists(libra
     runtime.queue.run_round()
     result = runtime.queue.details(operation["operation_id"])
     assert result["counts"]["failed"] == 1
-    assert result["items"][0]["result"]["unconfirmed_works"] == 1
+    failed = [item for item in result["items"] if item["state"] == "failed"]
+    assert failed[0]["result"]["unconfirmed_works"] == 1
 
 
 def test_metadata_response_for_wrong_work_is_not_saved(library):

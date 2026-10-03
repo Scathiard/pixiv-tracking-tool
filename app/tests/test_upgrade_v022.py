@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import closing
 
 import pytest
 
@@ -15,7 +16,7 @@ def old_database(path):
         work.bookmark = RemoteBookmark(value=True)
         session.add(work)
     db.close()
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection:
         connection.execute("DROP TABLE bookmark_operations")
         connection.execute("DROP TABLE application_state")
         for column in ("biography", "avatar_path", "profile_refreshed_at"):
@@ -23,6 +24,7 @@ def old_database(path):
         for column in ("source", "account_id", "version"):
             connection.execute(f"ALTER TABLE remote_bookmarks DROP COLUMN {column}")
         connection.execute("UPDATE alembic_version SET version_num='0001_archive'")
+        connection.commit()
     return path
 
 

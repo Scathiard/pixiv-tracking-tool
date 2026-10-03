@@ -41,6 +41,8 @@ def reload_runtime():
 def create_app(runtime_factory=None, *, authenticate=True, schedule=True, reading_ui=False):
     from .routes.archive_api import create_router
     from .routes.archive_pages import create_pages
+    from .core.startup_upgrade import StartupUpgrade
+    from .routes.upgrade_api import create_upgrade_router
 
     def default_runtime():
         path = _cfg.DATA_DIR / "pixiv_tracker.db"
@@ -96,8 +98,10 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
                 start_scheduler(current)
             if authenticate and current.client is None and not application.state.stopping:
                 application.state.auth_task = asyncio.create_task(connect())
+            application.state.startup_upgrade.ready()
         except UpgradeRequired:
             application.state.upgrade_required = True
+            application.state.startup_upgrade.require()
         except BaseException:
             if current is not None:
                 await asyncio.to_thread(current.close, timeout=None)
@@ -107,6 +111,11 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
             yield
         finally:
             application.state.stopping = True
+            upgrade_task = application.state.startup_upgrade.task
+            if upgrade_task is not None:
+                # A conversion thread must finish its safe boundary and release
+                # its lease before this process exits.
+                await asyncio.gather(upgrade_task, return_exceptions=True)
             current = application.state.runtime
             if current is not None:
                 current.request_stop(cancel_remote=True)
@@ -131,6 +140,8 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
     application.state.auth_task = None
     application.state.login_error = None
     application.state.upgrade_required = False
+    application.state.startup_upgrade = StartupUpgrade(_cfg.DATA_DIR / "pixiv_tracker.db", _cfg.IMAGES_DIR,
+        runtime_factory or default_runtime, stopping=lambda:application.state.stopping or _shutdown_requested.is_set())
     application.add_middleware(RequestBoundaryMiddleware)
     application.mount("/static", StaticFiles(directory=resource_path("static")), name="static")
     if reading_ui:
@@ -150,6 +161,23 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
 
     def current_runtime():
         return application.state.runtime
+
+    async def upgraded_ready(current):
+        if application.state.stopping or _shutdown_requested.is_set():
+            raise RuntimeError("程序正在退出")
+        application.state.runtime = current
+        application.state.upgrade_required = False
+        try:
+            if schedule and current.client is not None:
+                start_scheduler(current)
+            if authenticate and current.client is None:
+                application.state.auth_task = asyncio.create_task(connect())
+        except Exception:
+            application.state.runtime = None
+            application.state.upgrade_required = True
+            raise
+
+    application.include_router(create_upgrade_router(application.state.startup_upgrade,upgraded_ready))
 
     def switch_root(new_path):
         from . import progress
@@ -264,7 +292,7 @@ def _print_startup_urls():
     print()
 
 
-def main(*, offline=False):
+def main(*, offline=False, ready_callback=None):
     import uvicorn
     import threading
     import socket as _socket
@@ -273,13 +301,6 @@ def main(*, offline=False):
 
     if _shutdown_requested.is_set():
         return
-
-    def _after_start():
-        import time
-        time.sleep(1.5)
-        _print_startup_urls()
-
-    threading.Thread(target=_after_start, daemon=True).start()
 
     # 开发版与发布版使用同一双 socket 路径，保证默认行为一致。
     serving_app = create_app(authenticate=False, schedule=False,
@@ -315,11 +336,21 @@ def main(*, offline=False):
         return
 
     _server = server
+    startup_done = threading.Event()
+    def _after_start():
+        while not startup_done.wait(.05) and not _shutdown_requested.is_set():
+            if server.started:
+                _print_startup_urls()
+                if ready_callback is not None:
+                    ready_callback()
+                return
+    threading.Thread(target=_after_start, daemon=True).start()
     if _shutdown_requested.is_set():
         server.should_exit = True
     try:
         server.run(sockets=socks)
     finally:
+        startup_done.set()
         _server = None
         for sock in socks:
             try:

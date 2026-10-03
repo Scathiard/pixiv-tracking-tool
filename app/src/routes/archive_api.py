@@ -6,7 +6,6 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.datastructures import QueryParams
 
@@ -17,7 +16,7 @@ from ..core.tasks import safe_failure
 
 class TaskSubmission(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    kind: Literal["check", "metadata", "bookmarks", "repair", "verify", "backfill", "thumbnails", "reconcile"]
+    kind: Literal["check", "metadata", "bookmarks", "repair", "verify", "backfill", "thumbnails", "reconcile", "compare"]
     artist_ids: list[int] | None = Field(default=None, max_length=1000)
     work_ids: list[int] | None = Field(default=None, max_length=1000)
 
@@ -49,7 +48,7 @@ class ArtistAdd(BaseModel):
 
 
 LABELS = {"check": "检查新作品", "metadata": "刷新信息", "bookmarks": "同步收藏状态", "repair": "补下载", "verify": "全量核验本地文件",
-          "backfill": "补回所选动图原包", "thumbnails": "生成缩略图", "reconcile": "检查并补齐图库"}
+          "backfill": "补回所选动图原包", "thumbnails": "生成缩略图", "reconcile": "检查并补齐图库", "compare": "重新比对作品原图"}
 
 
 def parse_filters(parameters) -> LibraryFilter:
@@ -80,23 +79,30 @@ def parse_filters(parameters) -> LibraryFilter:
         raise ValueError("不支持的日期范围")
     if any(value and value.tzinfo is not None for value in (after, before)):
         raise ValueError("日期筛选请使用 YYYY-MM-DD")
+    if after is not None and before is not None and after >= before:
+        raise ValueError("起始日期不能晚于结束日期")
     q = parameters.get("q", "").strip()
     if len(q) > 200:
         raise ValueError("搜索文字过长")
     for name in ("favorites", "recent"):
         if parameters.get(name, "0") not in ("0", "1"):
             raise ValueError("筛选条件无效")
+    offset = int(parameters.get("tz_offset_minutes", "0")) if period == "custom" else 0
+    if not -840 <= offset <= 840:
+        raise ValueError("日期时区无效")
     return LibraryFilter(artist_ids=csv("artist_ids", True), types=csv("types"),
         tags=csv("tags"), show_hidden=parameters.get("show_hidden") in ("1", "true"),
         posted_after=after, posted_before=before, sort=parameters.get("sort", "newest"),
         q=q, favorites=parameters.get("favorites") == "1", recent=parameters.get("recent") == "1",
-        as_of=reference, artist_ids_exclude=csv("artist_ids_exclude", True), tags_exclude=csv("tags_exclude"))
+        as_of=reference, artist_ids_exclude=csv("artist_ids_exclude", True), tags_exclude=csv("tags_exclude"), tz_offset_minutes=offset)
 
 
 def create_router(get_runtime):
     router = APIRouter()
     from .settings_api import create_settings_router
     router.include_router(create_settings_router(get_runtime))
+    from .artists_api import create_artists_router
+    router.include_router(create_artists_router(get_runtime))
 
     def runtime():
         value = get_runtime()
@@ -126,6 +132,48 @@ def create_router(get_runtime):
     def feed(request: Request, offset: int = Query(0, ge=0), limit: int = Query(48, ge=1, le=120), ceiling: int = Query(..., ge=0)):
         return runtime().library.feed(filters(request), offset=offset, limit=limit, ceiling=ceiling)
 
+    @router.get("/api/library/counts")
+    def counts(request: Request, ceiling: int | None = Query(None, ge=0)):
+        return runtime().library.counts(filters(request), ceiling=ceiling)
+
+    @router.post("/api/reading-sessions")
+    def reading_session(request: Request, ceiling: int | None = Query(None, ge=0)):
+        return runtime().reading.create(filters(request), ceiling=ceiling)
+
+    @router.delete("/api/reading-sessions/{session_id}")
+    def close_reading(session_id: str):
+        runtime().reading.release(session_id)
+        return {"ok": True}
+
+    @router.post("/api/reading-sessions/{session_id}/exclude/{work_id}")
+    def exclude_reading(session_id: str, work_id: int):
+        try:
+            runtime().reading.exclude(session_id, work_id)
+        except KeyError as exc:
+            raise HTTPException(410, "阅读范围已过期，请重新打开图库；本地作品未改变") from exc
+        return {"ok": True}
+
+    @router.get("/api/reading-sessions/{session_id}/entry")
+    def reading_entry(session_id: str, index: int = Query(0, ge=0), mode: Literal["sequential", "random"] = "sequential", round: int = Query(0, ge=0)):
+        try:
+            return runtime().reading.entry(session_id, index, mode=mode, round_number=round)
+        except KeyError as exc:
+            raise HTTPException(410, "阅读范围已过期或作品已移出，请重新打开图库") from exc
+
+    @router.get("/api/reading-sessions/{session_id}/locate")
+    def reading_locate(session_id: str, work_id: int, page: int = Query(0, ge=0), mode: Literal["sequential", "random"] = "sequential", round: int = Query(0, ge=0)):
+        try:
+            return runtime().reading.locate(session_id, work_id, page=page, mode=mode, round_number=round)
+        except KeyError as exc:
+            raise HTTPException(410, "阅读范围已过期或作品已移出，请重新打开图库") from exc
+
+    @router.get("/api/reading-sessions/{session_id}/feed")
+    def reading_feed(session_id: str, offset: int = Query(0, ge=0), limit: int = Query(48, ge=1, le=120), mode: Literal["sequential", "random"] = "sequential"):
+        try:
+            return runtime().reading.feed(session_id, offset=offset, limit=limit, mode=mode)
+        except KeyError as exc:
+            raise HTTPException(410, "阅读范围已过期，请重新打开图库；本地作品未改变") from exc
+
     @router.get("/api/library/locate")
     def locate(request: Request, work_id: int, page: int = Query(0, ge=0), ceiling: int = Query(..., ge=0)):
         try:
@@ -142,9 +190,9 @@ def create_router(get_runtime):
         return {"items": runtime().library.missing_originals(offset, limit)}
 
     @router.get("/api/works/{work_id}")
-    def work(work_id: int, page_offset: int = Query(0, ge=0), page_limit: int = Query(100, ge=1, le=200)):
+    def work(work_id: int, page_offset: int = Query(0, ge=0), page_limit: int = Query(100, ge=1, le=200), revision_id: str | None = Query(None, max_length=64)):
         try:
-            return runtime().library.detail(work_id, page_offset=page_offset, page_limit=page_limit)
+            return runtime().library.detail(work_id, page_offset=page_offset, page_limit=page_limit, revision_id=revision_id)
         except KeyError as exc:
             raise HTTPException(404, "作品不存在或已删除") from exc
 
@@ -273,6 +321,8 @@ def create_router(get_runtime):
             raise HTTPException(422, "请选择一种任务范围")
         if request.kind == "backfill" and not request.work_ids:
             raise HTTPException(422, "先选择需要补回原包的作品")
+        if request.kind == "compare" and (not request.work_ids or len(request.work_ids) != 1):
+            raise HTTPException(422, "重新比对原图只用于一件指定作品")
         parameters = {}
         for name in ("artist_ids", "work_ids"):
             ids = getattr(request, name)
@@ -316,11 +366,26 @@ def create_router(get_runtime):
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
 
+    @router.post("/api/tasks/{operation_id}/pause")
+    def pause_task(operation_id: str):
+        try:
+            return runtime().queue.set_manual_paused(operation_id, True)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @router.post("/api/tasks/{operation_id}/resume")
+    def resume_task(operation_id: str):
+        try:
+            return runtime().queue.set_manual_paused(operation_id, False)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
     @router.get("/images/{path:path}")
-    def media(path: str):
+    def media(path: str, request: Request):
         file_path = runtime().media_path(path)
         if file_path is None:
             raise HTTPException(404, "图片不存在")
-        return FileResponse(file_path)
+        from .media_response import local_media_response
+        return local_media_response(request, file_path)
 
     return router

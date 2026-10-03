@@ -7,9 +7,17 @@ import { prepareImage } from './api'
 import { observeCatalogueData } from './state/catalogue'
 import MediaImage from './MediaImage.vue'
 import RestrictionBadge from './components/RestrictionBadge.vue'
+import Icon from './components/Icon.vue'
 
 const props = defineProps<{mode: 'reader' | 'feed'; loader: PageLoader; initial: Anchor | null; sessionKey: string; inactive?: boolean}>()
-const emit = defineEmits<{focus: [page: PageData, anchor: Anchor]; navigate: [delta: number]; artist: [id: number]; zoom: [page: PageData]}>()
+const emit = defineEmits<{focus: [page: PageData, anchor: Anchor]; navigate: [delta: number]; artist: [id: number]; zoom: [page: PageData]; bookmark: [page: PageData]; manage: [page: PageData]}>()
+const heartPage = ref<number | null>(null)
+let heartTimer = 0
+function bookmark(page: PageData) {
+  clearTimeout(heartTimer); heartPage.value = page.index
+  heartTimer = window.setTimeout(() => { heartPage.value = null }, 3000)
+  emit('bookmark', page)
+}
 const viewport = ref<HTMLDivElement | null>(null), pages = ref<PageData[]>([]), total = ref(0)
 const before = ref<HTMLDivElement | null>(null), beforeHeight = ref(0)
 const size = ref({width: 1000, height: 760}), loading = ref(false), error = ref('')
@@ -197,7 +205,7 @@ async function refreshMissing(force = false) {
     let changed = false
     const updated = pages.value.map(page => {
       const replacement = latest.get(page.index)
-      if (!replacement || replacement.work_id !== page.work_id) return page
+      if (!replacement || replacement.work_id !== page.work_id || replacement.revision_id !== page.revision_id) return page
       if (replacement.src !== page.src || replacement.state !== page.state ||
           replacement.recovery?.status !== page.recovery?.status ||
           replacement.recovery?.next_retry_at !== page.recovery?.next_retry_at ||
@@ -254,7 +262,7 @@ onMounted(() => {
   window.addEventListener('archive-updated', archiveUpdated)
   void jump(props.initial?.index || 0, props.initial?.offset || 0)
 })
-onBeforeUnmount(() => { intent.cancel(); stopRefresh(); observer?.disconnect(); cancelAnimationFrame(frame); document.removeEventListener('visibilitychange', visibilityChanged); window.removeEventListener('archive-updated', archiveUpdated) })
+onBeforeUnmount(() => { clearTimeout(heartTimer); intent.cancel(); stopRefresh(); observer?.disconnect(); cancelAnimationFrame(frame); document.removeEventListener('visibilitychange', visibilityChanged); window.removeEventListener('archive-updated', archiveUpdated) })
 defineExpose({readAnchor, jump, stepPage, scrollBy: (delta: number) => viewport.value?.scrollBy({top: delta, behavior: 'auto'})})
 </script>
 <template>
@@ -270,13 +278,16 @@ defineExpose({readAnchor, jump, stepPage, scrollBy: (delta: number) => viewport.
             <RestrictionBadge v-if="mode === 'feed' && pages[row.index]!.page === 0" :value="pages[row.index]!.x_restrict" />
             <span class="page-number">{{ pages[row.index]!.page + 1 }} / {{ pages[row.index]!.page_count }}</span>
             <button class="quiet" :disabled="!pages[row.index]!.src" @click="emit('zoom', pages[row.index]!)" aria-label="放大此页">放大</button>
+            <button v-if="mode === 'feed' && pages[row.index]!.page === 0" class="quiet" @click="emit('manage', pages[row.index]!)" aria-label="整理此作品">整理</button>
             <span v-if="mode === 'feed' && pages[row.index]!.page === 0 && archiveNotice(pages[row.index]!)" class="page-source">{{ archiveNotice(pages[row.index]!) }}</span>
           </figcaption>
           <div class="page-picture" :style="mode === 'reader' ? {height: `${height(pages[row.index])}px`} : undefined">
             <MediaImage :src="pages[row.index]!.src" :state="pages[row.index]!.state" :recovery="pages[row.index]!.recovery" :processing="pages[row.index]!.processing" :archive="pages[row.index]!.archive" :animation="pages[row.index]!.type === 'ugoira'" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
               :width="mode === 'feed' ? pages[row.index]!.width || 1000 : undefined"
               :height="mode === 'feed' ? pages[row.index]!.height || 1350 : undefined"
+              :flow-taps="mode === 'feed'" @bookmark="bookmark(pages[row.index]!)"
               @size="(width, height) => dimensions(pages[row.index]!, width, height)" @zoom="emit('zoom', pages[row.index]!)" />
+            <span v-if="heartPage === pages[row.index]!.index" class="tap-heart" role="status" aria-label="已收到收藏操作"><Icon name="heart" /></span>
           </div>
         </figure>
       </div>
@@ -287,3 +298,10 @@ defineExpose({readAnchor, jump, stepPage, scrollBy: (delta: number) => viewport.
     <div v-if="loading || error" class="reader-notice" role="status">{{ error || '正在载入图片页…' }} <button v-if="error" @click="retry">重试</button></div>
   </div>
 </template>
+<style scoped>
+.page-picture { position: relative; }
+.tap-heart { position: absolute; right: 16px; bottom: 16px; padding: 12px; display: grid; place-items: center; color: #f05276; background: #202126c9; border-radius: 50%; pointer-events: none; animation: tap-heart-in .28s ease-out; }
+.tap-heart :deep(svg) { width: 27px; height: 27px; fill: currentColor; }
+@keyframes tap-heart-in { from { transform: scale(.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .tap-heart { animation: none; } }
+</style>

@@ -75,7 +75,11 @@ class AssetDownloader:
     def download(self, url: str, destination: Path, report=None) -> dict:
         response = None
         try:
+            if report:
+                report(0, None)
             for _ in range(4):
+                if report:
+                    report(0, None)
                 self._check_url(url)
                 self._before_request()
                 # The CDN rejects Requests' default UA. Keep the Pixiv client

@@ -17,10 +17,12 @@ from .media import CARD_MOTION_SPEC, InvalidMedia, contained_path
 from .models import ArchiveIntent, Artist, Asset, Derivative, OperationItem, Work
 from .source_status import classify_failure
 from .tasks import ItemResult, ItemSpec, safe_failure
+from .revisions import (ensure_legacy_revision, latest_revision, bind_asset, project_revision, revision_directory, revision_assets, revision_derivatives)
 
 
 class ReconcileHandler(ArchiveHandler):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, compare_content=False, **kwargs):
+        self.compare_content = compare_content
         super().__init__("reconcile", *args, **kwargs)
 
     def plan(self, parameters, context):
@@ -41,21 +43,24 @@ class ReconcileHandler(ArchiveHandler):
                 if not work or not intent or intent.mode != "keep":
                     continue
                 artist_ids.add(work.artist_id)
+                work_revision = ensure_legacy_revision(session, work)
+                work = project_revision(work, work_revision)
                 expected = [("ugoira_zip", 0), ("ugoira_timing", 0)] if work.type == "ugoira" else [("image", page) for page in range(work.page_count)]
-                known = {(asset.role, asset.page_index) for asset in work.assets}
+                known = {(asset.role, asset.page_index) for asset in revision_assets(session, work_revision)}
                 for role, page in expected:
                     if (role, page) not in known:
                         urls = (work.source_metadata or {}).get("urls", [])
-                        session.add(Asset(work_id=work.id, role=role, page_index=page, state="missing",
-                            source_url=urls[page].get("original") if role == "image" and page < len(urls) else None))
+                        asset = Asset(work_id=work.id, revision_id=work_revision.id, role=role, page_index=page, state="missing",
+                            source_url=urls[page].get("original") if role == "image" and page < len(urls) else None)
+                        session.add(asset); bind_asset(session, work_revision, asset)
                 session.flush()
-                target = {"work_id": work.id, "revision": intent.revision}
+                target = {"work_id": work.id, "revision": intent.revision, "work_revision_id": work_revision.id}
                 checks = []
-                for asset in session.scalars(select(Asset).where(Asset.work_id == work_id).order_by(Asset.page_index, Asset.role)):
+                for asset in session.scalars(self._assets_statement(session, work_id).order_by(Asset.page_index, Asset.role)):
                     key = f"inspect-asset-{asset.id}"
                     specs.append(ItemSpec(key, "reconcile_asset", {**target, "asset_id": asset.id}, "verifying", "assets"))
                     checks.append(key)
-                derivatives = list(session.scalars(select(Derivative).where(Derivative.work_id == work_id)))
+                derivatives = list(session.scalars(self._derivatives_statement(session, work_id)))
                 for record in derivatives:
                     key = f"inspect-derivative-{record.id}"
                     specs.append(ItemSpec(key, "reconcile_derivative", {**target, "record_id": record.id}, "verifying", "previews"))
@@ -89,7 +94,7 @@ class ReconcileHandler(ArchiveHandler):
         with self.database.read() as session:
             work = session.get(Work, target["work_id"])
             intent = session.get(ArchiveIntent, work.pixiv_illust_id) if work else None
-            return work if intent and intent.mode == "keep" and intent.revision == target["revision"] else None
+            return project_revision(work, latest_revision(session, work.id)) if intent and intent.mode == "keep" and intent.revision == target["revision"] else None
 
     def execute(self, item, context):
         if not item.kind.startswith("reconcile_"):
@@ -114,7 +119,7 @@ class ReconcileHandler(ArchiveHandler):
             return ItemResult(detail={"valid": valid, "gap": not valid, "message": "预览核验完成"})
         if item.kind == "reconcile_pair":
             try:
-                self._verify_pair(work.id)
+                self._verify_pair(work.id, item.target.get("work_revision_id"))
                 valid = True
             except InvalidMedia:
                 valid = False
@@ -134,26 +139,26 @@ class ReconcileHandler(ArchiveHandler):
                 raise SourceIdentityMismatch()
             if not self._current(target):
                 return ItemResult("skipped", {"message": "作品已删除，不再保存旧响应"})
-            saved = self._save_remote_work(work.artist_id, data, expected_work_id=work.id, expected_revision=target["revision"], expected_source_version=version)
+            failure = None
+            if data["type"] == "ugoira":
+                try:
+                    metadata = self.client.get_ugoira_metadata(work.pixiv_illust_id)
+                except ShutdownRequested:
+                    raise
+                except Exception as exc:
+                    failure = safe_failure(exc)
+            saved = self._save_remote_work(work.artist_id, data, metadata=metadata,
+                expected_work_id=work.id, expected_revision=target["revision"], expected_source_version=version,
+                compare_content=self.compare_content)
             if saved is None:
                 return ItemResult(detail={"remote_ready": False, "message": "来源已有较新核对，旧响应不再应用"})
             if self.source_status and self._bookmark_account() == account:
                 self.source_status.apply_available("work", work.id, data, version, account)
             self._apply_bookmark(work.id, data, bookmark_version, account)
-            failure = None
-            if work.type == "ugoira":
-                try:
-                    metadata = self.client.get_ugoira_metadata(work.pixiv_illust_id)
-                    if self._current(target):
-                        saved = self._save_remote_work(work.artist_id, data, metadata=metadata,
-                            expected_work_id=work.id, expected_revision=target["revision"], expected_source_version=version)
-                        if saved is None:
-                            return ItemResult(detail={"remote_ready": False, "message": "来源已有较新核对，旧动图资料不再应用"})
-                except ShutdownRequested:
-                    raise
-                except Exception as exc:
-                    failure = safe_failure(exc)
+            with self.database.read() as session:
+                revision = latest_revision(session, work.id)
             return ItemResult(detail={"metadata": metadata, "failure": failure, "remote_ready": failure is None,
+                "work_revision_id": revision.id if revision else None,
                 "message": "作品资料与收藏已共用一次主站响应"})
         except ShutdownRequested:
             raise
@@ -182,12 +187,14 @@ class ReconcileHandler(ArchiveHandler):
             snapshot = session.scalar(select(OperationItem).where(OperationItem.operation_id == context.operation_id,
                 OperationItem.item_key == target["snapshot_key"]))
             facts = snapshot.result or {}
-            assets = list(session.scalars(select(Asset).where(Asset.work_id == work.id)))
-            derivatives = list(session.scalars(select(Derivative).where(Derivative.work_id == work.id)))
+            work_revision = latest_revision(session, work.id)
+            assets = list(session.scalars(self._assets_statement(session, work.id)))
+            derivatives = list(session.scalars(self._derivatives_statement(session, work.id)))
             artist = session.get(Artist, work.artist_id)
-            directory = artist.directory or f"artist_{artist.pixiv_user_id}"
+            directory = revision_directory(work, work_revision, artist.directory or f"artist_{artist.pixiv_user_id}")
             # Fetch current metadata: snapshot and inspection may have committed since claim.
-            work = session.get(Work, work.id)
+            work = project_revision(session.get(Work, work.id), work_revision)
+        target = {**target, "work_revision_id": work_revision.id if work_revision else None}
         updates = (work.source_metadata or {}).get("source_updates", {})
         metadata = facts.get("metadata")
         # A pair mismatch does not invalidate an independently decoded ZIP if
@@ -196,7 +203,7 @@ class ReconcileHandler(ArchiveHandler):
         if work.type == "ugoira" and metadata:
             self._reuse_verified_zip(assets, updates, metadata, context)
             with self.database.read() as session:
-                assets = list(session.scalars(select(Asset).where(Asset.work_id == work.id)))
+                assets = list(session.scalars(self._assets_statement(session, work.id)))
         missing = [asset for asset in assets if asset.state != "verified" or asset.id in updates]
         specs, repairs = [], {}
         failure = facts.get("failure")
@@ -214,7 +221,7 @@ class ReconcileHandler(ArchiveHandler):
                     "role": asset.role, "page_index": asset.page_index, "failure_code": (failure or {}).get("failure_code"),
                     "message": (failure or {}).get("message") or "原件缺项本次无法取得，已有内容保留"}, "repairing", "assets"))
                 continue
-            item_target = {"work_id": work.id, "asset_id": asset.id, "revision": target["revision"]}
+            item_target = {"work_id": work.id, "asset_id": asset.id, "revision": target["revision"], "work_revision_id": target.get("work_revision_id")}
             if asset.role == "ugoira_timing":
                 if not metadata:
                     continue
@@ -242,11 +249,11 @@ class ReconcileHandler(ArchiveHandler):
             usable_gif = bool(gif and gif.state == "verified")
             if original_ready and (repairs or not usable_gif):
                 pair_key = f"repair-pair-{work.id}"
-                specs.append(ItemSpec(pair_key, "ugoira_pair", {"work_id": work.id, "revision": target["revision"]}, "verifying", "works", tuple(repairs.values())))
-                gif_id = self._ensure_derivative(work.id, "gif")
+                specs.append(ItemSpec(pair_key, "ugoira_pair", {"work_id": work.id, "revision": target["revision"], "work_revision_id": target.get("work_revision_id")}, "verifying", "works", tuple(repairs.values())))
+                gif_id = self._ensure_derivative(work.id, "gif", for_rebuild=bool(repairs))
                 key = f"rebuild-{gif_id}"
-                specs.append(ItemSpec(key, "gif", {"work_id": work.id, "record_id": gif_id, "revision": target["revision"],
-                    "path": gif.relative_path if gif and gif.relative_path else f"{directory}/{work.pixiv_illust_id}.gif", "force": bool(repairs)},
+                specs.append(ItemSpec(key, "gif", {"work_id": work.id, "record_id": gif_id, "revision": target["revision"], "work_revision_id": target.get("work_revision_id"),
+                    "path": gif.relative_path if gif and gif.relative_path and gif_id == gif.id else f"{directory}/{work.pixiv_illust_id}.gif", "force": bool(repairs)},
                     "converting", "previews", (pair_key,)))
                 required = [key]
             elif not usable_gif:
@@ -261,10 +268,10 @@ class ReconcileHandler(ArchiveHandler):
         for spec_key in (("v1", CARD_MOTION_SPEC) if work.type == "ugoira" else ("v1",)):
             record = by_derivative.get(("thumbnail", spec_key))
             if required or record is None or record.state != "verified":
-                record_id = self._ensure_derivative(work.id, "thumbnail", spec_key)
+                record_id = self._ensure_derivative(work.id, "thumbnail", spec_key, for_rebuild=bool(required))
                 specs.append(ItemSpec(f"rebuild-{record_id}", "thumbnail", {"work_id": work.id, "record_id": record_id,
-                    "revision": target["revision"], "force": bool(required),
-                    "path": f".thumbnails/{work.pixiv_illust_id}_card_motion_v1.webp" if spec_key == CARD_MOTION_SPEC else f".thumbnails/{work.pixiv_illust_id}_p0_v1.webp"},
+                    "revision": target["revision"], "work_revision_id": target.get("work_revision_id"), "force": bool(required),
+                    "path": f"{directory}/.thumbnails/{work.pixiv_illust_id}_card_motion_v1.webp" if spec_key == CARD_MOTION_SPEC else f"{directory}/.thumbnails/{work.pixiv_illust_id}_p0_v1.webp"},
                     "thumbnails", "previews", tuple(required)))
         self._append(context, specs)
         self._clear_remote_attention_if_complete(work.id)
@@ -277,18 +284,29 @@ class ReconcileHandler(ArchiveHandler):
 
     def _reuse_verified_zip(self, assets, updates, metadata, context):
         archive = next((asset for asset in assets if asset.role == "ugoira_zip"), None)
-        if archive is None or archive.state != "mismatch" or archive.id in updates:
+        if archive is None or archive.id in updates:
             return
+        original = archive
         with self.database.read() as session:
+            if archive.state == "missing" and not archive.relative_path:
+                # Old conversions can lack source provenance. Reuse a separately
+                # decoded legacy ZIP whose frame bytes still match our inventory.
+                original = session.scalar(select(Asset).where(Asset.work_id == archive.work_id,
+                    Asset.id != archive.id, Asset.role == "ugoira_zip", Asset.source_url.is_(None),
+                    Asset.sha256.is_not(None), Asset.relative_path.is_not(None)).limit(1))
+            elif archive.state != "mismatch":
+                return
+            if original is None:
+                return
             inspection = session.scalar(select(OperationItem.result).where(
                 OperationItem.operation_id == context.operation_id,
-                OperationItem.item_key == f"inspect-asset-{archive.id}"))
+                OperationItem.item_key == f"inspect-asset-{original.id}"))
         if not isinstance(inspection, dict) or inspection.get("valid") is not True:
             return
         try:
-            path = contained_path(self.publisher.root, archive.relative_path)
+            path = contained_path(self.publisher.root, original.relative_path)
             stat = path.stat()
-            if (stat.st_size, stat.st_mtime_ns, stat.st_ino) != (archive.byte_size, archive.file_mtime_ns, archive.file_identity):
+            if (stat.st_size, stat.st_mtime_ns, stat.st_ino) != (original.byte_size, original.file_mtime_ns, original.file_identity):
                 return
             with zipfile.ZipFile(path) as source:
                 names = source.namelist()
@@ -299,6 +317,8 @@ class ReconcileHandler(ArchiveHandler):
             return
         with self.database.write() as session:
             stored = session.get(Asset, archive.id)
-            if stored is not None and stored.state == "mismatch":
+            if stored is not None and stored.state in ("mismatch", "missing"):
+                for key in ("relative_path", "byte_size", "sha256", "width", "height", "verified_at", "file_mtime_ns", "file_identity"):
+                    setattr(stored, key, getattr(original, key))
                 stored.state, stored.error = "verified", None
                 bump_catalogue_revision(session)

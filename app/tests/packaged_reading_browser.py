@@ -98,14 +98,15 @@ def main():
             unavailable = page.request.get(origin + "/api/works/3?page_limit=1").json()
             assert selected['archive'] == {'state':'complete','total':2,'verified':2,'missing':0,'unknown':0}
             assert unavailable['archive']['state'] == 'partial'
-            assert unavailable['pages'][0]['src'] == '/images/3.gif'
+            unavailable_src=unavailable['pages'][0]['src']
+            assert unavailable_src and '.gif' in unavailable_src.split('?')[0]
             assert unavailable['availability']['state'] == 'unavailable'
             assert [work['id'] for work in page.request.get(origin + '/api/library/missing-originals').json()['items']] == [3]
             checks.append('exe-manual-scope-animation-originals-filled-and-unavailable-gif-preserved')
             animation_frames(page, 1440)
             page.locator('.work-card[data-work-id="2"] .card-picture').click()
             page.wait_for_function("() => {const img=document.querySelector('.image-page img'); return img?.complete && img.naturalWidth === 1280 && img.naturalHeight === 960}")
-            assert page.locator('.image-page img').first.get_attribute('src').endswith('/images/2.gif')
+            assert page.locator('.image-page img').first.get_attribute('src')==selected['pages'][0]['src']
             checks.append('exe-animation-detail-keeps-full-resolution-gif')
             page.goto(origin, wait_until='domcontentloaded')
             page.locator('.work-card[data-work-id="1"]').wait_for()
@@ -116,14 +117,16 @@ def main():
                 animation_page.goto(origin, wait_until="domcontentloaded")
                 animation_frames(animation_page, width)
                 animation_page.goto(origin + '/settings', wait_until='domcontentloaded')
+                assert animation_page.locator('.source-status-item').count()==0
+                animation_page.get_by_role('button',name='查看清单',exact=True).click()
                 source = animation_page.locator('.source-status-item[data-source-id="3"]')
                 source.scroll_into_view_if_needed()
-                assert '无法访问，待确认' in source.inner_text() and '上次核对' in source.inner_text()
+                assert '主站已无法访问' in source.inner_text() and '上次核对' in source.inner_text()
                 assert '本地缺少' in source.inner_text() and '动图原包' in source.inner_text() and '动图播放时序' in source.inner_text()
-                assert '已确认原作不存在' not in source.inner_text()
+                assert '待确认' not in source.inner_text() and '已确认原作不存在' not in source.inner_text()
                 assert animation_page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 animation_page.screenshot(path=str(artifacts / f'exe-originals-unavailable-{width}.png'))
-                checks.append(f'exe-source-overview-pending-and-exact-local-gaps-readable-{width}')
+                checks.append(f'exe-paged-source-subview-unified-inaccessible-label-exact-gaps-{width}')
                 animation_phone.close()
             scrolling_phone = browser.new_context(viewport={"width":390,"height":420}, is_mobile=True, has_touch=True)
             scrolling_page = scrolling_phone.new_page()
@@ -170,7 +173,7 @@ def main():
             page.locator('.image-page img').first.wait_for()
             page.wait_for_function("() => { const img = document.querySelector('.image-page img'); return img.complete && img.naturalWidth > 0; }")
             assert page.locator('.image-page img').first.evaluate("img => [img.naturalWidth, img.naturalHeight]") == [32, 48]
-            assert page.locator('.image-page img').first.get_attribute('src').endswith('/images/1_p0.png')
+            assert page.locator('.image-page img').first.get_attribute('src')==detail['pages'][0]['src']
             page.screenshot(path=str(artifacts / "exe-ordinary.png"))
             checks.append("exe-ordinary-reader-loads-original")
             tag_detail = page.request.get(origin + "/api/works/1?page_limit=1").json()["tag_details"][0]
@@ -178,7 +181,7 @@ def main():
             assert tag_detail["source"] == "pixiv" and tag_detail["language_basis"] == "requested_locale"
             assert page.locator('.tag-translation[data-source="pixiv"]').inner_text() == "测试单图"
             checks.append("exe-tag-translation-renders-from-persisted-local-metadata")
-            page.get_by_role("button", name="放大此页", exact=True).first.click()
+            page.locator('.image-page img').first.dblclick()
             page.get_by_role("dialog", name="放大查看").wait_for()
             page.get_by_role("button", name="关闭放大", exact=False).click()
             page.get_by_role("navigation", name="主导航").get_by_role("button", name="流式", exact=False).click()
@@ -188,8 +191,13 @@ def main():
             checks.append("exe-zoom-and-feed-share-synthetic-library")
             page.goto(origin + "/settings", wait_until="domcontentloaded")
             page.locator(".settings-page").wait_for()
+            page.wait_for_function("document.querySelector('.sidebar-scopes button[title=全部作品] small')?.innerText==='3'")
+            checks.append('exe-direct-settings-sidebar-library-count-three')
+            assert page.locator('.source-status-item').count()==0
+            page.get_by_role('button',name='查看清单',exact=True).click()
             source = page.locator('.source-status-item[data-source-id="3"]')
-            assert '无法访问，待确认' in source.inner_text() and '动图原包' in source.inner_text()
+            assert '主站已无法访问' in source.inner_text() and '动图原包' in source.inner_text()
+            page.get_by_role('button',name='返回设置',exact=False).click()
             assert page.get_by_role('button', name='检查并补齐图库', exact=True).count() == 1
             for old_label in ('补下载', '刷新作品信息', '同步收藏状态', '全量核验本地文件'):
                 assert page.get_by_role('button', name=old_label, exact=True).count() == 0
@@ -199,6 +207,15 @@ def main():
             from src.version import __version__, __build__
             settings = page.request.get(origin + "/api/settings").json()
             assert settings["version"] == __version__ and settings["build"] == __build__
+            assert set(('registered_originals','verified_originals','missing_originals','unverified_originals')).issubset(settings['stats'])
+            paused=settings['automatic_paused']
+            page.get_by_label('检查周期',exact=True).fill('2');page.get_by_label('检查周期单位',exact=True).select_option('hours')
+            page.get_by_role('button',name='保存周期',exact=True).click()
+            page.wait_for_function("document.querySelector('.settings-page').innerText.includes('每 120 分钟')")
+            after=page.request.get(origin+'/api/settings').json()
+            assert after['check_interval_minutes']==120 and after['automatic_paused']==paused and after['next_check_at']
+            assert page.locator("select[aria-label='图库浏览方式'] option[value='500']").count()==1
+            checks.append('exe-daily-hour-interval-save-pause-preservation-next-time-current-original-stats-500-option')
             page.get_by_text(f"版本 {__version__} · 内部构建 {__build__}", exact=True).wait_for()
             page.mouse.move(1100, 600)
             page.mouse.wheel(0, 10000)
@@ -231,13 +248,24 @@ def main():
             page.screenshot(path=str(artifacts / 'exe-settings-gutter-wheel.png'))
             checks.append('exe-wide-settings-both-gutters-and-sidebar-wheel')
             page.set_viewport_size({'width':1440,'height':900})
+            page.goto(origin+'/artists');page.locator('.artist-profile').first.wait_for()
+            page.wait_for_function("document.querySelector('.sidebar-scopes button[title=全部作品] small')?.innerText==='3'")
             page.goto(origin + "/artist/1")
             page.locator(".artist-profile").wait_for()
+            page.wait_for_function("document.querySelector('.sidebar-scopes button[title=全部作品] small')?.innerText==='3'")
+            checks.append('exe-direct-artists-and-artist-sidebar-library-count-three')
             link = page.get_by_role('link', name='在 Pixiv 查看 smoke', exact=True)
             assert link.is_visible() and link.get_attribute('href') == 'https://www.pixiv.net/users/1'
             assert link.get_attribute('target') == '_blank'
             checks.append('exe-artist-main-site-profile-link')
             checks.append("exe-direct-artist-route-and-local-profile")
+            grid=page.locator('.artist-profile').first.evaluate("e=>[...e.querySelectorAll('.artist-work')].map(x=>x.getBoundingClientRect().width)")
+            assert len(grid)==3
+            page.get_by_role('button',name='列表',exact=True).click()
+            row=page.locator('.artist-profile').first.evaluate("e=>[...e.querySelectorAll('.artist-work')].map(x=>x.getBoundingClientRect().width)")
+            assert len(row)==3 and max(abs(left-right) for left,right in zip(grid,row))<.1
+            assert page.get_by_role('button',name='检查这位画师新作',exact=True).is_visible()
+            checks.append('exe-artist-three-grid-and-equal-list-thumbnails-per-artist-check-entry')
             phone = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
             mobile = phone.new_page()
             mobile.on("pageerror", lambda error: page_errors.append(str(error)))
@@ -262,6 +290,14 @@ def main():
             mobile.screenshot(path=str(artifacts / "exe-mobile-settings-bottom.png"))
             checks.append("exe-mobile-settings-scroll-container-reaches-bottom")
             checks.append("exe-mobile-drawer-navigation")
+            mobile.set_viewport_size({'width':320,'height':844});mobile.goto(origin+'/flow')
+            mobile.locator('.page-viewport.feed').wait_for();mobile.locator('.reading-counter small').wait_for()
+            counter=mobile.locator('.reading-counter small').evaluate("e=>{const range=document.createRange();range.selectNodeContents(e);return {text:e.innerText,lines:range.getClientRects().length,width:e.clientWidth,content:e.scrollWidth}}")
+            assert '页' in counter['text'] and counter['lines']==1 and counter['content']<=counter['width']+1,counter
+            for button in mobile.locator('.reading-toolbar button').all():
+                box=button.bounding_box();assert box and box['width']>=40 and box['height']>=40
+            mobile.screenshot(path=str(artifacts/'exe-flow-toolbar-320.png'))
+            checks.append('exe-flow-320-controls-readable-counter-single-line-no-isolated-page-unit')
             if page_errors:
                 raise AssertionError(page_errors)
             phone.close(); desktop.close(); browser.close()

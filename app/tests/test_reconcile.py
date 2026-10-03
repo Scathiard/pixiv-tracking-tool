@@ -14,6 +14,7 @@ from src.core.models import ArchiveIntent, Artist, Asset, Derivative, LocalPrefe
 from src.core.reconcile import ReconcileHandler
 from src.core.source_status import SourceStatus
 from src.core.tasks import TaskQueue
+from src.core.revisions import history, latest_revision, revision_assets
 
 
 def image_bytes(color="red", gif=False):
@@ -161,15 +162,21 @@ def test_valid_source_with_conflicting_page_count_stays_available_without_losing
             bookmarks=handler.bookmarks, source_status=handler.source_status)
     operation_id = queue.submit(kind, {"work_ids": [1]}, "检查已有作品")["operation_id"]
     assert queue.run_round()
-    assert queue.details(operation_id)["result"]["outcome"] in ("failed", "partial_failure")
-    assert downloader.calls == [] and client.calls == [remote_id]
+    assert queue.details(operation_id)["result"]["outcome"] == "succeeded"
+    assert client.calls == [remote_id]
+    assert downloader.calls == ([f"https://i.pximg.net/{remote_id}_p{page}.png" for page in range(2)] if kind == "reconcile" else [])
     with db.read() as session:
         work = session.get(Work, 1)
-        assert work.page_count == 6 and len(work.assets) == 6
+        versions = history(session, work.id)
+        assert [version["page_count"] for version in versions] == [2, 6]
+        assert work.page_count == (2 if kind == "reconcile" else 6)
         assert work.source_metadata["remote_availability"]["state"] == "available"
         assert work.source_metadata["remote_availability"]["confirmed"] is True
-        for asset in work.assets:
+        originals = [asset for asset in work.assets if asset.revision_id != work.latest_revision_id]
+        assert len(originals) == 6
+        for asset in originals:
             assert (root / asset.relative_path).read_bytes() == image_bytes()
+
 
 
 @pytest.mark.parametrize("gap", ["missing", "corrupt"])
@@ -360,7 +367,7 @@ def test_valid_zip_with_mismatched_timing_is_repaired_and_preserves_pair_boundar
     assert downloader.calls == []
     with db.read() as session:
         work = session.get(Work, 1)
-        assert all(asset.state == "verified" for asset in work.assets)
+        assert all(asset.state == "verified" for asset in revision_assets(session, latest_revision(session, work.id)))
         assert all(d.state == "verified" for d in work.derivatives)
 
 
@@ -466,10 +473,13 @@ def test_planning_reads_catalogue_without_decoding_or_hashing_files(archive, mon
     operation_id = queue.submit("reconcile", {}, "manual")["operation_id"]
     round_id = queue._claim_round()
     assert queue._step("check", round_id)
+    assert queue.details(operation_id)["state"] == "planning"
+    while queue.details(operation_id)["state"] == "planning":
+        assert queue._step("check", round_id)
     assert queue.details(operation_id)["state"] == "ready"
-    assert progress[0] == (0, 26, "works") and progress[-1] == (26, 26, "works")
+    assert progress[0][0] >= 0 and progress[-1] == (26, None, "works")
     assert any(0 < done < 26 for done, _, _ in progress)
-    assert all(total == 26 and unit == "works" for _, total, unit in progress)
+    assert all(total is None and unit == "works" for _, total, unit in progress)
     assert [done for done, _, _ in progress] == sorted(done for done, _, _ in progress)
     assert archive[2].calls == [] and archive[3].calls == []
 

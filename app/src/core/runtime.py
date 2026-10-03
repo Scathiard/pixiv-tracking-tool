@@ -12,6 +12,7 @@ from .archive import ArchiveHandler
 from .bookmarks import BookmarkService
 from .database import ArchiveDatabase
 from .library import Library
+from .reading import ReadingSessions
 from .media import Publisher, contained_path
 from .maintenance import MissingMediaMaintenance
 from .models import ArchiveIntent, Artist, Asset, Derivative, Operation, PublicationJournal, TrackingPolicy, Work, utcnow
@@ -73,6 +74,7 @@ class Runtime:
         self.images, self.client = Path(images).resolve(), client
         self.account_id = None
         self.library = Library(self.database)
+        self.reading = ReadingSessions(self.library)
         self.publisher = Publisher(self.database, self.images)
         remote = RemoteAccess(self)
         self.remote = remote
@@ -88,6 +90,8 @@ class Runtime:
             for kind in ("check", "metadata", "bookmarks", "repair", "verify", "backfill", "thumbnails", "delete")})
         self.queue.handlers["reconcile"] = ReconcileHandler(self.database, self.publisher, remote, downloader,
             bookmarks=self.bookmarks, profiles=self.profiles, source_status=self.source_status)
+        self.queue.handlers["compare"] = ReconcileHandler(self.database, self.publisher, remote, downloader,
+            bookmarks=self.bookmarks, profiles=self.profiles, source_status=self.source_status, compare_content=True)
         self.queue.handlers["artist_source"] = ArtistSourceHandler(self.source_status)
         self.maintenance = MissingMediaMaintenance(self.database, self.queue,
                                                     remote_available=lambda: self.client is not None)

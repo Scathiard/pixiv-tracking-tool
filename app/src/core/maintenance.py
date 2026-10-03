@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import aliased
 
-from .models import ApplicationState, ArchiveIntent, Asset, Derivative, Operation, OperationItem, Work, utcnow
+from .models import ApplicationState, ArchiveIntent, Asset, Derivative, Operation, OperationItem, Work, WorkRevision, RevisionAsset, RevisionDerivative, utcnow
 from .media import CARD_MOTION_SPEC
 from .tasks import ACTIVE
 
@@ -118,7 +118,30 @@ class MissingMediaMaintenance:
                     if track.get("status") != "queued" or not track.get("operation_id"):
                         continue
                     operation = session.get(Operation, track["operation_id"])
-                    if operation is None or operation.state != "finished":
+                    if operation is None:
+                        continue
+                    if operation.state != "finished":
+                        retry = session.scalar(select(OperationItem).where(
+                            OperationItem.operation_id == operation.id, OperationItem.state == "pending",
+                            OperationItem.not_before.is_not(None)).order_by(OperationItem.position).limit(1))
+                        failure = retry.result if retry and isinstance(retry.result, dict) else {}
+                        status, code = failure.get("status"), failure.get("failure_code")
+                        if name == "remote" and (status == 429 or code in ("api_rate_limit", "image_rate_limit")):
+                            marker = f"{retry.id}:{retry.attempts}"
+                            if track.get("retry_marker") != marker:
+                                delay = max(900, failure.get("retry_after") or 0)
+                                next_retry = now + timedelta(seconds=delay)
+                                track.update(next_retry_at=next_retry.isoformat(), retry_marker=marker,
+                                    reason=failure.get("message") or "请求受到限制，稍后继续补齐",
+                                    failure_code=code, http_status=status)
+                                retry.not_before = max(retry.not_before, utcnow() + timedelta(seconds=delay))
+                                hold = session.get(ApplicationState, REMOTE_HOLD_KEY)
+                                value = {"until": next_retry.isoformat(), "reason": track["reason"], "status": status}
+                                if hold is None:
+                                    session.add(ApplicationState(key=REMOTE_HOLD_KEY, value=value))
+                                elif (_parse_time(hold.value.get("until")) or now) < next_retry:
+                                    hold.value = value
+                                changed = True
                         continue
                     failure = session.scalar(select(OperationItem.result).where(
                         OperationItem.operation_id == operation.id,
@@ -168,8 +191,26 @@ class MissingMediaMaintenance:
     def _candidates(self):
         with self.database.read() as session:
             eligible = and_(ArchiveIntent.mode == "keep", ArchiveIntent.pixiv_illust_id == Work.pixiv_illust_id)
-            remote_eligible = and_(eligible, func.coalesce(
-                Work.source_metadata["remote_availability"]["state"].as_string(), "").not_in(("unavailable", "private", "deleted")))
+            value = Work.source_metadata["remote_availability"]
+            fact = and_(value["confirmed"].as_boolean().is_(True),
+                or_(value["policy"].as_string() == "source-v2", and_(value["state"].as_string() == "deleted", value["deletion_evidence"].as_boolean().is_(True))))
+            source_service = getattr(self.queue.handlers.get("repair"), "source_status", None)
+            account = source_service.account_context() if source_service else None
+            if account is not None:
+                fact = and_(fact, or_(value["account_id"].as_string().is_(None), value["account_id"].as_string() == account))
+            blocked = and_(fact, value["state"].as_string().in_(("unavailable", "private", "deleted")))
+            remote_eligible = and_(eligible, ~func.coalesce(blocked, False))
+            current_revision = aliased(WorkRevision)
+            current_type = func.coalesce(current_revision.type, Work.type)
+            current_pages = func.coalesce(current_revision.page_count, Work.page_count)
+            def assets_bound(record):
+                return or_(and_(Work.latest_revision_id.is_(None), record.revision_id.is_(None)),
+                    select(RevisionAsset.asset_id).where(RevisionAsset.revision_id == Work.latest_revision_id,
+                        RevisionAsset.asset_id == record.id).exists())
+            def derivatives_bound(record):
+                return or_(and_(Work.latest_revision_id.is_(None), record.revision_id.is_(None)),
+                    select(RevisionDerivative.derivative_id).where(RevisionDerivative.revision_id == Work.latest_revision_id,
+                        RevisionDerivative.derivative_id == record.id).exists())
             windows = {}
             def page(statement, name):
                 cursor = self._cursors[name]
@@ -179,14 +220,14 @@ class MissingMediaMaintenance:
                 windows[name] = [row.id for row in rows]
                 return rows
 
-            missing_assets = page(select(Work.id, Work.type, Work.source_metadata).join(
-                Asset, Asset.work_id == Work.id).join(ArchiveIntent, remote_eligible).where(
+            missing_assets = page(select(Work.id, current_type.label("type"), Work.source_metadata).outerjoin(current_revision, current_revision.id == Work.latest_revision_id).join(
+                Asset, and_(Asset.work_id == Work.id, assets_bound(Asset))).join(ArchiveIntent, remote_eligible).where(
                     Asset.state.in_(("missing", "failed", "invalid", "mismatch", "source_changed"))).distinct(), "remote")
             # Imported catalogues may omit required page rows entirely.
-            asset_count = select(func.count()).select_from(Asset).where(Asset.work_id == Work.id).correlate(Work).scalar_subquery()
-            incomplete = page(select(Work.id, Work.type, Work.source_metadata).join(ArchiveIntent, remote_eligible).where(
-                asset_count < case((Work.type == "ugoira", 2), else_=Work.page_count)), "incomplete")
-            pending_sources = page(select(Work.id, Work.type, Work.source_metadata).join(ArchiveIntent, remote_eligible).where(
+            asset_count = select(func.count()).select_from(Asset).where(Asset.work_id == Work.id, assets_bound(Asset)).correlate(Work).scalar_subquery()
+            incomplete = page(select(Work.id, current_type.label("type"), Work.source_metadata).outerjoin(current_revision, current_revision.id == Work.latest_revision_id).join(ArchiveIntent, remote_eligible).where(
+                asset_count < case((current_type == "ugoira", 2), else_=current_pages)), "incomplete")
+            pending_sources = page(select(Work.id, current_type.label("type"), Work.source_metadata).outerjoin(current_revision, current_revision.id == Work.latest_revision_id).join(ArchiveIntent, remote_eligible).where(
                 func.json_extract(Work.source_metadata, "$.source_updates").is_not(None),
                 func.json_extract(Work.source_metadata, "$.source_updates") != "{}"), "source")
             missing_assets = list({row.id: row for row in missing_assets + incomplete + pending_sources}.values())
@@ -196,20 +237,20 @@ class MissingMediaMaintenance:
             thumbnail = aliased(Derivative)
             first = aliased(Asset)
             image_ready = [row.id for row in page(select(Work.id).join(ArchiveIntent, eligible).join(
-                first, and_(first.work_id == Work.id, first.role == "image", first.page_index == 0,
+                first, and_(first.work_id == Work.id, assets_bound(first), first.role == "image", first.page_index == 0,
                             first.state.in_(("verified", "unknown")), first.relative_path.is_not(None))).outerjoin(
-                thumbnail, and_(thumbnail.work_id == Work.id, thumbnail.kind == "thumbnail",
+                thumbnail, and_(thumbnail.work_id == Work.id, derivatives_bound(thumbnail), thumbnail.kind == "thumbnail",
                                 thumbnail.page_index == 0, thumbnail.spec_key == "v1")).where(
                 or_(thumbnail.id.is_(None), thumbnail.state.in_(
                     ("missing", "failed", "invalid", "outdated")))), "image")]
             preview = aliased(Derivative)
             motion = aliased(Derivative)
             gif_ready = [row.id for row in page(select(Work.id).join(ArchiveIntent, eligible).join(
-                preview, and_(preview.work_id == Work.id, preview.kind == "gif", preview.spec_key == "v1",
+                preview, and_(preview.work_id == Work.id, derivatives_bound(preview), preview.kind == "gif", preview.spec_key == "v1",
                               preview.state.in_(("verified", "unknown")), preview.relative_path.is_not(None))).outerjoin(
-                thumbnail, and_(thumbnail.work_id == Work.id, thumbnail.kind == "thumbnail",
+                thumbnail, and_(thumbnail.work_id == Work.id, derivatives_bound(thumbnail), thumbnail.kind == "thumbnail",
                                 thumbnail.page_index == 0, thumbnail.spec_key == "v1")).outerjoin(
-                motion, and_(motion.work_id == Work.id, motion.kind == "thumbnail",
+                motion, and_(motion.work_id == Work.id, derivatives_bound(motion), motion.kind == "thumbnail",
                              motion.page_index == 0, motion.spec_key == CARD_MOTION_SPEC)).where(
                 or_(thumbnail.id.is_(None), thumbnail.state.in_(
                     ("missing", "failed", "invalid", "mismatch", "outdated")), thumbnail.relative_path.is_(None), motion.id.is_(None),
@@ -219,13 +260,13 @@ class MissingMediaMaintenance:
             # keeps the existing pair -> GIF -> thumbnail dependency chain.
             zip_asset, timing_asset = aliased(Asset), aliased(Asset)
             gif = aliased(Derivative)
-            gif_from_pair = [row.id for row in page(select(Work.id).join(ArchiveIntent, eligible).join(
-                zip_asset, and_(zip_asset.work_id == Work.id, zip_asset.role == "ugoira_zip",
+            gif_from_pair = [row.id for row in page(select(Work.id).outerjoin(current_revision, current_revision.id == Work.latest_revision_id).join(ArchiveIntent, eligible).join(
+                zip_asset, and_(zip_asset.work_id == Work.id, assets_bound(zip_asset), zip_asset.role == "ugoira_zip",
                                 zip_asset.state == "verified")).join(
-                timing_asset, and_(timing_asset.work_id == Work.id, timing_asset.role == "ugoira_timing",
+                timing_asset, and_(timing_asset.work_id == Work.id, assets_bound(timing_asset), timing_asset.role == "ugoira_timing",
                                    timing_asset.state == "verified")).outerjoin(
-                gif, and_(gif.work_id == Work.id, gif.kind == "gif", gif.spec_key == "v1")).where(
-                Work.type == "ugoira", or_(gif.id.is_(None), gif.state.in_(
+                gif, and_(gif.work_id == Work.id, derivatives_bound(gif), gif.kind == "gif", gif.spec_key == "v1")).where(
+                current_type == "ugoira", or_(gif.id.is_(None), gif.state.in_(
                     ("missing", "failed", "invalid", "outdated")))), "pair")]
             local = sorted(set(image_ready + gif_ready + gif_from_pair), reverse=True)
             candidate_ids = set(remote) | set(local)

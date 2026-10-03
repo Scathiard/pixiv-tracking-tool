@@ -1,12 +1,13 @@
 export interface Operation {
   id: string; label: string; state: string; source?: 'manual' | 'automatic' | 'maintenance'
+  kind?: string; pause_requested?: boolean; control?: {can_pause: boolean; can_resume: boolean}
   lane?: 'check' | 'download' | 'local' | null
   parameters?: {parent_operation_id?: string; kind?: string}
   phase: {name: string; done: number; total: number | null; unit: string; detail: string}
   result: {outcome?: string}
 }
 
-export const activeStates = new Set(['queued', 'planning', 'ready', 'running', 'interrupted'])
+export const activeStates = new Set(['queued', 'planning', 'ready', 'running', 'interrupted', 'paused', 'pausing'])
 const phases: Record<string, string> = {waiting: '等待', checking: '检查', inventory: '清点', metadata: '画师信息', captions: '作品信息', bookmarks: '收藏状态', downloading: '下载', converting: '生成预览', verifying: '核验', reconciling: '整理缺项', repairing: '补齐', thumbnails: '缩略图', deleting: '删除'}
 const units: Record<string, string> = {artists: '位画师', works: '件作品', pages: '页', assets: '项原件', previews: '件预览', files: '个文件', items: '项'}
 
@@ -47,6 +48,8 @@ export function catalogueChanged(previous: number | null, incoming?: number): {r
 }
 
 export function phaseStatus(op: Operation, automaticPaused = false, workerError = false): string {
+  if (op.state === 'paused') return '已暂停，继续后处理剩余部分'
+  if (op.state === 'pausing') return '正在暂停，当前步骤安全结束后停下'
   if (workerError || op.state === 'interrupted') return '已中断，等待恢复'
   if (op.state === 'queued') return automaticPaused && op.source === 'automatic' ? '等待恢复自动检查' : '已排队，等待处理'
   if (op.state === 'ready') return '已清点，等待执行'

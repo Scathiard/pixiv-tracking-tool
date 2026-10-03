@@ -10,6 +10,8 @@ import time
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Protocol
+from datetime import timedelta
+from contextlib import nullcontext
 
 from sqlalchemy import and_, case, exists, func, or_, select, true
 from sqlalchemy.orm import aliased
@@ -17,6 +19,7 @@ from sqlalchemy.orm import aliased
 from .database import ArchiveDatabase
 from .catalogue_revision import catalogue_revision
 from .models import ApplicationState, Asset, Derivative, Operation, OperationItem, TaskRound, Work, utcnow
+from ..version import __build__
 
 log = logging.getLogger(__name__)
 SETTLED = ("succeeded", "failed", "skipped", "not_executed")
@@ -72,6 +75,17 @@ def safe_failure(exc: Exception) -> dict:
     return failure
 
 
+@dataclass(frozen=True)
+class PlanBatch:
+    specs: list[ItemSpec]
+    cursor: dict = field(default_factory=dict)
+    complete: bool = True
+
+
+class ManualPauseRequested(BaseException):
+    """Yield at a safe checkpoint without classifying control as failure."""
+
+
 class TaskContext:
     def __init__(self, queue: TaskQueue, operation_id: str, item_id: str | None = None):
         self.queue, self.operation_id, self.item_id = queue, operation_id, item_id
@@ -112,6 +126,8 @@ class TaskContext:
         if self.queue._stop.is_set():
             from ..request_policy import ShutdownRequested
             raise ShutdownRequested()
+        if self.queue.operation_paused(self.operation_id):
+            raise ManualPauseRequested()
 
 
 class TaskQueue:
@@ -128,6 +144,13 @@ class TaskQueue:
         self.worker_error = None
         self.maintenance = None
         self.maintenance_error = None
+        self._claim_sequence = 0
+        self._round_admissions = 0
+        self._candidate_after = {}
+        with self.database.read() as session:
+            records = session.execute(select(Operation.id, Operation.pause_requested, Operation.result).where(Operation.state.in_(ACTIVE))).all()
+        self._paused_operations = {ident for ident, paused, _ in records if paused}
+        self._control_parents = {ident: result.get("parent_operation_ids", []) for ident, _, result in records}
 
     def accept_submissions(self, accepting):
         with self.database.write():
@@ -149,6 +172,50 @@ class TaskQueue:
                 setting.value = paused
         self._wake.set()
         return paused
+
+    def operation_paused(self, operation_id):
+        pending, seen = [operation_id], set()
+        while pending:
+            ident = pending.pop()
+            if ident in seen:
+                continue
+            if ident in self._paused_operations:
+                return True
+            seen.add(ident)
+            pending.extend(self._control_parents.get(ident, []))
+        return False
+
+    @staticmethod
+    def _paused_in_transaction(session, operation):
+        if operation.pause_requested:
+            return True
+        for parent_id in operation.result.get("parent_operation_ids", []):
+            parent = session.get(Operation, parent_id)
+            if parent is not None and parent.pause_requested:
+                return True
+        return False
+
+    def set_manual_paused(self, operation_id, paused):
+        if type(paused) is not bool:
+            raise ValueError("暂停设置必须是布尔值")
+        with self.database.write() as session:
+            operation = session.get(Operation, operation_id)
+            if operation is None:
+                raise KeyError(operation_id)
+            if operation.kind != "reconcile" or operation.source != "manual" or operation.state == "finished":
+                raise ValueError("只能暂停或继续尚未结束的手动检查并补齐")
+            operation.pause_requested = paused
+            if not paused and operation.state == "interrupted":
+                operation.state = "planning" if operation.result.get("planning_complete") is False else "ready"
+            operation.updated_at = utcnow()
+            operation.detail = "已请求暂停，当前步骤安全结束后停下" if paused else "已继续，等待处理未完成部分"
+            result = {"operation_id": operation_id, "pause_requested": paused, "state": operation.state}
+        if paused:
+            self._paused_operations.add(operation_id)
+        else:
+            self._paused_operations.discard(operation_id)
+        self._wake.set()
+        return result
 
     def enqueue_in_transaction(self, session, kind, parameters, label, source="manual", *, parent_id=None, specs=None):
         """Register metadata and its durable follow-up under the caller's transaction."""
@@ -190,12 +257,19 @@ class TaskQueue:
             if parent_id not in parents:
                 parents.append(parent_id)
             operation.result = {**operation.result, "parent_operation_ids": parents}
+            self._control_parents[operation.id] = parents
             operation.round_id = operation.round_id or parent.round_id
         self._wake.set()
         return {"operation_id": operation.id, "created": created, "state": operation.state, "round_id": operation.round_id}
 
     def materialize_in_transaction(self, session, operation_id, specs):
-        existing = set(session.scalars(select(OperationItem.item_key).where(OperationItem.operation_id == operation_id)))
+        specs = list(specs)
+        needed = {spec.key for spec in specs} | {key for spec in specs for key in spec.depends_on}
+        existing = set()
+        keys = list(needed)
+        for offset in range(0, len(keys), 500):
+            existing.update(session.scalars(select(OperationItem.item_key).where(
+                OperationItem.operation_id == operation_id, OperationItem.item_key.in_(keys[offset:offset + 500]))))
         position = session.scalar(select(func.max(OperationItem.position)).where(OperationItem.operation_id == operation_id))
         position = 0 if position is None else position + 1
         for spec in specs:
@@ -204,7 +278,8 @@ class TaskQueue:
             if any(key not in existing for key in spec.depends_on):
                 raise ValueError("清单依赖顺序不合法")
             session.add(OperationItem(operation_id=operation_id, position=position, item_key=spec.key,
-                kind=spec.kind, target=spec.target, phase=spec.phase, unit=spec.unit, depends_on=list(spec.depends_on)))
+                kind=spec.kind, target=spec.target, phase=spec.phase, unit=spec.unit, depends_on=list(spec.depends_on),
+                lane=self._lane(spec)))
             existing.add(spec.key)
             position += 1
         session.flush()
@@ -219,9 +294,9 @@ class TaskQueue:
         with self.database.write() as session:
             for item in session.scalars(select(OperationItem).where(OperationItem.state == "running")):
                 item.state = "pending"
-            for operation in session.scalars(select(Operation).where(Operation.state.in_(("running", "interrupted")))):
+            for operation in session.scalars(select(Operation).where(Operation.state.in_(("planning", "running", "interrupted")))):
                 round_record = session.get(TaskRound, operation.round_id)
-                operation.state = "ready" if round_record and round_record.frozen_at else "planning"
+                operation.state = "planning" if operation.result.get("planning_complete") is False else "ready" if round_record and round_record.frozen_at else "planning"
                 operation.detail = "上次运行中断，正在核对并继续"
         self.worker_error = None
 
@@ -273,7 +348,7 @@ class TaskQueue:
 
     @staticmethod
     def _lane(item):
-        if item.phase == "checking" or item.kind in ("metadata_artist", "metadata_work", "bookmark_artist", "discover_work"):
+        if item.phase == "checking" or item.kind in ("metadata_artist", "metadata_work", "bookmark_artist", "bookmark_page", "discover_page", "discover_work"):
             return "check"
         return "download" if item.kind == "download" or item.phase == "downloading" and item.kind not in ("timing", "error") else "local"
 
@@ -308,64 +383,129 @@ class TaskQueue:
         return resources
 
     def _step(self, lane, round_id=None):
+        """Select a bounded indexed window before entering the atomic claim."""
+        started = time.monotonic()
+        if not self._accepting or self._stop.is_set():
+            return False
+        if lane == "check" and round_id is None:
+            with self.database.write() as session:
+                self._claim_round_in_transaction(session)
         claim = None
+        with self.database.read() as session:
+            query = select(Operation).where(Operation.state.in_(("queued", "planning", "ready", "running")),
+                Operation.pause_requested.is_(False))
+            if round_id is not None:
+                query = query.where(Operation.round_id == round_id)
+            paused_ids = [ident for ident in self._control_parents if self.operation_paused(ident)]
+            if paused_ids:
+                query = query.where(~Operation.id.in_(paused_ids))
+            operations = list(session.scalars(query.order_by(Operation.last_claim_seq,
+                case((Operation.source == "manual", 0), else_=1), Operation.created_at, Operation.id).limit(64)))
+            if self._claim_sequence % 8 == 7:
+                maintenance = session.scalar(query.where(Operation.source == "maintenance",
+                    Operation.round_id.is_not(None)).order_by(Operation.last_claim_seq,
+                    Operation.created_at, Operation.id).limit(1))
+                if maintenance:
+                    operations = [maintenance] + [op for op in operations if op.id != maintenance.id][:63]
+            paused = session.get(ApplicationState, "automatic_paused")
+            candidates = []
+            deferred = []
+            for operation in operations:
+                if self._paused_in_transaction(session, operation):
+                    continue
+                if lane == "check" and operation.round_id is not None and (operation.state in ("queued", "planning") or operation.result.get("planning_complete") is False) and operation.id not in self._planning:
+                    if operation.source == "automatic" and operation.started_at is None and paused and paused.value is True:
+                        deferred.append(operation.id)
+                        continue
+                    candidates.append(("plan", operation.id))
+                    break
+                if operation.state == "queued":
+                    continue
+                if lane == "check" and operation.source == "automatic" and not (paused and paused.value is True) and any(
+                    other.source == "automatic" and other.round_id == operation.round_id and other.started_at is None
+                    for other in operations):
+                    # Freeze every admitted automatic selection before its
+                    # batch starts executing. Later pause only affects future batches.
+                    continue
+                cursor_key = (operation.id, lane)
+                after = self._candidate_after.get(cursor_key, -1)
+                keys_table = func.json_each(OperationItem.depends_on).table_valued("value").alias("candidate_dependencies")
+                dependency = aliased(OperationItem)
+                dependency_state = select(dependency.state).where(dependency.operation_id == operation.id,
+                    dependency.item_key == keys_table.c.value).correlate(keys_table).scalar_subquery()
+                waiting_dependency = exists(select(1).select_from(keys_table).where(
+                    or_(dependency_state.is_(None), ~dependency_state.in_(SETTLED))).correlate(OperationItem))
+                check_filter = or_(OperationItem.phase == "checking", OperationItem.kind.in_(("metadata_artist", "metadata_work", "bookmark_artist", "bookmark_page", "discover_page", "discover_work")))
+                download_filter = or_(OperationItem.kind == "download", and_(OperationItem.phase == "downloading", ~OperationItem.kind.in_(("timing", "error"))))
+                legacy_lane = check_filter if lane == "check" else and_(~check_filter, download_filter) if lane == "download" else and_(~check_filter, ~download_filter)
+                query = select(OperationItem).where(OperationItem.operation_id == operation.id,
+                    OperationItem.state == "pending", or_(OperationItem.lane == lane, and_(OperationItem.lane.is_(None), legacy_lane)), ~waiting_dependency,
+                    or_(OperationItem.not_before.is_(None), OperationItem.not_before <= utcnow()),
+                    OperationItem.position > after).order_by(case((OperationItem.kind == "discover_work", 0), else_=1), OperationItem.position).limit(64)
+                items = list(session.scalars(query))
+                if not items and after != -1:
+                    self._candidate_after.pop(cursor_key, None)
+                    continue
+                self._candidate_after[cursor_key] = items[-1].position if items else -1
+                keys = {key for item in items for key in item.depends_on}
+                states = dict(session.execute(select(OperationItem.item_key, OperationItem.state).where(
+                    OperationItem.operation_id == operation.id, OperationItem.item_key.in_(keys))).all()) if keys else {}
+                for item in items:
+                    if any(states.get(key) not in SETTLED for key in item.depends_on):
+                        continue
+                    resource = self._item_resources(session, item)
+                    if resource & self._resources:
+                        continue
+                    candidates.append(("item", operation.id, item.id, resource))
+                    break
+                if candidates:
+                    break
+        write_started = time.monotonic()
         with self.database.write() as session:
             if not self._accepting or self._stop.is_set():
                 return False
-            if lane == "check":
-                if round_id is None:
-                    self._claim_round_in_transaction(session)
-                ops = list(session.scalars(select(Operation).where(Operation.state.in_(("queued", "planning")),
-                    Operation.round_id.is_not(None)).order_by(Operation.created_at, Operation.id)))
-                ops.sort(key=lambda op: (op.source != "manual", op.source == "maintenance"))
-                for operation in ops:
-                    if round_id is not None and operation.round_id != round_id or operation.id in self._planning:
-                        continue
-                    paused = session.get(ApplicationState, "automatic_paused")
-                    if operation.source == "automatic" and operation.started_at is None and paused and paused.value is True:
-                        previous_round = operation.round_id
-                        operation.round_id = None
-                        session.flush()
+            for operation_id in deferred:
+                operation = session.get(Operation, operation_id)
+                if operation.source == "automatic" and operation.started_at is None:
+                    previous_round, operation.round_id = operation.round_id, None
+                    session.flush()
+                    if previous_round:
                         self._finalize_round(session, previous_round)
+            for candidate in candidates:
+                operation = session.get(Operation, candidate[1])
+                if operation.state == "finished" or self._paused_in_transaction(session, operation):
+                    continue
+                if candidate[0] == "plan":
+                    if operation.id in self._planning or not (operation.state in ("queued", "planning") or operation.result.get("planning_complete") is False):
                         continue
                     operation.state = "planning"
                     operation.started_at = operation.started_at or utcnow()
                     self._planning.add(operation.id)
-                    claim = ("plan", operation.id)
-                    break
-            if claim is None:
-                download = or_(OperationItem.kind == "download", and_(OperationItem.phase == "downloading", ~OperationItem.kind.in_(("timing", "error"))))
-                check = or_(OperationItem.phase == "checking", OperationItem.kind.in_(("metadata_artist", "metadata_work", "bookmark_artist", "discover_work")))
-                lane_filter = check if lane == "check" else and_(~check, download) if lane == "download" else and_(~check, ~download)
-                dependency = aliased(OperationItem)
-                dependency_keys = func.json_each(OperationItem.depends_on).table_valued("value").alias("dependency_keys")
-                waiting_dependency = exists(select(1).select_from(dependency_keys).join(dependency, and_(dependency.operation_id == OperationItem.operation_id, dependency.item_key == dependency_keys.c.value)).where(~dependency.state.in_(SETTLED)).correlate(OperationItem))
-                query = select(OperationItem, Operation).join(Operation, Operation.id == OperationItem.operation_id).where(
-                    Operation.state.in_(("planning", "ready", "running")), OperationItem.state == "pending", lane_filter, ~waiting_dependency)
-                if round_id is not None:
-                    query = query.where(Operation.round_id == round_id)
-                query = query.order_by(case((Operation.source == "manual", 0), (Operation.source == "maintenance", 2), else_=1), Operation.created_at, Operation.id, OperationItem.position)
-                # Bounded ORM windows; settled siblings are never materialized.
-                offset = 0
-                while claim is None:
-                    candidates = list(session.execute(query.offset(offset).limit(64)))
-                    for item, operation in candidates:
-                        resource = self._item_resources(session, item)
-                        if resource & self._resources:
-                            continue
-                        states = dict(session.execute(select(OperationItem.item_key, OperationItem.state).where(
-                            OperationItem.operation_id == operation.id, OperationItem.item_key.in_(item.depends_on))).all()) if item.depends_on else {}
-                        if any(key in states and states[key] not in SETTLED for key in item.depends_on):
-                            continue
-                        self._resources.update(resource)
-                        item.state, item.attempts = "running", item.attempts + 1
-                        operation.state, operation.started_at = "running", operation.started_at or utcnow()
-                        operation.result = {**operation.result, "lane": lane}
-                        claim = ("item", operation.id, item, resource, any(states.get(key) != "succeeded" for key in item.depends_on))
-                        break
-                    if len(candidates) < 64:
-                        break
-                    offset += 64
+                    claim = candidate
+                else:
+                    item = session.get(OperationItem, candidate[2])
+                    if item.state != "pending" or item.not_before and item.not_before > utcnow():
+                        continue
+                    states = dict(session.execute(select(OperationItem.item_key, OperationItem.state).where(
+                        OperationItem.operation_id == operation.id, OperationItem.item_key.in_(item.depends_on))).all()) if item.depends_on else {}
+                    if any(states.get(key) not in SETTLED for key in item.depends_on):
+                        continue
+                    resource = self._item_resources(session, item)
+                    if resource & self._resources:
+                        continue
+                    self._resources.update(resource)
+                    item.state, item.attempts = "running", item.attempts + 1
+                    operation.state, operation.started_at = "running", operation.started_at or utcnow()
+                    operation.result = {**operation.result, "lane": lane}
+                    self._candidate_after.pop((operation.id, lane), None)
+                    claim = ("item", operation.id, item, resource, any(states.get(key) != "succeeded" for key in item.depends_on))
+                self._claim_sequence = max(self._claim_sequence, operation.last_claim_seq) + 1
+                if candidate[0] != "plan":
+                    operation.last_claim_seq = self._claim_sequence
+                break
+        log.debug("task_claim build=%s lane=%s operation=%s step=%s elapsed_ms=%.3f write_ms=%.3f", __build__, lane,
+            claim[1] if claim else "none", claim[2].id if claim and claim[0] == "item" else "plan" if claim else "none",
+            (time.monotonic() - started) * 1000, (time.monotonic() - write_started) * 1000)
         if claim is None:
             return False
         if claim[0] == "plan":
@@ -387,13 +527,25 @@ class TaskQueue:
 
     def _claim_round_in_transaction(self, session):
         paused = session.get(ApplicationState, "automatic_paused")
-        waiting = list(session.scalars(select(Operation).where(Operation.state.in_(("queued", "ready")), Operation.round_id.is_(None)).order_by(Operation.created_at, Operation.id)))
+        query = select(Operation).where(Operation.state.in_(("queued", "ready")),
+            Operation.round_id.is_(None), Operation.pause_requested.is_(False))
         if paused and paused.value is True:
-            waiting = [op for op in waiting if op.source != "automatic" or op.started_at is not None]
+            query = query.where(or_(Operation.source != "automatic", Operation.started_at.is_not(None)))
+        waiting = list(session.scalars(query.order_by(case((Operation.source == "manual", 0),
+            (Operation.source == "maintenance", 2), else_=1), Operation.created_at, Operation.id).limit(64)))
         if any(op.source != "maintenance" for op in waiting):
-            waiting = [op for op in waiting if op.source != "maintenance"]
+            if self._round_admissions % 2 == 0:
+                waiting = [op for op in waiting if op.source != "maintenance"]
+            else:
+                # Reserve a place even when the bounded foreground window is
+                # full. Continuous submissions must not hide maintenance.
+                maintenance = session.scalar(query.where(Operation.source == "maintenance")
+                    .order_by(Operation.created_at, Operation.id).limit(1))
+                if maintenance and all(op.id != maintenance.id for op in waiting):
+                    waiting = waiting[:63] + [maintenance]
         if not waiting:
             return None
+        self._round_admissions += 1
         current = TaskRound()
         session.add(current)
         session.flush()
@@ -424,23 +576,34 @@ class TaskQueue:
         failure = None
         try:
             context.checkpoint()
-            specs = self.handlers[kind].plan(parameters, context)
+            handler = self.handlers[kind]
+            client = getattr(handler, "client", None)
+            scope_factory = getattr(type(client), "task_scope", None)
+            with scope_factory(client, context) if callable(scope_factory) else nullcontext():
+                if callable(getattr(handler, "plan_batch", None)):
+                    with self.database.read() as session:
+                        cursor = dict(session.get(Operation, operation_id).result.get("planning_cursor", {}))
+                    batch = handler.plan_batch(parameters, context, cursor)
+                    specs, complete = batch.specs, batch.complete
+                else:
+                    specs, complete = handler.plan(parameters, context), True
             seen = set()
             for spec in specs:
-                if spec.key in seen or any(key not in seen for key in spec.depends_on):
+                if spec.key in seen:
                     raise ValueError("清单重复或依赖顺序不合法")
                 seen.add(spec.key)
-        except ShutdownRequested:
+        except (ShutdownRequested, ManualPauseRequested):
             with self.database.write() as session:
                 operation = session.get(Operation, operation_id)
-                operation.state, operation.detail = "interrupted", "退出前已保存进度，下次启动继续"
+                operation.state, operation.detail = ("interrupted", "退出前已保存进度，下次启动继续") if self._stop.is_set() else ("planning", "已暂停，清单进度已保存")
             return False
         except Exception as exc:
             failure = safe_failure(exc)
+            complete = True
             specs = [ItemSpec("inventory-failed", "inventory-failed", {}, "checking")]
         with self.database.write() as session:
             operation = session.get(Operation, operation_id)
-            operation.result = {**operation.result, "planning_complete": True, "inventory_complete": failure is None and not any(
+            operation.result = {**operation.result, "planning_complete": complete, "planning_cursor": batch.cursor if callable(getattr(self.handlers[kind], "plan_batch", None)) and failure is None else {}, "inventory_complete": complete and failure is None and not operation.result.get("inventory_failed") and not any(
                 spec.kind == "error" and spec.phase == "checking" for spec in specs), "inventory": {
                 "phase": operation.phase, "unit": operation.phase_unit,
                 "done": operation.phase_done, "total": operation.phase_total,
@@ -450,7 +613,9 @@ class TaskQueue:
                 for stored in session.scalars(select(OperationItem).where(OperationItem.operation_id == operation_id, OperationItem.item_key == "inventory-failed")):
                     stored.state, stored.result = "failed", failure
             running_item = session.scalar(select(OperationItem.id).where(OperationItem.operation_id == operation_id, OperationItem.state == "running").limit(1))
-            operation.state = "running" if running_item else "ready"
+            operation.state = "planning" if not complete else "running" if running_item else "ready"
+            if not complete:
+                operation.last_claim_seq = self._claim_sequence
             self._finalize(session, [operation_id])
         return True
 
@@ -488,7 +653,7 @@ class TaskQueue:
         # classifying cancellation as a failed or successful attempt.
         try:
             context.report(item.phase, sum(counts.get(state, 0) for state in SETTLED), sum(counts.values()), item.unit, "正在处理")
-        except ShutdownRequested:
+        except (ShutdownRequested, ManualPauseRequested):
             self._interrupt_item(item.id, operation_id)
             return
         if dependency_failed:
@@ -500,19 +665,43 @@ class TaskQueue:
         else:
             try:
                 spec = ItemSpec(item.item_key, item.kind, item.target, item.phase, item.unit, tuple(item.depends_on))
-                result = self.handlers[kind].execute(spec, context)
-                if not isinstance(result, ItemResult) or result.state not in SETTLED:
+                handler = self.handlers[kind]
+                client = getattr(handler, "client", None)
+                scope_factory = getattr(type(client), "task_scope", None)
+                scope = scope_factory(client, context) if callable(scope_factory) else nullcontext()
+                with scope:
+                    result = handler.execute(spec, context)
+                if not isinstance(result, ItemResult) or result.state not in SETTLED and not (item.kind == "bookmark_artist" and result.state == "yielded"):
                     raise TypeError("任务必须返回明确的处理结果")
-            except ShutdownRequested:
+            except (ShutdownRequested, ManualPauseRequested):
                 self._interrupt_item(item.id, operation_id)
                 return
             except Exception as exc:
-                result = ItemResult("failed", safe_failure(exc))
+                detail = safe_failure(exc)
+                if detail.get("retryable") and item.attempts < 3:
+                    with self.database.write() as session:
+                        stored = session.get(OperationItem, item.id)
+                        stored.state, stored.result = "pending", detail
+                        stored.not_before = utcnow() + timedelta(seconds=max(1, detail.get("retry_after", 2 ** item.attempts)))
+                        operation = session.get(Operation, operation_id)
+                        operation.detail = "远端暂时未响应，已保存进度，等待重试"
+                    return
+                result = ItemResult("failed", detail)
+        if result.state == "yielded":
+            with self.database.write() as session:
+                stored = session.get(OperationItem, item.id)
+                stored.state, stored.result = "pending", result.detail
+                stored.attempts = 0  # Retry budget belongs to the next persisted page.
+                stored.not_before = None
+            return
         with self.database.write() as session:
             stored = session.get(OperationItem, item.id)
             stored.state, stored.result = result.state, result.detail
             session.flush()
             operation = session.get(Operation, operation_id)
+            if result.state == "failed" and (item.kind in ("discover_page", "bookmark_page") or
+                    item.kind == "bookmark_artist" and "unconfirmed_works" not in result.detail):
+                operation.result = {**operation.result, "inventory_failed": True, "inventory_complete": False}
             counts = dict(session.execute(select(OperationItem.state, func.count()).where(OperationItem.operation_id == operation_id,
                 OperationItem.phase == item.phase, OperationItem.unit == item.unit).group_by(OperationItem.state)).all())
             done, total = sum(counts.get(state, 0) for state in SETTLED), sum(counts.values())
@@ -529,7 +718,7 @@ class TaskQueue:
         with self.database.write() as session:
             session.get(OperationItem, item_id).state = "pending"
             operation = session.get(Operation, operation_id)
-            operation.state, operation.detail = "interrupted", "退出前已保存进度，下次启动继续"
+            operation.state, operation.detail = ("interrupted", "退出前已保存进度，下次启动继续") if self._stop.is_set() else ("ready" if operation.result.get("planning_complete") is not False else "planning", "已保存进度，等待继续")
             current_items = dict(operation.result.get("current_items", {}))
             current_items.pop(item_id, None)
             operation.result = {**{key: value for key, value in operation.result.items() if key != "current_item"},
@@ -550,7 +739,7 @@ class TaskQueue:
                 continue
             if operation.round_id:
                 rounds.add(operation.round_id)
-            if operation.state not in ("ready", "running") or operation.id in self._planning and operation.result.get("planning_complete") is not True:
+            if operation.state not in ("ready", "running") or operation.result.get("planning_complete") is False:
                 continue
             unfinished = session.scalar(select(OperationItem.id).where(OperationItem.operation_id == operation.id, ~OperationItem.state.in_(SETTLED)).limit(1))
             if unfinished:
@@ -640,18 +829,24 @@ class TaskQueue:
                     "worker_error": self.worker_error,
                     "operations": views}
 
-    @staticmethod
-    def _operation_view(op, session=None):
+    def _operation_view(self, op, session=None):
         result = dict(op.result)
+        running = []
+        manually_paused = self.operation_paused(op.id)
         phase, lane = {"name": op.phase, "unit": op.phase_unit, "done": op.phase_done, "total": op.phase_total, "detail": op.detail}, result.get("lane") or ("check" if op.state == "planning" else None)
         if session is not None and op.state in ACTIVE:
             running = list(session.scalars(select(OperationItem).where(OperationItem.operation_id == op.id, OperationItem.state == "running").order_by(OperationItem.position).limit(4)))
+            remote_pages = session.scalar(select(OperationItem.id).where(OperationItem.operation_id == op.id,
+                OperationItem.kind.in_(("discover_page", "bookmark_page", "bookmark_artist")), OperationItem.state.in_(("pending", "running"))).limit(1))
+            if remote_pages:
+                phase["total"] = None
             lane = "check" if op.state == "planning" else None
             if running:
                 running.sort(key=lambda item: TaskQueue._lane(item) != "download")
                 item = running[0]
                 counts = dict(session.execute(select(OperationItem.state, func.count()).where(OperationItem.operation_id == op.id, OperationItem.phase == item.phase, OperationItem.unit == item.unit).group_by(OperationItem.state)).all())
-                phase = {"name": item.phase, "unit": item.unit, "done": sum(counts.get(state, 0) for state in SETTLED), "total": None if result.get("planning_complete") is False else sum(counts.values()), "detail": "正在处理"}
+                phase = {"name": item.phase, "unit": item.unit, "done": sum(counts.get(state, 0) for state in SETTLED),
+                    "total": None if result.get("planning_complete") is False or remote_pages else sum(counts.values()), "detail": "正在处理"}
                 lane = TaskQueue._lane(item)
                 current = result.get("current_items", {}).get(item.id)
                 result.pop("current_item", None)
@@ -659,7 +854,10 @@ class TaskQueue:
                     result["current_item"] = current
         return {"id": op.id, "round_id": op.round_id, "kind": op.kind, "label": op.label,
                 "source": op.source, "lane": lane,
-                "state": op.state, "phase": phase,
+                "state": ("pausing" if running or op.id in self._planning else "paused") if manually_paused else op.state,
+                "pause_requested": op.pause_requested,
+                "control": {"can_pause": op.kind == "reconcile" and op.source == "manual" and op.state in ACTIVE and not op.pause_requested,
+                            "can_resume": op.kind == "reconcile" and op.source == "manual" and op.state in ACTIVE and op.pause_requested}, "phase": phase,
                 "result": result, "needs_attention": op.needs_attention,
                 "created_at": op.created_at.isoformat(), "finished_at": op.finished_at.isoformat() if op.finished_at else None}
 

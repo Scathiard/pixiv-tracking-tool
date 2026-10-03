@@ -38,6 +38,25 @@ def revision(db):
         return catalogue_revision(session)
 
 
+def test_translation_correction_creates_metadata_snapshot_and_preserves_history(archive):
+    from src.core.revisions import latest_revision, revision_assets
+    from src.core.models import WorkRevision
+    db, handler, library = archive
+    work_id = handler._save_remote_work(1, PixivClient._parse_illust(raw_work([
+        {"name": "オリジナル", "translated_name": "原创"}])))
+    with db.read() as session:
+        first_id = latest_revision(session, work_id).id
+        first_asset = revision_assets(session, latest_revision(session, work_id))[0].id
+    handler._save_remote_work(1, PixivClient._parse_illust(raw_work([
+        {"name": "オリジナル", "translated_name": "原创作品"}])))
+    with db.read() as session:
+        latest = latest_revision(session, work_id)
+        assert latest.id != first_id and latest.change_kind == "metadata"
+        assert revision_assets(session, latest)[0].id == first_asset
+        assert session.get(WorkRevision, first_id).source_metadata["tag_translations"]["オリジナル"]["translated_name"] == "原创"
+        assert latest.source_metadata["tag_translations"]["オリジナル"]["translated_name"] == "原创作品"
+
+
 @pytest.mark.parametrize("tags,extra,expected,source_field", [
     ([{"name": "オリジナル", "translated_name": "原创"}], {}, "原创", "tags[].translated_name"),
     ([{"name": "オリジナル", "translated_name": "original", "translation": {"zh": "原创", "en": "original"}}],

@@ -1,5 +1,15 @@
 # 测试目录约定
 
+- `test_task_control_delivery.py`：2,000／20,000／100,000 步骤的索引领取与短写事务、前台／后台公平推进、持久手动暂停、下载子任务与重启、有限冷却重试及 2,000 页分批清单；全部合成数据。
+- `task_acceptance_probe.py --source-db SYNTHETIC_DB --artifacts NEW_DIRECTORY`：复制既有十万项隔离库，实际 localhost 测量远端替身等待期间的 20 次不同单件任务受理、本地详情与计数；每次要求 created=True，不连接真实主站。
+- `client_delivery_touch_browser.py --artifacts NEW_DIRECTORY`：真实隔离后端与 Chromium CDP 手机触摸，验证滑动／多指／长按不误触、单击放大和双指缩放、关闭保留原位、双击仅添加收藏及 320px 底栏几何；不表示实体手机或 EXE 验收。
+
+- `test_daily_management.py`：合成身份预览（名称／ID／主页地址）、重复画师、单画师与批量检查状态、周期保存和当前默认版本的原件统计；不读取真实账号、配置或图库。
+- `test_startup_upgrade.py`、`client_upgrade_browser.py`、`strict_legacy_fixture.py`：首次启动必须确认、持有图库租约备份／核验／启用、启动前失败恢复和启动写入后不覆盖；`legacy_client_fixture.sql` 从独立旧版 main 43705a8 的纯数据库源码生成并保留严格 0002 表结构，确认不存在新版版本表／字段，再实际点击升级并进入图库，明暗主题和桌面／390／320px；失败页面另用响应回放，控制器失败测试保留部分当前列。全部隔离合成数据，不表示真实图库已验证。
+- `client_daily_browser.py --artifacts NEW_DIRECTORY`：正式前端的三张网格、列表同尺寸更多、设置来源子页与 0／50／1000 条回放、小时周期保存、500 件选项和逾一万标签共用抽屉滚动；身份／来源用浏览器回放，设置／标签用真实合成后端，输出几何与截图，不能代替 EXE 或实体手机验收。
+- `client_delivery_scale_browser.py --artifacts NEW_DIRECTORY`：真实 Runtime 的 5,000 件／2,000 页图库，十个 500 件分页的全部响应身份及末件、480 件连续窗口、120 页长作窗口、随机短范围跨轮与返回；采集 DOM／媒体／请求峰值／强制 GC 后 JavaScript 堆，前后台空闲与实际队列持有合成核验步骤分别记录。后台为可见性事件模拟，短范围随机不表示完整 5,000 件随机轮已滚完，不替代 EXE 或实体手机验收。
+- `client_upgrade_browser.py --exe EXE_PATH --artifacts NEW_DIRECTORY`：普通离线 EXE 启动入口，独立 DATA_ROOT／PORT／TEMP 中的严格旧库升级与真实二次启动；单次 BROWSER 环境记录器只捕获本机地址，不打开外部服务。退出仅向本次进程及子进程 PID 的专属 pystray 窗口发送已定义 WM_STOP，随后由现有 run_tray 请求正常服务收尾；不操作其他窗口或真实图库，不表示实体托盘菜单已经手工验收。
+
 - `test_reconcile.py`、`test_reconcile_api.py`：一个持久维护任务的逐项本地核验、缺项修复、资料／收藏共用响应、暂停／停止／隐藏范围、删除与重启恢复及 HTTP 边界；仅合成图库和本机媒体，不写真实主站收藏。
 - `test_source_status.py`、`client_maintenance_browser.py`：有版本的来源事实、身份核对、明确删除证据与 404 的区分、分页具体缺项，以及统一设置入口、画师主页核对、两布局同尺寸和随滚动离屏的图库资料头；浏览器故障重放与真实后端覆盖分别记录。
 - 自本轮起，来源异常提示仅在设置来源一览和画师管理页；旧 `client_availability_browser.py`、`client_originals_browser.py` 保留为原交互的历史验证脚本，当前行为由 `client_maintenance_browser.py` 与更新后的 EXE 验证覆盖。

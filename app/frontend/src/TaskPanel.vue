@@ -11,6 +11,8 @@ interface Snapshot {
 const emit = defineEmits<{updated: []}>()
 const snapshot = ref<Snapshot | null>(null)
 const stale = ref(false)
+const controlling = ref(false)
+const controlError = ref('')
 const focusedId = ref<string | null>(null)
 const runningId = ref<string | null>(null)
 const failure = ref<Operation | null>(null)
@@ -31,7 +33,7 @@ const trackWidth = computed(() => {
   return phase?.total && phase.total > 0 ? `${Math.max(0, Math.min(100, phase.done / phase.total * 100))}%` : '0%'
 })
 const otherText = computed(() => {
-  const known = others.value.map(op => `${op.label}（${op.state === 'queued' ? '等待' : op.state === 'interrupted' ? '中断' : op.state === 'ready' ? '待执行' : '处理中'}）`)
+  const known = others.value.map(op => `${op.label}（${op.state === 'paused' ? '已暂停' : op.state === 'pausing' ? '正在暂停' : op.state === 'queued' ? '等待' : op.state === 'interrupted' ? '中断' : op.state === 'ready' ? '待执行' : '处理中'}）`)
   if (othersCount.value > others.value.length) known.push(`${othersCount.value - others.value.length} 项待处理`)
   if (focusedId.value && !active.value.some(op => op.id === focusedId.value)) known.push('已提交，正在确认排队状态')
   return known.join(' · ')
@@ -42,6 +44,19 @@ let previousRoundId = '', previousRoundState = ''
 let previousOperations: Map<string, string> | null = null
 const requestedIds = new Set<string>()
 const controller = new AbortController()
+
+async function controlTask(op: Operation) {
+  if (controlling.value) return
+  controlling.value = true
+  controlError.value = ''
+  try {
+    await api(`/api/tasks/${encodeURIComponent(op.id)}/${op.pause_requested ? 'resume' : 'pause'}`, {method: 'POST'})
+    clearTimeout(timer)
+    if (polling) refreshAfterPoll = true
+    else if (!stopped) await poll()
+  } catch { controlError.value = '控制请求未确认，请重试' }
+  finally { controlling.value = false }
+}
 
 function showTask(id: string) {
   focusedId.value = id
@@ -109,12 +124,13 @@ defineExpose({showTask})
 <template>
   <aside v-if="visible" class="task-status" :class="{stale}" data-no-navigation aria-live="polite">
     <template v-if="primary">
-      <div class="task-primary"><span class="status-dot" /> <strong>{{ primary.label }}</strong><span class="task-phase">{{ phaseText }}</span></div>
+      <div class="task-primary"><span class="status-dot" /> <strong>{{ primary.label }}</strong><span class="task-phase">{{ phaseText }}</span><button v-if="primary.control?.can_pause || primary.control?.can_resume" class="task-control" :disabled="controlling || stale" @click="controlTask(primary)">{{ controlling ? '正在提交' : primary.pause_requested ? '继续' : '暂停' }}</button></div>
       <div v-if="measurable" class="task-track" role="progressbar" :aria-label="`${primary.label}：${phaseText}`" :aria-valuenow="primary.phase.done" aria-valuemin="0" :aria-valuemax="primary.phase.total ?? undefined"><span :style="{width: trackWidth}" /></div>
       <p v-if="(othersCount || focusedId && !active.some(op => op.id === focusedId)) && !stale" class="task-secondary" :title="otherText">{{ othersCount ? `另有 ${othersCount} 项：` : '' }}{{ otherText }}</p>
     </template>
     <p v-else-if="stale" class="task-primary">任务状态暂不可得，正在重连</p>
     <p v-else-if="focusedId" class="task-secondary">任务已提交，正在确认排队状态</p>
+    <p v-if="controlError" class="task-error" role="alert">{{ controlError }}</p>
     <p v-if="failure" class="task-error" role="alert">{{ failure.label }}未完成；原因可在设置的处理日志中查看。</p>
   </aside>
 </template>
@@ -122,5 +138,7 @@ defineExpose({showTask})
 <style scoped>
 /* This informational layer must not cover the controls beneath it. */
 .task-status { pointer-events: none; }
+.task-control { pointer-events: auto; border: 0; border-radius: 6px; background: var(--surface-2, #e6edf3); color: inherit; padding: 4px 10px; cursor: pointer; flex-shrink: 0; }
+.task-control:disabled { opacity: .55; }
 .task-secondary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

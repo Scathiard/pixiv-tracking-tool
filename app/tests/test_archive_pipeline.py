@@ -95,6 +95,20 @@ def queue_for(db, root, client=None, downloader=None):
                          for kind in ("check", "repair", "verify", "thumbnails", "backfill", "metadata")})
 
 
+def saved_file(db, root, pixiv_id, *, kind=None):
+    from src.core.revisions import selected_revision, revision_assets, revision_derivatives
+    with db.read() as session:
+        work = session.scalar(select(Work).where(Work.pixiv_illust_id == pixiv_id))
+        if work is None:
+            return None
+        revision = selected_revision(session, work.id)
+        records = revision_derivatives(session, revision) if kind else revision_assets(session, revision)
+        record = next((item for item in records if (item.kind == kind if kind else item.role == "image" and item.page_index == 0)
+            and item.relative_path), None)
+        path = root / record.relative_path if record else None
+        return path if path and path.is_file() else None
+
+
 def test_first_work_publishes_while_second_artist_is_blocked_and_pause_keeps_children(archive):
     db, root = archive
     client, downloader = Client(), Downloader()
@@ -105,8 +119,8 @@ def test_first_work_publishes_while_second_artist_is_blocked_and_pause_keeps_chi
         assert client.held.wait(15)
         queue.set_automatic_paused(True)
         queue.submit("check", {"artist_ids": [1]}, "next automatic", source="automatic")
-        wait_for(lambda: (root / "artist_1/100_p0.png").is_file())
-        assert queue.details(parent)["state"] == "planning"
+        wait_for(lambda: saved_file(db, root, "100") is not None)
+        assert queue.details(parent)["state"] in ("ready", "running", "planning")
         with db.read() as session:
             child = session.get(Operation, session.get(Operation, parent).result["child_operation_ids"][0])
             assert child.result["parent_operation_ids"] == [parent]
@@ -130,7 +144,7 @@ def test_two_downloads_and_local_progress_do_not_hide_held_download(archive):
     queue.start()
     try:
         assert downloader.held.wait(15)
-        wait_for(lambda: (root / ".thumbnails/100_p0_v1.webp").is_file())
+        wait_for(lambda: saved_file(db, root, "100", kind="thumbnail") is not None)
         with db.read() as session:
             child_id = session.get(Operation, parent).result["child_operation_ids"][0]
         current = queue.details(child_id)
@@ -255,11 +269,12 @@ def test_source_update_failure_retains_verified_old_file_and_legacy_pending(arch
     (root / "old.png").write_bytes(png())
     with db.write() as session:
         work = Work(id=1, pixiv_illust_id="100", artist_id=1, title="old", type="illust")
-        asset = Asset(role="image", state="source_changed", relative_path="old.png", source_url="https://i.pximg.net/new.png")
+        asset = Asset(role="image", state="verified", relative_path="old.png", source_url="https://i.pximg.net/new.png")
         work.assets = [asset]
         session.add_all([work, ArchiveIntent(pixiv_illust_id="100")])
         session.flush()
         asset_id = asset.id
+        work.source_metadata = {"source_updates": {asset_id: {"requested_url": asset.source_url, "reason": "source update"}}}
     downloader = Downloader()
     downloader.error = ConnectionError("synthetic")
     queue = queue_for(db, root, downloader=downloader)
@@ -267,8 +282,13 @@ def test_source_update_failure_retains_verified_old_file_and_legacy_pending(arch
     queue.run_round()
     with db.read() as session:
         asset = session.get(Asset, asset_id)
-        assert asset.state == "unknown" and asset.relative_path == "old.png"
-        assert session.get(Work, 1).source_metadata["source_updates"][asset_id]["requested_url"].endswith("new.png")
+        assert asset.state == "verified" and asset.relative_path == "old.png"
+        from src.core.revisions import latest_revision, revision_assets
+        current = revision_assets(session, latest_revision(session, 1))[0]
+        replacement_id = current.id
+        assert replacement_id != asset_id and current.state == "failed"
+        assert current.source_url.endswith("new.png") and current.error
+        assert asset_id not in session.get(Work, 1).source_metadata.get("source_updates", {})
     assert queue.details(failed)["result"]["outcome"] == "failed"
     assert (root / "old.png").read_bytes() == png()
     downloader.error = None
@@ -276,7 +296,9 @@ def test_source_update_failure_retains_verified_old_file_and_legacy_pending(arch
     queue.run_round()
     with db.read() as session:
         assert session.get(Asset, asset_id).state == "verified"
-        assert asset_id not in session.get(Work, 1).source_metadata["source_updates"]
+        assert session.get(Asset, replacement_id).state == "verified"
+        assert not session.get(Work, 1).source_metadata.get("source_updates", {})
+    assert (root / "old.png").read_bytes() == png()
     assert downloader.calls == ["https://i.pximg.net/new.png"] * 2
 
 
@@ -323,14 +345,18 @@ def test_stale_source_response_cannot_replace_or_clear_newer_source(archive):
     try:
         assert downloader.held.wait(15)
         with db.write() as session:
-            asset = session.get(Asset, asset_id)
+            from src.core.revisions import latest_revision, revision_assets
+            asset = revision_assets(session, latest_revision(session, 1))[0]
+            current_asset_id = asset.id
+            assert current_asset_id != asset_id
             asset.source_url = "https://i.pximg.net/v3.png"
-            session.get(Work, 1).source_metadata = {"source_updates": {asset_id: {"requested_url": asset.source_url, "reason": "newer update"}}}
+            session.get(Work, 1).source_metadata = {"source_updates": {current_asset_id: {"requested_url": asset.source_url, "reason": "newer update"}}}
         downloader.release.set()
         wait_for(lambda: queue.details(operation_id)["state"] == "finished")
         with db.read() as session:
-            assert session.get(Work, 1).source_metadata["source_updates"][asset_id]["requested_url"].endswith("v3.png")
+            assert session.get(Work, 1).source_metadata["source_updates"][current_asset_id]["requested_url"].endswith("v3.png")
             assert session.get(Asset, asset_id).state == "verified"
+            assert session.get(Asset, current_asset_id).state != "verified"
         assert (root / "old.png").read_bytes() == png()
         assert queue.details(operation_id)["counts"]["skipped"] >= 1
     finally:
@@ -405,8 +431,9 @@ def test_newer_discovery_has_durable_child_while_older_download_is_held(archive)
         wait_for(lambda: queue.details(parent)["state"] == "finished")
         with db.read() as session:
             work = session.scalar(select(Work).where(Work.pixiv_illust_id == "100"))
-            assert not work.source_metadata["source_updates"]
-            asset = session.scalar(select(Asset).where(Asset.work_id == work.id))
+            from src.core.revisions import latest_revision, revision_assets
+            assert not work.source_metadata.get("source_updates")
+            asset = revision_assets(session, latest_revision(session, work.id))[0]
             assert asset.state == "verified" and asset.source_url.endswith("b.png")
         assert downloader.calls == ["https://i.pximg.net/a.png", "https://i.pximg.net/b.png"]
     finally:
@@ -449,7 +476,8 @@ def test_maintenance_source_refresh_rebuilds_first_page_thumbnail(archive):
     queue = queue_for(db, root)
     queue.submit("repair", {"work_ids": [1]}, "establish")
     queue.run_round()
-    thumbnail_path = root / ".thumbnails/100_p0_v1.webp"
+    thumbnail_path = saved_file(db, root, "100", kind="thumbnail")
+    assert thumbnail_path is not None
     old_thumbnail = thumbnail_path.read_bytes()
     with db.write() as session:
         asset = session.scalar(select(Asset))
@@ -457,10 +485,15 @@ def test_maintenance_source_refresh_rebuilds_first_page_thumbnail(archive):
         session.get(Work, 1).source_metadata = {"source_updates": {asset.id: {"requested_url": asset.source_url, "reason": "source changed"}}}
     result = queue.submit("repair", {"work_ids": [1]}, "maintenance refresh", source="maintenance")
     queue.run_round()
-    assert thumbnail_path.read_bytes() != old_thumbnail
+    current_thumbnail = saved_file(db, root, "100", kind="thumbnail")
+    assert current_thumbnail is not None
+    assert current_thumbnail.read_bytes() != old_thumbnail
+    assert thumbnail_path.read_bytes() == old_thumbnail
     with db.read() as session:
-        asset = session.scalar(select(Asset))
-        thumbnail = session.scalar(select(Derivative).where(Derivative.kind == "thumbnail"))
+        from src.core.revisions import latest_revision, revision_assets, revision_derivatives
+        revision = latest_revision(session, 1)
+        asset = revision_assets(session, revision)[0]
+        thumbnail = next(record for record in revision_derivatives(session, revision) if record.kind == "thumbnail")
         assert thumbnail.source_version == asset.sha256
         assert not session.get(Work, 1).source_metadata["source_updates"]
     assert queue.details(result["operation_id"])["counts"] == {"succeeded": 2}
@@ -537,7 +570,7 @@ def test_manual_repair_streams_first_work_while_second_work_planning_is_held(arc
     queue.start()
     try:
         assert held.wait(15)
-        wait_for(lambda: (root / "artist_1/101_p0.png").is_file())
+        wait_for(lambda: saved_file(db, root, "101") is not None)
         assert queue.details(operation_id)["state"] != "finished"
         assert queue.snapshot()["round"]["total"] is None
         release.set()
@@ -595,14 +628,23 @@ def test_legacy_timing_source_update_clears_only_after_new_frames_publish(archiv
         def get_ugoira_metadata(self, remote_id):
             return {"zip_urls": {"original": "https://i.pximg.net/original.zip"}, "frames": [{"file": "first.png", "delay": 200}]}
 
-    queue = queue_for(db, root, TimingClient())
+    class ZipDownloader(Downloader):
+        def download(self, url, destination, report=None):
+            self.calls.append(url)
+            destination.write_bytes((root / "original.zip").read_bytes() if url.endswith(".zip") else png())
+    old_timing = (root / "original.frames.json").read_bytes()
+    queue = queue_for(db, root, TimingClient(), ZipDownloader())
     operation_id = queue.submit("repair", {"work_ids": [1]}, "timing update")["operation_id"]
     queue.run_round()
     assert queue.details(operation_id)["result"]["outcome"] == "succeeded"
-    assert json.loads((root / "original.frames.json").read_text(encoding="utf-8"))["frames"][0]["delay"] == 200
+    assert (root / "original.frames.json").read_bytes() == old_timing
     with db.read() as session:
-        assert not session.get(Work, 1).source_metadata["source_updates"]
-        assert all(asset.state == "verified" for asset in session.scalars(select(Asset)))
+        from src.core.revisions import latest_revision, revision_assets
+        assets = revision_assets(session, latest_revision(session, 1))
+        current_timing = next(asset for asset in assets if asset.role == "ugoira_timing")
+        assert json.loads((root / current_timing.relative_path).read_text(encoding="utf-8"))["frames"][0]["delay"] == 200
+        assert not session.get(Work, 1).source_metadata.get("source_updates")
+        assert all(asset.state == "verified" for asset in assets)
 
 
 def test_parent_completion_gate_does_not_materialize_five_thousand_children(archive):

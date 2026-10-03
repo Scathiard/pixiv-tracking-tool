@@ -21,6 +21,7 @@ export interface RecoveryState {
 export interface AvailabilityState {
   state: 'available' | 'unavailable' | 'private' | 'deleted'; checked_at: string | null; reason: string | null
   confirmation?: 'confirmed' | 'unconfirmed'
+  effective?: boolean
 }
 export interface SourceStatusItem {
   kind: 'work' | 'artist'; id: number; pixiv_id: string; title?: string; name?: string
@@ -36,9 +37,11 @@ export interface SourceStatusBatch {
 export function confirmedDeleted(availability?: AvailabilityState | null): boolean {
   return availability?.state === 'deleted' && availability.confirmation === 'confirmed'
 }
-export function sourceStatusLabel(availability?: AvailabilityState | null, kind: 'work' | 'artist' = 'work'): string | null {
-  if (confirmedDeleted(availability)) return kind === 'artist' ? '已确认主页不存在' : '已确认原作不存在'
-  if (availability && availability.state !== 'available') return '无法访问，待确认'
+export function sourceInaccessible(availability?: AvailabilityState | null): boolean {
+  return !!availability && availability.state !== 'available' && availability.effective === true
+}
+export function sourceStatusLabel(availability?: AvailabilityState | null, _kind: 'work' | 'artist' = 'work'): string | null {
+  if (sourceInaccessible(availability)) return '主站已无法访问'
   return null
 }
 export function localSourceStatus(item: SourceStatusItem): string {
@@ -59,6 +62,7 @@ export interface TagDetail {
   language_basis: 'requested_locale' | 'explicit_language_key' | null; checked_at: string | null
 }
 export interface WorkSummary extends ArchiveProjection {
+  revision_id?: string | null; latest_revision_id?: string | null
   id: number; pixiv_id: string; title: string; artist_id: number; artist_name: string
   type: string; page_count: number; x_restrict: number | null; thumbnail: string | null; preview?: string | null
   caption: string; caption_state: string; tags: string[]; tag_details?: TagDetail[]; is_hidden: boolean
@@ -68,6 +72,7 @@ export interface WorkSummary extends ArchiveProjection {
   availability?: AvailabilityState | null
 }
 export interface PageData extends ArchiveProjection {
+  revision_id?: string | null; round?: number; previous_work_index?: number | null
   index: number; work_id: number; work_index: number; page: number; page_count: number
   title: string; artist_name: string; artist_id: number; pixiv_id: string; type: string; x_restrict: number | null
   next_work_index: number; src: string | null; width: number | null; height: number | null; state: string
@@ -76,6 +81,7 @@ export interface PageData extends ArchiveProjection {
   availability?: AvailabilityState | null
 }
 export interface WorkDetail extends WorkSummary {
+  revisions?: {id: string; ordinal: number; created_at: string; change_kind: string; state: string; page_count: number; current: boolean}[]
   catalogue_revision?: number
   display_page_count: number
   pages: {index: number; src: string | null; width: number | null; height: number | null; state: string}[]
@@ -149,5 +155,5 @@ export function hasNewWorks(fresh: GalleryBatch, ceiling: number, total: number)
   return fresh.ceiling > ceiling && (fresh.total > total || !!fresh.items[0] && fresh.items[0].id > ceiling)
 }
 export interface Anchor {work_id: number; page: number; offset: number; index: number; work_index: number}
-export interface Artist {id: number; pixiv_id: string; name: string; mode: 'active' | 'paused' | 'stopped'; biography?: string | null; avatar?: string | null; profile_refreshed_at?: string | null; work_count?: number; recent_works?: WorkCard[]; availability?: AvailabilityState | null}
+export interface Artist {id: number; pixiv_id: string; name: string; mode: 'active' | 'paused' | 'stopped'; biography?: string | null; avatar?: string | null; profile_refreshed_at?: string | null; last_checked_at?: string | null; work_count?: number; recent_works?: WorkCard[]; availability?: AvailabilityState | null}
 export type PageLoader = (offset: number, limit: number, signal: AbortSignal) => Promise<PageBatch>

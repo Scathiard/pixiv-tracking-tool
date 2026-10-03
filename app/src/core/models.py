@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from sqlalchemy import (
     Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, JSON,
-    String, Text, UniqueConstraint,
+    String, Text, UniqueConstraint, text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -74,18 +74,59 @@ class Work(Base):
     legacy_posted_at: Mapped[str | None] = mapped_column(Text)
     downloaded_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     source_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    default_revision_id: Mapped[str | None] = mapped_column(String, index=True)
+    latest_revision_id: Mapped[str | None] = mapped_column(String, index=True)
     artist: Mapped[Artist] = relationship(back_populates="works")
     tags: Mapped[list[WorkTag]] = relationship(cascade="all, delete-orphan")
     preference: Mapped[LocalPreference | None] = relationship(cascade="all, delete-orphan")
     bookmark: Mapped[RemoteBookmark | None] = relationship(cascade="all, delete-orphan")
     assets: Mapped[list[Asset]] = relationship(cascade="all, delete-orphan")
     derivatives: Mapped[list[Derivative]] = relationship(cascade="all, delete-orphan")
+    revisions: Mapped[list[WorkRevision]] = relationship(cascade="all, delete-orphan")
 
 
 class WorkTag(Base):
     __tablename__ = "work_tags"
     work_id: Mapped[int] = mapped_column(ForeignKey("works.id"), primary_key=True)
     tag: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+
+
+class WorkRevision(Base):
+    __tablename__ = "work_revisions"
+    __table_args__ = (UniqueConstraint("work_id", "ordinal"),
+        Index("ix_revision_work_order", "work_id", "ordinal"), CheckConstraint("page_count >= 1"))
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_id)
+    work_id: Mapped[int] = mapped_column(ForeignKey("works.id"), index=True)
+    ordinal: Mapped[int] = mapped_column(Integer)
+    title: Mapped[str] = mapped_column(Text)
+    caption: Mapped[str] = mapped_column(Text, default="")
+    caption_state: Mapped[str] = mapped_column(String, default="unknown")
+    type: Mapped[str] = mapped_column(String)
+    page_count: Mapped[int] = mapped_column(Integer)
+    tags: Mapped[list] = mapped_column(JSON, default=list)
+    source_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    source_signature: Mapped[str] = mapped_column(String)
+    change_kind: Mapped[str] = mapped_column(String, default="initial")
+    state: Mapped[str] = mapped_column(String, default="pending")
+    viewable: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class RevisionAsset(Base):
+    __tablename__ = "revision_assets"
+    revision_id: Mapped[str] = mapped_column(ForeignKey("work_revisions.id"), primary_key=True)
+    role: Mapped[str] = mapped_column(String, primary_key=True)
+    page_index: Mapped[int] = mapped_column(Integer, primary_key=True)
+    asset_id: Mapped[str] = mapped_column(ForeignKey("assets.id"), index=True)
+
+
+class RevisionDerivative(Base):
+    __tablename__ = "revision_derivatives"
+    revision_id: Mapped[str] = mapped_column(ForeignKey("work_revisions.id"), primary_key=True)
+    kind: Mapped[str] = mapped_column(String, primary_key=True)
+    page_index: Mapped[int] = mapped_column(Integer, primary_key=True)
+    spec_key: Mapped[str] = mapped_column(String, primary_key=True)
+    derivative_id: Mapped[str] = mapped_column(ForeignKey("derivatives.id"), index=True)
 
 
 class LocalPreference(Base):
@@ -142,12 +183,14 @@ class ArchiveIntent(Base):
 class Asset(Base):
     __tablename__ = "assets"
     __table_args__ = (
-        UniqueConstraint("work_id", "role", "page_index"),
+        UniqueConstraint("work_id", "revision_id", "role", "page_index"),
+        Index("ix_asset_legacy_slot", "work_id", "role", "page_index", unique=True, sqlite_where=text("revision_id IS NULL")),
         CheckConstraint("page_index >= 0"),
         CheckConstraint("role IN ('image','ugoira_zip','ugoira_timing')"),
     )
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_id)
     work_id: Mapped[int] = mapped_column(ForeignKey("works.id"), index=True)
+    revision_id: Mapped[str | None] = mapped_column(ForeignKey("work_revisions.id"), index=True)
     role: Mapped[str] = mapped_column(String)
     page_index: Mapped[int] = mapped_column(Integer, default=0)
     relative_path: Mapped[str | None] = mapped_column(Text)
@@ -165,9 +208,11 @@ class Asset(Base):
 
 class Derivative(Base):
     __tablename__ = "derivatives"
-    __table_args__ = (UniqueConstraint("work_id", "kind", "page_index", "spec_key"),)
+    __table_args__ = (UniqueConstraint("work_id", "revision_id", "kind", "page_index", "spec_key"),
+        Index("ix_derivative_legacy_slot", "work_id", "kind", "page_index", "spec_key", unique=True, sqlite_where=text("revision_id IS NULL")))
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_id)
     work_id: Mapped[int] = mapped_column(ForeignKey("works.id"), index=True)
+    revision_id: Mapped[str | None] = mapped_column(ForeignKey("work_revisions.id"), index=True)
     kind: Mapped[str] = mapped_column(String)
     page_index: Mapped[int] = mapped_column(Integer, default=0)
     spec_key: Mapped[str] = mapped_column(String, default="v1")
@@ -197,6 +242,7 @@ class TaskRound(Base):
 
 class Operation(Base):
     __tablename__ = "operations"
+    __table_args__ = (Index("ix_operations_fair", "state", "last_claim_seq", "created_at"),)
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_id)
     round_id: Mapped[str | None] = mapped_column(ForeignKey("task_rounds.id"), index=True)
     kind: Mapped[str] = mapped_column(String)
@@ -212,6 +258,8 @@ class Operation(Base):
     detail: Mapped[str] = mapped_column(Text, default="")
     result: Mapped[dict] = mapped_column(JSON, default=dict)
     needs_attention: Mapped[bool] = mapped_column(Boolean, default=False)
+    pause_requested: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_claim_seq: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime)
@@ -221,7 +269,9 @@ class Operation(Base):
 
 class OperationItem(Base):
     __tablename__ = "operation_items"
-    __table_args__ = (UniqueConstraint("operation_id", "item_key"),)
+    __table_args__ = (UniqueConstraint("operation_id", "item_key"),
+        Index("ix_items_candidate", "operation_id", "state", "lane", "position"),
+        Index("ix_items_progress", "operation_id", "state", "phase", "unit"))
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_id)
     operation_id: Mapped[str] = mapped_column(ForeignKey("operations.id"), index=True)
     item_key: Mapped[str] = mapped_column(String)
@@ -232,6 +282,8 @@ class OperationItem(Base):
     unit: Mapped[str] = mapped_column(String, default="items")
     depends_on: Mapped[list] = mapped_column(JSON, default=list)
     state: Mapped[str] = mapped_column(String, default="pending")
+    lane: Mapped[str | None] = mapped_column(String)
+    not_before: Mapped[datetime | None] = mapped_column(DateTime)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     result: Mapped[dict] = mapped_column(JSON, default=dict)
 

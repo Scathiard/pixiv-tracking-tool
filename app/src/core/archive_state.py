@@ -5,10 +5,10 @@ from sqlalchemy import Integer, String, and_, case, cast, func, literal, or_, se
 from sqlalchemy.orm import aliased
 
 from .catalogue_revision import catalogue_revision
-from .models import ApplicationState, Asset, Derivative, Operation, OperationItem, Work
+from .models import ApplicationState, Asset, Derivative, Operation, OperationItem, Work, RevisionAsset, RevisionDerivative
 
 ACTIVE = ("queued", "planning", "ready", "running", "interrupted")
-LOCAL_KINDS = ("check", "metadata", "repair", "verify", "backfill", "thumbnails", "reconcile")
+LOCAL_KINDS = ("check", "metadata", "repair", "verify", "backfill", "thumbnails", "reconcile", "compare")
 
 
 def _operation_window(ids):
@@ -69,7 +69,8 @@ def _source_update(work):
     updates = (work.source_metadata or {}).get("source_updates")
     pending = [value for value in updates.values() if isinstance(value, dict)] if isinstance(updates, dict) else []
     reason = next((value["reason"] for value in pending if isinstance(value.get("reason"), str)), None)
-    return {"pending": bool(pending), "reason": reason}
+    changed = getattr(work, "latest_revision_id", None) != getattr(work, "default_revision_id", None)
+    return {"pending": bool(pending) or changed, "reason": reason or ("新版尚未完整保存，继续显示现有存档" if changed else None)}
 
 
 def _processing(row, ledger, *, original_gap, local_gap, source_pending):
@@ -137,23 +138,32 @@ def work_states(session, works):
     ids = [work.id for work in works]
     if not ids:
         return {}, catalogue_revision(session)
-    required = or_(and_(Work.type != "ugoira", Asset.role == "image", Asset.page_index < Work.page_count),
-                   and_(Work.type == "ugoira", Asset.role.in_(("ugoira_zip", "ugoira_timing")), Asset.page_index == 0))
-    verified = and_(Asset.state == "verified", func.length(Asset.relative_path) > 0)
-    missing = or_(Asset.state.in_(("missing", "failed", "invalid", "mismatch", "corrupt")),
-                  or_(Asset.relative_path.is_(None), Asset.relative_path == ""))
-    counts = select(Asset.work_id.label("work_id"), func.count().label("recorded"),
+    legacy = select(Asset.work_id.label("work_id"), Asset.role, Asset.page_index, Asset.state, Asset.relative_path).join(
+        Work, Work.id == Asset.work_id).where(Work.id.in_(ids), Work.default_revision_id.is_(None), Asset.revision_id.is_(None))
+    bound = select(Work.id.label("work_id"), RevisionAsset.role, RevisionAsset.page_index, Asset.state, Asset.relative_path).select_from(
+        Work).join(RevisionAsset, RevisionAsset.revision_id == Work.default_revision_id).join(
+        Asset, Asset.id == RevisionAsset.asset_id).where(Work.id.in_(ids))
+    current = union_all(legacy, bound).subquery()
+    required = or_(and_(Work.type != "ugoira", current.c.role == "image", current.c.page_index < Work.page_count),
+                   and_(Work.type == "ugoira", current.c.role.in_(("ugoira_zip", "ugoira_timing")), current.c.page_index == 0))
+    verified = and_(current.c.state == "verified", func.length(current.c.relative_path) > 0)
+    missing = or_(current.c.state.in_(("missing", "failed", "invalid", "mismatch", "corrupt")),
+                  or_(current.c.relative_path.is_(None), current.c.relative_path == ""))
+    counts = select(current.c.work_id.label("work_id"), func.count().label("recorded"),
         func.sum(case((verified, 1), else_=0)).label("verified"),
-        func.sum(case((missing, 1), else_=0)).label("missing")).join(Work, Work.id == Asset.work_id).where(
-        Asset.work_id.in_(ids), required).group_by(Asset.work_id).subquery()
+        func.sum(case((missing, 1), else_=0)).label("missing")).select_from(current).join(Work, Work.id == current.c.work_id).where(
+        required).group_by(current.c.work_id).subquery()
     operations = _operation_window(ids)
     ledger, revision = aliased(ApplicationState), aliased(ApplicationState)
+    current_derivative = or_(and_(Work.default_revision_id.is_(None), Derivative.revision_id.is_(None)),
+        select(RevisionDerivative.revision_id).where(RevisionDerivative.revision_id == Work.default_revision_id,
+            RevisionDerivative.derivative_id == Derivative.id).correlate(Work, Derivative).exists())
     thumbnail_ready = select(Derivative.id).where(Derivative.work_id == Work.id,
         Derivative.kind == "thumbnail", Derivative.page_index == 0, Derivative.spec_key == "v1",
-        Derivative.state == "verified", func.length(Derivative.relative_path) > 0).exists()
+        Derivative.state == "verified", func.length(Derivative.relative_path) > 0, current_derivative).exists()
     animation_ready = select(Derivative.id).where(Derivative.work_id == Work.id,
         Derivative.kind == "gif", Derivative.spec_key == "v1", Derivative.state.in_(("verified", "unknown")),
-        func.length(Derivative.relative_path) > 0).exists()
+        func.length(Derivative.relative_path) > 0, current_derivative).exists()
     local_gap = or_(~thumbnail_ready, and_(Work.type == "ugoira", ~animation_ready))
     rows = session.execute(select(Work.id.label("work_id"), counts.c.recorded, counts.c.verified,
         counts.c.missing, operations.c.operation_id, operations.c.operation_state,

@@ -15,7 +15,8 @@ from PIL import Image, ImageOps
 from sqlalchemy import select
 
 from .database import ArchiveDatabase
-from .models import ArchiveIntent, Asset, Derivative, PublicationJournal, Work, utcnow
+from .models import ArchiveIntent, Asset, Derivative, PublicationJournal, Work, WorkRevision, RevisionDerivative, utcnow
+from .revisions import refresh_for_record, latest_revision, refresh_revision, asset_entries
 
 
 class InvalidMedia(ValueError):
@@ -145,7 +146,8 @@ def verify_media(path: Path, role: str, timing: Path | None = None) -> Verificat
     return Verification(path.stat().st_size, file_digest(path), width, height)
 
 
-def build_gif(zip_path: Path, timing_path: Path, destination: Path, max_pixels=80_000_000):
+def build_gif(zip_path: Path, timing_path: Path, destination: Path, max_pixels=80_000_000, *, checkpoint=None):
+    if checkpoint: checkpoint()
     verification = verify_media(zip_path, "ugoira_zip", timing_path)
     frames = read_timing(timing_path)
     # Pillow's GIF writer holds frames; put a hard, explicit bound on this derivative.
@@ -155,8 +157,10 @@ def build_gif(zip_path: Path, timing_path: Path, destination: Path, max_pixels=8
     try:
         with zipfile.ZipFile(zip_path) as archive:
             for frame in frames:
+                if checkpoint: checkpoint()
                 with archive.open(frame["file"]) as stream, Image.open(stream) as image:
                     images.append(image.convert("RGB"))
+        if checkpoint: checkpoint()
         images[0].save(destination, format="GIF", save_all=True, append_images=images[1:],
                        duration=[frame["delay"] for frame in frames], loop=0, disposal=2,
                        optimize=False)
@@ -166,13 +170,15 @@ def build_gif(zip_path: Path, timing_path: Path, destination: Path, max_pixels=8
             image.close()
 
 
-def build_thumbnail(source: Path, destination: Path, size=(360, 360)):
+def build_thumbnail(source: Path, destination: Path, size=(360, 360), *, checkpoint=None):
+    if checkpoint: checkpoint()
     with Image.open(source) as image:
         image.seek(0)
         oriented = ImageOps.exif_transpose(image)
         try:
             thumbnail = ImageOps.fit(oriented.convert("RGB"), size, Image.Resampling.LANCZOS)
             try:
+                if checkpoint: checkpoint()
                 thumbnail.save(destination, format="WEBP", quality=82)
             finally:
                 thumbnail.close()
@@ -294,18 +300,39 @@ class Publisher:
         # Flush bytes before persisting the publication intent.
         with staged.open("rb+") as stream:
             os.fsync(stream.fileno())
+        shared_target = None
+        if not derivative:
+            with self.database.read() as session:
+                candidate_record = session.get(Asset, record_id)
+                if candidate_record and candidate_record.revision_id:
+                    shared_target = session.scalar(select(Asset.relative_path).where(
+                        Asset.work_id == candidate_record.work_id, Asset.id != record_id,
+                        Asset.role == candidate_record.role, Asset.state == "verified",
+                        Asset.sha256 == verified.sha256, Asset.relative_path.is_not(None)).limit(1))
+            if shared_target:
+                try:
+                    shared_path = contained_path(self.root, shared_target)
+                    if shared_path.stat().st_size != verified.byte_size or file_digest(shared_path) != verified.sha256:
+                        shared_target = None
+                except OSError:
+                    shared_target = None
         with self.database.write() as session:
             record = session.get(Derivative if derivative else Asset, record_id)
             if record is None:
                 raise KeyError(record_id)
             work = session.get(Work, record.work_id)
             self._require_intent(session, work.pixiv_illust_id, expected_revision)
+            # Reuse independently verified bytes inside this work. Comparison uses
+            # SHA-256, including same-size replacements and changed source paths.
+            if shared_target:
+                target = shared_target
             journal = PublicationJournal(
                 operation_item_id=item_id, asset_id=None if derivative else record_id,
                 pixiv_illust_id=work.pixiv_illust_id, intent_revision=expected_revision,
                 action="publish", staging_path=staging, target_path=target,
                 verification={**asdict(verified), "record_id": record_id,
                               "derivative": derivative, "source_version": source_version, "requested_url": requested_url, "expected_source_fingerprint": expected_source_fingerprint,
+                              "shared_target": bool(shared_target),
                               "backup": f".recovery/{uuid4().hex}.previous"},
             )
             session.add(journal)
@@ -345,8 +372,10 @@ class Publisher:
                 requested_url = info.get("requested_url")
                 owner = session.get(Work, record.work_id) if record else None
                 if info["derivative"] and record and record.spec_key == CARD_MOTION_SPEC:
-                    source = session.scalar(select(Derivative).where(Derivative.work_id == record.work_id,
-                        Derivative.kind == "gif", Derivative.spec_key == "v1"))
+                    source = session.scalar(select(Derivative).join(RevisionDerivative,
+                        RevisionDerivative.derivative_id == Derivative.id).where(RevisionDerivative.revision_id == record.revision_id,
+                        Derivative.kind == "gif", Derivative.spec_key == "v1")) if record.revision_id else session.scalar(select(Derivative).where(
+                        Derivative.work_id == record.work_id, Derivative.kind == "gif", Derivative.spec_key == "v1"))
                     if source is None or source.state != "verified" or not source.sha256 or source.sha256 != info.get("source_version"):
                         journal.step, journal.error = "obsolete", "本地 GIF 已改变，旧卡片预览保留在暂存区"
                         return "obsolete"
@@ -364,6 +393,8 @@ class Publisher:
                     if current != fingerprints[path]:
                         raise InvalidMedia("发布核验后文件发生变化，停止覆盖")
                 if digests[target] != info["sha256"]:
+                    if info.get("shared_target"):
+                        raise InvalidMedia("复用原件在核验后发生变化，已有版本保留，等待重新核验")
                     if digests[staged] != info["sha256"]:
                         raise InvalidMedia("中断恢复时找不到已核验的文件")
                     target.parent.mkdir(parents=True, exist_ok=True)
@@ -393,6 +424,21 @@ class Publisher:
                     if updates.get(record.id, {}).get("requested_url") == requested_url and (not updates[record.id].get("expected_fingerprint") or updates[record.id]["expected_fingerprint"] == info.get("expected_source_fingerprint")):
                         updates.pop(record.id)
                         work.source_metadata = {**work.source_metadata, "source_updates": updates}
+                refresh_for_record(session, record)
+                revision = session.get(WorkRevision, record.revision_id) if record.revision_id else None
+                if revision and not info["derivative"] and revision.state == "complete" and revision.change_kind in ("compare", "source"):
+                    current = asset_entries(session, revision)
+                    previous = session.scalar(select(WorkRevision).where(WorkRevision.work_id == revision.work_id,
+                        WorkRevision.ordinal < revision.ordinal, WorkRevision.state != "redundant").order_by(WorkRevision.ordinal.desc()).limit(1))
+                    prior = asset_entries(session, previous) if previous else []
+                    hashes = lambda entries: [(entry.role, entry.page_index, asset.sha256) for entry, asset in entries]
+                    if previous and current and all(
+                            asset.state == "verified" and asset.sha256 for entry, asset in current) and hashes(current) == hashes(prior):
+                        if revision.source_signature == previous.source_signature:
+                            revision.state = "redundant"
+                            refresh_revision(session, previous)
+                        else:
+                            revision.change_kind = "metadata"
                 from .catalogue_revision import bump_catalogue_revision
                 bump_catalogue_revision(session)
                 journal.step, journal.error = "committed", None

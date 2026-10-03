@@ -70,7 +70,7 @@ test('stopped remote repair still lets a saved original receive a generated thum
   assert.equal(needsCardRefresh({...card, recovery: waiting}), true)
 })
 
-test('gallery and reading omit remote source facts while management classifies only confirmed deletion', () => {
+test('gallery and reading omit remote source facts while management uses one effective inaccessible-source label', () => {
   const saved = {thumbnail: '/images/thumb.webp', recovery: attention,
     availability: {state: 'unavailable', checked_at: '2026-09-29T10:00:00Z', reason: '尚无此页'}} as WorkCard
   assert.equal(cardSourceLabel(saved), null)
@@ -78,12 +78,14 @@ test('gallery and reading omit remote source facts while management classifies o
   assert.equal(cardSourceLabel({...saved, recovery: null}), null)
   assert.equal(cardSourceLabel({...saved, recovery: null, availability: {...saved.availability!, state: 'private'}}), null)
   assert.equal(cardSourceLabel({...saved, recovery: null, availability: null}), null)
-  const deleted = {...saved.availability!, state: 'deleted' as const, confirmation: 'confirmed' as const}
+  const deleted = {...saved.availability!, state: 'deleted' as const, confirmation: 'confirmed' as const, effective: true}
   assert.equal(confirmedDeleted(deleted), true)
-  assert.equal(sourceStatusLabel(deleted), '已确认原作不存在')
-  assert.equal(sourceStatusLabel(deleted, 'artist'), '已确认主页不存在')
+  assert.equal(sourceStatusLabel(deleted), '主站已无法访问')
+  assert.equal(sourceStatusLabel(deleted, 'artist'), '主站已无法访问')
   assert.equal(confirmedDeleted({...deleted, confirmation: 'unconfirmed'}), false)
-  assert.equal(sourceStatusLabel({...deleted, confirmation: 'unconfirmed'}), '无法访问，待确认')
+  assert.equal(sourceStatusLabel({...deleted, confirmation: 'unconfirmed', effective: false}), null)
+  assert.equal(sourceStatusLabel({...deleted, effective: false}), null)
+  assert.equal(sourceStatusLabel({...deleted, state: 'private'}), '主站已无法访问')
   assert.equal(confirmedDeleted({...deleted, state: 'available'}), false)
   assert.equal(sourceStatusLabel({...deleted, state: 'available'}), null)
   assert.equal(archiveNotice({...saved, availability: deleted}), null)

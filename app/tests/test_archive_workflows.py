@@ -135,10 +135,11 @@ def test_gif_only_archive_does_not_silently_backfill(setup_archive):
     queue.run_round()
     assert download.urls == ["https://i.pximg.net/animation.zip"]
     with database.read() as session:
-        assets = list(session.scalars(select(Asset)))
+        from src.core.revisions import latest_revision, revision_assets
+        assets = revision_assets(session, latest_revision(session, 1))
         assert all(asset.state == "verified" for asset in assets)
         assert all((root / asset.relative_path).is_file() for asset in assets)
-    assert Library(database).detail(1)["pages"][0]["src"] == "/images/200.gif"
+    assert "/revisions/" in Library(database).detail(1)["pages"][0]["src"]
     assert Library(database).missing_originals() == []
 
 
@@ -164,11 +165,12 @@ def test_selected_repair_fills_gif_only_originals_without_backfilling_other_work
     assert queue.snapshot()["round"]["outcome"] == "succeeded"
     with database.read() as session:
         selected = session.get(Work, 1)
-        assert all(asset.state == "verified" for asset in selected.assets)
+        from src.core.revisions import latest_revision, revision_assets
+        assert all(asset.state == "verified" for asset in revision_assets(session, latest_revision(session, 1)))
         assert not selected.source_metadata["original_backfill_requires_selection"]
         assert session.get(Work, 2).source_metadata["original_backfill_requires_selection"]
     assert [work["id"] for work in Library(database).missing_originals()] == [2]
-    assert Library(database).detail(1)["pages"][0]["src"] == "/images/200.gif"
+    assert "/revisions/" in Library(database).detail(1)["pages"][0]["src"]
 
 
 @pytest.mark.parametrize("parameters,source", [({}, "maintenance"), ({"artist_ids": [1]}, "automatic"),
@@ -198,7 +200,9 @@ def test_manual_scope_repairs_legacy_animation_originals(setup_archive, paramete
     assert client.calls == expected
     assert len(download.urls) == len(expected)
     for index, remote_id in enumerate((200, 201)):
-        with Image.open(root / f"{remote_id}.gif") as preview:
+        assert (root / f"{remote_id}.gif").read_bytes() == before[index]
+        current_src = Library(database).detail(index + 1)["pages"][0]["src"]
+        with Image.open(root / current_src.removeprefix("/images/")) as preview:
             assert preview.format == "GIF"
             preview.load()
             if "ugoira-" + str(remote_id) in expected:
@@ -209,8 +213,11 @@ def test_manual_scope_repairs_legacy_animation_originals(setup_archive, paramete
             else:
                 assert (root / f"{remote_id}.gif").read_bytes() == before[index]
     with database.read() as session:
-        assert all(asset.state == "verified" for asset in session.get(Work, 1).assets)
-        assert all(asset.state == "verified" for asset in session.get(Work, 2).assets) == (not parameters)
+        from src.core.revisions import latest_revision, revision_assets
+        assert all(asset.state == "verified" for asset in revision_assets(session, latest_revision(session, 1)))
+        second_revision = latest_revision(session, 2)
+        second_assets = revision_assets(session, second_revision) if second_revision else session.get(Work, 2).assets
+        assert all(asset.state == "verified" for asset in second_assets) == (not parameters)
 
 
 @pytest.mark.parametrize("detail_state", ["unavailable", "private", "available", "api_network", "api_unauthorized", "api_rate_limit"])
@@ -263,6 +270,7 @@ def test_scope_repair_skips_known_unavailable_work_and_continues(setup_archive, 
         work = session.get(Work, 1)
         work.source_metadata = {**work.source_metadata, "remote_availability": {
             "state": "unavailable", "checked_at": "2026-09-30T00:00:00+00:00",
+            "confirmed": True, "policy": "source-v2",
             "reason": "主站暂时无法获取此作品，尚不能确认是否删除；已有存档保留"}}
     submitted = queue.submit("repair", parameters, "补下载")
     queue.run_round()
@@ -324,6 +332,14 @@ def test_selected_animation_repair_failure_preserves_existing_gif(setup_archive,
     queue.submit("repair", {"work_ids": [1]}, "补下载此作品")
     queue.run_round()
     assert download.urls == ["https://i.pximg.net/animation.zip"]
+    if failure == "network":
+        from src.core.models import OperationItem
+        for _ in range(2):
+            with database.write() as session:
+                for item in session.scalars(select(OperationItem).where(OperationItem.state == "pending")):
+                    item.not_before = None
+            queue.run_round()
+        assert len(download.urls) == 3
     assert queue.snapshot()["round"]["outcome"] in ("failed", "partial_failure")
     assert (root / "200.gif").read_bytes() == original_gif
     assert Library(database).detail(1)["pages"][0]["src"] == "/images/200.gif"

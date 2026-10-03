@@ -10,8 +10,17 @@ if __name__ == "__main__":
             traceback.print_exc()
             sys.exit(1)
     try:
-        from src.tray import run_tray
-        run_tray(offline="--offline" in sys.argv)
+        from src.single_instance import ApplicationInstance
+        instance = ApplicationInstance()
+        if not instance.acquire():
+            import webbrowser
+            webbrowser.open_new(instance.existing_url())
+        else:
+            try:
+                from src.tray import run_tray
+                run_tray(offline="--offline" in sys.argv, instance=instance)
+            finally:
+                instance.close()
     except Exception:
         print("\n启动失败：")
         traceback.print_exc()

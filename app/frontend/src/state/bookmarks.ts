@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import { api, write } from '../api'
 import type { BookmarkState } from '../types'
 import { acceptsBookmarkUpdate, nextBookmarkIntent } from './bookmarkRules'
@@ -13,6 +13,7 @@ const lastRead = new Map<number, number>()
 const polling = new Map<number, number>()
 const inFlight = reactive(new Set<number>())
 const lastRefresh = new Map<number, number>()
+const queuedAdds = new Map<number, Promise<BookmarkState | undefined>>()
 let lastRemoteRefresh = 0, refreshTimer = 0, queuedRefresh = 0
 let latestAccountEpoch = 0
 type Incoming = Partial<BookmarkState> & {work_id?: number}
@@ -130,11 +131,34 @@ export function refreshBookmark(id: number) {
     void syncBookmark(current, true).catch(() => undefined)
   }, delay)
 }
-export async function toggleBookmark(id: number) {
+export async function addBookmark(id: number) {
+  const state = states.get(id)
+  if (state?.verified && state.value === true && state.fact_account_id === state.current_account_id) return state
+  if (queuedAdds.has(id)) return queuedAdds.get(id)
+  if (state?.desired === true && state.status === 'pending' || feedback.active(id)) return state
+  const account = state?.current_account_id
+  // A background read must not swallow a deliberate double tap. Wait for that
+  // read once; repeated taps share the same intent and never replay a write.
+  const pending = (async () => {
+    if (bookmarkBusy(id)) await new Promise<void>((resolve, reject) => {
+      const timer = window.setTimeout(() => { stop(); reject(new Error('收藏核对仍未完成，请稍后重试')) }, 30000)
+      const stop = watch(() => bookmarkBusy(id), busy => {
+        if (!busy) { clearTimeout(timer); stop(); resolve() }
+      }, {flush: 'sync'})
+    })
+    const current = states.get(id)
+    if (current?.current_account_id !== account) throw new Error('登录账号已变化，请重新确认收藏')
+    if (current?.verified && current.value === true && current.fact_account_id === account) return current
+    return toggleBookmark(id, true)
+  })()
+  queuedAdds.set(id, pending)
+  try { return await pending } finally { if (queuedAdds.get(id) === pending) queuedAdds.delete(id) }
+}
+export async function toggleBookmark(id: number, explicitDesired?: boolean) {
   const state = states.get(id)
   if (inFlight.has(id) || state?.status === 'pending' || feedback.active(id)) throw new Error('正在核对收藏状态，请稍后再试')
   if (!state?.current_account_id) throw new Error('请先连接 Pixiv，再核对当前账号的收藏状态')
-  const desired = nextBookmarkIntent(state)
+  const desired = explicitDesired ?? nextBookmarkIntent(state)
   const feedbackToken = feedback.start(id, state)!
   inFlight.add(id)
   try {

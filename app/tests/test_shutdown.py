@@ -396,7 +396,8 @@ def test_real_downloader_unwinds_then_archive_resumes_without_false_failure(tmp_
 
     monkeypatch.setattr(AssetDownloader, "_before_request", classmethod(lambda cls: None))
     downloader = AssetDownloader(session=Session())
-    runtime = Runtime(tmp_path / "archive.db", tmp_path / "images", create=True, downloader=downloader)
+    connected = SimpleNamespace(get_account_id=lambda: "synthetic")
+    runtime = Runtime(tmp_path / "archive.db", tmp_path / "images", create=True, downloader=downloader, client=connected)
     runtime_holder.append(runtime)
     with runtime.database.write() as session:
         work = Work(id=1, pixiv_illust_id="10", title="synthetic", artist=Artist(id=1, pixiv_user_id="1", name="synthetic"))
@@ -413,7 +414,7 @@ def test_real_downloader_unwinds_then_archive_resumes_without_false_failure(tmp_
             assert set(session.scalars(select(OperationItem.state))) <= {"pending"}
     finally:
         runtime.close()
-    recovered = Runtime(tmp_path / "archive.db", tmp_path / "images", downloader=downloader)
+    recovered = Runtime(tmp_path / "archive.db", tmp_path / "images", downloader=downloader, client=connected)
     try:
         recovered.queue.recover()
         assert recovered.queue.run_round()

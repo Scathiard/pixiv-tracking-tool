@@ -15,9 +15,10 @@ from .download import AssetDownloader
 from .media import CARD_MOTION_SPEC, InvalidMedia, Publisher, SuppressedWork, build_card_motion, build_gif, build_thumbnail, contained_path, verify_media, verify_ugoira_pair
 from .models import (
     ApplicationState, ArchiveIntent, Artist, Asset, Derivative, LocalPreference, Operation, RemoteBookmark,
-    TrackingPolicy, Work, WorkTag, utcnow,
+    TrackingPolicy, Work, WorkTag, WorkRevision, RevisionAsset, RevisionDerivative, utcnow,
 )
 from .tasks import ItemResult, ItemSpec, safe_failure
+from .revisions import (latest_revision, ensure_legacy_revision, observe_revision, revision_assets, revision_derivatives, bind_derivative, bind_asset, revision_directory, refresh_for_record, refresh_revision, project_revision, asset_entries)
 from .tag_translations import merge_tag_translations, stored_translations
 
 
@@ -32,6 +33,18 @@ class ArchiveHandler:
         self.downloader = downloader or AssetDownloader()
         self.bookmarks, self.profiles = bookmarks, profiles
         self.source_status = source_status
+
+    def _assets_statement(self, session, work_id, revision_id=None):
+        revision = session.get(WorkRevision, revision_id) if revision_id else latest_revision(session, work_id)
+        if revision:
+            return select(Asset).join(RevisionAsset, RevisionAsset.asset_id == Asset.id).where(RevisionAsset.revision_id == revision.id)
+        return select(Asset).where(Asset.work_id == work_id)
+
+    def _derivatives_statement(self, session, work_id, revision_id=None):
+        revision = session.get(WorkRevision, revision_id) if revision_id else latest_revision(session, work_id)
+        if revision:
+            return select(Derivative).join(RevisionDerivative, RevisionDerivative.derivative_id == Derivative.id).where(RevisionDerivative.revision_id == revision.id)
+        return select(Derivative).where(Derivative.work_id == work_id)
 
     def _bookmark_account(self):
         if self.bookmarks is None:
@@ -125,7 +138,8 @@ class ArchiveHandler:
                 changed = (prior.get("state"), prior.get("reason")) != (state, reason)
                 work.source_metadata = {**(work.source_metadata or {}), "remote_availability": {
                     "state": state, "checked_at": utcnow().replace(tzinfo=timezone.utc).isoformat(),
-                    "reason": reason}}
+                    "reason": reason, "confirmed": True, "policy": "source-v2",
+                    "account_id": self._bookmark_account()}}
                 if changed:
                     bump_catalogue_revision(session)
 
@@ -177,7 +191,7 @@ class ArchiveHandler:
         context.checkpoint_parameters({**parameters, "started_artist_ids": result})
         return result
 
-    def _save_remote_work(self, artist_id, data, *, context=None, metadata=None, metadata_error=None, expected_work_id=None, expected_revision=None, expected_source_version=None):
+    def _save_remote_work(self, artist_id, data, *, context=None, metadata=None, metadata_error=None, expected_work_id=None, expected_revision=None, expected_source_version=None, compare_content=False):
         remote_id = str(data["illust_id"])
         if not remote_id.isdigit() or data.get("type") not in ("illust", "manga", "ugoira"):
             raise ValueError("无效作品信息")
@@ -189,94 +203,63 @@ class ArchiveHandler:
             if intent and intent.mode == "suppressed":
                 return None
             if intent is None:
-                session.add(ArchiveIntent(pixiv_illust_id=remote_id))
+                intent = ArchiveIntent(pixiv_illust_id=remote_id)
+                session.add(intent)
             work = session.scalar(select(Work).where(Work.pixiv_illust_id == remote_id))
             if expected_work_id is not None and (work is None or work.id != expected_work_id or
-                    intent is None or intent.mode != "keep" or intent.revision != expected_revision):
+                    intent.mode != "keep" or intent.revision != expected_revision):
                 return None
             if expected_source_version is not None and (work is None or
                     (work.source_metadata or {}).get("remote_availability", {}).get("version") != expected_source_version):
                 return None
-            new_work = work is None
-            before = None if new_work else (work.title, work.caption, work.x_restrict, work.bookmark_count, work.view_count,
-                (work.source_metadata or {}).get("remote_availability", {}).get("state"),
-                dict((work.source_metadata or {}).get("source_updates", {})), tuple(sorted(tag.tag for tag in work.tags)),
-                stored_translations(work.source_metadata))
+            if work and work.artist_id != artist_id:
+                raise WorkMetadataConflict("主站画师身份与本地作品不一致；已有存档保留")
             if work is None:
                 posted = datetime.fromisoformat(data["posted_at"]) if data.get("posted_at") else None
-                work = Work(pixiv_illust_id=remote_id, artist_id=artist_id,
-                    title=data["title"], type=data["type"], page_count=count,
+                work = Work(pixiv_illust_id=remote_id, artist_id=artist_id, title=data["title"],
+                    type=data["type"], page_count=count, caption="", caption_state="unknown",
                     posted_at=posted.astimezone(timezone.utc).replace(tzinfo=None) if posted and posted.tzinfo else posted,
-                    time_basis="utc" if posted and posted.tzinfo else "unknown")
-                work.preference = LocalPreference()
-                work.bookmark = RemoteBookmark()
-                session.add(work)
-            elif work.artist_id != artist_id or work.type != data["type"] or work.page_count != count:
-                # Never silently discard archived pages when remote metadata changes shape.
-                if work.page_count != count:
-                    raise WorkMetadataConflict(
-                        f"主站当前 {count} 页，本地记录 {work.page_count} 页；已有存档保留，需核对")
-                raise WorkMetadataConflict("主站资料与本地作品类型或画师不一致；已有存档保留，需核对")
-            work.title = data["title"]
-            if data.get("caption") is not None:
-                work.caption, work.caption_state = data["caption"], "available" if data["caption"] else "empty"
-            work.bookmark_count, work.view_count = data.get("bookmark_count"), data.get("view_count")
-            if data.get("x_restrict") is not None:
-                work.x_restrict, work.restriction_verified = data["x_restrict"], True
-            existing_tags = {tag.tag: tag for tag in work.tags}
-            remote_tags = {tag for tag in data.get("tags", []) if isinstance(tag, str)}
-            work.tags = [existing_tags[tag] if tag in existing_tags else WorkTag(tag=tag) for tag in sorted(remote_tags)]
-            if work.bookmark is None:
-                work.bookmark = RemoteBookmark()
+                    time_basis="utc" if posted and posted.tzinfo else "unknown", source_metadata={})
+                work.preference, work.bookmark = LocalPreference(), RemoteBookmark()
+                session.add(work); session.flush()
+            else:
+                ensure_legacy_revision(session, work)
             availability = (work.source_metadata or {}).get("remote_availability")
             if not self.source_status or availability is None:
                 availability = {"state": "available", "confirmed": True,
-                    "checked_at": utcnow().replace(tzinfo=timezone.utc).isoformat(), "reason": None}
-            work.source_metadata = {**(work.source_metadata or {}), "urls": data.get("urls", []),
-                "remote_availability": availability}
-            work.source_metadata = merge_tag_translations(work.source_metadata, data.get("tag_details"),
+                    "checked_at": utcnow().replace(tzinfo=timezone.utc).isoformat(), "reason": None,
+                    "policy": "source-v2", "account_id": self._bookmark_account()}
+            source = {**(work.source_metadata or {}), "urls": data.get("urls", []), "remote_availability": availability}
+            source = merge_tag_translations(source, data.get("tag_details"),
                 checked_at=utcnow().replace(tzinfo=timezone.utc).isoformat())
+            # Pending updates belonged to mutable 0002 records. Revision references
+            # now preserve their originals; new records carry their own source.
+            pending_source_change = bool(source.pop("source_updates", None))
+            if metadata is not None and data["type"] == "ugoira":
+                source["ugoira_source"] = {"zip_url": metadata.get("zip_urls", {}).get("original") or metadata.get("zip_urls", {}).get("medium"),
+                    "timing_url": f"https://app-api.pixiv.net/v1/ugoira/metadata?illust_id={remote_id}",
+                    "frames": metadata["frames"]}
+            previous = latest_revision(session, work.id)
+            caption = data.get("caption") if data.get("caption") is not None else previous.caption if previous else work.caption
+            snapshot = dict(title=data["title"], type=data["type"], page_count=count,
+                caption=caption, caption_state=("available" if caption else "empty") if data.get("caption") is not None else previous.caption_state if previous else work.caption_state,
+                tags=sorted({tag for tag in data.get("tags", previous.tags if previous else []) if isinstance(tag, str)}), source_metadata=source)
+            revision, changed = observe_revision(session, work, snapshot,
+                compare_content=compare_content or pending_source_change)
+            # Work is a current-source search projection, never the reader's media snapshot.
+            work.title, work.type, work.page_count = snapshot["title"], snapshot["type"], count
+            work.caption, work.caption_state = snapshot["caption"], snapshot["caption_state"]
+            work.source_metadata = revision.source_metadata
+            existing_tags = {tag.tag: tag for tag in work.tags}
+            work.tags = [existing_tags[tag] if tag in existing_tags else WorkTag(tag=tag) for tag in snapshot["tags"]]
+            work.bookmark_count, work.view_count = data.get("bookmark_count"), data.get("view_count")
+            if data.get("x_restrict") is not None:
+                work.x_restrict, work.restriction_verified = data["x_restrict"], True
+            if work.bookmark is None:
+                work.bookmark = RemoteBookmark()
             session.flush()
-            existing_assets = {(asset.role, asset.page_index): asset for asset in work.assets}
-            roles = [("ugoira_zip", 0), ("ugoira_timing", 0)] if work.type == "ugoira" else [("image", page) for page in range(count)]
-            urls = data.get("urls", [])
-            for role, page in roles:
-                asset = existing_assets.get((role, page))
-                if asset is not None:
-                    self._retain_legacy_source_update(session, asset)
-                if asset is None:
-                    asset = Asset(work_id=work.id, role=role, page_index=page, state="missing")
-                    session.add(asset)
-                requested = urls[page].get("original") if role == "image" and page < len(urls) else (metadata.get("zip_urls", {}).get("original") or metadata.get("zip_urls", {}).get("medium")) if role == "ugoira_zip" and metadata else None
-                if requested:
-                    updates = dict(work.source_metadata.get("source_updates", {}))
-                    changed_source = asset.source_url and urlsplit(asset.source_url).path != urlsplit(requested).path
-                    if changed_source or asset.id in updates and updates[asset.id].get("requested_url") != requested:
-                        updates[asset.id] = {"requested_url": requested, "reason": "来源原件已更新，现有存档保留至保存成功"}
-                        work.source_metadata = {**work.source_metadata, "source_updates": updates}
-                    asset.source_url = requested
-            session.flush()
-            setting = session.get(ApplicationState, f"maintenance_work:{work.id}")
-            if setting and isinstance(setting.value, dict):
-                ledger = dict(setting.value)
-                tracks = {name: dict(value) for name, value in ledger.get("tracks", {}).items()}
-                remote = tracks.get("remote")
-                if (remote and remote.get("status") == "attention" and
-                        remote.get("failure_code") != "ugoira_metadata_unavailable"):
-                    missing = session.scalar(select(Asset.id).where(Asset.work_id == work.id,
-                        Asset.state.in_(("missing", "failed", "invalid", "mismatch", "source_changed"))).limit(1))
-                    remote.update(status="waiting" if missing else "ready", next_retry_at=None,
-                                  reason="主站资料已恢复，等待继续补齐" if missing else None,
-                                  failure_code=None, http_status=None)
-                    from .maintenance import _project
-                    setting.value = _project({**ledger, "tracks": tracks})
-            if metadata is not None and work.type == "ugoira":
-                self._remember_timing_source(session, work, metadata)
-            after = (work.title, work.caption, work.x_restrict, work.bookmark_count, work.view_count,
-                (work.source_metadata or {}).get("remote_availability", {}).get("state"),
-                dict((work.source_metadata or {}).get("source_updates", {})), tuple(sorted(tag.tag for tag in work.tags)),
-                stored_translations(work.source_metadata))
-            if new_work or before != after:
+            refresh_revision(session, revision)
+            if changed:
                 bump_catalogue_revision(session)
             if context is not None:
                 specs = self._discovery_specs(session, work, metadata)
@@ -284,7 +267,9 @@ class ArchiveHandler:
                     specs.append(ItemSpec(f"remote-error-{work.id}", "error", {**metadata_error, "work_id": work.id}, "downloading", "assets"))
                 if specs:
                     parent = session.get(Operation, context.operation_id)
-                    requests = [{"asset_id": spec.target["asset_id"], "requested_url": spec.target.get("requested_url"), "expected_fingerprint": spec.target.get("expected_fingerprint"), "revision": spec.target.get("revision")} for spec in specs if spec.target.get("asset_id")]
+                    requests = [{"asset_id": spec.target["asset_id"], "requested_url": spec.target.get("requested_url"),
+                        "expected_fingerprint": spec.target.get("expected_fingerprint"), "revision": spec.target.get("revision"),
+                        "work_revision_id": revision.id} for spec in specs if spec.target.get("asset_id")]
                     context.queue.enqueue_in_transaction(session, "repair", {"work_ids": [work.id], "asset_requests": requests},
                         f"保存 {work.title}", parent.source, parent_id=context.operation_id, specs=specs)
             return work.id
@@ -294,32 +279,41 @@ class ArchiveHandler:
         return hashlib.sha256(json.dumps({"frames": metadata["frames"]}, ensure_ascii=False).encode("utf-8")).hexdigest()
 
     def _remember_timing_source(self, session, work, metadata):
-        timing = session.scalar(select(Asset).where(Asset.work_id == work.id, Asset.role == "ugoira_timing"))
-        if timing is None:
-            return
-        source = f"https://app-api.pixiv.net/v1/ugoira/metadata?illust_id={work.pixiv_illust_id}"
-        fingerprint = self._timing_fingerprint(metadata)
-        updates = dict((work.source_metadata or {}).get("source_updates", {}))
-        if timing.id in updates or timing.state == "verified" and timing.sha256 and timing.sha256 != fingerprint:
-            updates[timing.id] = {"requested_url": source, "expected_fingerprint": fingerprint, "reason": "动图时序资料已更新，现有文件保留至保存成功"}
-            work.source_metadata = {**work.source_metadata, "source_updates": updates}
-        timing.source_url = source
+        previous = latest_revision(session, work.id)
+        if previous is None:
+            previous = ensure_legacy_revision(session, work)
+        source = {**(previous.source_metadata or {}), "ugoira_source": {
+            "zip_url": metadata.get("zip_urls", {}).get("original") or metadata.get("zip_urls", {}).get("medium"),
+            "timing_url": f"https://app-api.pixiv.net/v1/ugoira/metadata?illust_id={work.pixiv_illust_id}",
+            "frames": metadata["frames"]}}
+        snapshot = {key: getattr(previous, key) for key in ("title", "caption", "caption_state", "type", "page_count", "tags")}
+        pending_change = bool(source.pop("source_updates", None))
+        revision, _ = observe_revision(session, work, {**snapshot, "source_metadata": source}, compare_content=pending_change)
+        work.source_metadata = {**(work.source_metadata or {}), "ugoira_source": source["ugoira_source"], "source_updates": {}}
+        for asset in revision_assets(session, revision):
+            if not asset.source_url:
+                asset.source_url = source["ugoira_source"]["zip_url"] if asset.role == "ugoira_zip" else source["ugoira_source"]["timing_url"]
 
     def _discovery_specs(self, session, work, metadata=None):
         """Pure catalogue planning: never stat or decode established originals."""
         deferred = bool((work.source_metadata or {}).get("original_backfill_requires_selection"))
         intent = session.get(ArchiveIntent, work.pixiv_illust_id)
-        assets = list(session.scalars(select(Asset).where(Asset.work_id == work.id).order_by(Asset.page_index)))
+        assets = list(session.scalars(self._assets_statement(session, work.id).order_by(Asset.page_index)))
         if deferred:
             # Discovery may fill local caches without authorizing old ZIP/timing.
             assets = []
-        directory = work.artist.directory or f"artist_{work.artist.pixiv_user_id}"
+        work_revision = latest_revision(session, work.id)
+        work = project_revision(work, work_revision)
+        deferred = bool((work.source_metadata or {}).get("original_backfill_requires_selection"))
+        if deferred:
+            assets = []
+        directory = revision_directory(work, work_revision, work.artist.directory or f"artist_{work.artist.pixiv_user_id}")
         updates = (work.source_metadata or {}).get("source_updates", {})
         specs, required = [], []
         for asset in assets:
             if asset.state not in ("missing", "failed", "invalid", "mismatch", "source_changed") and asset.id not in updates:
                 continue
-            target = {"work_id": work.id, "asset_id": asset.id, "revision": intent.revision}
+            target = {"work_id": work.id, "asset_id": asset.id, "revision": intent.revision, "work_revision_id": work_revision.id if work_revision else None}
             if asset.role == "ugoira_timing":
                 if not metadata:
                     continue
@@ -338,45 +332,52 @@ class ArchiveHandler:
             required.append(key)
             specs.append(ItemSpec(key, kind, target, "downloading", "assets"))
         if work.type == "ugoira":
-            preview = session.scalar(select(Derivative).where(Derivative.work_id == work.id, Derivative.kind == "gif", Derivative.spec_key == "v1"))
+            preview = session.scalar(self._derivatives_statement(session, work.id).where( Derivative.kind == "gif", Derivative.spec_key == "v1"))
             gif_ready = bool(preview and preview.relative_path and preview.state in ("verified", "unknown"))
             pair_ready = len(assets) >= 2 and all(asset.state == "verified" for asset in assets)
             if not required and not pair_ready and not gif_ready:
                 return specs
             if required:
                 key = f"pair-{work.id}"
-                specs.append(ItemSpec(key, "ugoira_pair", {"work_id": work.id, "revision": intent.revision}, "verifying", "works", tuple(required)))
+                specs.append(ItemSpec(key, "ugoira_pair", {"work_id": work.id, "revision": intent.revision, "work_revision_id": work_revision.id if work_revision else None}, "verifying", "works", tuple(required)))
                 required = [key]
             if required or not gif_ready:
                 if preview is None:
-                    preview = Derivative(work_id=work.id, kind="gif")
+                    preview = Derivative(work_id=work.id, revision_id=work_revision.id if work_revision else None, kind="gif")
                     session.add(preview); session.flush()
+                    if work_revision: bind_derivative(session, work_revision, preview)
                 key = f"preview-{preview.id}"
-                specs.append(ItemSpec(key, "gif", {"work_id": work.id, "record_id": preview.id, "path": preview.relative_path or f"{directory}/{work.pixiv_illust_id}.gif", "revision": intent.revision, "force": bool(required)}, "converting", "previews", tuple(required)))
+                specs.append(ItemSpec(key, "gif", {"work_id": work.id, "record_id": preview.id, "path": preview.relative_path or f"{directory}/{work.pixiv_illust_id}.gif", "revision": intent.revision, "work_revision_id": work_revision.id if work_revision else None, "force": bool(required)}, "converting", "previews", tuple(required)))
                 required = [key]
         else:
             first = next((asset for asset in assets if asset.page_index == 0), None)
             required = [key for key in required if first and key == f"asset-{first.id}"]
             if not required and (first is None or first.state != "verified"):
                 return specs
-        thumbnail = session.scalar(select(Derivative).where(Derivative.work_id == work.id, Derivative.kind == "thumbnail", Derivative.page_index == 0, Derivative.spec_key == "v1"))
+        thumbnail = session.scalar(self._derivatives_statement(session, work.id).where( Derivative.kind == "thumbnail", Derivative.page_index == 0, Derivative.spec_key == "v1"))
         if required or thumbnail is None or thumbnail.state not in ("verified", "unknown"):
             if thumbnail is None:
-                thumbnail = Derivative(work_id=work.id, kind="thumbnail")
+                thumbnail = Derivative(work_id=work.id, revision_id=work_revision.id if work_revision else None, kind="thumbnail")
                 session.add(thumbnail); session.flush()
-            specs.append(ItemSpec(f"thumbnail-{thumbnail.id}", "thumbnail", {"work_id": work.id, "record_id": thumbnail.id, "revision": intent.revision, "path": f".thumbnails/{work.pixiv_illust_id}_p0_v1.webp", "force": bool(required)}, "thumbnails", "previews", tuple(required)))
+                if work_revision: bind_derivative(session, work_revision, thumbnail)
+            specs.append(ItemSpec(f"thumbnail-{thumbnail.id}", "thumbnail", {"work_id": work.id, "record_id": thumbnail.id, "revision": intent.revision, "work_revision_id": work_revision.id if work_revision else None, "path": f"{directory}/.thumbnails/{work.pixiv_illust_id}_p0_v1.webp", "force": bool(required)}, "thumbnails", "previews", tuple(required)))
         if work.type == "ugoira":
-            motion = session.scalar(select(Derivative).where(Derivative.work_id == work.id,
+            motion = session.scalar(self._derivatives_statement(session, work.id).where(
                 Derivative.kind == "thumbnail", Derivative.page_index == 0, Derivative.spec_key == CARD_MOTION_SPEC))
             if required or motion is None or motion.state != "verified" or not preview.sha256 or motion.source_version != preview.sha256:
                 if motion is None:
-                    motion = Derivative(work_id=work.id, kind="thumbnail", spec_key=CARD_MOTION_SPEC)
+                    motion = Derivative(work_id=work.id, revision_id=work_revision.id if work_revision else None, kind="thumbnail", spec_key=CARD_MOTION_SPEC)
                     session.add(motion); session.flush()
+                    if work_revision: bind_derivative(session, work_revision, motion)
                 specs.append(ItemSpec(f"thumbnail-{motion.id}", "thumbnail", {
-                    "work_id": work.id, "record_id": motion.id, "revision": intent.revision,
-                    "path": f".thumbnails/{work.pixiv_illust_id}_card_motion_v1.webp", "force": bool(required)},
+                    "work_id": work.id, "record_id": motion.id, "revision": intent.revision, "work_revision_id": work_revision.id if work_revision else None,
+                    "path": f"{directory}/.thumbnails/{work.pixiv_illust_id}_card_motion_v1.webp", "force": bool(required)},
                     "thumbnails", "previews", tuple(required)))
         return specs
+
+    def plan_batch(self, parameters, context, cursor):
+        from .task_planning import plan_batch
+        return plan_batch(self, parameters, context, cursor)
 
     def plan(self, parameters, context):
         specs = []
@@ -514,6 +515,7 @@ class ArchiveHandler:
                 stored.byte_size, stored.sha256 = verified.byte_size, verified.sha256
                 stored.width, stored.height = verified.width, verified.height
                 stored.file_mtime_ns, stored.file_identity = stat.st_mtime_ns, stat.st_ino
+                refresh_for_record(session, stored)
                 after = (stored.state, stored.error, stored.byte_size, stored.sha256, stored.width, stored.height, stored.file_mtime_ns, stored.file_identity)
                 if before != after:
                     bump_catalogue_revision(session)
@@ -529,6 +531,7 @@ class ArchiveHandler:
                 if stored.state != "failed":
                     stored.state = "invalid" if asset.relative_path else "missing"
                     stored.error = getattr(exc, "user_message", "原件缺失或无法读取")
+                    refresh_for_record(session, stored)
                     bump_catalogue_revision(session)
             return False
 
@@ -541,13 +544,32 @@ class ArchiveHandler:
             if intent is None or intent.mode != "keep":
                 raise SuppressedWork()
             legacy_changed = bool([self._retain_legacy_source_update(session, asset) for asset in stored_work.assets if asset.state == "source_changed"])
-            known = {(asset.role, asset.page_index) for asset in stored_work.assets}
+            work_revision = ensure_legacy_revision(session, stored_work)
+            updates = (stored_work.source_metadata or {}).get("source_updates", {})
+            if updates and work_revision.type != "ugoira" and self.kind not in ("verify", "thumbnails"):
+                snapshot = {key: getattr(work_revision, key) for key in (
+                    "title", "caption", "caption_state", "type", "page_count", "tags")}
+                source = {**work_revision.source_metadata, "source_updates": {}}
+                urls = [dict(url) for url in source.get("urls", [])]
+                while len(urls) < work_revision.page_count:
+                    urls.append({})
+                for entry, asset in asset_entries(session, work_revision):
+                    update = updates.get(asset.id)
+                    if entry.role == "image" and update:
+                        urls[entry.page_index]["original"] = update.get("requested_url") or asset.source_url or ""
+                source["urls"] = urls
+                snapshot["source_metadata"] = source
+                work_revision, _ = observe_revision(session, stored_work, snapshot, compare_content=True)
+                stored_work.source_metadata = {**work_revision.source_metadata, "source_updates": {}}
+            stored_work = project_revision(stored_work, work_revision)
+            known = {(entry.role, entry.page_index) for entry in session.scalars(select(RevisionAsset).where(RevisionAsset.revision_id == work_revision.id))}
             roles = [("ugoira_zip", 0), ("ugoira_timing", 0)] if stored_work.type == "ugoira" else [("image", index) for index in range(stored_work.page_count)]
             added = False
             urls = (stored_work.source_metadata or {}).get("urls", [])
             for role, index in roles:
                 if (role, index) not in known:
-                    session.add(Asset(work_id=work_id, role=role, page_index=index, state="missing", source_url=urls[index].get("original") if role == "image" and index < len(urls) else None))
+                    missing_asset = Asset(work_id=work_id, revision_id=work_revision.id, role=role, page_index=index, state="missing", source_url=urls[index].get("original") if role == "image" and index < len(urls) else None)
+                    session.add(missing_asset); bind_asset(session, work_revision, missing_asset)
                     added = True
             if added or legacy_changed:
                 bump_catalogue_revision(session)
@@ -557,8 +579,10 @@ class ArchiveHandler:
             if intent is None or intent.mode != "keep":
                 raise SuppressedWork()
             revision = intent.revision
-            directory = work.artist.directory or f"artist_{work.artist.pixiv_user_id}"
-            assets = list(work.assets)
+            work_revision = latest_revision(session, work.id)
+            work = project_revision(work, work_revision)
+            directory = revision_directory(work, work_revision, work.artist.directory or f"artist_{work.artist.pixiv_user_id}")
+            assets = list(session.scalars(self._assets_statement(session, work.id)))
             operation = session.get(Operation, context.operation_id)
             maintenance = operation.source == "maintenance"
             # A manual repair selects the originals of every work in its scope.
@@ -567,7 +591,10 @@ class ArchiveHandler:
             explicit_recheck = operation.source == "manual" and work_id in parameters.get("work_ids", ())
             availability = (work.source_metadata or {}).get("remote_availability", {})
             availability = availability if isinstance(availability, dict) else {}
-            known_unavailable = availability.get("state") in ("unavailable", "private")
+            from .source_status import availability_snapshot
+            source_account = self.source_status.account_context() if self.source_status else self._bookmark_account()
+            source_fact = availability_snapshot(availability, source_account) or {}
+            known_unavailable = source_fact.get("effective") and source_fact.get("state") in ("unavailable", "private", "deleted")
             ledger = session.get(ApplicationState, f"maintenance_work:{work_id}")
             remote_track = ((ledger.value.get("tracks", {}).get("remote", {})
                 if ledger and isinstance(ledger.value, dict) else {}))
@@ -575,12 +602,12 @@ class ArchiveHandler:
         specs, required = [], []
         if self.kind == "verify":
             for asset in assets:
-                specs.append(ItemSpec(f"verify-{asset.id}", "verify_asset", {"asset_id": asset.id, "work_id": work_id, "revision": revision}, "verifying", "assets"))
+                specs.append(ItemSpec(f"verify-{asset.id}", "verify_asset", {"asset_id": asset.id, "work_id": work_id, "revision": revision, "work_revision_id": work_revision.id if work_revision else None}, "verifying", "assets"))
             if work.type == "ugoira":
-                specs.append(ItemSpec(f"verify-pair-{work_id}", "ugoira_pair", {"work_id": work_id, "revision": revision}, "verifying", "works", tuple(spec.key for spec in specs)))
+                specs.append(ItemSpec(f"verify-pair-{work_id}", "ugoira_pair", {"work_id": work_id, "revision": revision, "work_revision_id": work_revision.id if work_revision else None}, "verifying", "works", tuple(spec.key for spec in specs)))
                 with self.database.read() as session:
-                    preview = session.scalar(select(Derivative).where(Derivative.work_id == work_id, Derivative.kind == "gif", Derivative.spec_key == "v1"))
-                specs.append(ItemSpec(f"verify-gif-{work_id}", "verify_derivative", {"work_id": work_id, "record_id": preview.id if preview else None, "role": "gif", "revision": revision}, "verifying", "previews"))
+                    preview = session.scalar(self._derivatives_statement(session, work_id).where( Derivative.kind == "gif", Derivative.spec_key == "v1"))
+                specs.append(ItemSpec(f"verify-gif-{work_id}", "verify_derivative", {"work_id": work_id, "record_id": preview.id if preview else None, "role": "gif", "revision": revision, "work_revision_id": work_revision.id if work_revision else None}, "verifying", "previews"))
             return specs
         remote_failure = None
         defer_originals = work.source_metadata.get("original_backfill_requires_selection") and not (self.kind == "backfill" or selected_originals)
@@ -627,13 +654,21 @@ class ArchiveHandler:
                             self._remember_timing_source(session, owner, metadata)
                         with self.database.read() as session:
                             owner = session.get(Work, work_id)
-                            ids = {asset.id for asset in missing} | set((owner.source_metadata or {}).get("source_updates", {}))
-                            missing = list(session.scalars(select(Asset).where(Asset.work_id == work_id, Asset.id.in_(ids))))
+                            work_revision = latest_revision(session, work_id)
+                            work = project_revision(owner, work_revision)
+                            directory = revision_directory(work, work_revision, work.artist.directory or f"artist_{work.artist.pixiv_user_id}")
+                            assets = revision_assets(session, work_revision)
+                            missing = [asset for asset in assets if asset.state != "verified"]
                         self._resume_ugoira_attention(work_id)
                     elif any(not asset.source_url for asset in missing):
                         self._refresh_work(work.artist_id, work.pixiv_illust_id, work_id)
                         with self.database.read() as session:
-                            missing = [session.get(Asset, asset.id) for asset in missing]
+                            owner = session.get(Work, work_id)
+                            work_revision = latest_revision(session, work_id)
+                            work = project_revision(owner, work_revision)
+                            directory = revision_directory(work, work_revision, work.artist.directory or f"artist_{work.artist.pixiv_user_id}")
+                            assets = revision_assets(session, work_revision)
+                            missing = [asset for asset in assets if asset.state != "verified"]
                 except Exception as exc:
                     # Animation subresource failure does not establish a work fact.
                     # Check detail once for terminal metadata absence; temporary
@@ -661,7 +696,7 @@ class ArchiveHandler:
                 if local_only:
                     specs.append(ItemSpec(key, "error", {"work_id": work_id, "message": "原件缺失或损坏，可选择补下载"}, "verifying", "pages"))
                     continue
-                target = {"work_id": work_id, "asset_id": asset.id, "revision": revision}
+                target = {"work_id": work_id, "asset_id": asset.id, "revision": revision, "work_revision_id": work_revision.id if work_revision else None}
                 if asset.role == "ugoira_timing":
                     target.update({"frames": metadata["frames"], "requested_url": asset.source_url, "expected_fingerprint": self._timing_fingerprint(metadata), "path": asset.relative_path or f"{directory}/{work.pixiv_illust_id}.frames.json"})
                     kind = "timing"
@@ -688,27 +723,27 @@ class ArchiveHandler:
             if not defer_originals and self.kind != "thumbnails":
                 if required and not local_only:
                     key = f"pair-{work_id}"
-                    specs.append(ItemSpec(key, "ugoira_pair", {"work_id": work_id, "revision": revision},
+                    specs.append(ItemSpec(key, "ugoira_pair", {"work_id": work_id, "revision": revision, "work_revision_id": work_revision.id if work_revision else None},
                         "verifying", "works", tuple(required)))
                     required = [key]
                 elif not required and not remote_failure:
                     self._verify_pair(work_id)
             with self.database.read() as session:
-                preview = session.scalar(select(Derivative).where(Derivative.work_id == work_id, Derivative.kind == "gif", Derivative.spec_key == "v1"))
+                preview = session.scalar(self._derivatives_statement(session, work_id).where( Derivative.kind == "gif", Derivative.spec_key == "v1"))
             usable = self._derivative_usable(preview, "gif")
             pair_ready = all(asset.state == "verified" for asset in assets
                              if asset.role in ("ugoira_zip", "ugoira_timing")) and len(assets) >= 2
             if (not usable or required) and not defer_originals and not local_only and (not remote_failure or pair_ready):
-                preview_id = self._ensure_derivative(work_id, "gif")
+                preview_id = self._ensure_derivative(work_id, "gif", for_rebuild=bool(required))
                 key = f"preview-{preview_id}"
                 specs.append(ItemSpec(key, "gif", {"work_id": work_id, "record_id": preview_id,
-                    "path": (preview.relative_path if preview else None) or f"{directory}/{work.pixiv_illust_id}.gif", "revision": revision, "force": bool(required)},
+                    "path": (preview.relative_path if preview and preview_id == preview.id else None) or f"{directory}/{work.pixiv_illust_id}.gif", "revision": revision, "work_revision_id": work_revision.id if work_revision else None, "force": bool(required)},
                     "converting", "previews", tuple(required)))
                 required = [key]
             elif not usable:
                 return specs
         with self.database.read() as session:
-            thumbnail = session.scalar(select(Derivative).where(Derivative.work_id == work_id,
+            thumbnail = session.scalar(self._derivatives_statement(session, work_id).where(
                 Derivative.kind == "thumbnail", Derivative.page_index == 0, Derivative.spec_key == "v1"))
         first_asset = next((asset for asset in assets if asset.role == "image" and asset.page_index == 0), None)
         relevant_required = required if work.type == "ugoira" else [key for key in required if first_asset and key == f"asset-{first_asset.id}"]
@@ -721,27 +756,27 @@ class ArchiveHandler:
                     return specs
             elif remote_failure and not (usable or pair_ready):
                 return specs
-            thumbnail_id = self._ensure_derivative(work_id, "thumbnail")
+            thumbnail_id = self._ensure_derivative(work_id, "thumbnail", for_rebuild=bool(required))
             specs.append(ItemSpec(f"thumbnail-{thumbnail_id}", "thumbnail", {
-                "work_id": work_id, "record_id": thumbnail_id, "revision": revision,
-                "path": f".thumbnails/{work.pixiv_illust_id}_p0_v1.webp", "force": bool(required)}, "thumbnails", "previews", tuple(required)))
+                "work_id": work_id, "record_id": thumbnail_id, "revision": revision, "work_revision_id": work_revision.id if work_revision else None,
+                "path": f"{directory}/.thumbnails/{work.pixiv_illust_id}_p0_v1.webp", "force": bool(required)}, "thumbnails", "previews", tuple(required)))
         if work.type == "ugoira" and self.kind != "verify":
             with self.database.read() as session:
-                motion = session.scalar(select(Derivative).where(Derivative.work_id == work_id,
+                motion = session.scalar(self._derivatives_statement(session, work_id).where(
                     Derivative.kind == "thumbnail", Derivative.page_index == 0, Derivative.spec_key == CARD_MOTION_SPEC))
             if required or not self._derivative_usable(motion, "thumbnail"):
-                motion_id = self._ensure_derivative(work_id, "thumbnail", CARD_MOTION_SPEC)
+                motion_id = self._ensure_derivative(work_id, "thumbnail", CARD_MOTION_SPEC, for_rebuild=bool(required))
                 specs.append(ItemSpec(f"thumbnail-{motion_id}", "thumbnail", {
-                    "work_id": work_id, "record_id": motion_id, "revision": revision,
-                    "path": f".thumbnails/{work.pixiv_illust_id}_card_motion_v1.webp", "force": bool(required)},
+                    "work_id": work_id, "record_id": motion_id, "revision": revision, "work_revision_id": work_revision.id if work_revision else None,
+                    "path": f"{directory}/.thumbnails/{work.pixiv_illust_id}_card_motion_v1.webp", "force": bool(required)},
                     "thumbnails", "previews", tuple(required)))
         if self.kind in ("repair", "verify", "backfill") and not maintenance:
             self._clear_remote_attention_if_complete(work_id)
         return specs
 
-    def _verify_pair(self, work_id):
+    def _verify_pair(self, work_id, revision_id=None):
         with self.database.read() as session:
-            assets = {asset.role: asset for asset in session.scalars(select(Asset).where(Asset.work_id == work_id))}
+            assets = {asset.role: asset for asset in session.scalars(self._assets_statement(session, work_id, revision_id))}
         if any(role not in assets or assets[role].state != "verified" for role in ("ugoira_zip", "ugoira_timing")):
             raise InvalidMedia("缺少已核验的动图原包或播放时序")
         try:
@@ -752,6 +787,7 @@ class ArchiveHandler:
                 for role in ("ugoira_zip", "ugoira_timing"):
                     stored = session.get(Asset, assets[role].id)
                     stored.state, stored.error = "mismatch", exc.user_message
+                    refresh_for_record(session, stored)
             raise
         with self.database.write() as session:
             work = session.get(Work, work_id)
@@ -763,29 +799,32 @@ class ArchiveHandler:
             if work is None:
                 return None
             if record.kind == "gif":
-                inputs = list(session.scalars(select(Asset).where(Asset.work_id == work.id,
+                inputs = list(session.scalars(self._assets_statement(session, work.id, record.revision_id).where(
                     Asset.role.in_(("ugoira_zip", "ugoira_timing"))).order_by(Asset.role)))
                 expected = 2
-            elif work.type == "ugoira":
-                inputs = list(session.scalars(select(Derivative).where(Derivative.work_id == work.id,
+            elif (session.get(WorkRevision, record.revision_id).type if record.revision_id else work.type) == "ugoira":
+                inputs = list(session.scalars(self._derivatives_statement(session, work.id, record.revision_id).where(
                     Derivative.kind == "gif", Derivative.spec_key == "v1")))
                 expected = 1
             else:
-                inputs = list(session.scalars(select(Asset).where(Asset.work_id == work.id,
+                inputs = list(session.scalars(self._assets_statement(session, work.id, record.revision_id).where(
                     Asset.role == "image", Asset.page_index == 0)))
                 expected = 1
             if len(inputs) != expected or any(not source.sha256 or source.state != "verified" for source in inputs):
                 return None
             return ":".join(source.sha256 for source in inputs)
 
-    def _ensure_derivative(self, work_id, kind, spec_key="v1"):
+    def _ensure_derivative(self, work_id, kind, spec_key="v1", revision_id=None, for_rebuild=False):
         with self.database.write() as session:
-            record = session.scalar(select(Derivative).where(Derivative.work_id == work_id,
+            record = session.scalar(self._derivatives_statement(session, work_id, revision_id).where(
                 Derivative.kind == kind, Derivative.page_index == 0, Derivative.spec_key == spec_key))
-            if record is None:
-                record = Derivative(work_id=work_id, kind=kind, spec_key=spec_key)
+            work_revision = session.get(WorkRevision, revision_id) if revision_id else latest_revision(session, work_id)
+            if record is None or for_rebuild and work_revision and record.revision_id != work_revision.id:
+                work_revision = session.get(WorkRevision, revision_id) if revision_id else latest_revision(session, work_id)
+                record = Derivative(work_id=work_id, revision_id=work_revision.id if work_revision else None, kind=kind, spec_key=spec_key)
                 session.add(record)
                 session.flush()
+                if work_revision: bind_derivative(session, work_revision, record)
             return record.id
 
     def _derivative_usable(self, record, role, force=False):
@@ -817,6 +856,7 @@ class ArchiveHandler:
                 stored.width, stored.height = verified.width, verified.height
                 stored.byte_size, stored.sha256, stored.verified_at = verified.byte_size, verified.sha256, utcnow()
                 stored.file_mtime_ns, stored.file_identity = stat.st_mtime_ns, stat.st_ino
+                refresh_for_record(session, stored)
                 bump_catalogue_revision(session)
             return True
         except (InvalidMedia, OSError, ValueError):
@@ -825,10 +865,14 @@ class ArchiveHandler:
                 if stored is None:
                     return False
                 stored.state, stored.error = "invalid", "预览文件缺失或损坏，可以重建"
+                refresh_for_record(session, stored)
                 bump_catalogue_revision(session)
             return False
 
     def execute(self, item, context):
+        if item.kind in ("discover_page", "discover_work", "bookmark_page", "bookmark_finalize", "bookmark_artist"):
+            from .task_planning import execute
+            return execute(self, item, context)
         if item.kind == "checked":
             return ItemResult()
         if item.kind == "verify_asset":
@@ -865,7 +909,7 @@ class ArchiveHandler:
                 intent = session.get(ArchiveIntent, work.pixiv_illust_id) if work else None
                 if intent is None or intent.mode != "keep" or intent.revision != item.target["revision"]:
                     return ItemResult("skipped", {"message": "保存决定已改变"})
-            self._verify_pair(item.target["work_id"])
+            self._verify_pair(item.target["work_id"], item.target.get("work_revision_id"))
             return ItemResult()
         target = item.target
         derivative = item.kind in ("gif", "thumbnail")
@@ -875,6 +919,15 @@ class ArchiveHandler:
             if record is None:
                 return ItemResult("skipped", {"message": "作品已删除，此项不再执行"})
             work = session.get(Work, record.work_id)
+            work_revision_id = target.get("work_revision_id")
+            if work_revision_id:
+                snapshot = session.get(WorkRevision, work_revision_id)
+                binding_type = RevisionDerivative if derivative else RevisionAsset
+                binding_column = binding_type.derivative_id if derivative else binding_type.asset_id
+                bound = session.scalar(select(binding_column).where(binding_type.revision_id == work_revision_id,
+                    binding_column == record.id).limit(1))
+                if snapshot is None or snapshot.work_id != record.work_id or bound is None:
+                    return ItemResult("skipped", {"message": "版本与媒体引用不匹配，此项不再发布"})
             intent = session.get(ArchiveIntent, work.pixiv_illust_id) if work else None
             if intent is None or intent.mode != "keep" or intent.revision != target["revision"]:
                 return ItemResult("skipped", {"message": "保存决定已改变，此项不再执行"})
@@ -899,18 +952,18 @@ class ArchiveHandler:
             else:
                 with self.database.read() as session:
                     if item.kind == "gif":
-                        assets = {asset.role: asset for asset in session.scalars(select(Asset).where(Asset.work_id == work.id))}
+                        assets = {asset.role: asset for asset in session.scalars(self._assets_statement(session, work.id, target.get("work_revision_id") or record.revision_id))}
                         if any(role not in assets or assets[role].state != "verified" for role in ("ugoira_zip", "ugoira_timing")):
                             raise InvalidMedia("缺少已核验的动图原包或播放时序")
                         source = contained_path(self.publisher.root, assets["ugoira_zip"].relative_path)
                         timing = contained_path(self.publisher.root, assets["ugoira_timing"].relative_path)
-                    elif work.type == "ugoira":
-                        preview = session.scalar(select(Derivative).where(Derivative.work_id == work.id, Derivative.kind == "gif", Derivative.spec_key == "v1"))
+                    elif (session.get(WorkRevision, target.get("work_revision_id") or record.revision_id).type if target.get("work_revision_id") or record.revision_id else work.type) == "ugoira":
+                        preview = session.scalar(self._derivatives_statement(session, work.id, target.get("work_revision_id") or record.revision_id).where( Derivative.kind == "gif", Derivative.spec_key == "v1"))
                         if preview is None or not preview.relative_path:
                             raise InvalidMedia("缺少动图预览，无法生成缩略图")
                         source = contained_path(self.publisher.root, preview.relative_path)
                     else:
-                        original = session.scalar(select(Asset).where(Asset.work_id == work.id, Asset.role == "image", Asset.page_index == 0))
+                        original = session.scalar(self._assets_statement(session, work.id, target.get("work_revision_id") or record.revision_id).where( Asset.role == "image", Asset.page_index == 0))
                         if original is None or not original.relative_path:
                             raise InvalidMedia("缺少第一张原件，无法生成缩略图")
                         source = contained_path(self.publisher.root, original.relative_path)
@@ -926,7 +979,7 @@ class ArchiveHandler:
                         raise InvalidMedia("生成期间本地 GIF 已改变，等待重建卡片预览")
                     context.checkpoint()
                 else:
-                    verified = build_gif(source, timing, staged) if item.kind == "gif" else build_thumbnail(source, staged)
+                    verified = build_gif(source, timing, staged, checkpoint=context.checkpoint) if item.kind == "gif" else build_thumbnail(source, staged, checkpoint=context.checkpoint)
             journal_id = self.publisher.prepare(record_id, relative, target["path"], verified,
                 derivative=derivative, item_id=context.item_id, expected_revision=target["revision"],
                 source_version=(source_version or self._source_version(record)) if derivative else None, requested_url=requested_url, expected_source_fingerprint=target.get("expected_fingerprint"))
@@ -948,6 +1001,7 @@ class ArchiveHandler:
                             owner.source_metadata = {**owner.source_metadata, "source_updates": updates}
                     else:
                         stored.state, stored.error = "failed", safe_failure(exc)["message"]
+                    refresh_for_record(session, stored)
                     bump_catalogue_revision(session)
             raise
 

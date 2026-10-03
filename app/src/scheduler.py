@@ -1,10 +1,50 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 import threading
+from datetime import datetime, timedelta, timezone
+from .core.models import ApplicationState
 
 from .config import CHECK_INTERVAL_HOURS, CHECK_INTERVAL_MINUTES
 
 _scheduler: BackgroundScheduler = None
 _scheduler_lock = threading.RLock()
+INTERVAL_KEY = "automatic_check_interval"
+
+
+def interval_snapshot(database):
+    with database.read() as session:
+        record = session.get(ApplicationState, INTERVAL_KEY)
+        value = record.value if record and isinstance(record.value, dict) else {}
+    minutes = value.get("minutes")
+    if type(minutes) is not int or not 1 <= minutes <= 43200:
+        minutes = CHECK_INTERVAL_HOURS * 60 + (CHECK_INTERVAL_MINUTES or 0)
+    next_check = value.get("next_check_at")
+    with _scheduler_lock:
+        if _scheduler is not None and callable(getattr(_scheduler, "get_job", None)):
+            job = _scheduler.get_job("check_updates")
+            if job and getattr(job, "next_run_time", None):
+                next_check = job.next_run_time.isoformat()
+    return {"minutes": minutes, "next_check_at": next_check}
+
+
+def save_interval(tracker, minutes):
+    if type(minutes) is not int or not 1 <= minutes <= 43200:
+        raise ValueError("检查周期须为 1 到 43200 分钟")
+    next_run = datetime.now(timezone.utc) + timedelta(minutes=minutes)
+    # Persist first; a failed save must leave the live schedule unchanged.
+    with tracker.database.write() as session:
+        record = session.get(ApplicationState, INTERVAL_KEY)
+        if record is None:
+            record = ApplicationState(key=INTERVAL_KEY)
+            session.add(record)
+        record.value = {"minutes": minutes, "next_check_at": next_run.isoformat()}
+    with _scheduler_lock:
+        if _scheduler is not None:
+            _scheduler.reschedule_job("check_updates", trigger="interval", minutes=minutes, next_run_time=next_run)
+        else:
+            # A zero legacy interval may have left the scheduler unstarted.
+            # Saving a valid interval activates it without starting a batch now.
+            start_scheduler(tracker)
+    return next_run
 
 
 def check_and_download(tracker):
@@ -34,13 +74,16 @@ def start_scheduler(tracker):
             _scheduler = None
         scheduler = BackgroundScheduler(daemon=True)
 
-        interval_kwargs = {}
-        if CHECK_INTERVAL_HOURS:
-            interval_kwargs["hours"] = CHECK_INTERVAL_HOURS
-        if CHECK_INTERVAL_MINUTES:
-            interval_kwargs["minutes"] = CHECK_INTERVAL_MINUTES
-        if not interval_kwargs:
+        saved = interval_snapshot(tracker.database) if hasattr(tracker, "database") else {"minutes": CHECK_INTERVAL_HOURS * 60 + (CHECK_INTERVAL_MINUTES or 0)}
+        if not saved["minutes"]:
             return
+        interval_kwargs = {"minutes": saved["minutes"]}
+        try:
+            due = datetime.fromisoformat(saved.get("next_check_at") or "")
+            if due.tzinfo is not None:
+                interval_kwargs["next_run_time"] = max(due, datetime.now(timezone.utc))
+        except ValueError:
+            pass
 
         scheduler.add_job(
             check_and_download,

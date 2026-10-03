@@ -145,11 +145,11 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
 .stream-head{max-width:960px;padding:13px 22px 10px;border-bottom:0}
 .stream-head h1{font-size:15px;font-weight:600}
 .stream-head p{font-size:11px}
-.reading-toolbar{z-index:12;left:50%;right:auto;bottom:16px;transform:translateX(-50%);width:max-content;max-width:calc(100% - 24px);height:auto;min-height:49px;padding:3px 5px;border:1px solid var(--line);border-radius:7px;background:var(--surface);box-shadow:0 8px 30px var(--shadow)}
-.reading-toolbar-inner{width:auto;max-width:100%;gap:6px}
+.reading-toolbar{z-index:12;left:50%;right:auto;bottom:16px;transform:translateX(-50%);width:min(520px,calc(100% - 24px));max-width:calc(100% - 24px);height:auto;min-height:49px;padding:3px 5px;border:1px solid var(--line);border-radius:7px;background:var(--surface);box-shadow:0 8px 30px var(--shadow)}
+.reading-toolbar-inner{display:grid;grid-template-columns:96px minmax(0,1fr) 44px 96px;width:100%;max-width:100%;gap:6px}
 .reading-toolbar .reading-counter{flex:0 1 180px;min-width:70px;padding-inline:7px}
 .reading-counter strong{font-size:12px;font-weight:500}
-.reading-counter small{font-size:11px}
+.reading-counter small{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .reader-layout:has(.reader) .reading-counter strong{display:none}
 .reading-toolbar button{min-height:44px;border:0;border-radius:5px;background:none;color:var(--muted);font-size:12px;touch-action:manipulation}
 .reading-toolbar button.primary{background:var(--primary);color:#fff}
@@ -158,7 +158,7 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
 .reading-toolbar .bookmark-button.on{color:var(--danger)}
 .reading-toolbar.is-detail{width:min(520px,calc(100% - 24px))}
 .reading-toolbar.is-detail .reading-toolbar-inner{display:grid;grid-template-columns:96px minmax(0,1fr) 44px 96px;width:100%;gap:6px}
-.reading-toolbar.is-detail .reading-counter{min-width:0;padding-inline:4px;text-align:center}
+.reading-toolbar .reading-counter{min-width:0;padding-inline:4px;text-align:center}
 .reading-toolbar.is-detail .reading-counter small{white-space:nowrap}
 .reading-toolbar .reader-nav-button{min-width:0;white-space:nowrap;padding-inline:12px}
 .reader-nav-label{white-space:nowrap}
@@ -253,11 +253,11 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
   .reading-toolbar .reading-counter{min-width:52px}
 }
 @media(max-width:520px){
-  .reading-toolbar.is-detail{width:calc(100% - 16px)}
-  .reading-toolbar.is-detail .reading-toolbar-inner{grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:4px}
+  .reading-toolbar{width:calc(100% - 16px)}
+  .reading-toolbar .reading-toolbar-inner{grid-template-columns:44px minmax(0,1fr) 44px 44px;gap:4px}
   .reading-toolbar .reader-nav-button{width:44px;padding:7px}
   .reader-nav-label{display:none}
-  .reading-toolbar.is-detail .reading-counter small{white-space:normal;line-height:1.4}
+  .reading-toolbar .reading-counter small{white-space:nowrap;line-height:1.4}
 }
 .source-notice{margin:4px 0 8px;color:var(--muted);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
 .feed .image-page figcaption:has(.page-source){height:auto;min-height:48px;flex-wrap:wrap;padding-block:5px}

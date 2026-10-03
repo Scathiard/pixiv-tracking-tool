@@ -14,6 +14,7 @@ import tempfile
 import threading
 import time
 from types import SimpleNamespace
+from urllib.parse import unquote, urlsplit
 import zipfile
 
 
@@ -175,6 +176,12 @@ def run_smoke_test() -> int:
                 legacy.tags = [WorkTag(tag="本地动图")]
                 session.add_all([legacy, ArchiveIntent(pixiv_illust_id=str(work_id))])
         unavailable_gif = (runtime.images / "3.gif").read_bytes()
+        original_legacy_gif = (runtime.images / "2.gif").read_bytes()
+        def displayed_file(work_id):
+            src = runtime.library.detail(work_id)["pages"][0]["src"]
+            if not src or not src.startswith("/images/"):
+                raise RuntimeError("默认版本没有可阅览文件")
+            return runtime.images / unquote(urlsplit(src).path.removeprefix("/images/"))
         runtime.queue.submit("repair", {"work_ids": [1]}, "smoke")
         runtime.queue.run_round()
         if runtime.queue.snapshot()["round"]["outcome"] != "succeeded":
@@ -186,7 +193,7 @@ def run_smoke_test() -> int:
             raise RuntimeError("打包程序将不可获取的原包误报为已补齐")
         with runtime.database.read() as session:
             selected = session.get(Work, 2)
-            if (not all(asset.state == "verified" for asset in selected.assets)
+            if (runtime.library.detail(2)["archive"]["state"] != "complete"
                     or selected.source_metadata.get("original_backfill_requires_selection")):
                 raise RuntimeError("打包程序未通过普通补下载补齐可获取的动图原包与时序")
             if not session.get(Work, 3).source_metadata.get("original_backfill_requires_selection"):
@@ -199,7 +206,7 @@ def run_smoke_test() -> int:
             raise RuntimeError("打包程序未在批量补下载中跳过已知无法获取的原包")
         if metadata_reads != ["2", "3"] or detail_reads != ["3"] or (runtime.images / "3.gif").read_bytes() != unavailable_gif:
             raise RuntimeError("打包程序修改了不可获取动图或重复请求其来源")
-        with Image.open(runtime.images / "2.gif") as preview:
+        with Image.open(displayed_file(2)) as preview:
             if preview.n_frames != 2 or preview.size != (1280, 960):
                 raise RuntimeError("打包程序的动图原包未生成可播放预览")
         compact = next(item for item in runtime.library.query(compact=True)["items"] if item["id"] == 2)
@@ -212,8 +219,8 @@ def run_smoke_test() -> int:
         with Image.open(motion_path) as preview:
             if preview.n_frames != 2 or preview.size != (360, 270):
                 raise RuntimeError("打包程序的图库动画未缩小或已丢失播放帧")
-        if runtime.library.detail(2)["pages"][0]["src"] != "/images/2.gif":
-            raise RuntimeError("打包程序将详情原 GIF 替换成了缩略图")
+        if not str(displayed_file(2)).endswith(".gif") or (runtime.images / "2.gif").read_bytes() != original_legacy_gif:
+            raise RuntimeError("打包程序未保留旧 GIF 或详情未使用完整 GIF")
         if received != [True, True]:
             raise RuntimeError("打包程序的图片下载请求未通过兼容性验证")
         parsed = PixivClient._parse_illust({"id": 1, "title": "isolated", "type": "illust", "page_count": 1,
@@ -253,7 +260,7 @@ def run_smoke_test() -> int:
         runtime.client = SimpleNamespace(get_account_id=lambda: None, get_illust_detail=maintenance_detail,
             get_artist_detail=maintenance_profile, get_ugoira_metadata=animation_metadata,
             add_bookmark=forbidden_write, delete_bookmark=forbidden_write)
-        original_path = runtime.images / "1_p0.png"
+        original_path = displayed_file(1)
         original_bytes = original_path.read_bytes()
         original_path.write_bytes(b"")
         maintenance = runtime.queue.submit("reconcile", {}, "检查并补齐图库")
@@ -261,7 +268,7 @@ def run_smoke_test() -> int:
         maintenance_result = runtime.queue.details(maintenance["operation_id"])
         if maintenance_result["result"]["outcome"] != "succeeded" or maintenance_result["counts"].get("failed"):
             raise RuntimeError("打包程序统一维护未完成合成本地缺项修复")
-        if original_path.read_bytes() != original_bytes or maintenance_reads != ["1", "2", "3"]:
+        if displayed_file(1).read_bytes() != original_bytes or maintenance_reads != ["1", "2", "3"]:
             raise RuntimeError("统一维护未精确补齐损坏原件，或重复读取作品资料")
         if profile_reads != ["1"] or (runtime.images / "3.gif").read_bytes() != unavailable_gif:
             raise RuntimeError("统一维护未按画师去重，或改动了不可获取作品的本地存档")
@@ -273,7 +280,7 @@ def run_smoke_test() -> int:
         if ([row["id"] for row in overview["items"]] != [3]
                 or overview["counts"]["works"] != {"deleted": 0, "unavailable": 1}
                 or overview["items"][0]["local"]["state"] != "incomplete"):
-            raise RuntimeError("来源一览未将合成 404 与已确认不存在分开，或丢失本地缺项")
+            raise RuntimeError("来源一览未保留已核实的无法访问事实，或丢失本地缺项")
         profile_check = runtime.queue.submit("artist_source", {"artist_ids": [1]}, "核对 smoke 的主站主页")
         runtime.queue.run_round()
         if (runtime.queue.details(profile_check["operation_id"])["result"]["outcome"] != "succeeded"
@@ -305,7 +312,22 @@ def run_smoke_test() -> int:
                 result[path] = status
         return result
 
+    from .single_instance import ApplicationInstance
+    first, second = ApplicationInstance(root / "instance"), ApplicationInstance(root / "instance")
+    if not first.acquire() or second.acquire():
+        raise RuntimeError("程序级单实例互斥失效")
+    try:
+        first.mark_ready("http://localhost:1919")
+        if second.existing_url(timeout=2) != "http://localhost:1919":
+            raise RuntimeError("重复启动未返回已就绪程序入口")
+    finally:
+        first.close(); second.close()
+    successor = ApplicationInstance(root / "instance")
+    if not successor.acquire():
+        raise RuntimeError("程序关闭后未释放实例所有权")
+    successor.close()
     checks = asyncio.run(exercise())
+    checks["application_instance_ownership_ready_and_release"] = 200
     checks["original_download_verified_and_thumbnail_published"] = 200
     checks["manual_scope_animation_originals_downloaded_and_verified"] = 200
     checks["unavailable_animation_skipped_without_repeated_requests_gif_retained"] = 200
@@ -313,7 +335,7 @@ def run_smoke_test() -> int:
     checks["tag_translation_parsed_saved_and_cached"] = 200
     checks["unified_maintenance_repairs_corrupt_original_in_one_operation"] = 200
     checks["unified_snapshot_reads_once_and_never_writes_bookmarks"] = 200
-    checks["source_overview_separates_404_and_lists_specific_local_gaps"] = 200
+    checks["source_overview_uses_effective_facts_and_lists_specific_local_gaps"] = 200
     checks["artist_homepage_check_has_no_work_or_download_side_effects"] = 200
     if args.smoke_serve_port is not None:
         import uvicorn

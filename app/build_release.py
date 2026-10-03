@@ -10,6 +10,7 @@ import platform
 import runpy
 import subprocess
 import sys
+from src.core.database import SCHEMA_REVISION
 
 APP = Path(__file__).resolve().parent
 
@@ -43,7 +44,8 @@ def main() -> None:
                 "exe_size_bytes": executable.stat().st_size, "exe_sha256": digest,
                 "source_commit": git("rev-parse", "HEAD"), "source_branch": git("branch", "--show-current"),
                 "source_dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
-                "database_schema": "0002_client", "database_upgrade_required": False,
+                "database_schema": SCHEMA_REVISION, "database_upgrade_required": True,
+                "database_upgrade_entry": "startup-confirmed backup / validate / activate",
                 "build_environment": {"os": platform.platform(), "python": platform.python_version(),
                                       "pyinstaller": version("pyinstaller")},
                 "published": False, "user_acceptance": False, "validation": "pending packaged validation"}

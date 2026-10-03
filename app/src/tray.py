@@ -84,7 +84,7 @@ def _create_icon():
     )
 
 
-def run_tray(*, offline=False):
+def run_tray(*, offline=False, instance=None):
     """主线程运行托盘；退出时等待服务保存当前工作并释放图库。"""
     from src.config import PORT, DATA_DIR
     from src.version import DISPLAY_VERSION
@@ -98,29 +98,28 @@ def run_tray(*, offline=False):
         print("[tray] 离线模式：不登录 Pixiv，不启动自动检查")
 
     web_done = threading.Event()
+    icon = _create_icon()
+    icon._shutdown_complete = web_done
+    def ready():
+        if instance is not None:
+            instance.mark_ready(f"http://localhost:{PORT}")
+        _open_gallery()
     # 保持服务线程存活，直到安全收尾完成。
     def _start_web():
         from src.web import main, _shutdown_requested
         try:
             if not _shutdown_requested.wait(1):  # 等托盘图标就位，可被退出唤醒
-                main(offline=offline)
+                main(offline=offline, ready_callback=ready)
         finally:
             web_done.set()
+            # A failed bind/lifespan must not leave an orphan tray owning the
+            # application lock and preventing the next corrected launch.
+            icon.stop()
 
     web_thread = threading.Thread(target=_start_web, daemon=False)
     web_thread.start()
 
-    # 自动打开浏览器
-    def _auto_browser():
-        from src.web import _shutdown_requested
-        if not _shutdown_requested.wait(3):
-            _open_gallery()
-
-    threading.Thread(target=_auto_browser, daemon=True).start()
-
     # 主线程运行托盘图标
-    icon = _create_icon()
-    icon._shutdown_complete = web_done
     icon.run()
     from src.web import request_shutdown
     request_shutdown()

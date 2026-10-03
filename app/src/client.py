@@ -1,6 +1,7 @@
 import threading
 import time
 import requests
+from contextlib import contextmanager
 from . import config as _cfg
 from .request_policy import ShutdownRequested, is_rate_limit, retry_after_seconds
 from .core.tag_translations import REQUESTED_LOCALE, parse_tag_details
@@ -97,6 +98,16 @@ class PixivClient:
 
     def __init__(self):
         self._stopping = threading.Event()
+        self._task_context = threading.local()
+
+    @contextmanager
+    def task_scope(self, context):
+        previous = getattr(self._task_context, "context", None)
+        self._task_context.context = context
+        try:
+            yield
+        finally:
+            self._task_context.context = previous
 
     def request_stop(self):
         self._stopping.set()
@@ -104,13 +115,18 @@ class PixivClient:
     def _checkpoint(self):
         if self._stopping.is_set():
             raise ShutdownRequested()
+        context = getattr(getattr(self, "_task_context", None), "context", None)
+        if context is not None:
+            context.checkpoint()
 
     def _get(self, endpoint, params=None):
         return self._request(endpoint, params, retry_token=True)
 
     def _do_get(self, endpoint, headers, params):
         """带连接重试的 GET。"""
-        for attempt in range(3):
+        # Archive tasks persist retries and yield their worker after one attempt.
+        attempts = 1 if getattr(getattr(self, "_task_context", None), "context", None) is not None else 3
+        for attempt in range(attempts):
             self._checkpoint()
             try:
                 r = requests.get(
@@ -122,7 +138,7 @@ class PixivClient:
                 return r
             except (requests.exceptions.SSLError, requests.exceptions.ConnectionError):
                 self._checkpoint()
-                if attempt == 2:
+                if attempt == attempts - 1:
                     raise
                 if self._stopping.wait(2 * (attempt + 1)):
                     raise ShutdownRequested()
@@ -350,13 +366,14 @@ class PixivClient:
     def search_artist(self, keyword):
         """搜索画师。"""
         result = self._get("/v1/search/user", {"word": keyword, "filter": "for_ios"})
-        users = result.get("user_previews", [])
+        users = result.get("user_previews", [])[:20]
         return [
             {
                 "user_id": str(u["user"]["id"]),
                 "name": u["user"]["name"],
                 "account": u["user"]["account"],
                 "avatar_url": u["user"]["profile_image_urls"]["medium"],
+                "biography": u["user"].get("comment"),
             }
             for u in users
         ]
@@ -386,6 +403,26 @@ class PixivClient:
             "biography": user.get("comment") if isinstance(user.get("comment"), str) else None,
             "total_illusts": user.get("total_illusts", 0),
         }
+
+    def get_artist_illusts_page(self, user_id, work_type="illust", offset=0):
+        """Read one page; persist only its numeric continuation, never a remote URL."""
+        from urllib.parse import parse_qs, urlparse
+        if work_type not in ("illust", "manga") or type(offset) is not int or offset < 0:
+            raise ValueError("无效分页范围")
+        data = self._get("/v1/user/illusts", {"user_id": user_id, "type": work_type, "offset": offset})
+        items = data.get("illusts", [])
+        if not isinstance(items, list) or len(items) > 100:
+            raise PixivRequestError(200, "主站分页清单无效", retryable=False, failure_code="api_invalid_response")
+        next_offset = None
+        if data.get("next_url"):
+            query = parse_qs(urlparse(data["next_url"]).query)
+            try:
+                next_offset = int(query["offset"][0])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise PixivRequestError(200, "主站分页进度无效", retryable=False, failure_code="api_invalid_response") from exc
+            if next_offset <= offset:
+                raise PixivRequestError(200, "主站分页未前进", retryable=False, failure_code="api_invalid_response")
+        return {"items": [self._parse_illust(item) for item in items], "next_offset": next_offset}
 
     def get_all_artist_illusts(self, user_id):
         """迭代获取画师的全部作品（插画 + 漫画）。"""

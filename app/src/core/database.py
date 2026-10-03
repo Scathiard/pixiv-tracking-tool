@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 
 from .models import Base
 
-SCHEMA_REVISION = "0002_client"
+SCHEMA_REVISION = "0003_revisions"
 
 
 class UpgradeRequired(RuntimeError):

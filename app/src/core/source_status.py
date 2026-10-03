@@ -38,6 +38,10 @@ def availability_snapshot(value, account_id=None):
         return None
     state = value["state"]
     confirmed = value.get("confirmed") is True
+    # Older observations include first-time transient failures. Retain those
+    # records for diagnostics without promoting them to a source fact.
+    effective = confirmed and (state == "deleted" and value.get("deletion_evidence") is True
+                              or value.get("policy") == "source-v2")
     if state == "deleted" and not (confirmed and value.get("deletion_evidence") is True):
         state, confirmed = "unavailable", False
     reason = value.get("reason") if isinstance(value.get("reason"), str) else None
@@ -45,9 +49,10 @@ def availability_snapshot(value, account_id=None):
     scoped = value.get("account_id")
     if scoped is not None and account_id is not None and str(scoped) != str(account_id):
         state, confirmed, reason = "unavailable", False, "当前账号与上次核对不同，来源状态待重新确认"
+        effective = False
     return {"state": state, "reason": reason, "checked_at": checked,
             "confirmed": confirmed, "confirmation": "confirmed" if confirmed else "unconfirmed",
-            "cached": scoped is not None and account_id is None}
+            "cached": scoped is not None and account_id is None, "effective": effective}
 
 
 def _timestamp():
@@ -56,10 +61,12 @@ def _timestamp():
 
 def classify_failure(exc):
     code, status = getattr(exc, "failure_code", None), getattr(exc, "status", None)
+    if status in (401, 403, 429, 503) or code in ("api_unauthorized", "api_forbidden", "api_rate_limit", "api_unavailable"):
+        return None, "本次网络或登录核对未完成，最近来源事实保留"
     if code in ("work_private", "artist_private", "api_private"):
-        return "private", "主站提示不可公开获取，尚不能确认删除；已有存档保留"
+        return "private", "主站已无法访问：来源不可公开获取；已有存档保留"
     if code in ("work_unavailable", "artist_unavailable") or status == 404 and code != "ugoira_metadata_unavailable":
-        return "unavailable", "主站暂时无法获取，尚不能确认删除；已有存档保留"
+        return "unavailable", "主站已无法访问：对应来源未能取得；已有存档保留"
     if code == "source_identity_mismatch" or code == "api_invalid_response":
         return None, "主站未返回对应记录的有效资料，已有资料保留"
     if status == 429 or code == "api_rate_limit":
@@ -170,10 +177,7 @@ class SourceStatus:
                        "checked_at": checked, "version": version}}
             if state is not None:
                 result.update(state=state, reason=reason, checked_at=checked, confirmed=True,
-                              account_id=account_id, deletion_evidence=state == "deleted")
-            elif not value.get("state"):
-                result.update(state="unavailable", reason=reason, checked_at=checked,
-                              confirmed=False, account_id=account_id)
+                              account_id=account_id, deletion_evidence=state == "deleted", policy="source-v2")
             self._store(kind, record, result)
             bump_catalogue_revision(session)
             return True

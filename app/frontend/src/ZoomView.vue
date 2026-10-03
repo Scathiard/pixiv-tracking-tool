@@ -7,6 +7,8 @@ const emit = defineEmits<{close: []}>()
 const dialog = ref<HTMLDivElement | null>(null), scale = ref(1), x = ref(0), y = ref(0)
 const points = new Map<number, {x: number; y: number}>()
 let distance = 0, midpoint = {x: 0, y: 0}, lastFocus: HTMLElement | null = null
+let tap: {id: number; x: number; y: number; time: number} | null = null
+let lastTap: {x: number; y: number; time: number} | null = null
 const transform = computed(() => ({transform: `translate(${x.value}px, ${y.value}px) scale(${scale.value})`}))
 function reset() { scale.value = 1; x.value = y.value = 0 }
 function clamp() {
@@ -23,17 +25,34 @@ function down(event: PointerEvent) {
   if ((event.target as Element).closest('button')) return
   event.preventDefault(); dialog.value?.setPointerCapture(event.pointerId)
   points.set(event.pointerId, {x: event.clientX, y: event.clientY})
+  tap = points.size === 1 ? {id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now()} : null
+  if (points.size > 1) lastTap = null
   const m = metrics(); distance = m.d; midpoint = m
 }
 function move(event: PointerEvent) {
   if (!points.has(event.pointerId)) return
   event.preventDefault(); points.set(event.pointerId, {x: event.clientX, y: event.clientY})
+  if (tap && Math.hypot(tap.x - event.clientX, tap.y - event.clientY) > 8) { tap = null; lastTap = null }
   const m = metrics()
   if (m.d && distance) zoom(m.d / distance)
   if (scale.value > 1) { x.value += m.x - midpoint.x; y.value += m.y - midpoint.y; clamp() }
   distance = m.d; midpoint = m
 }
-function up(event: PointerEvent) { points.delete(event.pointerId); const m = metrics(); distance = m.d; midpoint = m }
+function up(event: PointerEvent) {
+  points.delete(event.pointerId); const m = metrics(); distance = m.d; midpoint = m
+  const now = performance.now()
+  if (event.type === 'pointercancel') { tap = lastTap = null; return }
+  if (tap?.id === event.pointerId && !points.size && now - tap.time < 500) {
+    if (lastTap && now - lastTap.time < 300 && Math.hypot(lastTap.x - event.clientX, lastTap.y - event.clientY) < 24) {
+      const rect = dialog.value!.getBoundingClientRect()
+      const target = scale.value < 1.1 ? 2.5 : 1, factor = target / scale.value
+      const fx = event.clientX - rect.left - rect.width / 2, fy = event.clientY - rect.top - rect.height / 2
+      x.value = fx - (fx - x.value) * factor; y.value = fy - (fy - y.value) * factor
+      scale.value = target; clamp(); lastTap = null
+    } else lastTap = {x: event.clientX, y: event.clientY, time: now}
+  }
+  tap = null
+}
 function key(event: KeyboardEvent) {
   event.stopPropagation()
   if (event.key === 'Escape') emit('close')
@@ -54,6 +73,6 @@ onUnmounted(() => { void nextTick(() => lastFocus?.focus({preventScroll: true}))
     @wheel.prevent="zoom($event.deltaY < 0 ? 1.12 : 0.89)">
     <div class="zoom-canvas" :style="transform"><MediaImage :src="page.src" :label="page.title" /></div>
     <div class="zoom-toolbar"><button @click="zoom(0.8)" aria-label="缩小">−</button><button @click="reset">{{ Math.round(scale * 100) }}%</button><button @click="zoom(1.25)" aria-label="放大">＋</button><button @click="emit('close')">关闭放大 <kbd>Esc</kbd></button></div>
-    <p class="zoom-hint">滚轮或双指缩放 · 拖动画面</p>
+    <p class="zoom-hint">双击切换倍率 · 滚轮或双指缩放 · 拖动画面</p>
   </div>
 </template>

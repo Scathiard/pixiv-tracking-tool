@@ -134,7 +134,8 @@ def test_local_gif_only_jobs_create_card_without_originals(local_archive, kind):
         original = session.scalar(select(Derivative).where(Derivative.kind == "gif"))
         assert motion is not None and motion.state == "verified"
         assert motion.kind == "thumbnail" and motion.source_version == original.sha256
-        assert motion.relative_path == ".thumbnails/101_card_motion_v1.webp"
+        assert motion.relative_path.endswith("/.thumbnails/101_card_motion_v1.webp")
+        assert motion.revision_id == session.get(Work, 1).default_revision_id
     assert (root / "101.gif").read_bytes() == before
     library = Library(database)
     card = library.query(compact=True)["items"][0]
@@ -186,7 +187,8 @@ def test_failed_rebuild_preserves_old_motion(local_archive, monkeypatch):
     database, root, queue, _ = local_archive
     queue.submit("thumbnails", {"work_ids": [1]}, "synthetic")
     queue.run_round()
-    output = root / ".thumbnails/101_card_motion_v1.webp"
+    with database.read() as session:
+        output = root / session.scalar(select(Derivative).where(Derivative.spec_key == "card-motion-v1")).relative_path
     before = output.read_bytes()
     with database.write() as session:
         session.scalar(select(Derivative).where(Derivative.spec_key == "card-motion-v1")).source_version = "old-source"

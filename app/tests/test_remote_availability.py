@@ -43,7 +43,7 @@ def _listed_work(remote_id, pages=1):
                                           for i in range(pages)]}
 
 
-def test_check_continues_after_one_work_conflicts_across_artist_pages(tmp_path):
+def test_check_saves_changed_manifest_and_continues_across_artist_pages(tmp_path):
     db, root, queue, downloader, _, _ = archive(tmp_path)
     try:
         with db.write() as session:
@@ -66,7 +66,7 @@ def test_check_continues_after_one_work_conflicts_across_artist_pages(tmp_path):
                 self.pages.append((params["type"], params.get("offset")))
                 if params["type"] == "manga":
                     return {"illusts": [], "next_url": None}
-                if params.get("offset") == "1":
+                if params.get("offset") == 1:
                     return {"illusts": [_listed_work(202)], "next_url": None}
                 return {"illusts": [_listed_work(101, 2), _listed_work(201)],
                         "next_url": "https://app-api.pixiv.net/v1/user/illusts?user_id=1&type=illust&offset=1"}
@@ -82,21 +82,24 @@ def test_check_continues_after_one_work_conflicts_across_artist_pages(tmp_path):
 
         with db.read() as session:
             old = session.get(Work, 1)
-            assert old.page_count == 6 and len(old.assets) == 6
+            from src.core.revisions import revision_assets, latest_revision
+            from src.core.models import WorkRevision
+            assert old.page_count == 2 and len(old.assets) == 8
+            versions = list(session.scalars(select(WorkRevision).where(WorkRevision.work_id == 1).order_by(WorkRevision.ordinal)))
+            assert [version.page_count for version in versions] == [6, 2]
+            assert len(revision_assets(session, versions[0])) == 6
+            for page in range(6):
+                assert (root / f"old_p{page}.png").read_bytes() == png()
             for remote_id in ("201", "202"):
                 work = session.scalar(select(Work).where(Work.pixiv_illust_id == remote_id))
                 assert work is not None
                 assert work.assets[0].state == "verified"
                 assert (root / work.assets[0].relative_path).read_bytes() == png()
-        assert client.pages == [("illust", None), ("illust", "1"), ("manga", None)]
-        assert downloader.calls == ["https://i.pximg.net/201_p0.png", "https://i.pximg.net/202_p0.png"]
+        assert client.pages == [("illust", 0), ("illust", 1), ("manga", 0)]
+        assert sorted(downloader.calls) == sorted(["https://i.pximg.net/101_p0.png", "https://i.pximg.net/101_p1.png", "https://i.pximg.net/201_p0.png", "https://i.pximg.net/202_p0.png"])
         details = queue.details(submitted["operation_id"])
-        assert details["result"]["outcome"] == "partial_failure"
-        assert details["result"]["inventory_complete"] is False
-        assert any(item["result"].get("failure_code") == "work_metadata_conflict"
-                   for item in details["items"] if item["state"] == "failed")
-        assert any("作品 101：主站当前 2 页，本地记录 6 页" in line
-                   for line in processing_log(db)["lines"])
+        assert details["result"]["outcome"] == "succeeded"
+        assert details["result"]["inventory_complete"] is True
         with db.write() as session:
             session.add_all([
                 OperationItem(operation_id=submitted["operation_id"], item_key="unsafe-id",
@@ -134,7 +137,7 @@ def test_check_still_fails_when_artist_pagination_breaks(tmp_path):
         details = queue.details(submitted["operation_id"])
         assert details["result"]["outcome"] == "partial_failure"
         assert details["result"]["inventory_complete"] is False
-        assert any(item["key"] == "artist-error-1" and item["state"] == "failed"
+        assert any(item["key"].startswith("discover-page-1-") and item["state"] == "failed"
                    for item in details["items"])
     finally:
         db.close()
@@ -180,7 +183,7 @@ def test_404_preserves_page_and_builds_local_thumbnail_with_attention(tmp_path):
         db.close()
 
 
-def test_metadata_conflict_stops_retry_preserves_six_page_archive(tmp_path):
+def test_repair_observes_reduced_manifest_and_preserves_six_page_history(tmp_path):
     db, root, queue, downloader, maintenance, clock = archive(tmp_path)
     try:
         with db.write() as session:
@@ -194,12 +197,17 @@ def test_metadata_conflict_stops_retry_preserves_six_page_archive(tmp_path):
         maintenance.tick(force=True)
         with db.read() as session:
             work = session.get(Work, 1)
-            assert work.page_count == 6 and len(work.assets) == 6
+            from src.core.revisions import latest_revision, revision_assets
+            from src.core.models import WorkRevision
+            assert work.page_count == 2 and len(work.assets) == 8
+            versions = list(session.scalars(select(WorkRevision).where(WorkRevision.work_id == 1).order_by(WorkRevision.ordinal)))
+            assert [version.page_count for version in versions] == [6, 2]
+            assert len(revision_assets(session, versions[0])) == 6
+            assert all(asset.state == "verified" for asset in revision_assets(session, latest_revision(session, 1)))
             assert work.source_metadata["remote_availability"]["state"] == "available"
             ledger = session.get(ApplicationState, LEDGER_PREFIX + "1").value
-            assert ledger["status"] == "attention"
-            assert ledger["failure_code"] == "work_metadata_conflict"
-            assert "6" in ledger["reason"] and "2" in ledger["reason"]
+            assert ledger["status"] == "ready"
+            assert ledger["failure_code"] is None
         assert maintenance.tick(force=True) == []
     finally:
         db.close()
