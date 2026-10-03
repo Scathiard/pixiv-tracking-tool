@@ -1,0 +1,2242 @@
+{
+  "build": "20261003.2",
+  "sha256": "bc9526a6f4e2c32ae18ee9d77a009846be7060c536d1169ec8783822eba08559",
+  "real_library_used": false,
+  "real_account_used": false,
+  "layer": "Packaged production UI with synthetic GET responses",
+  "sizes": [
+    {
+      "width": 320,
+      "collapsed": false,
+      "grid": {
+        "card": 292,
+        "image": {
+          "width": 224,
+          "height": 149.328125
+        },
+        "media": {
+          "width": 224,
+          "height": 149.328125
+        },
+        "img": {
+          "width": 224,
+          "height": 149.328125
+        },
+        "gap": 10,
+        "strip": {
+          "width": 250,
+          "height": 179.328125
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 292,
+        "image": {
+          "width": 224,
+          "height": 149.328125
+        },
+        "media": {
+          "width": 224,
+          "height": 149.328125
+        },
+        "img": {
+          "width": 224,
+          "height": 149.328125
+        },
+        "gap": 10,
+        "strip": {
+          "width": 250,
+          "height": 179.328125
+        },
+        "fully_visible": 1
+      }
+    },
+    {
+      "width": 390,
+      "collapsed": false,
+      "grid": {
+        "card": 362,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 320,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 362,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 320,
+          "height": 210
+        },
+        "fully_visible": 1
+      }
+    },
+    {
+      "width": 680,
+      "collapsed": false,
+      "grid": {
+        "card": 652,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 610,
+          "height": 210
+        },
+        "fully_visible": 2
+      },
+      "row": {
+        "card": 652,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 610,
+          "height": 210
+        },
+        "fully_visible": 2
+      }
+    },
+    {
+      "width": 768,
+      "collapsed": false,
+      "grid": {
+        "card": 245,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 203,
+          "height": 210
+        },
+        "fully_visible": 0
+      },
+      "row": {
+        "card": 508,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 196,
+          "height": 210
+        },
+        "fully_visible": 0
+      }
+    },
+    {
+      "width": 800,
+      "collapsed": false,
+      "grid": {
+        "card": 261,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 219,
+          "height": 210
+        },
+        "fully_visible": 0
+      },
+      "row": {
+        "card": 540,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 228,
+          "height": 210
+        },
+        "fully_visible": 0
+      }
+    },
+    {
+      "width": 800,
+      "collapsed": true,
+      "grid": {
+        "card": 327.4375,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 285.4375,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 680,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 368,
+          "height": 210
+        },
+        "fully_visible": 1
+      }
+    },
+    {
+      "width": 900,
+      "collapsed": false,
+      "grid": {
+        "card": 311,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 269,
+          "height": 210
+        },
+        "fully_visible": 0
+      },
+      "row": {
+        "card": 640,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 328,
+          "height": 210
+        },
+        "fully_visible": 1
+      }
+    },
+    {
+      "width": 900,
+      "collapsed": true,
+      "grid": {
+        "card": 377.4375,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 335.4375,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 780,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 468,
+          "height": 210
+        },
+        "fully_visible": 1
+      }
+    },
+    {
+      "width": 1024,
+      "collapsed": false,
+      "grid": {
+        "card": 373,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 331,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 764,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 452,
+          "height": 210
+        },
+        "fully_visible": 1
+      }
+    },
+    {
+      "width": 1024,
+      "collapsed": true,
+      "grid": {
+        "card": 437.25,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 395.25,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 904,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 592,
+          "height": 210
+        },
+        "fully_visible": 2
+      }
+    },
+    {
+      "width": 1100,
+      "collapsed": false,
+      "grid": {
+        "card": 411,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 369,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 840,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 528,
+          "height": 210
+        },
+        "fully_visible": 1
+      }
+    },
+    {
+      "width": 1100,
+      "collapsed": true,
+      "grid": {
+        "card": 477.421875,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 435.421875,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 980,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 668,
+          "height": 210
+        },
+        "fully_visible": 2
+      }
+    },
+    {
+      "width": 1280,
+      "collapsed": false,
+      "grid": {
+        "card": 501,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 459,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 1020,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 708,
+          "height": 210
+        },
+        "fully_visible": 2
+      }
+    },
+    {
+      "width": 1280,
+      "collapsed": true,
+      "grid": {
+        "card": 513,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 471,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 1044,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 732,
+          "height": 210
+        },
+        "fully_visible": 2
+      }
+    },
+    {
+      "width": 1366,
+      "collapsed": false,
+      "grid": {
+        "card": 513,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 471,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 1044,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 732,
+          "height": 210
+        },
+        "fully_visible": 2
+      }
+    },
+    {
+      "width": 1366,
+      "collapsed": true,
+      "grid": {
+        "card": 513,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 471,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 1044,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 732,
+          "height": 210
+        },
+        "fully_visible": 2
+      }
+    },
+    {
+      "width": 1440,
+      "collapsed": false,
+      "grid": {
+        "card": 513,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 471,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 1044,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 732,
+          "height": 210
+        },
+        "fully_visible": 2
+      }
+    },
+    {
+      "width": 1440,
+      "collapsed": true,
+      "grid": {
+        "card": 513,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 471,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 1044,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 732,
+          "height": 210
+        },
+        "fully_visible": 2
+      }
+    },
+    {
+      "width": 1536,
+      "collapsed": false,
+      "grid": {
+        "card": 513,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 471,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 1044,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 732,
+          "height": 210
+        },
+        "fully_visible": 2
+      }
+    },
+    {
+      "width": 1536,
+      "collapsed": true,
+      "grid": {
+        "card": 513,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 471,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 1044,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 732,
+          "height": 210
+        },
+        "fully_visible": 2
+      }
+    },
+    {
+      "width": 1920,
+      "collapsed": false,
+      "grid": {
+        "card": 513,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 471,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 1044,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 732,
+          "height": 210
+        },
+        "fully_visible": 2
+      }
+    },
+    {
+      "width": 1920,
+      "collapsed": true,
+      "grid": {
+        "card": 513,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 471,
+          "height": 210
+        },
+        "fully_visible": 1
+      },
+      "row": {
+        "card": 1044,
+        "image": {
+          "width": 270,
+          "height": 180
+        },
+        "media": {
+          "width": 270,
+          "height": 180
+        },
+        "img": {
+          "width": 270,
+          "height": 180
+        },
+        "gap": 10,
+        "strip": {
+          "width": 732,
+          "height": 210
+        },
+        "fully_visible": 2
+      }
+    }
+  ],
+  "settings": [
+    {
+      "height": 900,
+      "scrollHeight": 1505,
+      "portY": 1106.09375,
+      "fields": [
+        {
+          "label": "下次启动端口",
+          "type": "number"
+        },
+        {
+          "label": "图库浏览方式",
+          "type": "select-one"
+        }
+      ],
+      "overviewHeight": 213.875,
+      "width": 1440,
+      "source_count": 0
+    },
+    {
+      "height": 900,
+      "scrollHeight": 9274,
+      "portY": 8875,
+      "fields": [
+        {
+          "label": "下次启动端口",
+          "type": "number"
+        },
+        {
+          "label": "图库浏览方式",
+          "type": "select-one"
+        }
+      ],
+      "overviewHeight": 7982.78125,
+      "width": 1440,
+      "source_count": 50
+    },
+    {
+      "height": 850,
+      "scrollHeight": 1740,
+      "portY": 1269.40625,
+      "fields": [
+        {
+          "label": "下次启动端口",
+          "type": "number"
+        },
+        {
+          "label": "图库浏览方式",
+          "type": "select-one"
+        }
+      ],
+      "overviewHeight": 229.3125,
+      "width": 390,
+      "source_count": 0
+    },
+    {
+      "height": 850,
+      "scrollHeight": 9508,
+      "portY": 9038.3125,
+      "fields": [
+        {
+          "label": "下次启动端口",
+          "type": "number"
+        },
+        {
+          "label": "图库浏览方式",
+          "type": "select-one"
+        }
+      ],
+      "overviewHeight": 7998.21875,
+      "width": 390,
+      "source_count": 50
+    }
+  ],
+  "errors": [],
+  "failures": [
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 320,
+        "collapsed": false,
+        "grid": {
+          "card": 292,
+          "image": {
+            "width": 224,
+            "height": 149.328125
+          },
+          "media": {
+            "width": 224,
+            "height": 149.328125
+          },
+          "img": {
+            "width": 224,
+            "height": 149.328125
+          },
+          "gap": 10,
+          "strip": {
+            "width": 250,
+            "height": 179.328125
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 292,
+          "image": {
+            "width": 224,
+            "height": 149.328125
+          },
+          "media": {
+            "width": 224,
+            "height": 149.328125
+          },
+          "img": {
+            "width": 224,
+            "height": 149.328125
+          },
+          "gap": 10,
+          "strip": {
+            "width": 250,
+            "height": 179.328125
+          },
+          "fully_visible": 1
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 390,
+        "collapsed": false,
+        "grid": {
+          "card": 362,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 320,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 362,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 320,
+            "height": 210
+          },
+          "fully_visible": 1
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 680,
+        "collapsed": false,
+        "grid": {
+          "card": 652,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 610,
+            "height": 210
+          },
+          "fully_visible": 2
+        },
+        "row": {
+          "card": 652,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 610,
+            "height": 210
+          },
+          "fully_visible": 2
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 768,
+        "collapsed": false,
+        "grid": {
+          "card": 245,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 203,
+            "height": 210
+          },
+          "fully_visible": 0
+        },
+        "row": {
+          "card": 508,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 196,
+            "height": 210
+          },
+          "fully_visible": 0
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 800,
+        "collapsed": false,
+        "grid": {
+          "card": 261,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 219,
+            "height": 210
+          },
+          "fully_visible": 0
+        },
+        "row": {
+          "card": 540,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 228,
+            "height": 210
+          },
+          "fully_visible": 0
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 800,
+        "collapsed": true,
+        "grid": {
+          "card": 327.4375,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 285.4375,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 680,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 368,
+            "height": 210
+          },
+          "fully_visible": 1
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 900,
+        "collapsed": false,
+        "grid": {
+          "card": 311,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 269,
+            "height": 210
+          },
+          "fully_visible": 0
+        },
+        "row": {
+          "card": 640,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 328,
+            "height": 210
+          },
+          "fully_visible": 1
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 900,
+        "collapsed": true,
+        "grid": {
+          "card": 377.4375,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 335.4375,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 780,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 468,
+            "height": 210
+          },
+          "fully_visible": 1
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 1024,
+        "collapsed": false,
+        "grid": {
+          "card": 373,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 331,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 764,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 452,
+            "height": 210
+          },
+          "fully_visible": 1
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 1024,
+        "collapsed": true,
+        "grid": {
+          "card": 437.25,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 395.25,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 904,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 592,
+            "height": 210
+          },
+          "fully_visible": 2
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 1100,
+        "collapsed": false,
+        "grid": {
+          "card": 411,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 369,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 840,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 528,
+            "height": 210
+          },
+          "fully_visible": 1
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 1100,
+        "collapsed": true,
+        "grid": {
+          "card": 477.421875,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 435.421875,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 980,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 668,
+            "height": 210
+          },
+          "fully_visible": 2
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 1280,
+        "collapsed": false,
+        "grid": {
+          "card": 501,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 459,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 1020,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 708,
+            "height": 210
+          },
+          "fully_visible": 2
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 1280,
+        "collapsed": true,
+        "grid": {
+          "card": 513,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 471,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 1044,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 732,
+            "height": 210
+          },
+          "fully_visible": 2
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 1366,
+        "collapsed": false,
+        "grid": {
+          "card": 513,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 471,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 1044,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 732,
+            "height": 210
+          },
+          "fully_visible": 2
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 1366,
+        "collapsed": true,
+        "grid": {
+          "card": 513,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 471,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 1044,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 732,
+            "height": 210
+          },
+          "fully_visible": 2
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 1440,
+        "collapsed": false,
+        "grid": {
+          "card": 513,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 471,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 1044,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 732,
+            "height": 210
+          },
+          "fully_visible": 2
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 1440,
+        "collapsed": true,
+        "grid": {
+          "card": 513,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 471,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 1044,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 732,
+            "height": 210
+          },
+          "fully_visible": 2
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 1536,
+        "collapsed": false,
+        "grid": {
+          "card": 513,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 471,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 1044,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 732,
+            "height": 210
+          },
+          "fully_visible": 2
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 1536,
+        "collapsed": true,
+        "grid": {
+          "card": 513,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 471,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 1044,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 732,
+            "height": 210
+          },
+          "fully_visible": 2
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 1920,
+        "collapsed": false,
+        "grid": {
+          "card": 513,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 471,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 1044,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 732,
+            "height": 210
+          },
+          "fully_visible": 2
+        }
+      }
+    },
+    {
+      "message": "Grid no longer fits three complete recent works",
+      "data": {
+        "width": 1920,
+        "collapsed": true,
+        "grid": {
+          "card": 513,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 471,
+            "height": 210
+          },
+          "fully_visible": 1
+        },
+        "row": {
+          "card": 1044,
+          "image": {
+            "width": 270,
+            "height": 180
+          },
+          "media": {
+            "width": 270,
+            "height": 180
+          },
+          "img": {
+            "width": 270,
+            "height": 180
+          },
+          "gap": 10,
+          "strip": {
+            "width": 732,
+            "height": 210
+          },
+          "fully_visible": 2
+        }
+      }
+    },
+    {
+      "message": "Automatic interval has no editable control",
+      "data": {
+        "width": 1440
+      }
+    },
+    {
+      "message": "Automatic interval has no editable control",
+      "data": {
+        "width": 1440
+      }
+    },
+    {
+      "message": "Exception list pushes normal settings down by multiple screens",
+      "data": {
+        "height": 900,
+        "scrollHeight": 9274,
+        "portY": 8875,
+        "fields": [
+          {
+            "label": "下次启动端口",
+            "type": "number"
+          },
+          {
+            "label": "图库浏览方式",
+            "type": "select-one"
+          }
+        ],
+        "overviewHeight": 7982.78125,
+        "width": 1440,
+        "source_count": 50
+      }
+    },
+    {
+      "message": "Automatic interval has no editable control",
+      "data": {
+        "width": 390
+      }
+    },
+    {
+      "message": "Automatic interval has no editable control",
+      "data": {
+        "width": 390
+      }
+    },
+    {
+      "message": "Exception list pushes normal settings down by multiple screens",
+      "data": {
+        "height": 850,
+        "scrollHeight": 9508,
+        "portY": 9038.3125,
+        "fields": [
+          {
+            "label": "下次启动端口",
+            "type": "number"
+          },
+          {
+            "label": "图库浏览方式",
+            "type": "select-one"
+          }
+        ],
+        "overviewHeight": 7998.21875,
+        "width": 390,
+        "source_count": 50
+      }
+    }
+  ]
+}

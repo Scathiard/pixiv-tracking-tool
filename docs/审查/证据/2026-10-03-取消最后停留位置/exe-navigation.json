@@ -1,0 +1,271 @@
+{
+  "checks": [
+    "failed-home-retains-cards-and-retry-1440",
+    "old-saved-position-ignored-1440",
+    "logo-at-home-goes-top-1440",
+    "works-at-home-goes-top-1440",
+    "reload-deep-gallery-1440",
+    "accepted-logo-during-scroll-goes-top-1440",
+    "设置-back-home-1440",
+    "画师-back-home-1440",
+    "detail-starts-zero-zoom-preserves-home-top-1440",
+    "browser-back-forward-starts-top-1440",
+    "feed-reentry-starts-first-1440",
+    "background-refresh-stays-no-position-write-1440",
+    "home-preserves-filter-and-sort-1440",
+    "explicit-pagination-and-logo-first-page-1440",
+    "failed-home-retains-cards-and-retry-390",
+    "old-saved-position-ignored-390",
+    "logo-at-home-goes-top-390",
+    "works-at-home-goes-top-390",
+    "reload-deep-gallery-390",
+    "accepted-logo-during-scroll-goes-top-390",
+    "设置-back-home-390",
+    "画师-back-home-390",
+    "detail-starts-zero-zoom-preserves-home-top-390",
+    "browser-back-forward-starts-top-390",
+    "feed-reentry-starts-first-390",
+    "background-refresh-stays-no-position-write-390",
+    "home-preserves-filter-and-sort-390",
+    "explicit-pagination-and-logo-first-page-390",
+    "failed-home-retains-cards-and-retry-320",
+    "old-saved-position-ignored-320",
+    "logo-at-home-goes-top-320",
+    "works-at-home-goes-top-320",
+    "reload-deep-gallery-320",
+    "accepted-logo-during-scroll-goes-top-320",
+    "设置-back-home-320",
+    "画师-back-home-320",
+    "detail-starts-zero-zoom-preserves-home-top-320",
+    "browser-back-forward-starts-top-320",
+    "feed-reentry-starts-first-320",
+    "background-refresh-stays-no-position-write-320",
+    "home-preserves-filter-and-sort-320",
+    "explicit-pagination-and-logo-first-page-320"
+  ],
+  "failures": [],
+  "errors": [],
+  "metrics": {
+    "failed-home-retains-cards-and-retry-1440": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "old-saved-position-ignored-1440": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "logo-at-home-goes-top-1440": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "works-at-home-goes-top-1440": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "reload-deep-gallery-1440": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "accepted-logo-during-scroll-goes-top-1440": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "设置-back-home-1440": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "画师-back-home-1440": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "detail-starts-zero-zoom-preserves-home-top-1440": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "browser-back-forward-starts-top-1440": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "feed-reentry-starts-first-1440": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "background-refresh-stays-no-position-write-1440": {
+      "scrollTop": 2800,
+      "old_storage_unchanged": true
+    },
+    "home-preserves-filter-and-sort-1440": {
+      "sort": [
+        "oldest"
+      ],
+      "artist_ids": [
+        "1"
+      ],
+      "ceiling": [
+        "1520"
+      ],
+      "as_of": [
+        "2026-10-03T03:00:00Z"
+      ],
+      "page": [
+        "1"
+      ]
+    },
+    "explicit-pagination-and-logo-first-page-1440": {
+      "manual_page": 4,
+      "home_page": 1
+    },
+    "failed-home-retains-cards-and-retry-390": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "old-saved-position-ignored-390": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "logo-at-home-goes-top-390": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "works-at-home-goes-top-390": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "reload-deep-gallery-390": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "accepted-logo-during-scroll-goes-top-390": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "设置-back-home-390": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "画师-back-home-390": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "detail-starts-zero-zoom-preserves-home-top-390": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "browser-back-forward-starts-top-390": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "feed-reentry-starts-first-390": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "background-refresh-stays-no-position-write-390": {
+      "scrollTop": 883,
+      "old_storage_unchanged": true
+    },
+    "home-preserves-filter-and-sort-390": {
+      "sort": [
+        "oldest"
+      ],
+      "artist_ids": [
+        "1"
+      ],
+      "ceiling": [
+        "1520"
+      ],
+      "as_of": [
+        "2026-10-03T03:00:00Z"
+      ],
+      "page": [
+        "1"
+      ]
+    },
+    "explicit-pagination-and-logo-first-page-390": {
+      "manual_page": 4,
+      "home_page": 1
+    },
+    "failed-home-retains-cards-and-retry-320": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "old-saved-position-ignored-320": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "logo-at-home-goes-top-320": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "works-at-home-goes-top-320": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "reload-deep-gallery-320": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "accepted-logo-during-scroll-goes-top-320": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "设置-back-home-320": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "画师-back-home-320": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "detail-starts-zero-zoom-preserves-home-top-320": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "browser-back-forward-starts-top-320": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "feed-reentry-starts-first-320": {
+      "scrollTop": 0,
+      "url": "http://127.0.0.1:50488/?ceiling=1520&as_of=2026-10-03T03:00:00Z&page=1"
+    },
+    "background-refresh-stays-no-position-write-320": {
+      "scrollTop": 893,
+      "old_storage_unchanged": true
+    },
+    "home-preserves-filter-and-sort-320": {
+      "sort": [
+        "oldest"
+      ],
+      "artist_ids": [
+        "1"
+      ],
+      "ceiling": [
+        "1520"
+      ],
+      "as_of": [
+        "2026-10-03T03:00:00Z"
+      ],
+      "page": [
+        "1"
+      ]
+    },
+    "explicit-pagination-and-logo-first-page-320": {
+      "manual_page": 4,
+      "home_page": 1
+    }
+  },
+  "baseline": false,
+  "mode": "exe",
+  "real_library_used": false,
+  "real_account_used": false,
+  "real_phone_tested": false,
+  "metadata": "520 work / 522 page synthetic browser API replay",
+  "interaction": "real mouse wheel / CDP touch and actual navigation buttons",
+  "exe": "D:\\claude_sandbox\\pixiv-tracking-tool\\release\\v0.2.0\\build-20261003.3\\PixivTracker_v0.2.0_build20261003.3.exe",
+  "sha256": "89503bd9d6568d8e5ac2de6fea1f6068c8882c77ffd1c7f2b5394a7b454739e7",
+  "build": "20261003.3",
+  "frontend_assets": [
+    "/reader/assets/index-DPHkEmeR.js",
+    "/reader/assets/index-D5Yvs0OM.css"
+  ]
+}
