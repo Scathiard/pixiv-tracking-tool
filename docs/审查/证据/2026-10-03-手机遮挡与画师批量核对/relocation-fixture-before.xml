@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="9.651" timestamp="2026-10-04T00:09:59.627238+08:00" hostname="Baseline"><testcase classname="tests.test_archive_relocation" name="test_running_download_rejects_relocation_without_creating_target" time="8.781"><failure message="AssertionError: download worker did not start&#10;assert False&#10; +  where False = wait(5)&#10; +    where wait = &lt;threading.Event at 0x28fe352b110: unset&gt;.wait">relocation = (&lt;starlette.testclient.TestClient object at 0x0000028FE32BEA50&gt;, &lt;src.core.runtime.Runtime object at 0x0000028FE318A5A...x/pixiv-tracking-tool/.devtools/test-runs/b20261003.7-relocation-host-01/test_running_download_rejects_0/fixture.env'))
+
+    def test_running_download_rejects_relocation_without_creating_target(relocation):
+        client, runtime, source, target, env = relocation
+        entered, release = Event(), Event()
+        before = env.read_bytes()
+    
+        class HeldDownload:
+            def plan(self, parameters, context):
+                return [ItemSpec("held", "download", {}, "downloading", "pages")]
+    
+            def execute(self, item, context):
+                entered.set()
+                assert release.wait(15), "test did not release held download"
+                return ItemResult()
+    
+        runtime.queue.handlers["repair"] = HeldDownload()
+        runtime.queue.submit("repair", {}, "隔离下载")
+        try:
+&gt;           assert entered.wait(5), "download worker did not start"
+E           AssertionError: download worker did not start
+E           assert False
+E            +  where False = wait(5)
+E            +    where wait = &lt;threading.Event at 0x28fe352b110: unset&gt;.wait
+
+tests\test_archive_relocation.py:93: AssertionError</failure></testcase></testsuite></testsuites>

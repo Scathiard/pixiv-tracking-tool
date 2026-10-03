@@ -1,5 +1,6 @@
 from pathlib import Path
 from threading import Event
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -77,6 +78,9 @@ def test_running_download_rejects_relocation_without_creating_target(relocation)
     client, runtime, source, target, env = relocation
     entered, release = Event(), Event()
     before = env.read_bytes()
+    # A running download requires a connected source; this handler performs
+    # no network I/O. An offline runtime correctly leaves repair jobs queued.
+    runtime.client = SimpleNamespace(get_account_id=lambda: "isolated-relocation-account")
 
     class HeldDownload:
         def plan(self, parameters, context):

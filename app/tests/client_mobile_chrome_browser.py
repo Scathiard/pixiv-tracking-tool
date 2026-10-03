@@ -147,8 +147,9 @@ def main():
             thread = threading.Thread(target=server.run, daemon=True)
             thread.start()
             result['actual_database_works'] = 20
-        deadline = time.monotonic() + 120
+        deadline = time.monotonic() + 300
         last_probe_error=None
+        next_probe_report=time.monotonic()+10
         while time.monotonic() < deadline:
             if process and process.poll() is not None:
                 raise RuntimeError(f'isolated EXE exited: {process.returncode}')
@@ -158,11 +159,22 @@ def main():
                 break
             except OSError as error:
                 last_probe_error=str(error)
+                if time.monotonic()>=next_probe_report:
+                    elapsed=round(time.monotonic()-started,1)
+                    result.setdefault('startup_probes',[]).append({'elapsed_seconds':elapsed,
+                        'error':last_probe_error})
+                    print(f'WAIT isolated EXE/service preparation {elapsed}s: {last_probe_error}',flush=True)
+                    next_probe_report=time.monotonic()+10
                 time.sleep(.15)
         else:
             result['startup_probe_error']=last_probe_error
             raise TimeoutError('isolated service did not start')
         html = fetch('/')
+        original_bookmark=json.loads(fetch('/api/works/1?page_limit=1'))['bookmark']
+        mock_epoch=original_bookmark['account_epoch']+1
+        mock_account='synthetic-mobile-account'
+        result['bookmark_response_replay']={'account_id':mock_account,'account_epoch':mock_epoch,
+            'scope':'Browser responses only; no real Pixiv connection or write'}
         assets = re.findall(r'/reader/assets/[^"\']+', html.decode('utf-8'))
         result['served_frontend_sha256'] = {'index.html': hashlib.sha256(html).hexdigest(),
             **{asset: hashlib.sha256(fetch(asset)).hexdigest() for asset in assets}}
@@ -211,11 +223,26 @@ def main():
                         route.fulfill(json={'operation_id':'synthetic-mobile-task','ok':True})
                     elif re.fullmatch(r'/api/works/\d+/bookmark(?:/refresh)?',path):
                         state['posts'].append(path+':'+route.request.method)
-                        route.fulfill(json={'work_id':int(path.split('/')[3]),'status':'confirmed',
-                            'value':False,'version':100,'account_epoch':1,'verified':True,
-                            'current_account_id':'90001','fact_account_id':'90001','error':None})
+                        route.fulfill(json=bookmark_fact(int(path.split('/')[3])))
+                    elif re.fullmatch(r'/api/works/\d+',path):
+                        response=route.fetch()
+                        data=response.json()
+                        data['bookmark']=bookmark_fact(int(path.split('/')[3]))
+                        route.fulfill(response=response,json=data)
+                    elif re.fullmatch(r'/api/reading-sessions/[^/]+/feed',path):
+                        response=route.fetch()
+                        data=response.json()
+                        for item in data['items']:
+                            item['bookmark']=bookmark_fact(item['work_id'])
+                        route.fulfill(response=response,json=data)
                     else:
                         route.continue_()
+
+                def bookmark_fact(work_id):
+                    return {'work_id':work_id,'status':'confirmed','value':False,'version':100,
+                        'account_epoch':mock_epoch,'verified':True,'current_account_id':mock_account,
+                        'fact_account_id':mock_account,'error':None,'cached':False,'operation_id':None,
+                        'desired':None,'confirmed_at':'2026-10-03T00:00:00Z'}
                 page.route('**/api/**',route_api)
 
                 def tap(locator):
@@ -359,15 +386,21 @@ def main():
             browser=None
     except Exception as error:
         result['failures'].append({'name':'harness','error':str(error),'traceback':traceback.format_exc()})
+        print('HARNESS FAILURE '+str(error),flush=True)
     finally:
         if browser:
-            browser.close()
+            try:
+                browser.close()
+            except Exception as error:
+                # Exiting sync_playwright already closes its browsers after an error.
+                result['browser_cleanup_note']=str(error)
         if process:
             stop.write_text('stop',encoding='utf-8')
             try:
                 process.wait(timeout=30)
             except subprocess.TimeoutExpired:
                 process.terminate();process.wait(timeout=10)
+            result['exe_exit_code']=process.returncode
             if output:
                 output.close()
         if server:

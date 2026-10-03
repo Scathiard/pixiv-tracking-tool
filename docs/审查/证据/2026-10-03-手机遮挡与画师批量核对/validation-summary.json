@@ -1,0 +1,53 @@
+{
+  "public_version": "0.2.0",
+  "internal_build": "20261003.7",
+  "source_commit": "6ff05c85c35dcc32f8fb0305a1d22b719ebd4d1d",
+  "frontend_units": {
+    "passed": 83,
+    "production_build": "passed"
+  },
+  "artist_maintenance_targeted": {
+    "passed": 87,
+    "seconds": 887.59,
+    "files": [
+      "test_reconcile.py",
+      "test_source_status.py",
+      "test_reconcile_api.py"
+    ]
+  },
+  "source_browser": {
+    "passed": 737,
+    "failed": 0,
+    "page_errors": 0
+  },
+  "packaged_browser": {
+    "passed": 737,
+    "failed": 0,
+    "page_errors": 0,
+    "service_ready_seconds": 78.265,
+    "process_exit_code": 0,
+    "fixture_works": 3,
+    "bookmark_identity": "synthetic browser response replay"
+  },
+  "smoke": {
+    "checks": 26,
+    "status": "SMOKE_OK"
+  },
+  "physical_phone_acceptance": false,
+  "real_account_test_operations": false,
+  "public_release": false,
+  "baseline_frontend_matches_daily_build_6": true,
+  "backend_full": {
+    "total": 527,
+    "passed": 526,
+    "failed": 1,
+    "seconds": 2176.4,
+    "remaining_failures_after_targeted_fix": 0,
+    "note": "Offline Runtime test fixture required a synthetic connected identity; product logic and original assertions unchanged"
+  },
+  "relocation_after_fixture_fix": {
+    "passed": 5,
+    "failed": 0,
+    "seconds": 61.86
+  }
+}
