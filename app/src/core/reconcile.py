@@ -84,8 +84,10 @@ class ReconcileHandler(ArchiveHandler):
             artist_ids = set(parameters["started_artist_ids"])
         else:
             context.checkpoint_parameters({**parameters, "started_work_ids": ids, "started_artist_ids": sorted(artist_ids)})
-        if self.profiles:
+        if self.source_status or self.profiles:
             for artist_id in sorted(artist_ids):
+                # Keep persisted keys/kinds compatible with earlier manifests.
+                # The same response checks the homepage and refreshes its profile.
                 specs.append(ItemSpec(f"profile-{artist_id}", "metadata_artist", {"artist_id": artist_id}, "checking", "artists"))
         context.report("inventory", len(ids), len(ids), "works", "已有作品清单已固定")
         return specs
@@ -97,6 +99,8 @@ class ReconcileHandler(ArchiveHandler):
             return project_revision(work, latest_revision(session, work.id)) if intent and intent.mode == "keep" and intent.revision == target["revision"] else None
 
     def execute(self, item, context):
+        if item.kind == "metadata_artist" and self.source_status:
+            return self._artist_source(item.target["artist_id"], context)
         if not item.kind.startswith("reconcile_"):
             return super().execute(item, context)
         work = self._current(item.target)
@@ -125,6 +129,37 @@ class ReconcileHandler(ArchiveHandler):
                 valid = False
             return ItemResult(detail={"valid": valid, "gap": not valid, "message": "动图原包与时序核验完成"})
         raise ValueError("未知维护步骤")
+
+    def _artist_source(self, artist_id, context):
+        from ..request_policy import ShutdownRequested
+        context.checkpoint()
+        with self.database.read() as session:
+            if session.get(Artist, artist_id) is None:
+                return ItemResult("skipped", {"message": "画师记录不存在，此项不再执行"})
+        try:
+            data = self.source_status.fetch_artist(artist_id)
+        except ShutdownRequested:
+            raise
+        except Exception as exc:
+            state, reason = classify_failure(exc)
+            availability = self.source_status.snapshot("artist", artist_id, self.source_status.account_context())
+            concluded = (state in ("unavailable", "private") and availability
+                and availability["state"] == state and availability["effective"])
+            return ItemResult("skipped" if concluded else "failed", {
+                **safe_failure(exc), "message": reason, "availability": availability})
+        availability = self.source_status.snapshot("artist", artist_id, self.source_status.account_context())
+        if data is None:
+            return ItemResult("skipped", {"availability": availability,
+                "message": "来源已有较新核对或账号已改变，旧响应不再应用"})
+        if self.profiles:
+            try:
+                self.profiles.save(artist_id, data)
+            except ShutdownRequested:
+                raise
+            except Exception as exc:
+                return ItemResult("failed", {**safe_failure(exc), "availability": availability,
+                    "message": "画师主页可访问，本地资料或头像刷新未完成，已有内容保留"})
+        return ItemResult(detail={"availability": availability, "message": "画师主页来源核对完成"})
 
     def _snapshot(self, work, target, context):
         from ..request_policy import ShutdownRequested

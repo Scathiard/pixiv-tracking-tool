@@ -159,6 +159,25 @@ def _reconcile_plan_batch(handler, parameters, context, cursor):
                 scope = scope.where(Work.artist_id.in_(parameters["artist_ids"]))
             cursor["ceiling"] = session.scalar(select(func.max(Work.id)).where(Work.id.in_(scope))) or 0
             cursor["profile_ceiling"] = session.scalar(select(func.max(Artist.id))) or 0
+            # New manifests check homepages before work snapshots. Older
+            # persisted cursors retain their original order and completed keys.
+            cursor["profiles_first"] = True
+        if cursor.get("profiles_first") and not cursor.get("profiles_complete"):
+            if handler.source_status or handler.profiles:
+                artists = select(Artist.id).where(Artist.id > cursor.get("profile_after", 0), Artist.id <= cursor["profile_ceiling"])
+                if "work_ids" in parameters:
+                    selected = select(Work.artist_id).join(ArchiveIntent, ArchiveIntent.pixiv_illust_id == Work.pixiv_illust_id).where(
+                        Work.id.in_(parameters["work_ids"]), Work.id <= cursor["ceiling"], ArchiveIntent.mode == "keep")
+                    artists = artists.where(Artist.id.in_(selected))
+                elif "artist_ids" in parameters:
+                    artists = artists.where(Artist.id.in_(parameters["artist_ids"]))
+                ids = list(session.scalars(artists.order_by(Artist.id).limit(ARTIST_BATCH + 1)))
+                for artist_id in ids[:ARTIST_BATCH]:
+                    specs.append(ItemSpec(f"profile-{artist_id}", "metadata_artist", {"artist_id": artist_id}, "checking", "artists"))
+                    cursor["profile_after"] = artist_id
+                cursor["profiles_complete"] = len(ids) <= ARTIST_BATCH
+                return PlanBatch(specs, cursor, False)
+            cursor["profiles_complete"] = True
         inventory = dict(cursor.get("work_inventory", {}))
         work_id = inventory.get("work_id")
         if work_id is None:
@@ -170,7 +189,7 @@ def _reconcile_plan_batch(handler, parameters, context, cursor):
                 scope = scope.where(Work.artist_id.in_(parameters["artist_ids"]))
             work_id = session.scalar(scope.order_by(Work.id).limit(1))
         if work_id is None:
-            if handler.profiles and "work_ids" not in parameters:
+            if not cursor.get("profiles_first") and (handler.source_status or handler.profiles) and "work_ids" not in parameters:
                 artists = select(Artist.id).where(Artist.id > cursor.get("profile_after", 0), Artist.id <= cursor["profile_ceiling"])
                 if "artist_ids" in parameters:
                     artists = artists.where(Artist.id.in_(parameters["artist_ids"]))
@@ -202,7 +221,7 @@ def _reconcile_plan_batch(handler, parameters, context, cursor):
         inventory.update(work_id=work_id, revision_id=revision.id)
         work_view = project_revision(work, revision)
         target = {"work_id": work_id, "revision": intent.revision, "work_revision_id": revision.id}
-        if handler.profiles and "work_ids" in parameters:
+        if not cursor.get("profiles_first") and (handler.source_status or handler.profiles) and "work_ids" in parameters:
             specs.append(ItemSpec(f"profile-{work.artist_id}", "metadata_artist", {"artist_id": work.artist_id}, "checking", "artists"))
         if inventory.get("stage", "pages") == "pages":
             first = inventory.get("page_after", 0)

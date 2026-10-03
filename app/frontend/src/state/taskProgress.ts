@@ -54,7 +54,8 @@ export function phaseStatus(op: Operation, automaticPaused = false, workerError 
   if (op.phase.name === 'waiting_connection') return '等待连接 Pixiv，任务进度已保留'
   if (op.state === 'queued') return automaticPaused && op.source === 'automatic' ? '等待恢复自动检查' : '已排队，等待处理'
   if (op.state === 'ready') return '已清点，等待执行'
-  const phase = phases[op.phase.name] || op.phase.name || '处理'
+  const checkingArtists = ['reconcile', 'compare'].includes(op.kind || '') && op.phase.name === 'checking' && op.phase.unit === 'artists'
+  const phase = checkingArtists ? '核对画师' : phases[op.phase.name] || op.phase.name || '处理'
   const unit = units[op.phase.unit] || op.phase.unit || '项'
   const done = Number.isFinite(op.phase.done) ? op.phase.done : 0
   return op.phase.total === null ? `${phase} · 已处理 ${done} ${unit}` : `${phase} · ${done} / ${op.phase.total} ${unit}`

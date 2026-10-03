@@ -6,6 +6,15 @@ function operation(id: string, state: string, done = 0, total: number | null = n
   return {id, label: id, state, source: 'manual', phase: {name: 'verifying', done, total, unit: 'files', detail: ''}, result: {}}
 }
 
+test('maintenance names its existing artist phase explicitly without relabeling new-work checks', () => {
+  const task = operation('maintenance', 'running', 2, 83)
+  task.kind = 'reconcile'
+  task.phase.name = 'checking'; task.phase.unit = 'artists'
+  assert.equal(phaseStatus(task), '核对画师 · 2 / 83 位画师')
+  task.kind = 'check'
+  assert.equal(phaseStatus(task), '检查 · 2 / 83 位画师')
+})
+
 test('queued manual submission cannot replace a running task with its waiting counts', () => {
   const first = operation('first', 'running', 4, 20)
   const second = operation('second', 'queued')

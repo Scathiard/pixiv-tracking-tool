@@ -9,6 +9,7 @@ import { observeCatalogueData, queueCatalogueUpdate } from './state/catalogue'
 import { writeTagValues } from './state/filterSelection'
 import { invalidateWorkCache, workDetail, workPath } from './state/workCache'
 import { startVisit, releaseVisit, visitEntry, locateVisit, visitPages, type ReadingVisit, type ReadingOrder } from './state/reading'
+import { observeVisibleViewport } from './state/viewport'
 import FilterPanel from './FilterPanel.vue'
 import GalleryView from './GalleryView.vue'
 import PageReader from './PageReader.vue'
@@ -53,6 +54,9 @@ const railRequest = new LatestIntent()
 let newContentAgain = false, revealNewContent = false, hiddenCatalogueUpdate = false
 let toastTimer = 0, lastKeyTime = 0, failedNavigation: (() => void) | null = null
 const sessionKey = computed(() => mode.value + ':' + (mode.value === 'reader' ? currentWork.value?.id : '') + ':' + scope.value + ':' + readerReset.value)
+let stopViewport: (() => void) | undefined
+onMounted(() => { stopViewport = observeVisibleViewport() })
+onBeforeUnmount(() => { stopViewport?.() })
 const heading = computed(() => mode.value === 'gallery' ? new URLSearchParams(scope.value).has('favorites') ? '收藏作品' : new URLSearchParams(scope.value).has('recent') ? '最近存入' : '我的图库' : activePage.value?.title || currentWork.value?.title || '阅览')
 const filterSummary = computed(() => {
   const params = new URLSearchParams(scope.value)

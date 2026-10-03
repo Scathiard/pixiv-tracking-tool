@@ -32,7 +32,14 @@ button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer;mi
 /* B layout: one sidebar, one gallery toolbar, and a quiet reading surface. */
 body,.app-header,.sidebar-body,.gallery-main,.task-status,.reading-toolbar,.settings-card,.artist-profile,.filter-panel,
 button,input,select,.card-picture{transition:background-color .18s ease,color .18s ease,border-color .18s ease}
-.app-shell{height:100dvh;min-height:0;display:grid;grid-template-columns:204px minmax(0,1fr);grid-template-rows:minmax(0,1fr);transition:grid-template-columns .18s ease}
+:root{
+  --app-height:min(100dvh,var(--visible-viewport-bottom,100dvh));
+  /* The visible viewport may already exclude the same bottom obstruction. */
+  --bottom-safe-inset:max(0px,calc(env(safe-area-inset-bottom,0px) - max(0px,calc(100dvh - var(--app-height)))));
+}
+.app-shell{height:100dvh;height:var(--app-height);min-height:0;display:grid;grid-template-columns:204px minmax(0,1fr);grid-template-rows:minmax(0,1fr);transition:grid-template-columns .18s ease}
+.zoom-view{bottom:auto;height:var(--app-height)}
+.zoom-toolbar{bottom:max(25px,var(--bottom-safe-inset))}
 .app-shell.sidebar-collapsed{grid-template-columns:64px minmax(0,1fr)}
 .app-shell>.gallery-layout,.app-shell>.reader-layout,.app-shell>.subpage,.app-shell>.settings-page{grid-column:2;grid-row:1;min-width:0;min-height:0}
 .app-shell>.subpage,.app-shell>.settings-page{height:100%;margin:0 auto;overscroll-behavior-y:contain}
@@ -119,7 +126,7 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
 .task-track{height:3px;margin:8px 0 0;background:var(--surface2)}
 .status-dot{flex:none;background:var(--accent)}
 
-.reader-stage{inset:0 0 calc(74px + env(safe-area-inset-bottom))}
+.reader-stage{inset:0 0 calc(74px + var(--bottom-safe-inset))}
 .detail-head{max-width:960px;padding:13px 22px 10px}
 .detail-nav{margin-bottom:6px;font-size:12px}
 .detail-title-row h1{font-size:19px;font-weight:570}
@@ -181,8 +188,8 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
   .mobile-head .brand{padding:0;font-size:12px}
   .mobile-head .brand-mark{width:25px;height:25px}
   .mobile-head-spacer{width:32px;margin-left:auto}
-  .sidebar-scrim{display:block;position:fixed;z-index:100;inset:50px 0 0;width:100%;height:calc(100dvh - 50px);padding:0;border:0;border-radius:0;background:#0008}
-  .sidebar-body{position:fixed;z-index:110;top:50px;bottom:0;left:0;width:min(290px,calc(100vw - 44px));height:auto;padding:16px 12px 22px;border-right:1px solid var(--line);background:var(--surface);visibility:hidden;transform:translateX(-105%);transition:transform .18s ease,background-color .18s ease,visibility .18s ease;box-shadow:8px 0 25px var(--shadow)}
+  .sidebar-scrim{display:block;position:fixed;z-index:100;inset:50px 0 0;width:100%;height:calc(var(--app-height) - 50px);padding:0;border:0;border-radius:0;background:#0008}
+  .sidebar-body{position:fixed;z-index:110;top:50px;bottom:auto;left:0;width:min(290px,calc(100vw - 44px));height:calc(var(--app-height) - 50px);padding:16px 12px 22px;border-right:1px solid var(--line);background:var(--surface);visibility:hidden;transform:translateX(-105%);transition:transform .18s ease,background-color .18s ease,visibility .18s ease;box-shadow:8px 0 25px var(--shadow)}
   .app-header.is-open .sidebar-body{visibility:visible;transform:translateX(0)}
   .sidebar-collapsed .sidebar-body{padding-inline:12px}
   .sidebar-collapsed .sidebar-head{flex-direction:row}
@@ -220,7 +227,7 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
   .stream-head{padding:12px 13px 7px}
   .stream-head p{display:none}
   .detail-caption{margin:28px 13px 65px;padding:0;font-size:12px}
-  .reading-toolbar{bottom:max(10px,env(safe-area-inset-bottom));max-width:calc(100% - 16px)}
+  .reading-toolbar{bottom:max(10px,var(--bottom-safe-inset));max-width:calc(100% - 16px)}
   .reading-toolbar-inner{gap:2px}
   .reading-toolbar .reading-counter{flex:0 1 110px;min-width:60px;padding-inline:4px}
   .reading-counter strong{font-size:11px}

@@ -10,9 +10,10 @@ from sqlalchemy import select
 from src.core.bookmarks import BookmarkService
 from src.core.database import ArchiveDatabase
 from src.core.media import CARD_MOTION_SPEC, Publisher
-from src.core.models import ArchiveIntent, Artist, Asset, Derivative, LocalPreference, Operation, OperationItem, RemoteBookmark, TrackingPolicy, Work, utcnow
+from src.core.models import ApplicationState, ArchiveIntent, Artist, Asset, Derivative, LocalPreference, Operation, OperationItem, RemoteBookmark, TrackingPolicy, Work, utcnow
+from src.core.profiles import ArtistProfiles
 from src.core.reconcile import ReconcileHandler
-from src.core.source_status import SourceStatus
+from src.core.source_status import ARTIST_PREFIX, SourceStatus
 from src.core.tasks import TaskQueue
 from src.core.revisions import history, latest_revision, revision_assets
 
@@ -39,9 +40,16 @@ class Client:
         self.account, self.calls, self.failures, self.hook = "account-a", [], {}, None
         self.types = {}
         self.counts = {}
+        self.artist_calls, self.artist_failures = [], {}
 
     def get_account_id(self):
         return self.account
+
+    def get_artist_detail(self, remote_id):
+        self.artist_calls.append(remote_id)
+        if remote_id in self.artist_failures:
+            raise self.artist_failures[remote_id]
+        return {"user_id": remote_id, "name": "refreshed artist", "biography": "remote bio"}
 
     def get_illust_detail(self, remote_id):
         self.calls.append(remote_id)
@@ -296,9 +304,14 @@ def test_restart_completed_inspections_and_snapshot_not_replayed(archive):
     remote_id = seed(archive, missing=(1,))
     operation_id = queue.submit("reconcile", {}, "manual")["operation_id"]
     round_id = queue._claim_round()
-    assert queue._step("check", round_id)  # catalogue plan
-    assert queue._step("check", round_id)  # one remote snapshot
+    while not client.calls:
+        assert queue._step("check", round_id)  # Plan bounded inventory, check homepage, obtain one work snapshot.
+    assert client.artist_calls == ["10"] and client.calls == [remote_id]
     assert queue._step("local", round_id)  # one verified page
+    with db.read() as session:
+        snapshot = session.scalar(select(OperationItem).where(OperationItem.operation_id == operation_id,
+            OperationItem.item_key == "snapshot-1"))
+        assert snapshot.state == "succeeded" and snapshot.attempts == 1
     with db.write() as session:
         op = session.get(Operation, operation_id)
         op.state = "interrupted"
@@ -306,6 +319,7 @@ def test_restart_completed_inspections_and_snapshot_not_replayed(archive):
     resumed.recover()
     assert resumed.run_round()
     assert client.calls == [remote_id]
+    assert client.artist_calls == ["10"]
     assert downloader.calls == [f"https://i.pximg.net/{remote_id}_p1.png"]
     with db.read() as session:
         completed = session.scalar(select(OperationItem).where(OperationItem.operation_id == operation_id,
@@ -351,12 +365,137 @@ def test_profiles_include_zero_work_artists_but_respect_explicit_work_scope(arch
     class Profiles:
         def __init__(self):
             self.calls = []
-        def refresh(self, artist_id):
+        def save(self, artist_id, data):
             self.calls.append(artist_id)
     profiles = Profiles()
     queue.handlers["reconcile"].profiles = profiles
     run(archive, scope)
     assert profiles.calls == ([1, 2] if scope is None else [2] if "artist_ids" in scope else [1])
+
+
+@pytest.mark.parametrize("scope,expected", [
+    ({}, ["10", "20", "30"]), ({"artist_ids": [2, 2]}, ["20"]),
+    ({"work_ids": [1, 2, 1]}, ["10"]), ({"work_ids": []}, [])])
+def test_homepage_checks_all_local_artists_once_and_respect_selected_scope(archive, scope, expected):
+    db, root, client, downloader, queue = archive
+    seed(archive)
+    seed(archive, work_id=2)
+    with db.write() as session:
+        for artist_id in (2, 3):
+            artist = Artist(id=artist_id, pixiv_user_id=str(artist_id * 10), name="zero work artist",
+                biography="cached bio", avatar_path="cached.png")
+            artist.policy = TrackingPolicy(mode="stopped" if artist_id == 2 else "active")
+            session.add(artist)
+    handler = queue.handlers["reconcile"]
+    handler.profiles = ArtistProfiles(db, handler.publisher, client, downloader, source_status=handler.source_status)
+    result = run(archive, scope)
+    assert result["result"]["outcome"] == ("succeeded" if expected else "empty")
+    assert client.artist_calls == expected
+    with db.read() as session:
+        assert len(list(session.scalars(select(Operation)))) == 1
+        items = list(session.scalars(select(OperationItem).where(OperationItem.kind == "metadata_artist")))
+        assert len(items) == len(expected)
+        assert all(item.phase == "checking" and item.unit == "artists" and item.attempts == 1 for item in items)
+        snapshots = list(session.scalars(select(OperationItem).where(OperationItem.kind == "reconcile_snapshot")))
+        if items and snapshots:
+            assert max(item.position for item in items) < min(item.position for item in snapshots)
+        assert session.get(Artist, 1).policy.mode == "stopped"
+        for remote_id in expected:
+            artist = session.get(Artist, int(remote_id) // 10)
+            assert (artist.name, artist.biography, artist.avatar_path) == ("refreshed artist", "remote bio", "cached.png")
+            assert handler.source_status.snapshot("artist", artist.id, client.account)["state"] == "available"
+    if expected:
+        assert result["result"]["phase_snapshots"]["checking:artists"] == {
+            "phase": "checking", "unit": "artists", "done": len(expected), "total": len(expected)}
+
+
+@pytest.mark.parametrize("status,code,expected", [
+    (404, "artist_unavailable", "unavailable"), (400, "artist_private", "private"),
+    (401, "api_unauthorized", "available"), (403, "api_forbidden", "available"),
+    (429, "api_rate_limit", "available"), (500, "api_error", "available"),
+    (503, "api_unavailable", "available"), (None, None, "available")])
+def test_maintenance_homepage_fact_failures_preserve_profile_and_restore(archive, status, code, expected):
+    from src.client import PixivRequestError
+    db, root, client, downloader, queue = archive
+    seed(archive)
+    files = {path.name: path.read_bytes() for path in root.iterdir()}
+    handler = queue.handlers["reconcile"]
+    source = handler.source_status
+    handler.profiles = ArtistProfiles(db, handler.publisher, client, downloader, source_status=source)
+    version = source.begin("artist", 1, client.account)
+    source.apply_available("artist", 1, {"user_id": "10"}, version, client.account)
+    client.artist_failures["10"] = PixivRequestError(status, "SECRET", failure_code=code) if status else OSError("SECRET")
+    result = run(archive, {"artist_ids": [1]})
+    inaccessible = expected in ("unavailable", "private")
+    assert result["result"]["outcome"] == ("succeeded" if inaccessible else "partial_failure")
+    assert source.snapshot("artist", 1, client.account)["state"] == expected
+    with db.read() as session:
+        artist = session.get(Artist, 1)
+        assert (artist.name, artist.biography, artist.avatar_path) == ("cached artist", "cached bio", "cached.png")
+        item = session.scalar(select(OperationItem).where(OperationItem.kind == "metadata_artist"))
+        assert item.state == ("skipped" if inaccessible else "failed")
+        assert "SECRET" not in str(item.result)
+        attempt = session.get(ApplicationState, ARTIST_PREFIX + "10").value["last_attempt"]
+        assert attempt["state"] == (expected if inaccessible else "failed")
+    assert all((root / path).read_bytes() == data for path, data in files.items())
+    assert downloader.calls == []
+    client.artist_failures.clear()
+    result = run(archive, {"artist_ids": [1]})
+    assert result["result"]["outcome"] == "succeeded"
+    assert source.snapshot("artist", 1, client.account)["state"] == "available"
+    assert client.artist_calls == ["10", "10"]
+
+
+def test_homepage_pause_restart_keeps_old_manifest_and_does_not_recount(archive):
+    db, _, client, _, queue = archive
+    with db.write() as session:
+        session.add(Artist(id=2, pixiv_user_id="20", name="second stopped"))
+    operation_id = queue.submit("reconcile", {}, "检查并补齐图库")["operation_id"]
+    assert queue._step("check")  # Freeze the same profile-* / metadata_artist manifest as old builds.
+    while not client.artist_calls:
+        assert queue._step("check")  # Finish inventory, then settle the first homepage.
+    assert client.artist_calls == ["10"]
+    queue.set_manual_paused(operation_id, True)
+    resumed = TaskQueue(db, queue.handlers)
+    resumed.recover()
+    assert not resumed._step("check")
+    with db.write() as session:
+        session.add(Artist(id=3, pixiv_user_id="30", name="added after pause"))
+    resumed.set_manual_paused(operation_id, False)
+    assert resumed.run_round()
+    assert client.artist_calls == ["10", "20"]
+    result = resumed.details(operation_id)
+    assert result["counts"] == {"succeeded": 2}
+    assert result["result"]["phase_snapshots"]["checking:artists"] == {
+        "phase": "checking", "unit": "artists", "done": 2, "total": 2}
+    assert all(item["attempts"] == 1 for item in result["items"])
+
+
+def test_existing_batched_cursor_retains_work_first_order_and_completed_items(archive):
+    db, _, client, _, queue = archive
+    remote_id = seed(archive)
+    operation_id = queue.submit("reconcile", {}, "已有维护")["operation_id"]
+    with db.write() as session:
+        operation = session.get(Operation, operation_id)
+        operation.result = {"planning_complete": False, "planning_cursor": {"ceiling": 1, "profile_ceiling": 1}}
+    while not client.calls:
+        assert queue._step("check")
+    assert client.calls == [remote_id] and client.artist_calls == []
+    queue.set_manual_paused(operation_id, True)
+    restored = TaskQueue(db, queue.handlers)
+    restored.recover()
+    assert not restored._step("check")
+    restored.set_manual_paused(operation_id, False)
+    assert restored.run_round()
+    assert client.calls == [remote_id] and client.artist_calls == ["10"]
+    with db.read() as session:
+        snapshot = session.scalar(select(OperationItem).where(OperationItem.operation_id == operation_id,
+            OperationItem.item_key == "snapshot-1"))
+        profile = session.scalar(select(OperationItem).where(OperationItem.operation_id == operation_id,
+            OperationItem.item_key == "profile-1"))
+        assert snapshot.position < profile.position
+        assert snapshot.attempts == profile.attempts == 1
+        assert session.get(Operation, operation_id).result["planning_cursor"].get("profiles_first") is None
 
 
 def test_valid_zip_with_mismatched_timing_is_repaired_and_preserves_pair_boundary(archive):

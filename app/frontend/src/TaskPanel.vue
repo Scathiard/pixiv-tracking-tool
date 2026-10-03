@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { api } from './api'
 import { activeStates, hasProgressTrack, phaseStatus, selectPrimary, shouldNotifyFailure, type Operation } from './state/taskProgress'
 import { catalogueUpdates } from './state/catalogue'
+import Icon from './components/Icon.vue'
 interface Snapshot {
   round: {id: string; state: string} | null
   operations: Operation[]; worker_error?: string; automatic_paused?: boolean; catalogue_revision?: number; active_operation_count?: number
@@ -124,7 +125,11 @@ defineExpose({showTask})
 <template>
   <aside v-if="visible" class="task-status" :class="{stale}" data-no-navigation aria-live="polite">
     <template v-if="primary">
-      <div class="task-primary"><span class="status-dot" /> <strong>{{ primary.label }}</strong><span class="task-phase">{{ phaseText }}</span><button v-if="primary.control?.can_pause || primary.control?.can_resume" class="task-control" :disabled="controlling || stale" @click="controlTask(primary)">{{ controlling ? '正在提交' : primary.pause_requested ? '继续' : '暂停' }}</button></div>
+      <div class="task-primary">
+        <span class="status-dot" />
+        <div class="task-copy"><div class="task-heading"><strong>{{ primary.label }}</strong><span v-if="othersCount" class="task-other-count" :title="otherText">另有 {{ othersCount }} 项</span></div><span class="task-phase">{{ phaseText }}</span></div>
+        <button v-if="primary.control?.can_pause || primary.control?.can_resume" class="task-control" :disabled="controlling || stale" :aria-label="controlling ? '正在提交' : primary.pause_requested ? '继续' : '暂停'" :title="primary.pause_requested ? '继续当前任务' : '暂停当前任务'" @click="controlTask(primary)"><Icon :name="controlling ? 'clock' : primary.pause_requested ? 'play' : 'pause'" /><span class="task-control-label">{{ controlling ? '正在提交' : primary.pause_requested ? '继续' : '暂停' }}</span></button>
+      </div>
       <div v-if="measurable" class="task-track" role="progressbar" :aria-label="`${primary.label}：${phaseText}`" :aria-valuenow="primary.phase.done" aria-valuemin="0" :aria-valuemax="primary.phase.total ?? undefined"><span :style="{width: trackWidth}" /></div>
       <p v-if="(othersCount || focusedId && !active.some(op => op.id === focusedId)) && !stale" class="task-secondary" :title="otherText">{{ othersCount ? `另有 ${othersCount} 项：` : '' }}{{ otherText }}</p>
     </template>
@@ -138,7 +143,23 @@ defineExpose({showTask})
 <style scoped>
 /* This informational layer must not cover the controls beneath it. */
 .task-status { pointer-events: none; }
-.task-control { pointer-events: auto; border: 0; border-radius: 6px; background: var(--surface-2, #e6edf3); color: inherit; padding: 4px 10px; cursor: pointer; flex-shrink: 0; }
+.task-copy, .task-heading { display: contents; }
+.task-other-count, .task-control .icon { display: none; }
+.task-control { pointer-events: auto; border: 0; border-radius: 6px; background: var(--surface2); color: var(--text); padding: 4px 10px; cursor: pointer; flex-shrink: 0; }
 .task-control:disabled { opacity: .55; }
 .task-secondary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 760px) {
+  .task-status { top: 54px; right: 8px; width: calc(100vw - 16px); padding: 0 8px 3px; border-radius: 5px; box-shadow: 0 2px 8px var(--shadow); }
+  .task-primary { min-height: 44px; gap: 6px; }
+  .task-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 1px; }
+  .task-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .task-heading strong { flex: 1; font-size: 12px; line-height: 15px; }
+  .task-other-count { display: inline; flex: none; color: var(--muted); font-size: 10px; }
+  .task-phase { margin-left: 0; line-height: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .task-control { width: 44px; height: 44px; min-height: 44px; padding: 0; background: transparent; }
+  .task-control .icon { display: block; width: 18px; height: 18px; }
+  .task-control-label, .task-secondary[title] { display: none; }
+  .task-track { height: 2px; margin: 0; }
+  .task-error { margin-top: 3px; }
+}
 </style>
