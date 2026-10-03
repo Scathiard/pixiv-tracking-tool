@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="6" skipped="0" tests="104" time="258.386" timestamp="2026-10-03T22:17:56.242303+08:00" hostname="Baseline"><testcase classname="tests.test_archive_tasks" name="test_dedupe_preserves_purpose_and_scope" time="0.841" /><testcase classname="tests.test_archive_tasks" name="test_user_work_claims_a_round_before_waiting_maintenance" time="1.515" /><testcase classname="tests.test_archive_tasks" name="test_new_submission_does_not_change_frozen_denominator" time="2.651" /><testcase classname="tests.test_archive_tasks" name="test_checking_has_no_fake_total_and_phase_update_is_atomic" time="1.491" /><testcase classname="tests.test_archive_tasks" name="test_partial_failure_and_unexecuted_dependency_are_not_success" time="1.298" /><testcase classname="tests.test_archive_tasks" name="test_empty_manifest_is_no_work_not_failure" time="0.667" /><testcase classname="tests.test_archive_tasks" name="test_restart_preserves_total_and_does_not_repeat_settled_items" time="1.382" /><testcase classname="tests.test_archive_tasks" name="test_inventory_failure_is_persistent_and_not_empty_success" time="0.697" /><testcase classname="tests.test_archive_tasks" name="test_history_cursor_and_phase_records_survive_reopening" time="2.644" /><testcase classname="tests.test_archive_tasks" name="test_failed_items_can_be_reviewed_beyond_first_page" time="23.770" /><testcase classname="tests.test_task_control_delivery" name="test_manual_pause_persists_and_continues_only_unfinished" time="1.578" /><testcase classname="tests.test_task_control_delivery" name="test_later_small_operation_runs_within_two_yields_and_big_keeps_progress" time="1.137" /><testcase classname="tests.test_task_control_delivery" name="test_full_foreground_admission_window_cannot_starve_maintenance" time="9.211" /><testcase classname="tests.test_task_control_delivery" name="test_pause_parent_holds_download_child_without_changing_automatic_pause" time="0.843" /><testcase classname="tests.test_task_control_delivery" name="test_cooldown_yields_worker_and_retry_budget_is_finite" time="1.557" /><testcase classname="tests.test_task_control_delivery" name="test_planner_batches_resume_cursor_without_repeating_manifest" time="4.021" /><testcase classname="tests.test_task_control_delivery" name="test_indexed_claim_scale_and_short_write_boundary[2000]" time="3.673" /><testcase classname="tests.test_task_control_delivery" name="test_indexed_claim_scale_and_short_write_boundary[20000]" time="5.018" /><testcase classname="tests.test_task_control_delivery" name="test_indexed_claim_scale_and_short_write_boundary[100000]" time="11.019" /><testcase classname="tests.test_task_control_delivery" name="test_two_thousand_page_inventory_is_bounded_and_pause_cursor_survives" time="10.545" /><testcase classname="tests.test_task_control_delivery" name="test_legacy_bookmark_item_keeps_identity_and_dependency_barrier_across_pause[False]" time="3.469" /><testcase classname="tests.test_task_control_delivery" name="test_legacy_bookmark_item_keeps_identity_and_dependency_barrier_across_pause[True]" time="3.530" /><testcase classname="tests.test_v022_api" name="test_shared_filters_count_feed_and_location" time="0.966" /><testcase classname="tests.test_v022_api" name="test_automatic_pause_survives_queue_recreation_and_manual_jobs_run" time="1.403" /><testcase classname="tests.test_v022_api" name="test_pause_between_round_claim_and_automatic_start_defers_only_unstarted_job" time="1.908" /><testcase classname="tests.test_v022_api" name="test_started_automatic_round_finishes_after_pause" time="2.269" /><testcase classname="tests.test_v022_api" name="test_settings_and_artist_routes_on_offline_synthetic_runtime" time="2.339" /><testcase classname="tests.test_v022_integration" name="test_profile_cache_is_local_allowlisted_and_failed_refresh_keeps_avatar" time="4.848" /><testcase classname="tests.test_v022_integration" name="test_late_discovery_cannot_overwrite_new_user_bookmark" time="1.264" /><testcase classname="tests.test_v022_integration" name="test_missing_or_invalid_metadata_never_means_unbookmarked" time="1.361" /><testcase classname="tests.test_v022_integration" name="test_bulk_sync_reports_unconfirmed_fields_and_includes_stopped_artists" time="4.084" /><testcase classname="tests.test_v022_integration" name="test_metadata_response_for_wrong_work_is_not_saved" time="1.364" /><testcase classname="tests.test_v022_integration" name="test_runtime_keeps_ownership_while_bookmark_readback_is_running" time="1.273" /><testcase classname="tests.test_v022_integration" name="test_startup_auth_wakes_readback_only_and_bad_identity_stays_offline[True]" time="1.648" /><testcase classname="tests.test_v022_integration" name="test_startup_auth_wakes_readback_only_and_bad_identity_stays_offline[False]" time="1.359" /><testcase classname="tests.test_reconcile_api" name="test_unified_submission_is_one_deduplicated_persistent_operation" time="1.647" /><testcase classname="tests.test_reconcile_api" name="test_maintenance_rejects_ambiguous_unsafe_or_private_task_parameters[body0]" time="1.059" /><testcase classname="tests.test_reconcile_api" name="test_maintenance_rejects_ambiguous_unsafe_or_private_task_parameters[body1]" time="0.692" /><testcase classname="tests.test_reconcile_api" name="test_maintenance_rejects_ambiguous_unsafe_or_private_task_parameters[body2]" time="0.660" /><testcase classname="tests.test_reconcile_api" name="test_maintenance_rejects_ambiguous_unsafe_or_private_task_parameters[body3]" time="0.710" /><testcase classname="tests.test_reconcile_api" name="test_maintenance_rejects_ambiguous_unsafe_or_private_task_parameters[body4]" time="0.693" /><testcase classname="tests.test_reconcile_api" name="test_explicit_empty_range_remains_empty_instead_of_becoming_all" time="0.737" /><testcase classname="tests.test_reconcile_api" name="test_homepage_check_runs_only_selected_artist_and_preserves_local_profile" time="1.657" /><testcase classname="tests.test_reconcile_api" name="test_source_list_is_local_paginated_and_separates_evidence_from_404" time="0.970" /><testcase classname="tests.test_reconcile_api" name="test_source_list_validates_pagination_and_group[kind=unknown]" time="0.634" /><testcase classname="tests.test_reconcile_api" name="test_source_list_validates_pagination_and_group[group=private]" time="0.628" /><testcase classname="tests.test_reconcile_api" name="test_source_list_validates_pagination_and_group[limit=101]" time="0.732" /><testcase classname="tests.test_reconcile_api" name="test_source_list_validates_pagination_and_group[limit=0]" time="0.647" /><testcase classname="tests.test_reconcile_api" name="test_source_list_validates_pagination_and_group[offset=-1]" time="0.643" /><testcase classname="tests.test_archive_api" name="test_unlogged_local_browsing_organizing_and_task_feedback" time="2.741" /><testcase classname="tests.test_archive_api" name="test_paused_and_stopped_artists_remain_filterable" time="0.981" /><testcase classname="tests.test_archive_api" name="test_asset_and_detail_endpoints_reject_private_or_suppressed_files" time="0.823" /><testcase classname="tests.test_archive_api" name="test_backfill_requires_explicit_selection_and_secret_parameters_are_rejected" time="0.659" /><testcase classname="tests.test_archive_api" name="test_offline_bookmark_write_requires_current_account_and_preserves_local_fact" time="0.703" /><testcase classname="tests.test_archive_api" name="test_slow_remote_artist_search_does_not_block_local_library" time="0.936" /><testcase classname="tests.test_archive_api" name="test_parseable_http_errors_are_never_success[401]" time="0.001" /><testcase classname="tests.test_archive_api" name="test_parseable_http_errors_are_never_success[403]" time="0.001" /><testcase classname="tests.test_archive_api" name="test_parseable_http_errors_are_never_success[429]" time="0.001" /><testcase classname="tests.test_archive_api" name="test_parseable_http_errors_are_never_success[500]" time="0.001" /><testcase classname="tests.test_archive_api" name="test_missing_restriction_metadata_remains_unknown" time="0.000" /><testcase classname="tests.test_archive_pages" name="test_existing_pages_render_from_the_same_new_local_core" time="1.397" /><testcase classname="tests.test_archive_pages" name="test_legacy_pages_preserve_literal_repeated_tag_in_navigation" time="1.329" /><testcase classname="tests.test_archive_pages" name="test_legacy_submit_has_identifiable_persistent_result" time="1.708" /><testcase classname="tests.test_archive_pages" name="test_saved_port_does_not_rewrite_running_links" time="0.932" /><testcase classname="tests.test_archive_pages" name="test_old_schema_is_not_silently_upgraded_on_normal_start" time="0.349" /><testcase classname="tests.test_missing_media_maintenance" name="test_failed_original_survives_thumbnail_inventory_then_recovers" time="3.268" /><testcase classname="tests.test_missing_media_maintenance" name="test_maintenance_is_bounded_deduped_and_restart_respects_rejection" time="3.468" /><testcase classname="tests.test_missing_media_maintenance" name="test_offline_local_thumbnail_and_suppressed_or_legacy_gif_are_excluded" time="1.608" /><testcase classname="tests.test_missing_media_maintenance" name="test_local_batch_has_eight_work_limit" time="8.161" /><testcase classname="tests.test_missing_media_maintenance" name="test_rate_limit_sets_remote_hold[ApiRateLimit-200]" time="1.761" /><testcase classname="tests.test_missing_media_maintenance" name="test_rate_limit_sets_remote_hold[ImageRateLimit-None]" time="1.530" /><testcase classname="tests.test_missing_media_maintenance" name="test_remote_denial_does_not_delay_local_thumbnail" time="2.360" /><testcase classname="tests.test_missing_media_maintenance" name="test_paused_automatic_check_does_not_block_maintenance" time="2.664" /><testcase classname="tests.test_missing_media_maintenance" name="test_known_invalid_is_eligible_but_unknown_path_is_not" time="1.950" /><testcase classname="tests.test_missing_media_maintenance" name="test_maintenance_does_not_reverify_verified_sibling_pages" time="2.159" /><testcase classname="tests.test_missing_media_maintenance" name="test_unknown_first_page_with_local_file_makes_thumbnail_only" time="1.864" /><testcase classname="tests.test_missing_media_maintenance" name="test_remote_cursor_reaches_due_work_after_128_waiting_with_high_local_id" time="2.462" /><testcase classname="tests.test_shutdown" name="test_tray_quit_accepts_pending_or_paused_work[False-False]" time="0.312" /><testcase classname="tests.test_shutdown" name="test_tray_quit_accepts_pending_or_paused_work[True-False]" time="0.000" /><testcase classname="tests.test_shutdown" name="test_tray_quit_accepts_pending_or_paused_work[False-True]" time="0.001" /><testcase classname="tests.test_shutdown" name="test_stop_keeps_current_safe_result_and_unclaimed_items[checking-discover_work]" time="3.580"><failure message="assert False&#10; +  where False = wait(3)&#10; +    where wait = &lt;threading.Event at 0x1c93856b590: unset&gt;.wait">tmp_path = WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/.devtools/test-runs/b5-task-gate-regression1/test_stop_keeps_current_safe_r0')
+phase = 'checking', kind = 'discover_work'
+
+    @pytest.mark.parametrize("phase,kind", [("checking", "discover_work"), ("downloading", "download"), ("converting", "gif")])
+    def test_stop_keeps_current_safe_result_and_unclaimed_items(tmp_path, phase, kind):
+        from src.core.runtime import Runtime
+        from src.core.models import Operation, OperationItem
+        from src.core.ownership import LibraryInUse, LibraryLease
+        from src.core.tasks import ItemResult, ItemSpec
+        from sqlalchemy import select
+    
+        entered, release = Event(), Event()
+        runtime = Runtime(tmp_path / "archive.db", tmp_path / "images", create=True, client=object())
+        runtime.maintenance.tick = lambda: None
+    
+        class Held:
+            def plan(self, parameters, context):
+                return [ItemSpec(str(index), kind, {}, phase, depends_on=() if index == 0 else ("0",)) for index in range(3)]
+    
+            def execute(self, item, context):
+                entered.set()
+                assert release.wait(3)
+                # Represents a write/publication that already entered its critical
+                # section: shutdown must let it commit and count as success.
+                return ItemResult()
+    
+        runtime.queue.handlers["repair"] = Held()
+        operation = runtime.queue.submit("repair", {}, "held")["operation_id"]
+        runtime.start()
+        try:
+&gt;           assert entered.wait(3)
+E           assert False
+E            +  where False = wait(3)
+E            +    where wait = &lt;threading.Event at 0x1c93856b590: unset&gt;.wait
+
+tests\test_shutdown.py:51: AssertionError</failure></testcase><testcase classname="tests.test_shutdown" name="test_stop_keeps_current_safe_result_and_unclaimed_items[downloading-download]" time="3.556"><failure message="assert False&#10; +  where False = wait(3)&#10; +    where wait = &lt;threading.Event at 0x1c9322f3170: unset&gt;.wait">tmp_path = WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/.devtools/test-runs/b5-task-gate-regression1/test_stop_keeps_current_safe_r1')
+phase = 'downloading', kind = 'download'
+
+    @pytest.mark.parametrize("phase,kind", [("checking", "discover_work"), ("downloading", "download"), ("converting", "gif")])
+    def test_stop_keeps_current_safe_result_and_unclaimed_items(tmp_path, phase, kind):
+        from src.core.runtime import Runtime
+        from src.core.models import Operation, OperationItem
+        from src.core.ownership import LibraryInUse, LibraryLease
+        from src.core.tasks import ItemResult, ItemSpec
+        from sqlalchemy import select
+    
+        entered, release = Event(), Event()
+        runtime = Runtime(tmp_path / "archive.db", tmp_path / "images", create=True, client=object())
+        runtime.maintenance.tick = lambda: None
+    
+        class Held:
+            def plan(self, parameters, context):
+                return [ItemSpec(str(index), kind, {}, phase, depends_on=() if index == 0 else ("0",)) for index in range(3)]
+    
+            def execute(self, item, context):
+                entered.set()
+                assert release.wait(3)
+                # Represents a write/publication that already entered its critical
+                # section: shutdown must let it commit and count as success.
+                return ItemResult()
+    
+        runtime.queue.handlers["repair"] = Held()
+        operation = runtime.queue.submit("repair", {}, "held")["operation_id"]
+        runtime.start()
+        try:
+&gt;           assert entered.wait(3)
+E           assert False
+E            +  where False = wait(3)
+E            +    where wait = &lt;threading.Event at 0x1c9322f3170: unset&gt;.wait
+
+tests\test_shutdown.py:51: AssertionError</failure></testcase><testcase classname="tests.test_shutdown" name="test_stop_keeps_current_safe_result_and_unclaimed_items[converting-gif]" time="3.738"><failure message="assert False&#10; +  where False = wait(3)&#10; +    where wait = &lt;threading.Event at 0x1c9322c5a90: unset&gt;.wait">tmp_path = WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/.devtools/test-runs/b5-task-gate-regression1/test_stop_keeps_current_safe_r2')
+phase = 'converting', kind = 'gif'
+
+    @pytest.mark.parametrize("phase,kind", [("checking", "discover_work"), ("downloading", "download"), ("converting", "gif")])
+    def test_stop_keeps_current_safe_result_and_unclaimed_items(tmp_path, phase, kind):
+        from src.core.runtime import Runtime
+        from src.core.models import Operation, OperationItem
+        from src.core.ownership import LibraryInUse, LibraryLease
+        from src.core.tasks import ItemResult, ItemSpec
+        from sqlalchemy import select
+    
+        entered, release = Event(), Event()
+        runtime = Runtime(tmp_path / "archive.db", tmp_path / "images", create=True, client=object())
+        runtime.maintenance.tick = lambda: None
+    
+        class Held:
+            def plan(self, parameters, context):
+                return [ItemSpec(str(index), kind, {}, phase, depends_on=() if index == 0 else ("0",)) for index in range(3)]
+    
+            def execute(self, item, context):
+                entered.set()
+                assert release.wait(3)
+                # Represents a write/publication that already entered its critical
+                # section: shutdown must let it commit and count as success.
+                return ItemResult()
+    
+        runtime.queue.handlers["repair"] = Held()
+        operation = runtime.queue.submit("repair", {}, "held")["operation_id"]
+        runtime.start()
+        try:
+&gt;           assert entered.wait(3)
+E           assert False
+E            +  where False = wait(3)
+E            +    where wait = &lt;threading.Event at 0x1c9322c5a90: unset&gt;.wait
+
+tests\test_shutdown.py:51: AssertionError</failure></testcase><testcase classname="tests.test_shutdown" name="test_cooperative_stop_preserves_pending_without_failure[True]" time="0.836" /><testcase classname="tests.test_shutdown" name="test_cooperative_stop_preserves_pending_without_failure[False]" time="0.889" /><testcase classname="tests.test_shutdown" name="test_bookmark_exit_keeps_write_and_queued_intents_for_readback" time="0.939" /><testcase classname="tests.test_shutdown" name="test_lifespan_waits_for_auth_and_real_close" time="0.596" /><testcase classname="tests.test_shutdown" name="test_repeated_shutdown_during_startup_is_remembered" time="0.001" /><testcase classname="tests.test_shutdown" name="test_closing_replaced_runtime_does_not_cancel_shared_client" time="0.431" /><testcase classname="tests.test_shutdown" name="test_worker_stop_at_maintenance_boundary_is_clean" time="0.543" /><testcase classname="tests.test_shutdown" name="test_tray_remains_visible_until_service_has_released_library" time="0.001" /><testcase classname="tests.test_shutdown" name="test_actual_tray_and_server_process_finishes[idle]" time="4.997" /><testcase classname="tests.test_shutdown" name="test_actual_tray_and_server_process_finishes[paused]" time="4.819" /><testcase classname="tests.test_shutdown" name="test_actual_tray_and_server_process_finishes[check]" time="12.041"><failure message="subprocess.TimeoutExpired: Command '['D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Scripts\\python.exe', 'D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261003.5\\app\\tests\\shutdown_process.py', 'D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b7-shutdown-process-8d55abf7099e4a66897d1ae26b8bc6b6', 'check']' timed out after 12 seconds">tmp_path = WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/.devtools/test-runs/b5-task-gate-regression1/test_actual_tray_and_server_pr2')
+mode = 'check'
+
+    @pytest.mark.parametrize("mode", ["idle", "paused", "check", "download", "local", "auth", "starting", "factory"])
+    def test_actual_tray_and_server_process_finishes(tmp_path, mode):
+        import json
+        from pathlib import Path
+        import subprocess
+        import sys
+    
+        checkout = Path(__file__).resolve().parents[2]
+        project = checkout.parents[1] if checkout.parent.name == ".worktrees" else checkout
+        allowed = project / ".devtools" / "test-runs"
+        if tmp_path.is_relative_to(allowed) and tmp_path.relative_to(allowed).parts[0].startswith("b7-shutdown-"):
+            root = tmp_path / "child"
+        else:
+            # Full-suite callers can choose another fresh basetemp; the retained
+            # process probe still uses its dedicated and explicitly isolated root.
+            root = allowed / ("b7-shutdown-process-" + uuid4().hex)
+&gt;       result = subprocess.run([sys.executable, str(Path(__file__).with_name("shutdown_process.py")), str(root), mode],
+                                capture_output=True, text=True, timeout=12)
+
+tests\test_shutdown.py:298: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\subprocess.py:550: in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\subprocess.py:1209: in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;Popen: returncode: 1 args: ['D:\\claude_sandbox\\pixiv-tracking-tool\\.devt...&gt;
+input = None, endtime = 1173277.328, orig_timeout = 12
+
+    def _communicate(self, input, endtime, orig_timeout):
+        # Start reader threads feeding into a list hanging off of this
+        # object, unless they've already been started.
+        if self.stdout and not hasattr(self, "_stdout_buff"):
+            self._stdout_buff = []
+            self.stdout_thread = \
+                    threading.Thread(target=self._readerthread,
+                                     args=(self.stdout, self._stdout_buff))
+            self.stdout_thread.daemon = True
+            self.stdout_thread.start()
+        if self.stderr and not hasattr(self, "_stderr_buff"):
+            self._stderr_buff = []
+            self.stderr_thread = \
+                    threading.Thread(target=self._readerthread,
+                                     args=(self.stderr, self._stderr_buff))
+            self.stderr_thread.daemon = True
+            self.stderr_thread.start()
+    
+        if self.stdin:
+            self._stdin_write(input)
+    
+        # Wait for the reader threads, or time out.  If we time out, the
+        # threads remain reading and the fds left open in case the user
+        # calls communicate again.
+        if self.stdout is not None:
+            self.stdout_thread.join(self._remaining_time(endtime))
+            if self.stdout_thread.is_alive():
+&gt;               raise TimeoutExpired(self.args, orig_timeout)
+E               subprocess.TimeoutExpired: Command '['D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Scripts\\python.exe', 'D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261003.5\\app\\tests\\shutdown_process.py', 'D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b7-shutdown-process-8d55abf7099e4a66897d1ae26b8bc6b6', 'check']' timed out after 12 seconds
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\subprocess.py:1630: TimeoutExpired</failure></testcase><testcase classname="tests.test_shutdown" name="test_actual_tray_and_server_process_finishes[download]" time="12.029"><failure message="subprocess.TimeoutExpired: Command '['D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Scripts\\python.exe', 'D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261003.5\\app\\tests\\shutdown_process.py', 'D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b7-shutdown-process-b90351d91ffb4bf68e9106ddcbda0694', 'download']' timed out after 12 seconds">tmp_path = WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/.devtools/test-runs/b5-task-gate-regression1/test_actual_tray_and_server_pr3')
+mode = 'download'
+
+    @pytest.mark.parametrize("mode", ["idle", "paused", "check", "download", "local", "auth", "starting", "factory"])
+    def test_actual_tray_and_server_process_finishes(tmp_path, mode):
+        import json
+        from pathlib import Path
+        import subprocess
+        import sys
+    
+        checkout = Path(__file__).resolve().parents[2]
+        project = checkout.parents[1] if checkout.parent.name == ".worktrees" else checkout
+        allowed = project / ".devtools" / "test-runs"
+        if tmp_path.is_relative_to(allowed) and tmp_path.relative_to(allowed).parts[0].startswith("b7-shutdown-"):
+            root = tmp_path / "child"
+        else:
+            # Full-suite callers can choose another fresh basetemp; the retained
+            # process probe still uses its dedicated and explicitly isolated root.
+            root = allowed / ("b7-shutdown-process-" + uuid4().hex)
+&gt;       result = subprocess.run([sys.executable, str(Path(__file__).with_name("shutdown_process.py")), str(root), mode],
+                                capture_output=True, text=True, timeout=12)
+
+tests\test_shutdown.py:298: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\subprocess.py:550: in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\subprocess.py:1209: in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;Popen: returncode: 1 args: ['D:\\claude_sandbox\\pixiv-tracking-tool\\.devt...&gt;
+input = None, endtime = 1173289.468, orig_timeout = 12
+
+    def _communicate(self, input, endtime, orig_timeout):
+        # Start reader threads feeding into a list hanging off of this
+        # object, unless they've already been started.
+        if self.stdout and not hasattr(self, "_stdout_buff"):
+            self._stdout_buff = []
+            self.stdout_thread = \
+                    threading.Thread(target=self._readerthread,
+                                     args=(self.stdout, self._stdout_buff))
+            self.stdout_thread.daemon = True
+            self.stdout_thread.start()
+        if self.stderr and not hasattr(self, "_stderr_buff"):
+            self._stderr_buff = []
+            self.stderr_thread = \
+                    threading.Thread(target=self._readerthread,
+                                     args=(self.stderr, self._stderr_buff))
+            self.stderr_thread.daemon = True
+            self.stderr_thread.start()
+    
+        if self.stdin:
+            self._stdin_write(input)
+    
+        # Wait for the reader threads, or time out.  If we time out, the
+        # threads remain reading and the fds left open in case the user
+        # calls communicate again.
+        if self.stdout is not None:
+            self.stdout_thread.join(self._remaining_time(endtime))
+            if self.stdout_thread.is_alive():
+&gt;               raise TimeoutExpired(self.args, orig_timeout)
+E               subprocess.TimeoutExpired: Command '['D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Scripts\\python.exe', 'D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261003.5\\app\\tests\\shutdown_process.py', 'D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b7-shutdown-process-b90351d91ffb4bf68e9106ddcbda0694', 'download']' timed out after 12 seconds
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\subprocess.py:1630: TimeoutExpired</failure></testcase><testcase classname="tests.test_shutdown" name="test_actual_tray_and_server_process_finishes[local]" time="12.033"><failure message="subprocess.TimeoutExpired: Command '['D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Scripts\\python.exe', 'D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261003.5\\app\\tests\\shutdown_process.py', 'D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b7-shutdown-process-de48e1f09b3e405ba6b37ef5e4bbd246', 'local']' timed out after 12 seconds">tmp_path = WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/.devtools/test-runs/b5-task-gate-regression1/test_actual_tray_and_server_pr4')
+mode = 'local'
+
+    @pytest.mark.parametrize("mode", ["idle", "paused", "check", "download", "local", "auth", "starting", "factory"])
+    def test_actual_tray_and_server_process_finishes(tmp_path, mode):
+        import json
+        from pathlib import Path
+        import subprocess
+        import sys
+    
+        checkout = Path(__file__).resolve().parents[2]
+        project = checkout.parents[1] if checkout.parent.name == ".worktrees" else checkout
+        allowed = project / ".devtools" / "test-runs"
+        if tmp_path.is_relative_to(allowed) and tmp_path.relative_to(allowed).parts[0].startswith("b7-shutdown-"):
+            root = tmp_path / "child"
+        else:
+            # Full-suite callers can choose another fresh basetemp; the retained
+            # process probe still uses its dedicated and explicitly isolated root.
+            root = allowed / ("b7-shutdown-process-" + uuid4().hex)
+&gt;       result = subprocess.run([sys.executable, str(Path(__file__).with_name("shutdown_process.py")), str(root), mode],
+                                capture_output=True, text=True, timeout=12)
+
+tests\test_shutdown.py:298: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\subprocess.py:550: in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\subprocess.py:1209: in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;Popen: returncode: 1 args: ['D:\\claude_sandbox\\pixiv-tracking-tool\\.devt...&gt;
+input = None, endtime = 1173301.578, orig_timeout = 12
+
+    def _communicate(self, input, endtime, orig_timeout):
+        # Start reader threads feeding into a list hanging off of this
+        # object, unless they've already been started.
+        if self.stdout and not hasattr(self, "_stdout_buff"):
+            self._stdout_buff = []
+            self.stdout_thread = \
+                    threading.Thread(target=self._readerthread,
+                                     args=(self.stdout, self._stdout_buff))
+            self.stdout_thread.daemon = True
+            self.stdout_thread.start()
+        if self.stderr and not hasattr(self, "_stderr_buff"):
+            self._stderr_buff = []
+            self.stderr_thread = \
+                    threading.Thread(target=self._readerthread,
+                                     args=(self.stderr, self._stderr_buff))
+            self.stderr_thread.daemon = True
+            self.stderr_thread.start()
+    
+        if self.stdin:
+            self._stdin_write(input)
+    
+        # Wait for the reader threads, or time out.  If we time out, the
+        # threads remain reading and the fds left open in case the user
+        # calls communicate again.
+        if self.stdout is not None:
+            self.stdout_thread.join(self._remaining_time(endtime))
+            if self.stdout_thread.is_alive():
+&gt;               raise TimeoutExpired(self.args, orig_timeout)
+E               subprocess.TimeoutExpired: Command '['D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Scripts\\python.exe', 'D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261003.5\\app\\tests\\shutdown_process.py', 'D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b7-shutdown-process-de48e1f09b3e405ba6b37ef5e4bbd246', 'local']' timed out after 12 seconds
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\subprocess.py:1630: TimeoutExpired</failure></testcase><testcase classname="tests.test_shutdown" name="test_actual_tray_and_server_process_finishes[auth]" time="4.216" /><testcase classname="tests.test_shutdown" name="test_actual_tray_and_server_process_finishes[starting]" time="2.635" /><testcase classname="tests.test_shutdown" name="test_actual_tray_and_server_process_finishes[factory]" time="5.013" /><testcase classname="tests.test_shutdown" name="test_client_stop_prevents_next_page_or_buffered_work" time="0.001" /><testcase classname="tests.test_shutdown" name="test_client_stop_prevents_connection_retry" time="0.001" /><testcase classname="tests.test_shutdown" name="test_real_downloader_unwinds_then_archive_resumes_without_false_failure" time="2.330" /><testcase classname="tests.test_shutdown" name="test_auth_cancel_does_not_save_late_token_or_start_another_request[False]" time="0.001" /><testcase classname="tests.test_shutdown" name="test_auth_cancel_does_not_save_late_token_or_start_another_request[True]" time="0.001" /></testsuite></testsuites>

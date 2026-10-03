@@ -1,0 +1,47 @@
+{
+  "checks": [
+    "required-confirmation-preserves-old-source-and-gates-library",
+    "actual-button-backup-validate-activate-runtime-start-gallery-and-old-backup",
+    "actual-exe-second-launch-reuses-single-owner-and-opens-same-url-no-second-upgrade",
+    "failed-screen-retains-paths-and-distinguishes-upgrade-from-runtime-retry"
+  ],
+  "geometry": [
+    {
+      "theme": "dark",
+      "width": 1440,
+      "horizontal_overflow": false
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "horizontal_overflow": false
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "horizontal_overflow": false
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "horizontal_overflow": false
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "horizontal_overflow": false
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "horizontal_overflow": false
+    }
+  ],
+  "errors": [],
+  "real_account_used": false,
+  "conversion": "strict 0002 DDL from separate baseline main checkout; no work_revisions or revision columns",
+  "failure_screen": "browser response replay",
+  "exe_sha256": "f8b1d490b668e2ede21b666e6dcae878dab09df7e0319771234bf2f706e371fa",
+  "owned_tray_windows_stop_sent": 2,
+  "exe_exit_code": 0
+}

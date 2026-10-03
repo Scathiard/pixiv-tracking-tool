@@ -1,0 +1,130 @@
+{
+  "database_bytes": 196997120,
+  "schema": [
+    "0002_client"
+  ],
+  "counts": {
+    "application_state": 284,
+    "archive_intents": 15280,
+    "artists": 83,
+    "assets": 48517,
+    "bookmark_operations": 394,
+    "derivatives": 17981,
+    "local_preferences": 15280,
+    "operation_items": 122406,
+    "operations": 2112,
+    "publication_journal": 18959,
+    "remote_bookmarks": 15280,
+    "task_rounds": 369,
+    "tracking_policies": 83,
+    "work_tags": 114513,
+    "works": 15280
+  },
+  "states": {
+    "assets": {
+      "missing": 559,
+      "verified": 47958
+    },
+    "bookmark_operations": {
+      "confirmed": 374,
+      "failed": 10,
+      "unconfirmed": 10
+    },
+    "derivatives": {
+      "unknown": 4,
+      "verified": 17977
+    },
+    "operation_items": {
+      "failed": 1959,
+      "not_executed": 128,
+      "pending": 98555,
+      "skipped": 135,
+      "succeeded": 21629
+    },
+    "operations": {
+      "finished": 2108,
+      "ready": 4
+    },
+    "publication_journal": {
+      "committed": 18959
+    },
+    "task_rounds": {
+      "finished": 367,
+      "running": 2
+    }
+  },
+  "unfinished_item_kinds": [
+    [
+      "artist_source",
+      "pending",
+      3
+    ],
+    [
+      "gif",
+      "not_executed",
+      14
+    ],
+    [
+      "metadata_artist",
+      "pending",
+      83
+    ],
+    [
+      "reconcile_asset",
+      "pending",
+      48514
+    ],
+    [
+      "reconcile_derivative",
+      "pending",
+      17980
+    ],
+    [
+      "reconcile_pair",
+      "pending",
+      1416
+    ],
+    [
+      "reconcile_prepare",
+      "pending",
+      15280
+    ],
+    [
+      "reconcile_snapshot",
+      "pending",
+      15279
+    ],
+    [
+      "thumbnail",
+      "not_executed",
+      100
+    ],
+    [
+      "ugoira_pair",
+      "not_executed",
+      14
+    ]
+  ],
+  "unfinished_operations": [
+    [
+      "artist_source",
+      "ready",
+      3
+    ],
+    [
+      "reconcile",
+      "ready",
+      1
+    ]
+  ],
+  "journal_actions": [
+    [
+      "publish",
+      "committed",
+      18959
+    ]
+  ],
+  "automatic_paused": [
+    "false"
+  ]
+}

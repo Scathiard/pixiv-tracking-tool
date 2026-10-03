@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
 from src.core.database import ArchiveDatabase
-from src.core.models import ApplicationState, Artist, Asset, Operation, RevisionAsset, Work, WorkRevision
+from src.core.models import ApplicationState, ArchiveIntent, Artist, Asset, LocalPreference, Operation, RevisionAsset, Work, WorkRevision
 from src.routes.artists_api import create_artists_router, artist_identity
 from src.scheduler import interval_snapshot, save_interval
 
@@ -124,3 +124,44 @@ def test_settings_distinguish_registration_verification_gaps_and_history(daily, 
     assert data["stats"] == {"artists":1,"works":2,"downloaded_pages":1,"registered_originals":2,"verified_originals":1,"missing_originals":2,"unverified_originals":1}
     assert data["lan_urls"] == [f"http://192.168.1.2:{data['current_port']}"]
     assert data["automatic_paused"] is True
+
+
+def test_settings_use_default_version_shape_legacy_ugoira_and_suppression(daily, monkeypatch):
+    from src.routes.settings_api import create_settings_router
+    import src.routes.settings_api as settings
+    monkeypatch.setattr(settings, "lan_addresses", lambda port: [])
+    with daily.write() as session:
+        session.add_all([
+            Work(id=1, artist_id=1, pixiv_illust_id="1", title="latest shape differs", type="ugoira", page_count=8, default_revision_id="default"),
+            Work(id=2, artist_id=1, pixiv_illust_id="2", title="legacy animation", type="ugoira", page_count=9),
+            Work(id=3, artist_id=1, pixiv_illust_id="3", title="suppressed", page_count=1),
+            Work(id=4, artist_id=1, pixiv_illust_id="4", title="no originals", page_count=2),
+        ])
+        session.flush()
+        session.add_all([
+            WorkRevision(id="old", work_id=1, ordinal=1, title="old", type="manga", page_count=3, source_signature="old"),
+            WorkRevision(id="default", work_id=1, ordinal=2, title="default", type="manga", page_count=2, source_signature="default"),
+            LocalPreference(work_id=1, is_hidden=True), ArchiveIntent(pixiv_illust_id="3", mode="suppressed"),
+        ])
+        session.flush()
+        session.add_all([
+            Asset(id="reused", work_id=1, revision_id="old", role="image", page_index=0, state="verified", relative_path="reused.png"),
+            Asset(id="no-path", work_id=1, revision_id="default", role="image", page_index=1, state="unknown"),
+            Asset(id="unbound", work_id=1, revision_id="default", role="ugoira_zip", state="verified", relative_path="latest.zip"),
+            Asset(id="legacy-zip", work_id=2, role="ugoira_zip", state="unknown", relative_path="legacy.zip"),
+            Asset(id="legacy-timing", work_id=2, role="ugoira_timing", state="verified", relative_path="timing.json"),
+            Asset(id="suppressed", work_id=3, role="image", state="verified", relative_path="deleted.png"),
+        ])
+        session.flush()
+        session.add_all([
+            RevisionAsset(revision_id="old", role="image", page_index=0, asset_id="reused"),
+            RevisionAsset(revision_id="default", role="image", page_index=0, asset_id="reused"),
+            RevisionAsset(revision_id="default", role="image", page_index=1, asset_id="no-path"),
+        ])
+    runtime = SimpleNamespace(database=daily, client=None, queue=SimpleNamespace(automatic_paused=lambda: False))
+    app = FastAPI(); app.include_router(create_settings_router(lambda: runtime))
+    with TestClient(app) as client:
+        assert client.get("/api/settings").json()["stats"] == {
+            "artists": 1, "works": 4, "downloaded_pages": 1, "registered_originals": 2,
+            "verified_originals": 1, "missing_originals": 3, "unverified_originals": 1,
+        }

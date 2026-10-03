@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, case, func, or_, select, union
 import socket
 import ipaddress
 
@@ -46,24 +46,44 @@ def create_settings_router(get_runtime):
         with current.database.read() as session:
             artists = session.scalar(select(func.count()).select_from(Artist)) or 0
             works = session.scalar(select(func.count()).select_from(Work)) or 0
-            current_refs = select(RevisionAsset.asset_id).join(Work, Work.default_revision_id == RevisionAsset.revision_id)
-            selected_asset = or_(Asset.id.in_(current_refs), and_(Work.default_revision_id.is_(None), Asset.revision_id.is_(None)))
-            originals = select(Asset).join(Work, Work.id == Asset.work_id).outerjoin(WorkRevision, WorkRevision.id == Work.default_revision_id).where(
-                selected_asset, ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(ArchiveIntent.mode == "suppressed")),
+            # UNION retains the former IN-membership semantics: a reused asset is
+            # counted once even if several default revisions reference its ID.
+            # Separate the legacy branch instead of repeating a MULTI-INDEX OR
+            # and its whole-library ID list for every individual statistic.
+            selected_assets = union(
+                select(RevisionAsset.asset_id.label("asset_id")).join(Work, Work.default_revision_id == RevisionAsset.revision_id),
+                select(Asset.id.label("asset_id")).join(Work, Work.id == Asset.work_id).where(
+                    Work.default_revision_id.is_(None), Asset.revision_id.is_(None)),
+            ).subquery()
+            registered = func.length(Asset.relative_path) > 0
+            usable = and_(registered, ~Asset.state.in_(("missing", "failed", "invalid", "mismatch", "corrupt")))
+            def total_when(condition):
+                return func.sum(case((condition, 1), else_=0))
+            originals = select(
+                Asset.work_id.label("work_id"),
+                total_when(and_(Asset.role == "image", Asset.state == "verified")).label("downloaded_pages"),
+                total_when(registered).label("registered_originals"),
+                total_when(Asset.state == "verified").label("verified_originals"),
+                total_when(and_(Asset.state == "unknown", registered)).label("unverified_originals"),
+                total_when(usable).label("usable"),
+            ).join(selected_assets, selected_assets.c.asset_id == Asset.id).join(
+                Work, Work.id == Asset.work_id).outerjoin(WorkRevision, WorkRevision.id == Work.default_revision_id).where(
                 or_(and_(func.coalesce(WorkRevision.type, Work.type) == "ugoira", Asset.role == "ugoira_zip"),
                     and_(func.coalesce(WorkRevision.type, Work.type) != "ugoira", Asset.role == "image",
                          Asset.page_index < func.coalesce(WorkRevision.page_count, Work.page_count))))
-            downloaded_pages = session.scalar(originals.with_only_columns(func.count()).where(Asset.role == "image", Asset.state == "verified")) or 0
-            registered = session.scalar(originals.with_only_columns(func.count()).where(func.length(Asset.relative_path) > 0)) or 0
-            verified = session.scalar(originals.with_only_columns(func.count()).where(Asset.state == "verified")) or 0
-            unknown = session.scalar(originals.with_only_columns(func.count()).where(Asset.state == "unknown", func.length(Asset.relative_path) > 0)) or 0
-            usable = originals.with_only_columns(Asset.work_id.label("work_id"), func.count().label("total")).where(
-                func.length(Asset.relative_path) > 0, ~Asset.state.in_(("missing", "failed", "invalid", "mismatch", "corrupt"))).group_by(Asset.work_id).subquery()
+            originals = originals.group_by(Asset.work_id).subquery()
             required = case((func.coalesce(WorkRevision.type, Work.type) == "ugoira", 1), else_=func.coalesce(WorkRevision.page_count, Work.page_count))
-            gap = required - func.coalesce(usable.c.total, 0)
-            missing = session.scalar(select(func.sum(case((gap > 0, gap), else_=0))).select_from(Work).outerjoin(
-                WorkRevision, WorkRevision.id == Work.default_revision_id).outerjoin(usable, usable.c.work_id == Work.id).where(
-                    ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(ArchiveIntent.mode == "suppressed")))) or 0
+            gap = required - func.coalesce(originals.c.usable, 0)
+            totals = session.execute(select(
+                func.coalesce(func.sum(originals.c.downloaded_pages), 0),
+                func.coalesce(func.sum(originals.c.registered_originals), 0),
+                func.coalesce(func.sum(originals.c.verified_originals), 0),
+                func.coalesce(func.sum(originals.c.unverified_originals), 0),
+                func.coalesce(func.sum(case((gap > 0, gap), else_=0)), 0),
+            ).select_from(Work).outerjoin(WorkRevision, WorkRevision.id == Work.default_revision_id).outerjoin(
+                originals, originals.c.work_id == Work.id).where(
+                    ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(ArchiveIntent.mode == "suppressed")))).one()
+            downloaded_pages, registered, verified, unknown, missing = totals
         status = "logged_in" if current.client is not None else (
             "pending" if get_pending_login_url() else "offline")
         # A GET must not contact Pixiv just to retrieve the current account ID.

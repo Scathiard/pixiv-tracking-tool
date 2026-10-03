@@ -1,0 +1,35 @@
+{
+  "elapsed_ms": 890.949,
+  "stats": {
+    "artists": 83,
+    "works": 15280,
+    "downloaded_pages": 45339,
+    "registered_originals": 46658,
+    "verified_originals": 46658,
+    "missing_originals": 443,
+    "unverified_originals": 0
+  },
+  "queries": [
+    {
+      "elapsed_ms": 0.665,
+      "sql": "SELECT count(*) AS count_1 \nFROM artists"
+    },
+    {
+      "elapsed_ms": 4.613,
+      "sql": "SELECT count(*) AS count_1 \nFROM works"
+    },
+    {
+      "elapsed_ms": 845.287,
+      "sql": "SELECT coalesce(sum(anon_1.downloaded_pages), ?) AS coalesce_1, coalesce(sum(anon_1.registered_originals), ?) AS coalesce_3, coalesce(sum(anon_1.verified_originals), ?) AS coalesce_5, coalesce(sum(anon_1.unverified_originals), ?) AS coalesce_7, coalesce(sum(CASE WHEN (CASE WHEN (coalesce(work_revisions.type, works.type) = ?) THEN ? ELSE coalesce(work_revisions.page_count, works.page_count) END - coalesce(anon_1.usable, ?) > ?) THEN CASE WHEN (coalesce(work_revisions.type, works.type) = ?) THEN ? ELSE coalesce(work_revisions.page_count, works.page_count) END - coalesce(anon_1.usable, ?) ELSE ? END), ?) AS coalesce_9 \nFROM works LEFT OUTER JOIN work_revisions ON work_revisions.id = works.default_revision_id LEFT OUTER JOIN (SELECT assets.work_id AS work_id, sum(CASE WHEN (assets.role = ? AND assets.state = ?) THEN ? ELSE ? END) AS downloaded_pages, sum(CASE WHEN (length(assets.relative_path) > ?) THEN ? ELSE ? END) AS registered_originals, sum(CASE WHEN (assets.state = ?) THEN ? ELSE ? END) AS verified_originals, sum(CASE WHEN (assets.state = ? AND length(assets.relative_path) > ?) THEN ? ELSE ? END) AS unverified_originals, sum(CASE WHEN (length(assets.relative_path) > ? AND (assets.state NOT IN (?, ?, ?, ?, ?))) THEN ? ELSE ? END) AS usable \nFROM assets JOIN (SELECT revision_assets.asset_id AS asset_id \nFROM revision_assets JOIN works ON works.default_revision_id = revision_assets.revision_id UNION SELECT assets.id AS asset_id \nFROM assets JOIN works ON works.id = assets.work_id \nWHERE works.default_revision_id IS NULL AND assets.revision_id IS NULL) AS anon_2 ON anon_2.asset_id = assets.id JOIN works ON works.id = assets.work_id LEFT OUTER JOIN work_revisions ON work_revisions.id = works.default_revision_id \nWHERE coalesce(work_revisions.type, works.type) = ? AND assets.role = ? OR coalesce(work_revisions.type, works.type) != ? AND assets.role = ? AND assets.page_index < coalesce(work_revisions.page_count, works.page_count) GROUP BY assets.work_id) AS anon_1 ON anon_1.work_id = works.id \nWHERE (works.pixiv_illust_id NOT IN (SELECT archive_intents.pixiv_illust_id \nFROM archive_intents \nWHERE archive_intents.mode = ?))"
+    },
+    {
+      "elapsed_ms": 0.109,
+      "sql": "SELECT application_state.\"key\" AS application_state_key, application_state.value AS application_state_value \nFROM application_state \nWHERE application_state.\"key\" = ?"
+    },
+    {
+      "elapsed_ms": 0.038,
+      "sql": "SELECT application_state.\"key\" AS application_state_key, application_state.value AS application_state_value \nFROM application_state \nWHERE application_state.\"key\" = ?"
+    }
+  ],
+  "mode": "real database mode=ro and query_only, hostname resolution excluded"
+}

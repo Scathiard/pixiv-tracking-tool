@@ -1,6 +1,7 @@
 # 测试目录约定
 
 - `test_offline_task_gate.py`：旧任务离线保持、连接恢复、领取后断开、孤立规划状态、近十万待办及本地任务不饥饿；仅合成库与连接替身。
+- `test_settings_scale.py`：15,000 件合成作品的当前版本原件统计、历史引用复用、旧记录、隐藏／删除阻止与动图，记录 SQL 计划、接口耗时及写后即时更新；不以缓存掩盖重复统计。
 
 - `test_task_control_delivery.py`：2,000／20,000／100,000 步骤的索引领取与短写事务、前台／后台公平推进、持久手动暂停、下载子任务与重启、有限冷却重试及 2,000 页分批清单；全部合成数据。
 - `task_acceptance_probe.py --source-db SYNTHETIC_DB --artifacts NEW_DIRECTORY`：复制既有十万项隔离库，实际 localhost 测量远端替身等待期间的 20 次不同单件任务受理、本地详情与计数；每次要求 created=True，不连接真实主站。

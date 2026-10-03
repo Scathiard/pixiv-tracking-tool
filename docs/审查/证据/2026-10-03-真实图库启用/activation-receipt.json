@@ -1,0 +1,34 @@
+{
+  "source": "D:\\PixivTracker\\data\\pixiv_tracker.db",
+  "candidate": "D:\\PixivTracker\\data\\upgrade\\20261003-223200-fc206f187b9f\\candidate.db",
+  "backup": "D:\\PixivTracker\\data\\upgrade\\20261003-223200-fc206f187b9f\\backup.db",
+  "source_revision": "0002_client",
+  "source_fingerprint": "80a1bd1a15f61898f553d78d30a765370cba6c6f5297881ac61b497b5eee097d",
+  "validation": {
+    "schema_revision": "0003_revisions",
+    "totals": {
+      "alembic_version": 1,
+      "application_state": 284,
+      "archive_intents": 15280,
+      "artists": 83,
+      "assets": 48517,
+      "bookmark_operations": 394,
+      "derivatives": 17981,
+      "local_preferences": 15280,
+      "operation_items": 122406,
+      "operations": 2112,
+      "publication_journal": 18959,
+      "remote_bookmarks": 15280,
+      "revision_assets": 48517,
+      "revision_derivatives": 17981,
+      "task_rounds": 369,
+      "tracking_policies": 83,
+      "work_revisions": 15280,
+      "work_tags": 114513,
+      "works": 15280
+    }
+  },
+  "active": "D:\\PixivTracker\\data\\pixiv_tracker.db",
+  "retained": "D:\\PixivTracker\\data\\pixiv_tracker.db.previous-8e41b7f789084c34a88babdad2c544ca",
+  "active_fingerprint": "a40fb23560a2083c8bde2dacd7dcc46d0dfebe520a93bfbaa7b048d9897478d0"
+}
