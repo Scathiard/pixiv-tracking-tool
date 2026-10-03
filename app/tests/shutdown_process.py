@@ -70,7 +70,10 @@ def factory():
     if mode == "factory":
         entered.set()
         assert release.wait(4)
-    runtime = Runtime(root / "data/archive.db", root / "images", create=True)
+    # These modes simulate an already connected task reaching its safe exit
+    # boundary. Held never performs network I/O; idle/offline modes stay offline.
+    runtime = Runtime(root / "data/archive.db", root / "images", create=True,
+                      client=object() if mode in ("check", "download", "local") else None)
     runtime.maintenance.tick = lambda: None
     runtime.queue.handlers["repair"] = Held()
     if mode == "paused":
