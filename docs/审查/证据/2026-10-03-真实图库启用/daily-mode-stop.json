@@ -1,0 +1,9 @@
+{
+  "program": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261003.6.exe",
+  "normal_stop_messages": 2,
+  "owned_pids": [
+    60076,
+    7224
+  ],
+  "all_exited": true
+}

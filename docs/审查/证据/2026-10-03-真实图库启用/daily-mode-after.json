@@ -1,0 +1,26 @@
+{
+  "owned_pids": [
+    15156,
+    36964
+  ],
+  "offline_argument": false,
+  "build": "20261003.6",
+  "data_root": "D:\\PixivTracker",
+  "logged_in": true,
+  "login_error": null,
+  "interactive_login_pending": false,
+  "automatic_paused": false,
+  "check_interval_minutes": 360,
+  "next_check_at": "2026-10-04T05:18:05.930651+08:00",
+  "port": 1919,
+  "upgrade_required": false,
+  "stats": {
+    "artists": 83,
+    "works": 15280,
+    "downloaded_pages": 45339,
+    "registered_originals": 46658,
+    "verified_originals": 46658,
+    "missing_originals": 443,
+    "unverified_originals": 0
+  }
+}

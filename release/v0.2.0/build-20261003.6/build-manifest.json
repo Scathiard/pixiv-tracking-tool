@@ -31,8 +31,12 @@
     "statistics_unchanged": true,
     "database_schema_unchanged_from_build5": true,
     "deployed_path": "D:/PixivTracker/PixivTracker_v0.2.0_build20261003.6.exe",
-    "deployed_mode": "offline",
+    "deployed_mode": "normal",
     "real_account_tested": false,
-    "physical_phone_tested": false
+    "physical_phone_tested": false,
+    "normal_startup_login_verified": true,
+    "automatic_interval_minutes": 360,
+    "existing_task_recovery_observed": true,
+    "account_verification_scope": "Existing login, scheduler, and pre-existing task recovery only; no bookmark write test."
   }
 }

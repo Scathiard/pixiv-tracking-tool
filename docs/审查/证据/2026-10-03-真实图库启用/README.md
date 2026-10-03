@@ -16,5 +16,6 @@
 - `synthetic-settings-before.json`／`synthetic-settings-after.json`／`settings-semantics.xml`：15,000 件合成规模的 SQL／计划／耗时与最终 7 项统计语义检查；规模运行未另产 JUnit，保留原始指标及本轮执行回报。
 - `exe-smoke-build6.json`／`real-final-build6.json`：最终 `.6` 的 25 项包内冒烟和 38 项真实离线检查。
 - `settings-performance.json`／`environment.json`：最终 EXE 的真实接口重复测量、统计对照及凭据／配置未改动边界。
+- `daily-mode-before.json`／`daily-mode-stop.json`／`daily-mode-after.json`／`daily-mode-progress.json`：交付遗留离线参数的实际复现、安全退出、正常登录与原调度／待办恢复；不包含账号标识或令牌，亦不代表收藏写入等专项完成。
 
 `.6` 沿用相同前端与 `0003_revisions` 结构，仅改变统计查询；`.5` 的 34 项阅览结果不冒充为 `.6` 重跑，`.6` 另有实际图库浏览器和包内验证。源码、最终包、真实账号、实体手机及用户验收分别记录。
