@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "build": "20261003.4",
+  "exe_file": "PixivTracker_v0.2.0_build20261003.4.exe",
+  "exe_size_bytes": 75935996,
+  "exe_sha256": "012b347ca51ae0acd81f8895b99c496a9b8bcfb41d1d7795c4d9a27a367306ac",
+  "source_commit": "30f25e340bc5544a99572b2d3fc9ec5ca1b00add",
+  "source_branch": "codex/v0.2.0-build20261003.4",
+  "source_dirty": false,
+  "database_schema": "0003_revisions",
+  "database_upgrade_required": true,
+  "database_upgrade_entry": "startup-confirmed backup / validate / activate",
+  "build_environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "pyinstaller": "6.20.0"
+  },
+  "published": false,
+  "user_acceptance": false,
+  "validation": {
+    "status": "isolated-source-browser-exe-passed",
+    "backend_full_passed": 499,
+    "backend_compat_followup_passed": 32,
+    "backend_last_delta_passed": 5,
+    "frontend_passed": 79,
+    "packaged_browser_passed": 34,
+    "packaged_smoke_passed": 26,
+    "strict_legacy_startup_upgrade": "passed",
+    "single_instance_second_launch": "passed",
+    "isolated_normal_stop_exit_code": 0,
+    "physical_tray_menu_clicked": false,
+    "real_library_used": false,
+    "real_account_used": false,
+    "real_phone_tested": false,
+    "daily_program_activated": false,
+    "report": "../../../docs/审查/2026-10-03-集中交付.md"
+  }
+}

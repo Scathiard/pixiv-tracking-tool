@@ -1,0 +1,17 @@
+{
+  "checks": [
+    "history-selector-and-direct-refresh-pin",
+    "same-version-one-page-detail-roundtrip-reuses-cache",
+    "hide-current-continues-exact-next-identity",
+    "stream-previous-next-and-random-mode",
+    "stream-current-management-accessible-from-toolbar",
+    "toolbar-visible-1440-390-320",
+    "single-zoom-double-add-only-and-zoom-double-scale",
+    "background-read-does-not-swallow-double-tap-intent"
+  ],
+  "errors": [],
+  "failures": [],
+  "real_account_used": false,
+  "real_phone_tested": false,
+  "backend": "real isolated runtime"
+}
