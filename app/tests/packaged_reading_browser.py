@@ -24,7 +24,7 @@ def main():
     exe = args.exe.resolve(strict=True)
     os.environ["DATA_ROOT"] = str(artifacts / "driver-root")
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import expect, sync_playwright
     from src.auth import _find_system_browser
 
     with socket.socket() as probe:
@@ -298,6 +298,29 @@ def main():
                 box=button.bounding_box();assert box and box['width']>=40 and box['height']>=40
             mobile.screenshot(path=str(artifacts/'exe-flow-toolbar-320.png'))
             checks.append('exe-flow-320-controls-readable-counter-single-line-no-isolated-page-unit')
+            # Replay a stopped worker, including a paused persisted task. The
+            # packaged UI must not imply that its Continue button can restart
+            # dead workers; local images must remain readable during the error.
+            fault = {"round": None, "worker_error": "TimeoutError", "automatic_paused": False,
+                "catalogue_revision": progress["catalogue_revision"], "active_operation_count": 1,
+                "operations": [{"id": "synthetic-stopped-worker", "label": "检查并补齐图库",
+                    "state": "paused", "source": "manual", "pause_requested": True,
+                    "control": {"can_pause": False, "can_resume": True}, "result": {},
+                    "phase": {"name": "verifying", "done": 12, "total": 50, "unit": "assets", "detail": ""}}]}
+            for width in (1440, 390, 320):
+                fault_context = browser.new_context(viewport={"width": width, "height": 844})
+                fault_page = fault_context.new_page()
+                fault_page.on("pageerror", lambda error: page_errors.append(str(error)))
+                fault_page.route("**/api/progress", lambda route: route.fulfill(json=fault))
+                fault_page.goto(origin + "/illust/1", wait_until="domcontentloaded")
+                expect(fault_page.locator(".task-phase")).to_have_text("后台已中断，请重启程序")
+                expect(fault_page.locator(".task-control")).to_have_count(0)
+                expect(fault_page.locator(".task-track")).to_have_count(0)
+                fault_page.wait_for_function("() => {const img=document.querySelector('.image-page img'); return img?.complete && img.naturalWidth > 0}")
+                assert fault_page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+                fault_page.screenshot(path=str(artifacts / f"exe-worker-stopped-{width}.png"))
+                checks.append(f"exe-worker-error-truthful-action-and-local-reading-{width}")
+                fault_context.close()
             if page_errors:
                 raise AssertionError(page_errors)
             phone.close(); desktop.close(); browser.close()

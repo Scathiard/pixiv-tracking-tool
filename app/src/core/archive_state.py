@@ -12,37 +12,63 @@ LOCAL_KINDS = ("check", "metadata", "repair", "verify", "backfill", "thumbnails"
 
 
 def _operation_window(ids):
-    # Older items identify their work through their asset or derivative. Resolve
-    # that in SQL, so even a 2,000-page work never loads its job history in Python.
+    # SQLite has no persisted index for JSON target identities. Filter direct
+    # targets once before joining their work records or ranking their history.
+    scope = func.json_each(Operation.parameters, "$.work_ids").table_valued("value").alias("scope")
+    scoped_operation = select(Operation.id).join(scope, true()).where(
+        cast(scope.c.value, Integer).in_(ids), Operation.kind.in_(LOCAL_KINDS)).distinct().cte("scoped_operations").prefix_with("MATERIALIZED")
+    explicit_work = OperationItem.target["work_id"].as_integer()
+    asset_id = OperationItem.target["asset_id"].as_string()
+    record_id = OperationItem.target["record_id"].as_string()
+    items = select(OperationItem.id, OperationItem.operation_id, OperationItem.kind,
+        OperationItem.state, OperationItem.position, explicit_work.label("work_id"),
+        asset_id.label("asset_id"), record_id.label("record_id"),
+        OperationItem.result["message"].as_string().label("reason")).where(or_(
+        explicit_work.in_(ids), and_(explicit_work.is_(None), or_(
+            asset_id.in_(select(Asset.id).where(Asset.work_id.in_(ids))),
+            record_id.in_(select(Derivative.id).where(Derivative.work_id.in_(ids))))))
+        ).cte("selected_items").prefix_with("MATERIALIZED")
     asset, derivative = aliased(Asset), aliased(Derivative)
-    target_work = func.coalesce(OperationItem.target["work_id"].as_integer(), asset.work_id, derivative.work_id)
-    direct = select(target_work.label("work_id"), Operation.id.label("operation_id"),
+    target_work = func.coalesce(items.c.work_id, asset.work_id, derivative.work_id)
+    # INTEGER affinity lets SQLite build the (work_id, rank) lookup used by the
+    # outer Works join; the selection predicate retains the original JSON type.
+    direct = select(cast(target_work, Integer).label("work_id"), Operation.id.label("operation_id"),
         Operation.state.label("operation_state"), Operation.created_at.label("created_at"),
-        Operation.updated_at.label("updated_at"), OperationItem.state.label("item_state"),
-        OperationItem.result["message"].as_string().label("reason"),
-        OperationItem.position.label("position"),
-        case((or_(OperationItem.target["asset_id"].as_string().is_not(None), OperationItem.kind == "ugoira_pair"), "original"),
-             (or_(OperationItem.target["record_id"].as_string().is_not(None), Operation.kind == "thumbnails",
-                  OperationItem.kind.in_(("gif", "thumbnail", "verify_derivative"))), "local"),
-             else_="work").label("concern")).select_from(OperationItem).join(Operation).outerjoin(
-        asset, asset.id == OperationItem.target["asset_id"].as_string()).outerjoin(
-        derivative, derivative.id == OperationItem.target["record_id"].as_string()).where(
+        Operation.updated_at.label("updated_at"), items.c.state.label("item_state"),
+        items.c.reason, items.c.position,
+        case((or_(items.c.asset_id.is_not(None), items.c.kind == "ugoira_pair"), "original"),
+             (or_(items.c.record_id.is_not(None), Operation.kind == "thumbnails",
+                  items.c.kind.in_(("gif", "thumbnail", "verify_derivative"))), "local"),
+             else_="work").label("concern")).select_from(items).join(Operation, Operation.id == items.c.operation_id).outerjoin(
+        asset, and_(items.c.work_id.is_(None), asset.id == items.c.asset_id)).outerjoin(
+        derivative, and_(items.c.work_id.is_(None), asset.work_id.is_(None), derivative.id == items.c.record_id)).where(
         target_work.in_(ids), Operation.kind.in_(LOCAL_KINDS))
     # The persisted selection resolves unplanned work and legacy error items
     # without an asset/derivative identity. Expand that selection inside SQL.
-    scope = func.json_each(Operation.parameters, "$.work_ids").table_valued("value").alias("scope")
+    # Every identity-free legacy item applies to the same persisted selection.
+    # Select its winning item once per operation before expanding that selection;
+    # ranking thousands of identical work candidates on every read is redundant.
+    legacy_item = aliased(OperationItem)
+    item_active = and_(Operation.state.in_(ACTIVE), legacy_item.state.in_(("pending", "running")))
+    best_item = select(legacy_item.id).where(legacy_item.operation_id == Operation.id,
+        legacy_item.target["work_id"].as_integer().is_(None),
+        legacy_item.target["asset_id"].as_string().is_(None),
+        legacy_item.target["record_id"].as_string().is_(None)).order_by(
+        case((and_(item_active, legacy_item.state == "running"), 0), (item_active, 1), else_=2),
+        case((legacy_item.state.in_(("failed", "not_executed")), 0), else_=1),
+        legacy_item.position).limit(1).correlate(Operation).scalar_subquery()
+    chosen = select(Operation.id.label("id"), best_item.label("item_id")).where(
+        Operation.id.in_(select(scoped_operation.c.id))).cte("scoped_items").prefix_with("MATERIALIZED")
+    any_item = select(OperationItem.id).where(OperationItem.operation_id == Operation.id).correlate(Operation).exists()
     scoped = select(cast(scope.c.value, Integer).label("work_id"), Operation.id.label("operation_id"),
         Operation.state.label("operation_state"), Operation.created_at.label("created_at"),
         Operation.updated_at.label("updated_at"), func.coalesce(OperationItem.state, "pending").label("item_state"),
         OperationItem.result["message"].as_string().label("reason"),
         func.coalesce(OperationItem.position, 0).label("position"),
         case((Operation.kind == "thumbnails", "local"), else_="work").label("concern")).select_from(Operation).join(
-        scope, true()).outerjoin(OperationItem, OperationItem.operation_id == Operation.id).where(
+        scope, true()).join(chosen, chosen.c.id == Operation.id).outerjoin(OperationItem, OperationItem.id == chosen.c.item_id).where(
         cast(scope.c.value, Integer).in_(ids), Operation.kind.in_(LOCAL_KINDS),
-        or_(OperationItem.id.is_not(None), Operation.state.in_(ACTIVE)),
-        OperationItem.target["work_id"].as_integer().is_(None),
-        OperationItem.target["asset_id"].as_string().is_(None),
-        OperationItem.target["record_id"].as_string().is_(None))
+        or_(OperationItem.id.is_not(None), and_(Operation.state.in_(ACTIVE), ~any_item)))
     candidates = union_all(direct, scoped).subquery()
     active = and_(candidates.c.operation_state.in_(ACTIVE), candidates.c.item_state.in_(("pending", "running")))
     priority = case((and_(active, candidates.c.item_state == "running"), 0), (active, 1), else_=2)

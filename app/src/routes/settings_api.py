@@ -23,13 +23,20 @@ class SettingsEdit(BaseModel):
 
 
 def lan_addresses(port):
+    # These are addresses of local adapters, not a hostname lookup. Windows
+    # DNS retries must not block the complete settings response while offline.
     try:
-        addresses = socket.getaddrinfo(socket.gethostname(), None, family=socket.AF_INET)
+        import psutil
+        stats = psutil.net_if_stats()
+        addresses = psutil.net_if_addrs()
     except OSError:
         return []
-    hosts = {entry[4][0] for entry in addresses}
+    hosts = {entry.address for name, entries in addresses.items()
+             if name not in stats or stats[name].isup
+             for entry in entries if entry.family == socket.AF_INET}
     return [f"http://{host}:{port}" for host in sorted(hosts)
-            if ipaddress.ip_address(host).is_private and not ipaddress.ip_address(host).is_loopback]
+            if ipaddress.ip_address(host).is_private and not ipaddress.ip_address(host).is_loopback
+            and not ipaddress.ip_address(host).is_unspecified]
 
 
 def create_settings_router(get_runtime):

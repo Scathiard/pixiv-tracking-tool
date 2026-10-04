@@ -1,7 +1,8 @@
 """One owned local library and one task worker. Authentication is optional."""
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+import re
 from stat import S_ISREG
 import threading
 import time
@@ -203,8 +204,27 @@ class Runtime:
         except ValueError:
             return None
         with self.database.read() as session:
-            allowed = session.scalar(select(Artist.id).where(Artist.avatar_path == relative).limit(1)) is not None
+            allowed = False
+            # Generated originals, previews and historical revisions retain the
+            # Pixiv work ID in their basename. It is only a lookup hint: the full
+            # registered path and deletion intent still decide authorisation.
+            match = re.fullmatch(r"([0-9]+)(?:_p[0-9]+(?:_v[0-9]+)?|_card_motion_v[0-9]+|_ugoira)?(?:\.[^.]+)+", PurePosixPath(relative).name)
+            if match:
+                work_id = session.scalar(select(Work.id).where(Work.pixiv_illust_id == match[1]))
+                if work_id is not None:
+                    models = (Derivative, Asset) if "/.thumbnails/" in relative else (Asset, Derivative)
+                    for model in models:
+                        if session.scalar(select(model.id).where(model.work_id == work_id,
+                                model.relative_path == relative,
+                                ~select(ArchiveIntent.pixiv_illust_id).where(
+                                    ArchiveIntent.pixiv_illust_id == match[1], ArchiveIntent.mode == "suppressed").exists()).limit(1)) is not None:
+                            allowed = True
+                            break
+            if not allowed:
+                allowed = session.scalar(select(Artist.id).where(Artist.avatar_path == relative).limit(1)) is not None
             for model in (Asset, Derivative):
+                if allowed:
+                    break
                 work_id = session.scalar(select(model.work_id).join(Work).where(model.relative_path == relative,
                     ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(ArchiveIntent.mode == "suppressed"))).limit(1))
                 if work_id is not None:

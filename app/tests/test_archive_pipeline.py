@@ -383,19 +383,32 @@ def test_local_claim_skips_two_thousand_waiting_dependencies_in_sql(archive):
     with db.write() as session:
         queue.enqueue_in_transaction(session, "repair", {}, "many dependencies", specs=specs)
     from sqlalchemy import event
-    queries = []
+    queries, vm_steps = [], [0]
+
+    def progress():
+        vm_steps[0] += 1000
+        return 0
 
     def observe(connection, cursor, statement, parameters, context, executemany):
         queries.append(statement)
+        connection.connection.driver_connection.set_progress_handler(progress, 1000)
 
     event.listen(db.engine, "before_cursor_execute", observe)
     try:
         assert queue._step("local")
     finally:
         event.remove(db.engine, "before_cursor_execute", observe)
+        with db.engine.connect() as connection:
+            connection.connection.driver_connection.set_progress_handler(None, 0)
     assert executions == ["runnable"]
-    assert len(queries) < 25
-    assert any("json_each" in statement for statement in queries)
+    with db.read() as session:
+        waiting = list(session.scalars(select(OperationItem).where(OperationItem.item_key.like("waiting-%"))))
+        assert len(waiting) == 2000
+        assert all(item.state == "pending" and item.attempts == 0 for item in waiting)
+    candidate_queries = [statement for statement in queries if "operation_items.position >" in statement]
+    assert 1 <= len(candidate_queries) <= 64
+    assert all("LIMIT" in statement and "operation_items.target" not in statement for statement in candidate_queries)
+    assert vm_steps[0] < 1_000_000
 
 
 def test_newer_discovery_has_durable_child_while_older_download_is_held(archive):

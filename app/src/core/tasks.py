@@ -155,6 +155,7 @@ class TaskQueue:
         self._claim_sequence = 0
         self._round_admissions = 0
         self._candidate_after = {}
+        self._last_scan_more = False
         with self.database.read() as session:
             records = session.execute(select(Operation.id, Operation.pause_requested, Operation.result).where(Operation.state.in_(ACTIVE))).all()
         self._paused_operations = {ident for ident, paused, _ in records if paused}
@@ -404,9 +405,36 @@ class TaskQueue:
                 resources.update(("asset", value) for value in ids)
         return resources
 
+    @staticmethod
+    def _candidate_window(session, operation, lane, after):
+        columns = (OperationItem.id, OperationItem.position, OperationItem.kind,
+            OperationItem.phase, OperationItem.lane, OperationItem.depends_on, OperationItem.not_before)
+        query = select(*columns).where(OperationItem.operation_id == operation.id,
+            OperationItem.state == "pending", OperationItem.position > after)
+        if lane == "check" and operation.kind in ("check", "bookmarks"):
+            # Discovery handlers deliberately process already fetched works
+            # before fetching another page. Reconciliation has no such items.
+            check = or_(OperationItem.phase == "checking", OperationItem.kind.in_(
+                ("metadata_artist", "metadata_work", "bookmark_artist", "bookmark_page", "discover_page", "discover_work")))
+            keys = func.json_each(OperationItem.depends_on).table_valued("value").alias("candidate_dependencies")
+            dependency = aliased(OperationItem)
+            state = select(dependency.state).where(dependency.operation_id == operation.id,
+                dependency.item_key == keys.c.value).correlate(keys).scalar_subquery()
+            waiting = exists(select(1).select_from(keys).where(or_(state.is_(None), ~state.in_(SETTLED))).correlate(OperationItem))
+            return list(session.execute(query.where(or_(OperationItem.lane == lane,
+                and_(OperationItem.lane.is_(None), check)), ~waiting,
+                or_(OperationItem.not_before.is_(None), OperationItem.not_before <= utcnow())).order_by(
+                case((OperationItem.kind == "discover_work", 0), else_=1), OperationItem.position).limit(64)))
+        # Equality on lane lets the existing composite index supply position
+        # order. Separate old/new streams avoid an OR plus full temporary sort.
+        current = list(session.execute(query.where(OperationItem.lane == lane).order_by(OperationItem.position).limit(64)))
+        legacy = list(session.execute(query.where(OperationItem.lane.is_(None)).order_by(OperationItem.position).limit(64)))
+        return sorted(current + legacy, key=lambda item: item.position)[:64]
+
     def _step(self, lane, round_id=None):
         """Select a bounded indexed window before entering the atomic claim."""
         started = time.monotonic()
+        self._last_scan_more = False
         if not self._accepting or self._stop.is_set():
             return False
         if lane == "check" and round_id is None:
@@ -451,35 +479,37 @@ class TaskQueue:
                     continue
                 cursor_key = (operation.id, lane)
                 after = self._candidate_after.get(cursor_key, -1)
-                keys_table = func.json_each(OperationItem.depends_on).table_valued("value").alias("candidate_dependencies")
-                dependency = aliased(OperationItem)
-                dependency_state = select(dependency.state).where(dependency.operation_id == operation.id,
-                    dependency.item_key == keys_table.c.value).correlate(keys_table).scalar_subquery()
-                waiting_dependency = exists(select(1).select_from(keys_table).where(
-                    or_(dependency_state.is_(None), ~dependency_state.in_(SETTLED))).correlate(OperationItem))
-                check_filter = or_(OperationItem.phase == "checking", OperationItem.kind.in_(("metadata_artist", "metadata_work", "bookmark_artist", "bookmark_page", "discover_page", "discover_work")))
-                download_filter = or_(OperationItem.kind == "download", and_(OperationItem.phase == "downloading", ~OperationItem.kind.in_(("timing", "error"))))
-                legacy_lane = check_filter if lane == "check" else and_(~check_filter, download_filter) if lane == "download" else and_(~check_filter, ~download_filter)
-                query = select(OperationItem).where(OperationItem.operation_id == operation.id,
-                    OperationItem.state == "pending", or_(OperationItem.lane == lane, and_(OperationItem.lane.is_(None), legacy_lane)), ~waiting_dependency,
-                    or_(OperationItem.not_before.is_(None), OperationItem.not_before <= utcnow()),
-                    OperationItem.position > after).order_by(case((OperationItem.kind == "discover_work", 0), else_=1), OperationItem.position).limit(64)
-                items = list(session.scalars(query))
-                if not items and after != -1:
-                    self._candidate_after.pop(cursor_key, None)
-                    continue
-                self._candidate_after[cursor_key] = items[-1].position if items else -1
-                keys = {key for item in items for key in item.depends_on}
-                states = dict(session.execute(select(OperationItem.item_key, OperationItem.state).where(
-                    OperationItem.operation_id == operation.id, OperationItem.item_key.in_(keys))).all()) if keys else {}
-                for item in items:
-                    if any(states.get(key) not in SETTLED for key in item.depends_on):
-                        continue
-                    resource = self._item_resources(session, item)
-                    if resource & self._resources:
-                        continue
-                    candidates.append(("item", operation.id, item.id, resource))
-                    break
+                # Bound candidates before dependency checks. Legacy NULL lanes
+                # are classified inside the window rather than scanning the
+                # whole remaining manifest for an empty channel.
+                for _ in range(32):
+                    items = self._candidate_window(session, operation, lane, after)
+                    if not items:
+                        self._candidate_after.pop(cursor_key, None)
+                        break
+                    after = items[-1].position
+                    self._candidate_after[cursor_key] = after
+                    now = utcnow()
+                    eligible = [item for item in items if (item.lane == lane or item.lane is None and self._lane(item) == lane)
+                        and (item.not_before is None or item.not_before <= now)]
+                    keys = list({key for item in eligible for key in item.depends_on})
+                    states = {}
+                    for offset in range(0, len(keys), 500):
+                        states.update(session.execute(select(OperationItem.item_key, OperationItem.state).where(
+                            OperationItem.operation_id == operation.id, OperationItem.item_key.in_(keys[offset:offset + 500]))).all())
+                    for candidate in eligible:
+                        if any(states.get(key) not in SETTLED for key in candidate.depends_on):
+                            continue
+                        item = session.get(OperationItem, candidate.id)
+                        resource = self._item_resources(session, item)
+                        if resource & self._resources:
+                            continue
+                        candidates.append(("item", operation.id, item.id, resource))
+                        break
+                    if candidates:
+                        break
+                else:
+                    self._last_scan_more = True
                 if candidates:
                     break
         write_started = time.monotonic()
@@ -655,27 +685,54 @@ class TaskQueue:
             round_id = self._claim_round()
             if round_id is None:
                 return False
+            idle_lanes = set()
             while not self._stop.is_set():
                 progressed = False
                 for lane in ("check", "download", "local"):
-                    progressed = self._step(lane, round_id) or progressed
+                    if lane in idle_lanes:
+                        continue
+                    handled = self._step(lane, round_id)
+                    if handled:
+                        progressed = True
+                    elif not self._last_scan_more:
+                        idle_lanes.add(lane)
+                if progressed:
+                    idle_lanes.clear()
                 with self.database.read() as session:
                     current = session.get(TaskRound, round_id)
                     if current.state == "finished":
                         return True
-                if not progressed:
+                if not progressed and len(idle_lanes) == 3:
                     return False
             return False
         finally:
             self._run_lock.release()
+
+    @staticmethod
+    def _item_states(operation_id):
+        # Walk distinct state values through the existing operation/state
+        # index. DISTINCT itself scans every row on SQLite; successive MIN
+        # probes seek once per state and retain even unfamiliar saved states.
+        states = select(func.min(OperationItem.state).label("state")).where(
+            OperationItem.operation_id == operation_id).cte("item_states", recursive=True)
+        next_state = select(func.min(OperationItem.state)).where(
+            OperationItem.operation_id == operation_id, OperationItem.state > states.c.state).correlate(states).scalar_subquery()
+        return states.union_all(select(next_state).where(states.c.state.is_not(None)))
+
+    @classmethod
+    def _phase_counts(cls, session, operation_id, phase, unit):
+        states = cls._item_states(operation_id)
+        return dict(session.execute(select(OperationItem.state, func.count()).where(
+            OperationItem.operation_id == operation_id,
+            OperationItem.state.in_(select(states.c.state).where(states.c.state.is_not(None))),
+            OperationItem.phase == phase, OperationItem.unit == unit).group_by(OperationItem.state)).all())
 
     def _execute_item(self, operation_id, item, dependency_failed=False):
         from ..request_policy import ShutdownRequested
         phase_key = item.phase + ":" + item.unit
         with self.database.read() as session:
             kind = session.get(Operation, operation_id).kind
-            counts = dict(session.execute(select(OperationItem.state, func.count()).where(OperationItem.operation_id == operation_id,
-                OperationItem.phase == item.phase, OperationItem.unit == item.unit).group_by(OperationItem.state)).all())
+            counts = self._phase_counts(session, operation_id, item.phase, item.unit)
         context = TaskContext(self, operation_id, item.id, kind=kind)
         # Claim happened just before shutdown: leave the item pending rather than
         # classifying cancellation as a failed or successful attempt.
@@ -733,8 +790,7 @@ class TaskQueue:
             if result.state == "failed" and (item.kind in ("discover_page", "bookmark_page") or
                     item.kind == "bookmark_artist" and "unconfirmed_works" not in result.detail):
                 operation.result = {**operation.result, "inventory_failed": True, "inventory_complete": False}
-            counts = dict(session.execute(select(OperationItem.state, func.count()).where(OperationItem.operation_id == operation_id,
-                OperationItem.phase == item.phase, OperationItem.unit == item.unit).group_by(OperationItem.state)).all())
+            counts = self._phase_counts(session, operation_id, item.phase, item.unit)
             done, total = sum(counts.get(state, 0) for state in SETTLED), sum(counts.values())
             operation.phase_done, operation.updated_at = done, utcnow()
             snapshots = dict(operation.result.get("phase_snapshots", {}))
@@ -775,8 +831,9 @@ class TaskQueue:
                 rounds.add(operation.round_id)
             if operation.state not in ("ready", "running") or operation.result.get("planning_complete") is False:
                 continue
-            unfinished = session.scalar(select(OperationItem.id).where(OperationItem.operation_id == operation.id, ~OperationItem.state.in_(SETTLED)).limit(1))
-            if unfinished:
+            states = self._item_states(operation.id)
+            unfinished = session.scalar(select(states.c.state).where(~states.c.state.in_(SETTLED)).limit(1))
+            if unfinished is not None:
                 continue
             child_counts = None
             if operation.result.get("child_operation_ids"):
@@ -881,7 +938,7 @@ class TaskQueue:
             if running:
                 running.sort(key=lambda item: TaskQueue._lane(item) != "download")
                 item = running[0]
-                counts = dict(session.execute(select(OperationItem.state, func.count()).where(OperationItem.operation_id == op.id, OperationItem.phase == item.phase, OperationItem.unit == item.unit).group_by(OperationItem.state)).all())
+                counts = self._phase_counts(session, op.id, item.phase, item.unit)
                 phase = {"name": item.phase, "unit": item.unit, "done": sum(counts.get(state, 0) for state in SETTLED),
                     "total": None if result.get("planning_complete") is False or remote_pages else sum(counts.values()), "detail": "正在处理"}
                 lane = TaskQueue._lane(item)

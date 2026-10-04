@@ -191,11 +191,11 @@ def test_indexed_claim_scale_and_short_write_boundary(db, size, tmp_path):
     candidate_times, write_times, plans = [], [], []
     def before(connection, cursor, statement, parameters, context, many):
         context._task_query_started = time.perf_counter()
-        if "candidate_dependencies" in statement and not plans:
+        if "operation_items.position >" in statement or "operation_items.item_key IN" in statement:
             cursor.execute("EXPLAIN QUERY PLAN " + statement, parameters)
             plans.extend([list(row) for row in cursor.fetchall()])
     def after(connection, cursor, statement, parameters, context, many):
-        if "candidate_dependencies" in statement:
+        if "operation_items.position >" in statement:
             candidate_times.append((time.perf_counter() - context._task_query_started) * 1000)
     write = db.write
     @contextmanager
@@ -214,6 +214,7 @@ def test_indexed_claim_scale_and_short_write_boundary(db, size, tmp_path):
         event.remove(db.engine, "before_cursor_execute", before)
         event.remove(db.engine, "after_cursor_execute", after)
         db.write = write
+    assert candidate_times and write_times and plans
     p95 = sorted(candidate_times)[int((len(candidate_times)-1) * .95)]
     result = {"size": size, "claim_query_ms": candidate_times, "p95_ms": p95,
         "write_boundary_ms": write_times, "max_write_ms": max(write_times), "query_plan": plans}
@@ -222,6 +223,7 @@ def test_indexed_claim_scale_and_short_write_boundary(db, size, tmp_path):
     assert p95 <= 200
     assert max(write_times) < 1000
     assert any("operation_id=? AND item_key=?" in row[-1] for row in plans)
+    assert any("ix_items_candidate" in row[-1] for row in plans)
 
 
 def test_two_thousand_page_inventory_is_bounded_and_pause_cursor_survives(db, tmp_path):

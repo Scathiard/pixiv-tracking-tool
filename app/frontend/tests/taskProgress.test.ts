@@ -95,6 +95,10 @@ test('progress distinguishes real phase counts, unknown totals, queues and inter
   assert.equal(phaseStatus(task, true), '等待恢复自动检查')
   task.state = 'interrupted'
   assert.equal(phaseStatus(task), '已中断，等待恢复')
+  assert.equal(phaseStatus(task, false, true), '后台已中断，请重启程序')
+  task.state = 'paused'
+  assert.equal(phaseStatus(task, false, true), '后台已中断，请重启程序')
+  assert.equal(hasProgressTrack(task, false, true), false)
 })
 
 
