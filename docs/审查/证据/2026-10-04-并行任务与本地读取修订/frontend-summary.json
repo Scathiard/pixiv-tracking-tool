@@ -1,0 +1,36 @@
+{
+  "node_version": "24.19.0",
+  "frontend_unit_tests": {
+    "passed": 96,
+    "failed": 0,
+    "log": "../b20261004.3-frontend-01/unit-tests.log"
+  },
+  "type_check": "vue-tsc --noEmit: passed",
+  "production_build": {
+    "passed": true,
+    "log": "../b20261004.3-frontend-01/build.log"
+  },
+  "browser_checks": 15,
+  "browser_errors": [],
+  "tested_layer": "actual Vue source components; isolated GET/POST response replacements; no real backend/gallery/account",
+  "source_sha256": {
+    "src/api.ts": "4040de864f45c77f4724e3d9cc0727ccb48a33f408f6365f3bfa202494d6678d",
+    "src/interaction.ts": "af8b578a38f810a4ef1251809e3c9671c47f074dbfcfe7ba4d5fb52540be64ae",
+    "src/state/workCache.ts": "e5e136a875f0142f5d7dc24e4aecc271607a8d88cc28f1d6f91c50c0a12d59db",
+    "src/state/bookmarks.ts": "4a5d4d88c4ba1be7bca5e79b5c4d38123060239d07003f7b1def4cc42cf48980",
+    "src/views/SettingsView.vue": "879cac8ddb9639a88491bcad9cab5834f6253f117f9b320e1ac8c270ba1f0004",
+    "src/views/ArtistsView.vue": "728ce9c38e20062f71f70eadba977d473a75e358bc2c3c0eb9a9b972629ac7f1",
+    "tests/api.test.ts": "ecd97fcbeaabf620a9f236698d72f7c5c051d2385b9d2177e714db4655bb5229",
+    "tests/interaction.test.ts": "50f941337ae7f48299d6df1f4b99b96e397f174a45dcc7957bb299acf2d3e733",
+    "tests/settings-lifecycle.html": "c7b9c650e88bf0dc7799806175a4b705516aed36cf7997a1b75baf43d16c3a23"
+  },
+  "dist_sha256": {
+    "dist/index.html": "852eaecd7799637e3a1240369ff7002eddaac6d798c62585889c0fe69f73ba92",
+    "dist/assets/index-DlskC0r2.js": "9f3536150734fb8161a46787c98b71b756ca48bcf5eaaf99c130badda6b6c22d"
+  },
+  "limitations": [
+    "No real backend HTTP/socket cancellation evidence in this frontend probe",
+    "No EXE or real account/gallery test",
+    "Desktop Chromium mobile widths do not prove physical phone acceptance"
+  ]
+}

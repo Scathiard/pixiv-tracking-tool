@@ -1,0 +1,21 @@
+{
+  "checks": [
+    "logs: close aborts, reopening starts fresh, stale late response stays invisible",
+    "logs: cursor details append, partial details finish independently of history truncation",
+    "logs: timeout is Chinese and distinguishable from a real business failure",
+    "settings: unmount cancels settings/status and schedules no further poll",
+    "status polling: login refresh and timer never overlap an existing read; write sent once",
+    "settings: deliberate write cancels old refresh and late old read cannot undo its receipt",
+    "logs: unmount cancels the open pending log request",
+    "work cache: first consumer leaves safely, last leaves cancels, invalidated generations read anew",
+    "work cache: fresh reads cannot join old opening reads or regress the cached catalogue version",
+    "bookmark poll: pending ingestion cannot overlap, account change cancels and rejects late facts",
+    "artists: status read aborts on leaving the view",
+    "settings 1440px: continuation button reachable and appends details",
+    "settings 390px: continuation button reachable and appends details",
+    "settings 320px: continuation button reachable and appends details",
+    "no browser page errors during lifecycle acceptance"
+  ],
+  "errors": [],
+  "layer": "actual Vue source components; isolated GET/POST response replacements; no real backend/gallery/account"
+}

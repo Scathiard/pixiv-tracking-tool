@@ -274,6 +274,8 @@ def seed(database, images, args, origin, png, thumbnail, archive, frames):
             "state": "finished", "phase": "verifying", "phase_unit": "assets", "phase_total": args.history_steps // 12,
             "created_at": now - timedelta(days=12-index), "finished_at": now - timedelta(days=11-index),
             "result": {"outcome": "partial_failure"}, "needs_attention": True} for index, ident in enumerate(history)])
+    history_wide_counts = Counter()
+    history_state_counts = Counter()
     with database.write() as session:
         # Seeding runs before workers and HTTP admission. One atomic manifest
         # avoids repeated checkpointing of the same synthetic history indexes.
@@ -281,16 +283,25 @@ def seed(database, images, args, origin, png, thumbnail, archive, frames):
             rows = []
             for index in range(start, min(start + 1000, args.history_steps)):
                 state = ("succeeded", "failed", "skipped", "not_executed")[index % 4]
-                width = args.json_width if index % 16 == 0 else 256
+                wide = (index // 4) % 16 == 0
+                width = args.json_width if wide else 256
+                history_state_counts[state] += 1
+                if wide:
+                    history_wide_counts[state] += 1
                 rows.append({"id": stable_id(f"history-item-{index}"), "operation_id": history[index % 12],
                     "item_key": f"historical-{index}", "position": index // 12, "kind": "reconcile_asset",
                     "target": {"asset_id": f"historical-{index}", "synthetic_wide": "x" * width},
                     "phase": "verifying", "unit": "assets", "lane": "local", "state": state,
                     "result": {"failure_code": "api_network", "message": "此项未完成，请重试", "synthetic_wide": "x" * width}, "depends_on": []})
             session.execute(insert(OperationItem), rows)
+    assert set(history_wide_counts) == {"succeeded", "failed", "skipped", "not_executed"}
+    assert all(history_wide_counts[state] > 0 for state in history_state_counts)
     return {"works": args.works, "historical_steps": args.history_steps, "historical_operations": 12,
         "historical_state_pattern": ["succeeded", "failed", "skipped", "not_executed"],
-        "wide_json_bytes": args.json_width, "wide_history_fraction": "1/16",
+        "wide_json_bytes": args.json_width,
+        "wide_history_pattern": "each 64-row block has one wide row in every state",
+        "historical_state_counts": dict(history_state_counts), "wide_history_state_counts": dict(history_wide_counts),
+        "wide_history_fraction": f"{sum(history_wide_counts.values())}/{args.history_steps}",
         "missing_originals": args.works // 1000, "missing_static_previews": args.works // 250,
         "animation_zip_timing_pairs": 23, "deterministic_fixture_key": stable_id(f"{args.works}-{args.history_steps}-{args.json_width}")}
 
