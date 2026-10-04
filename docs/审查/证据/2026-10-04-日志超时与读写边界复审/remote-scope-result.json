@@ -1,0 +1,19 @@
+{
+  "network_used": false,
+  "persistent_database_created": false,
+  "production_proxy_lookup": {
+    "scope_installed": false,
+    "replacement_transport_calls": 3,
+    "would_wait_seconds": [
+      2,
+      4
+    ],
+    "task_checkpoint_calls": 0
+  },
+  "direct_client_lookup": {
+    "scope_installed": true,
+    "replacement_transport_calls": 1,
+    "would_wait_seconds": [],
+    "task_checkpoint_calls": 2
+  }
+}

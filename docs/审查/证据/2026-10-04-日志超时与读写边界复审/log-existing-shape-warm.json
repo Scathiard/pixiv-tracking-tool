@@ -1,0 +1,492 @@
+{
+  "synthetic_only": true,
+  "sqlite_version": "3.53.1",
+  "rows": 150512,
+  "target_padding_bytes": 0,
+  "mode": "existing_shape",
+  "seed_ms": 61475.86579993367,
+  "runs": [
+    {
+      "name": "production",
+      "round_index": 0,
+      "elapsed_ms": 18.76,
+      "same_result": true,
+      "output_lines": 201,
+      "truncated": true,
+      "queries": [
+        {
+          "sql": "SELECT operations.id, operations.round_id, operations.kind, operations.parameters, operations.source, operations.dedupe_key, operations.label, operations.state, operations.phase, operations.phase_unit, operations.phase_total, operations.phase_done, operations.detail, operations.result, operations.needs_attention, operations.pause_requested, operations.last_claim_seq, operations.created_at, operations.updated_at, operations.started_at, operations.finished_at \nFROM operations ORDER BY operations.updated_at DESC, operations.id DESC\n LIMIT ? OFFSET ?",
+          "parameters": [
+            101,
+            0
+          ],
+          "plan": [
+            [
+              7,
+              0,
+              216,
+              "SCAN operations"
+            ],
+            [
+              38,
+              0,
+              0,
+              "USE TEMP B-TREE FOR ORDER BY"
+            ]
+          ],
+          "vm_steps": 100,
+          "fetched_rows": 1,
+          "fetched_text_bytes": 175,
+          "elapsed_ms": 0.486
+        },
+        {
+          "sql": "SELECT operation_items.id, operation_items.operation_id, operation_items.item_key, operation_items.position, operation_items.kind, operation_items.target, operation_items.phase, operation_items.unit, operation_items.depends_on, operation_items.state, operation_items.lane, operation_items.not_before, operation_items.attempts, operation_items.result \nFROM operation_items \nWHERE operation_items.operation_id IN (?) AND (operation_items.state IN (?, ?) OR operation_items.state = ? AND JSON_EXTRACT(operation_items.result, ?) IN (?, ?)) ORDER BY operation_items.operation_id, operation_items.position\n LIMIT ? OFFSET ?",
+          "parameters": [
+            "shape-maintenance",
+            "failed",
+            "not_executed",
+            "skipped",
+            "$.\"failure_code\"",
+            "work_unavailable",
+            "work_private",
+            201,
+            0
+          ],
+          "plan": [
+            [
+              8,
+              0,
+              61,
+              "SEARCH operation_items USING INDEX ix_operation_items_operation_id (operation_id=?)"
+            ],
+            [
+              56,
+              0,
+              0,
+              "USE TEMP B-TREE FOR LAST TERM OF ORDER BY"
+            ]
+          ],
+          "vm_steps": 1222000,
+          "fetched_rows": 201,
+          "fetched_text_bytes": 14587,
+          "elapsed_ms": 17.851
+        }
+      ],
+      "total_vm_steps": 1222100,
+      "total_fetched_rows": 202,
+      "total_fetched_text_bytes": 14762
+    },
+    {
+      "name": "narrow_same_or",
+      "round_index": 1,
+      "elapsed_ms": 22.516,
+      "same_result": true,
+      "output_lines": 201,
+      "truncated": true,
+      "queries": [
+        {
+          "sql": "SELECT operations.id, operations.kind, operations.state, operations.phase, operations.phase_unit, operations.phase_total, operations.phase_done, operations.result, operations.needs_attention, operations.updated_at, operations.finished_at \nFROM operations ORDER BY operations.updated_at DESC, operations.id DESC\n LIMIT ? OFFSET ?",
+          "parameters": [
+            101,
+            0
+          ],
+          "plan": [
+            [
+              7,
+              0,
+              216,
+              "SCAN operations"
+            ],
+            [
+              28,
+              0,
+              0,
+              "USE TEMP B-TREE FOR ORDER BY"
+            ]
+          ],
+          "vm_steps": 100,
+          "fetched_rows": 1,
+          "fetched_text_bytes": 98,
+          "elapsed_ms": 0.508
+        },
+        {
+          "sql": "SELECT operation_items.id, operation_items.operation_id, operation_items.position, operation_items.state, operation_items.result \nFROM operation_items \nWHERE operation_items.operation_id IN (?) AND (operation_items.state IN (?, ?) OR operation_items.state = ? AND JSON_EXTRACT(operation_items.result, ?) IN (?, ?)) ORDER BY operation_items.operation_id, operation_items.position\n LIMIT ? OFFSET ?",
+          "parameters": [
+            "shape-maintenance",
+            "failed",
+            "not_executed",
+            "skipped",
+            "$.\"failure_code\"",
+            "work_unavailable",
+            "work_private",
+            201,
+            0
+          ],
+          "plan": [
+            [
+              8,
+              0,
+              61,
+              "SEARCH operation_items USING INDEX ix_operation_items_operation_id (operation_id=?)"
+            ],
+            [
+              47,
+              0,
+              0,
+              "USE TEMP B-TREE FOR LAST TERM OF ORDER BY"
+            ]
+          ],
+          "vm_steps": 1214000,
+          "fetched_rows": 201,
+          "fetched_text_bytes": 7429,
+          "elapsed_ms": 21.341
+        }
+      ],
+      "total_vm_steps": 1214100,
+      "total_fetched_rows": 202,
+      "total_fetched_text_bytes": 7527
+    },
+    {
+      "name": "split_narrow",
+      "round_index": 2,
+      "elapsed_ms": 3.688,
+      "same_result": true,
+      "output_lines": 201,
+      "truncated": true,
+      "queries": [
+        {
+          "sql": "SELECT operations.id, operations.kind, operations.state, operations.phase, operations.phase_unit, operations.phase_total, operations.phase_done, operations.result, operations.needs_attention, operations.updated_at, operations.finished_at \nFROM operations ORDER BY operations.updated_at DESC, operations.id DESC\n LIMIT ? OFFSET ?",
+          "parameters": [
+            101,
+            0
+          ],
+          "plan": [
+            [
+              7,
+              0,
+              216,
+              "SCAN operations"
+            ],
+            [
+              28,
+              0,
+              0,
+              "USE TEMP B-TREE FOR ORDER BY"
+            ]
+          ],
+          "vm_steps": 0,
+          "fetched_rows": 1,
+          "fetched_text_bytes": 98,
+          "elapsed_ms": 1.169
+        },
+        {
+          "sql": "SELECT anon_1.operation_id, anon_1.position, anon_1.state, anon_1.result \nFROM (SELECT operation_items.operation_id AS operation_id, operation_items.position AS position, operation_items.state AS state, operation_items.result AS result \nFROM operation_items \nWHERE operation_items.operation_id IN (?) AND operation_items.state IN (?, ?) UNION ALL SELECT operation_items.operation_id AS operation_id, operation_items.position AS position, operation_items.state AS state, operation_items.result AS result \nFROM operation_items \nWHERE operation_items.operation_id IN (?) AND operation_items.state = ? AND JSON_EXTRACT(operation_items.result, ?) IN (?, ?)) AS anon_1 ORDER BY anon_1.operation_id, anon_1.position\n LIMIT ? OFFSET ?",
+          "parameters": [
+            "shape-maintenance",
+            "failed",
+            "not_executed",
+            "shape-maintenance",
+            "skipped",
+            "$.\"failure_code\"",
+            "work_unavailable",
+            "work_private",
+            201,
+            0
+          ],
+          "plan": [
+            [
+              7,
+              0,
+              0,
+              "MERGE (UNION ALL)"
+            ],
+            [
+              9,
+              7,
+              0,
+              "LEFT"
+            ],
+            [
+              13,
+              9,
+              61,
+              "SEARCH operation_items USING INDEX ix_items_progress (operation_id=? AND state=?)"
+            ],
+            [
+              58,
+              9,
+              0,
+              "USE TEMP B-TREE FOR LAST TERM OF ORDER BY"
+            ],
+            [
+              71,
+              7,
+              0,
+              "RIGHT"
+            ],
+            [
+              75,
+              71,
+              61,
+              "SEARCH operation_items USING INDEX ix_items_progress (operation_id=? AND state=?)"
+            ],
+            [
+              109,
+              71,
+              0,
+              "USE TEMP B-TREE FOR LAST TERM OF ORDER BY"
+            ]
+          ],
+          "vm_steps": 14200,
+          "fetched_rows": 201,
+          "fetched_text_bytes": 5025,
+          "elapsed_ms": 1.611
+        }
+      ],
+      "total_vm_steps": 14200,
+      "total_fetched_rows": 202,
+      "total_fetched_text_bytes": 5123
+    },
+    {
+      "name": "split_narrow",
+      "round_index": 3,
+      "elapsed_ms": 2.198,
+      "same_result": true,
+      "output_lines": 201,
+      "truncated": true,
+      "queries": [
+        {
+          "sql": "SELECT operations.id, operations.kind, operations.state, operations.phase, operations.phase_unit, operations.phase_total, operations.phase_done, operations.result, operations.needs_attention, operations.updated_at, operations.finished_at \nFROM operations ORDER BY operations.updated_at DESC, operations.id DESC\n LIMIT ? OFFSET ?",
+          "parameters": [
+            101,
+            0
+          ],
+          "plan": [
+            [
+              7,
+              0,
+              216,
+              "SCAN operations"
+            ],
+            [
+              28,
+              0,
+              0,
+              "USE TEMP B-TREE FOR ORDER BY"
+            ]
+          ],
+          "vm_steps": 100,
+          "fetched_rows": 1,
+          "fetched_text_bytes": 98,
+          "elapsed_ms": 0.641
+        },
+        {
+          "sql": "SELECT anon_1.operation_id, anon_1.position, anon_1.state, anon_1.result \nFROM (SELECT operation_items.operation_id AS operation_id, operation_items.position AS position, operation_items.state AS state, operation_items.result AS result \nFROM operation_items \nWHERE operation_items.operation_id IN (?) AND operation_items.state IN (?, ?) UNION ALL SELECT operation_items.operation_id AS operation_id, operation_items.position AS position, operation_items.state AS state, operation_items.result AS result \nFROM operation_items \nWHERE operation_items.operation_id IN (?) AND operation_items.state = ? AND JSON_EXTRACT(operation_items.result, ?) IN (?, ?)) AS anon_1 ORDER BY anon_1.operation_id, anon_1.position\n LIMIT ? OFFSET ?",
+          "parameters": [
+            "shape-maintenance",
+            "failed",
+            "not_executed",
+            "shape-maintenance",
+            "skipped",
+            "$.\"failure_code\"",
+            "work_unavailable",
+            "work_private",
+            201,
+            0
+          ],
+          "plan": [
+            [
+              7,
+              0,
+              0,
+              "MERGE (UNION ALL)"
+            ],
+            [
+              9,
+              7,
+              0,
+              "LEFT"
+            ],
+            [
+              13,
+              9,
+              61,
+              "SEARCH operation_items USING INDEX ix_items_progress (operation_id=? AND state=?)"
+            ],
+            [
+              58,
+              9,
+              0,
+              "USE TEMP B-TREE FOR LAST TERM OF ORDER BY"
+            ],
+            [
+              71,
+              7,
+              0,
+              "RIGHT"
+            ],
+            [
+              75,
+              71,
+              61,
+              "SEARCH operation_items USING INDEX ix_items_progress (operation_id=? AND state=?)"
+            ],
+            [
+              109,
+              71,
+              0,
+              "USE TEMP B-TREE FOR LAST TERM OF ORDER BY"
+            ]
+          ],
+          "vm_steps": 14200,
+          "fetched_rows": 201,
+          "fetched_text_bytes": 5025,
+          "elapsed_ms": 1.009
+        }
+      ],
+      "total_vm_steps": 14300,
+      "total_fetched_rows": 202,
+      "total_fetched_text_bytes": 5123
+    },
+    {
+      "name": "narrow_same_or",
+      "round_index": 4,
+      "elapsed_ms": 20.194,
+      "same_result": true,
+      "output_lines": 201,
+      "truncated": true,
+      "queries": [
+        {
+          "sql": "SELECT operations.id, operations.kind, operations.state, operations.phase, operations.phase_unit, operations.phase_total, operations.phase_done, operations.result, operations.needs_attention, operations.updated_at, operations.finished_at \nFROM operations ORDER BY operations.updated_at DESC, operations.id DESC\n LIMIT ? OFFSET ?",
+          "parameters": [
+            101,
+            0
+          ],
+          "plan": [
+            [
+              7,
+              0,
+              216,
+              "SCAN operations"
+            ],
+            [
+              28,
+              0,
+              0,
+              "USE TEMP B-TREE FOR ORDER BY"
+            ]
+          ],
+          "vm_steps": 0,
+          "fetched_rows": 1,
+          "fetched_text_bytes": 98,
+          "elapsed_ms": 0.598
+        },
+        {
+          "sql": "SELECT operation_items.id, operation_items.operation_id, operation_items.position, operation_items.state, operation_items.result \nFROM operation_items \nWHERE operation_items.operation_id IN (?) AND (operation_items.state IN (?, ?) OR operation_items.state = ? AND JSON_EXTRACT(operation_items.result, ?) IN (?, ?)) ORDER BY operation_items.operation_id, operation_items.position\n LIMIT ? OFFSET ?",
+          "parameters": [
+            "shape-maintenance",
+            "failed",
+            "not_executed",
+            "skipped",
+            "$.\"failure_code\"",
+            "work_unavailable",
+            "work_private",
+            201,
+            0
+          ],
+          "plan": [
+            [
+              8,
+              0,
+              61,
+              "SEARCH operation_items USING INDEX ix_operation_items_operation_id (operation_id=?)"
+            ],
+            [
+              47,
+              0,
+              0,
+              "USE TEMP B-TREE FOR LAST TERM OF ORDER BY"
+            ]
+          ],
+          "vm_steps": 1214000,
+          "fetched_rows": 201,
+          "fetched_text_bytes": 7429,
+          "elapsed_ms": 19.015
+        }
+      ],
+      "total_vm_steps": 1214000,
+      "total_fetched_rows": 202,
+      "total_fetched_text_bytes": 7527
+    },
+    {
+      "name": "production",
+      "round_index": 5,
+      "elapsed_ms": 29.573,
+      "same_result": true,
+      "output_lines": 201,
+      "truncated": true,
+      "queries": [
+        {
+          "sql": "SELECT operations.id, operations.round_id, operations.kind, operations.parameters, operations.source, operations.dedupe_key, operations.label, operations.state, operations.phase, operations.phase_unit, operations.phase_total, operations.phase_done, operations.detail, operations.result, operations.needs_attention, operations.pause_requested, operations.last_claim_seq, operations.created_at, operations.updated_at, operations.started_at, operations.finished_at \nFROM operations ORDER BY operations.updated_at DESC, operations.id DESC\n LIMIT ? OFFSET ?",
+          "parameters": [
+            101,
+            0
+          ],
+          "plan": [
+            [
+              7,
+              0,
+              216,
+              "SCAN operations"
+            ],
+            [
+              38,
+              0,
+              0,
+              "USE TEMP B-TREE FOR ORDER BY"
+            ]
+          ],
+          "vm_steps": 0,
+          "fetched_rows": 1,
+          "fetched_text_bytes": 175,
+          "elapsed_ms": 0.64
+        },
+        {
+          "sql": "SELECT operation_items.id, operation_items.operation_id, operation_items.item_key, operation_items.position, operation_items.kind, operation_items.target, operation_items.phase, operation_items.unit, operation_items.depends_on, operation_items.state, operation_items.lane, operation_items.not_before, operation_items.attempts, operation_items.result \nFROM operation_items \nWHERE operation_items.operation_id IN (?) AND (operation_items.state IN (?, ?) OR operation_items.state = ? AND JSON_EXTRACT(operation_items.result, ?) IN (?, ?)) ORDER BY operation_items.operation_id, operation_items.position\n LIMIT ? OFFSET ?",
+          "parameters": [
+            "shape-maintenance",
+            "failed",
+            "not_executed",
+            "skipped",
+            "$.\"failure_code\"",
+            "work_unavailable",
+            "work_private",
+            201,
+            0
+          ],
+          "plan": [
+            [
+              8,
+              0,
+              61,
+              "SEARCH operation_items USING INDEX ix_operation_items_operation_id (operation_id=?)"
+            ],
+            [
+              56,
+              0,
+              0,
+              "USE TEMP B-TREE FOR LAST TERM OF ORDER BY"
+            ]
+          ],
+          "vm_steps": 1222100,
+          "fetched_rows": 201,
+          "fetched_text_bytes": 14587,
+          "elapsed_ms": 28.385
+        }
+      ],
+      "total_vm_steps": 1222100,
+      "total_fetched_rows": 202,
+      "total_fetched_text_bytes": 14762
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+[
+  {
+    "file": "initial-http.json",
+    "source": ".devtools\\test-runs\\b20261004.2-log-diagnosis-01\\initial-http.json",
+    "sha256": "da1433b1dc06f9c37775d715f2d81aa4d329badc622171b5578b165f038b6bec",
+    "bytes": 740
+  },
+  {
+    "file": "probe.py",
+    "source": ".devtools\\test-runs\\b20261004.2-log-diagnosis-01\\probe.py",
+    "sha256": "6956d5bb927912acd2e6b5bbaa8ead5d545f990fe5e6bec4cd8ee99768bbe1a5",
+    "bytes": 1548
+  },
+  {
+    "file": "runtime-after-client-timeout.txt",
+    "source": ".devtools\\test-runs\\b20261004.2-log-diagnosis-01\\runtime-after-client-timeout.txt",
+    "sha256": "fcc1acfe250c213c6a9c02d6573e63f9a8e393a516518a96edc5fab1954a7401",
+    "bytes": 4952
+  },
+  {
+    "file": "log-cost-report.md",
+    "source": ".devtools\\test-runs\\b20261004.2-log-audit-01\\log-cost-report.md",
+    "sha256": "7925d14cc5f976615db28df9aaf8b81b619664b32cb55b44eea3ad08f26bb493",
+    "bytes": 4536
+  },
+  {
+    "file": "log-cost-summary.json",
+    "source": ".devtools\\test-runs\\b20261004.2-log-audit-01\\log-cost-summary.json",
+    "sha256": "efbc2528c387f763130611a498f692ffd10a5d4582374d1dc2a4f2b4c48dbcde",
+    "bytes": 4160
+  },
+  {
+    "file": "log_read_cost_probe.py",
+    "source": ".devtools\\test-runs\\b20261004.2-log-audit-01\\log_read_cost_probe.py",
+    "sha256": "5073b1717e65b9f88b1ce5c0a4692992ceb5cff7c142d96e032546b2396a0ecb",
+    "bytes": 10060
+  },
+  {
+    "file": "log-small.json",
+    "source": ".devtools\\test-runs\\b20261004.2-log-audit-01\\log-small.json",
+    "sha256": "5df6ecbf68cbbaaf7abfeb730663cc63216ff6a91084154d8963b31e53f5b8b9",
+    "bytes": 8855
+  },
+  {
+    "file": "log-existing-shape-warm.json",
+    "source": ".devtools\\test-runs\\b20261004.2-log-audit-01\\log-existing-shape-warm.json",
+    "sha256": "92e8ae46c152aa03e02c921d679e90cbb5c2e7a7a1c504663f7dafefe6cea344",
+    "bytes": 17574
+  },
+  {
+    "file": "log-wide-target-warm.json",
+    "source": ".devtools\\test-runs\\b20261004.2-log-audit-01\\log-wide-target-warm.json",
+    "sha256": "9c0a596a7fb794581e9bd867d631ce9a86d7e801963912b2e1352ade91d248d8",
+    "bytes": 17679
+  },
+  {
+    "file": "log-all-failed-warm.json",
+    "source": ".devtools\\test-runs\\b20261004.2-log-audit-01\\log-all-failed-warm.json",
+    "sha256": "f9060533fe06b8be73f22ed692681f59a787d0ba1b7b8e0053e4654673be94f8",
+    "bytes": 17735
+  },
+  {
+    "file": "log-all-skipped-warm.json",
+    "source": ".devtools\\test-runs\\b20261004.2-log-audit-01\\log-all-skipped-warm.json",
+    "sha256": "cfcc9541d66c5ff0dde1995b62e2fd00efa8d96d13bfa2763fe396c0729ce7cb",
+    "bytes": 17659
+  },
+  {
+    "file": "candidate-semantics-result.json",
+    "source": ".devtools\\test-runs\\b20261004.2-log-audit-01\\candidate-semantics-result.json",
+    "sha256": "c2d606facd99d331504fa46c3a760efe1738a398e0ea45fa399e80159a2cbf09",
+    "bytes": 196
+  },
+  {
+    "file": "frontend-audit.md",
+    "source": ".devtools\\test-runs\\b20261004.2-timeout-audit-01\\frontend-audit.md",
+    "sha256": "e0927c25b65f97cdc43ef4a5ebcb2fc484a2bb0cf9d25d54d97033b4c8b3aa93",
+    "bytes": 9626
+  },
+  {
+    "file": "frontend-boundary-probe.mjs",
+    "source": ".devtools\\test-runs\\b20261004.2-timeout-audit-01\\frontend-boundary-probe.mjs",
+    "sha256": "a0b7360562ae201bfe6491a0874726ed951e72a43df58ef58060ad2791d582f9",
+    "bytes": 3826
+  },
+  {
+    "file": "frontend-boundary-result.json",
+    "source": ".devtools\\test-runs\\b20261004.2-timeout-audit-01\\frontend-boundary-result.json",
+    "sha256": "59800722f164a162440eba1b97f1902481fc9116360ecb51dbfd2a93e63d9e59",
+    "bytes": 582
+  },
+  {
+    "file": "chromium-native-timeout.py",
+    "source": ".devtools\\test-runs\\b20261004.2-timeout-audit-01\\chromium-native-timeout.py",
+    "sha256": "b83f4533a5d180e5bcfccfae7a20fef67ba4479af29ad8f44051ef1179d23810",
+    "bytes": 1061
+  },
+  {
+    "file": "chromium-native-timeout-result.json",
+    "source": ".devtools\\test-runs\\b20261004.2-timeout-audit-01\\chromium-native-timeout-result.json",
+    "sha256": "0e847962a9155f518840d4eaea88a514efc88f1c114da657762e5a8c940c5d18",
+    "bytes": 313
+  },
+  {
+    "file": "server-disconnect-probe.py",
+    "source": ".devtools\\test-runs\\b20261004.2-timeout-audit-01\\server-disconnect-probe.py",
+    "sha256": "e9e22c35b235a063084b4984acdfa46b48cadc75f6b5a07f340f621491caa2a0",
+    "bytes": 4891
+  },
+  {
+    "file": "server-disconnect-result.json",
+    "source": ".devtools\\test-runs\\b20261004.2-timeout-audit-01\\server-disconnect-result.json",
+    "sha256": "35d627ff25f127651065d641f1b92ed6a1d5b0723fd15c7006bb94b0c6e1496c",
+    "bytes": 942
+  },
+  {
+    "file": "lock_order_probe.py",
+    "source": ".devtools\\test-runs\\b20261004.2-architecture-audit-01\\lock_order_probe.py",
+    "sha256": "f4203cb20c772d6c4a4c748ff7717ae1f3630525df7132cbb31e5702f7985dc2",
+    "bytes": 3276
+  },
+  {
+    "file": "lock-order-result.json",
+    "source": ".devtools\\test-runs\\b20261004.2-architecture-audit-01\\lock-order-result.json",
+    "sha256": "ab1fc75c865f9e0b04389d436deef3e8974f260878f8b717ac5af27817f34cf2",
+    "bytes": 503
+  },
+  {
+    "file": "remote_scope_probe.py",
+    "source": ".devtools\\test-runs\\b20261004.2-architecture-audit-01\\remote_scope_probe.py",
+    "sha256": "1b6bd17855a92f2e8e3d74691294128993bd99ef61ca0aeb0dc7aab739a38c51",
+    "bytes": 2079
+  },
+  {
+    "file": "remote-scope-result.json",
+    "source": ".devtools\\test-runs\\b20261004.2-architecture-audit-01\\remote-scope-result.json",
+    "sha256": "d3d9775fb259a289b1e53b63cbaa2c90992ff82862ad5cf044b316e4d71b5661",
+    "bytes": 435
+  },
+  {
+    "file": "architecture-audit.md",
+    "source": ".devtools/test-runs/b20261004.2-architecture-audit-01/README.md",
+    "sha256": "b31ef22db9ba5e21fbf1843191cbdedf766fb263f3b38f274608724ec3cbe64d",
+    "bytes": 9969
+  }
+]

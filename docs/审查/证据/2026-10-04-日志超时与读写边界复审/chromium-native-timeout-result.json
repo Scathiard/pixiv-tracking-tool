@@ -1,0 +1,10 @@
+{
+  "scope": "Private headless Chromium blank page; no user profile, app URL, account, or real library.",
+  "probe": "AbortSignal.timeout(1); await abort; signal.throwIfAborted()",
+  "observed": {
+    "name": "TimeoutError",
+    "message": "signal timed out",
+    "instanceof_Error": true
+  },
+  "passed": true
+}
