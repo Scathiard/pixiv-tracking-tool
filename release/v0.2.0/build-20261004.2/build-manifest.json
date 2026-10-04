@@ -1,0 +1,48 @@
+{
+  "version": "0.2.0",
+  "build": "20261004.2",
+  "exe_file": "PixivTracker_v0.2.0_build20261004.2.exe",
+  "exe_size_bytes": 78460958,
+  "exe_sha256": "e065cf46abbc508ae6d908f4e66f13ab50911faa9e9b58668e32875cd60e1e91",
+  "source_commit": "83e11b41f84ff55c571f863ae133b5da47f2c5fb",
+  "source_branch": "codex/v0.2.0-build20261004.1",
+  "source_dirty": false,
+  "database_schema": "0003_revisions",
+  "database_upgrade_required": true,
+  "database_upgrade_entry": "startup-confirmed backup / validate / activate",
+  "build_environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "pyinstaller": "6.20.0"
+  },
+  "published": false,
+  "user_acceptance": false,
+  "validation": {
+    "source_integrated_passed": 53,
+    "packaged_core_passed": 26,
+    "packaged_browser_passed": 37,
+    "packaged_page_errors": 0,
+    "synthetic_40_concurrent_max_seconds": 3.8032703001517802,
+    "real_daily_reads": "passed with existing automatic and manual maintenance",
+    "normal_exit_seconds": 2.75,
+    "normal_restart_resumed_existing_task": true,
+    "overnight_stability": "not verified",
+    "real_phone": "not verified",
+    "record": "docs/审查/2026-10-04-整夜维护与本地浏览阻塞修复.md"
+  },
+  "daily_enabled": true,
+  "database_schema_migration_from_current_0003": false,
+  "database_index_preparation": {
+    "backup_first": true,
+    "transactional": true,
+    "idempotent": true,
+    "names": [
+      "ix_items_target_work_asset",
+      "ix_items_target_work_record",
+      "ix_items_target_scope"
+    ],
+    "daily_applied_with_authorization": true
+  },
+  "database_upgrade_note": "Legacy 0001/0002 uses confirmed schema upgrade; current 0003 only prepares missing task indexes with backup.",
+  "remaining_known_issue": "BUG-104: host-derived WebP response MIME; existing browser renders verified files"
+}
