@@ -1,33 +1,38 @@
 """Bounded, database-only work state shared by gallery, detail, and feed."""
 from datetime import datetime, timezone
 
-from sqlalchemy import Integer, String, and_, case, cast, func, literal, or_, select, true, union_all
+from sqlalchemy import Integer, String, and_, case, cast, func, literal, or_, select, true, union, union_all
 from sqlalchemy.orm import aliased
 
 from .catalogue_revision import catalogue_revision
 from .models import ApplicationState, Asset, Derivative, Operation, OperationItem, Work, RevisionAsset, RevisionDerivative
+from .task_indexes import task_target
 
 ACTIVE = ("queued", "planning", "ready", "running", "interrupted")
 LOCAL_KINDS = ("check", "metadata", "repair", "verify", "backfill", "thumbnails", "reconcile", "compare")
 
 
 def _operation_window(ids):
-    # SQLite has no persisted index for JSON target identities. Filter direct
-    # targets once before joining their work records or ranking their history.
+    # Fixed identity expressions match the additive indexes. Two composite
+    # indexes also provide the work-only left prefix; no extra work index.
     scope = func.json_each(Operation.parameters, "$.work_ids").table_valued("value").alias("scope")
     scoped_operation = select(Operation.id).join(scope, true()).where(
         cast(scope.c.value, Integer).in_(ids), Operation.kind.in_(LOCAL_KINDS)).distinct().cte("scoped_operations").prefix_with("MATERIALIZED")
-    explicit_work = OperationItem.target["work_id"].as_integer()
-    asset_id = OperationItem.target["asset_id"].as_string()
-    record_id = OperationItem.target["record_id"].as_string()
+    explicit_work = task_target(OperationItem.target, "work_id")
+    asset_id = task_target(OperationItem.target, "asset_id")
+    record_id = task_target(OperationItem.target, "record_id")
+    selected_ids = union(
+        select(OperationItem.id).where(explicit_work.in_(ids)),
+        select(OperationItem.id).where(explicit_work.is_(None),
+            asset_id.in_(select(Asset.id).where(Asset.work_id.in_(ids)))),
+        select(OperationItem.id).where(explicit_work.is_(None),
+            record_id.in_(select(Derivative.id).where(Derivative.work_id.in_(ids)))),
+    ).cte("selected_item_ids").prefix_with("MATERIALIZED")
     items = select(OperationItem.id, OperationItem.operation_id, OperationItem.kind,
         OperationItem.state, OperationItem.position, explicit_work.label("work_id"),
         asset_id.label("asset_id"), record_id.label("record_id"),
-        OperationItem.result["message"].as_string().label("reason")).where(or_(
-        explicit_work.in_(ids), and_(explicit_work.is_(None), or_(
-            asset_id.in_(select(Asset.id).where(Asset.work_id.in_(ids))),
-            record_id.in_(select(Derivative.id).where(Derivative.work_id.in_(ids))))))
-        ).cte("selected_items").prefix_with("MATERIALIZED")
+        OperationItem.result["message"].as_string().label("reason")).join(
+            selected_ids, selected_ids.c.id == OperationItem.id).cte("selected_items").prefix_with("MATERIALIZED")
     asset, derivative = aliased(Asset), aliased(Derivative)
     target_work = func.coalesce(items.c.work_id, asset.work_id, derivative.work_id)
     # INTEGER affinity lets SQLite build the (work_id, rank) lookup used by the
@@ -51,9 +56,9 @@ def _operation_window(ids):
     legacy_item = aliased(OperationItem)
     item_active = and_(Operation.state.in_(ACTIVE), legacy_item.state.in_(("pending", "running")))
     best_item = select(legacy_item.id).where(legacy_item.operation_id == Operation.id,
-        legacy_item.target["work_id"].as_integer().is_(None),
-        legacy_item.target["asset_id"].as_string().is_(None),
-        legacy_item.target["record_id"].as_string().is_(None)).order_by(
+        task_target(legacy_item.target, "work_id").is_(None),
+        task_target(legacy_item.target, "asset_id").is_(None),
+        task_target(legacy_item.target, "record_id").is_(None)).order_by(
         case((and_(item_active, legacy_item.state == "running"), 0), (item_active, 1), else_=2),
         case((legacy_item.state.in_(("failed", "not_executed")), 0), else_=1),
         legacy_item.position).limit(1).correlate(Operation).scalar_subquery()

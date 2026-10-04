@@ -62,14 +62,19 @@ class RemoteAccess:
 
 
 class Runtime:
-    def __init__(self, database_path: Path, images: Path, *, create=False, client=None, downloader=None):
+    def __init__(self, database_path: Path, images: Path, *, create=False, client=None, downloader=None,
+                 index_progress=None):
         self._closing = threading.Event()
         self._closed = False
         self._close_lock = threading.Lock()
         self.lease = LibraryLease(images).acquire()
         try:
             self.database = ArchiveDatabase.create(database_path) if create else ArchiveDatabase(database_path)
+            from .index_preparation import prepare_task_indexes
+            self.index_preparation = prepare_task_indexes(self.database, self.lease, progress=index_progress)
         except BaseException:
+            if hasattr(self, 'database'):
+                self.database.close()
             self.lease.close()
             raise
         self.images, self.client = Path(images).resolve(), client

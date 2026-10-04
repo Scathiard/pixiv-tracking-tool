@@ -1,0 +1,112 @@
+[
+  {
+    "source": "library-before-readonly.json",
+    "database_mode": "ro/query_only",
+    "sqlite": "3.53.1",
+    "samples": [
+      {
+        "label": "first100",
+        "ok": true,
+        "items": 100,
+        "result_sha256": "1c4f7c0cc05b431606b1bbe6ef55a5df95de0a7bf584a21a06776537c4246c37",
+        "seconds": 0.5697
+      },
+      {
+        "label": "middle100",
+        "ok": true,
+        "items": 100,
+        "result_sha256": "1431c9220fa60395abb0185d898a50696f3f8b05a1a968375b08d4dc9efcef7c",
+        "seconds": 2.75
+      },
+      {
+        "label": "sources",
+        "ok": true,
+        "items": 1,
+        "result_sha256": "f5a8ad05a15d176ce172e393b8b5d863cfb010a7c95c099c0367110f3374ab8c",
+        "seconds": 0.1324
+      }
+    ]
+  },
+  {
+    "source": "library-candidate2-readonly.json",
+    "database_mode": "ro/query_only",
+    "sqlite": "3.53.1",
+    "samples": [
+      {
+        "label": "first100",
+        "ok": true,
+        "items": 100,
+        "result_sha256": "1c4f7c0cc05b431606b1bbe6ef55a5df95de0a7bf584a21a06776537c4246c37",
+        "seconds": 0.3498
+      },
+      {
+        "label": "middle100",
+        "ok": true,
+        "items": 100,
+        "result_sha256": "1431c9220fa60395abb0185d898a50696f3f8b05a1a968375b08d4dc9efcef7c",
+        "seconds": 0.3403
+      },
+      {
+        "label": "sources",
+        "ok": true,
+        "items": 1,
+        "result_sha256": "f5a8ad05a15d176ce172e393b8b5d863cfb010a7c95c099c0367110f3374ab8c",
+        "seconds": 0.1293
+      }
+    ]
+  },
+  {
+    "source": "library-window-before-readonly.json",
+    "database_mode": "ro/query_only",
+    "sqlite": "3.53.1",
+    "samples": [
+      {
+        "label": "first480",
+        "ok": false,
+        "error": "OperationalError",
+        "seconds": 16.4132
+      },
+      {
+        "label": "middle480",
+        "ok": false,
+        "error": "OperationalError",
+        "seconds": 19.6661
+      },
+      {
+        "label": "sources",
+        "ok": true,
+        "items": 1,
+        "result_sha256": "f5a8ad05a15d176ce172e393b8b5d863cfb010a7c95c099c0367110f3374ab8c",
+        "seconds": 0.1192
+      }
+    ]
+  },
+  {
+    "source": "library-window-candidate2-readonly.json",
+    "database_mode": "ro/query_only",
+    "sqlite": "3.53.1",
+    "samples": [
+      {
+        "label": "first480",
+        "ok": true,
+        "items": 480,
+        "result_sha256": "6575006baaab76e86da4ca5e9efdc813ed44bd5ae4d871222e0e5aaf4a42604f",
+        "seconds": 0.6663
+      },
+      {
+        "label": "middle480",
+        "ok": true,
+        "items": 480,
+        "result_sha256": "e45d6b8f7241c04b0af03ed620237b9c7a2dc108ee8f27128a90cb1feb86911b",
+        "seconds": 0.5191
+      },
+      {
+        "label": "sources",
+        "ok": true,
+        "items": 1,
+        "result_sha256": "f5a8ad05a15d176ce172e393b8b5d863cfb010a7c95c099c0367110f3374ab8c",
+        "seconds": 0.1224
+      }
+    ]
+  }
+]

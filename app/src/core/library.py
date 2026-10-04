@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 from pathlib import PurePosixPath
 from urllib.parse import quote
 
-from sqlalchemy import String, and_, case, cast, func, literal, or_, select
-from sqlalchemy.orm import joinedload, load_only, selectinload
+from sqlalchemy import Integer, String, and_, case, cast, func, literal, or_, select
+from sqlalchemy.orm import aliased, joinedload, load_only, selectinload
 
 from ..security import sanitize_caption
 
@@ -73,9 +73,19 @@ class Library:
         self.bookmarks = None
 
     @staticmethod
-    def _statement(filters, ceiling):
-        statement = select(Work).where(Work.id <= ceiling, ~Work.pixiv_illust_id.in_(
-            select(ArchiveIntent.pixiv_illust_id).where(ArchiveIntent.mode == "suppressed")))
+    def _statement(filters, ceiling, *, for_count=False):
+        # The integer PK range otherwise makes SQLite read wide Work table
+        # pages for a default count. Counts can scan the existing covering Pixiv
+        # ID index instead; row selection and navigation retain their PK range.
+        upper_id = cast(Work.id, Integer) if for_count else Work.id
+        # Resolve the small deletion-intent set through the unique Pixiv ID
+        # index. Candidate rows can then be checked using IDs already present
+        # in the sort index, without reading each skipped Work's metadata.
+        suppressed_work = aliased(Work)
+        suppressed_ids = select(suppressed_work.id).select_from(ArchiveIntent).join(
+            suppressed_work, suppressed_work.pixiv_illust_id == ArchiveIntent.pixiv_illust_id).where(
+            ArchiveIntent.mode == "suppressed").correlate(None)
+        statement = select(Work).where(upper_id <= ceiling, ~Work.id.in_(suppressed_ids))
         if not filters.show_hidden:
             statement = statement.where(~Work.id.in_(select(LocalPreference.work_id).where(LocalPreference.is_hidden.is_(True))))
         if filters.artist_ids is not None:
@@ -278,12 +288,17 @@ class Library:
         with self.database.read() as session:
             ceiling = ceiling if ceiling is not None else session.scalar(select(func.max(Work.id))) or 0
             statement = self._statement(filters, ceiling)
-            total = session.scalar(select(func.count()).select_from(statement.subquery()))
-            related = statement.options(load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title,
+            count_statement = self._statement(filters, ceiling, for_count=True).with_only_columns(Work.id)
+            total = session.scalar(select(func.count()).select_from(count_statement.subquery()))
+            window_ids = list(session.scalars(statement.with_only_columns(Work.id).order_by(
+                *self._order(filters)).offset(offset).limit(limit)))
+            related = select(Work).where(Work.id.in_(window_ids))
+            related = related.options(load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title,
                 Work.type, Work.page_count, Work.posted_at, Work.x_restrict, Work.source_metadata,
                 Work.default_revision_id, Work.latest_revision_id), selectinload(Work.artist).load_only(Artist.name),
-                selectinload(Work.preference), selectinload(Work.bookmark)) if compact else self._related(statement)
-            works = list(session.scalars(related.order_by(*self._order(filters)).offset(offset).limit(limit)))
+                selectinload(Work.preference), selectinload(Work.bookmark)) if compact else self._related(related)
+            by_id = {work.id: work for work in session.scalars(related)} if window_ids else {}
+            works = [by_id[work_id] for work_id in window_ids]
             snapshots = selected_snapshots(session, works)
             operations = self._bookmark_operations(session, [work.id for work in works])
             views = [{"id": work.id, "pixiv_id": work.pixiv_illust_id, "artist_id": work.artist_id,
@@ -347,7 +362,7 @@ class Library:
             base = replace(filters, favorites=False, recent=False)
             for name, selected in (("all", base), ("recent", replace(base, recent=True)),
                     ("favorites", replace(base, favorites=True)), ("total", filters)):
-                statement = self._statement(selected, ceiling).with_only_columns(Work.id)
+                statement = self._statement(selected, ceiling, for_count=True).with_only_columns(Work.id)
                 result[name] = session.scalar(select(func.count()).select_from(statement.subquery())) or 0
             return result
 

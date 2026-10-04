@@ -53,14 +53,22 @@ def create_settings_router(get_runtime):
         with current.database.read() as session:
             artists = session.scalar(select(func.count()).select_from(Artist)) or 0
             works = session.scalar(select(func.count()).select_from(Work)) or 0
+            # Resolve the effective shape once per work, then reuse only these
+            # narrow rows. Each page must not seek the wide Work and revision
+            # records again merely to read their type and page count.
+            current_works = select(Work.id.label("work_id"), Work.pixiv_illust_id.label("pixiv_id"),
+                Work.default_revision_id.label("revision_id"),
+                func.coalesce(WorkRevision.type, Work.type).label("type"),
+                func.coalesce(WorkRevision.page_count, Work.page_count).label("page_count")).outerjoin(
+                    WorkRevision, WorkRevision.id == Work.default_revision_id).cte("current_works").prefix_with("MATERIALIZED")
             # UNION retains the former IN-membership semantics: a reused asset is
             # counted once even if several default revisions reference its ID.
             # Separate the legacy branch instead of repeating a MULTI-INDEX OR
             # and its whole-library ID list for every individual statistic.
             selected_assets = union(
-                select(RevisionAsset.asset_id.label("asset_id")).join(Work, Work.default_revision_id == RevisionAsset.revision_id),
-                select(Asset.id.label("asset_id")).join(Work, Work.id == Asset.work_id).where(
-                    Work.default_revision_id.is_(None), Asset.revision_id.is_(None)),
+                select(RevisionAsset.asset_id.label("asset_id")).join(current_works, current_works.c.revision_id == RevisionAsset.revision_id),
+                select(Asset.id.label("asset_id")).join(current_works, current_works.c.work_id == Asset.work_id).where(
+                    current_works.c.revision_id.is_(None), Asset.revision_id.is_(None)),
             ).subquery()
             registered = func.length(Asset.relative_path) > 0
             usable = and_(registered, ~Asset.state.in_(("missing", "failed", "invalid", "mismatch", "corrupt")))
@@ -74,12 +82,12 @@ def create_settings_router(get_runtime):
                 total_when(and_(Asset.state == "unknown", registered)).label("unverified_originals"),
                 total_when(usable).label("usable"),
             ).join(selected_assets, selected_assets.c.asset_id == Asset.id).join(
-                Work, Work.id == Asset.work_id).outerjoin(WorkRevision, WorkRevision.id == Work.default_revision_id).where(
-                or_(and_(func.coalesce(WorkRevision.type, Work.type) == "ugoira", Asset.role == "ugoira_zip"),
-                    and_(func.coalesce(WorkRevision.type, Work.type) != "ugoira", Asset.role == "image",
-                         Asset.page_index < func.coalesce(WorkRevision.page_count, Work.page_count))))
+                current_works, current_works.c.work_id == Asset.work_id).where(
+                or_(and_(current_works.c.type == "ugoira", Asset.role == "ugoira_zip"),
+                    and_(current_works.c.type != "ugoira", Asset.role == "image",
+                         Asset.page_index < current_works.c.page_count)))
             originals = originals.group_by(Asset.work_id).subquery()
-            required = case((func.coalesce(WorkRevision.type, Work.type) == "ugoira", 1), else_=func.coalesce(WorkRevision.page_count, Work.page_count))
+            required = case((current_works.c.type == "ugoira", 1), else_=current_works.c.page_count)
             gap = required - func.coalesce(originals.c.usable, 0)
             totals = session.execute(select(
                 func.coalesce(func.sum(originals.c.downloaded_pages), 0),
@@ -87,9 +95,9 @@ def create_settings_router(get_runtime):
                 func.coalesce(func.sum(originals.c.verified_originals), 0),
                 func.coalesce(func.sum(originals.c.unverified_originals), 0),
                 func.coalesce(func.sum(case((gap > 0, gap), else_=0)), 0),
-            ).select_from(Work).outerjoin(WorkRevision, WorkRevision.id == Work.default_revision_id).outerjoin(
-                originals, originals.c.work_id == Work.id).where(
-                    ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(ArchiveIntent.mode == "suppressed")))).one()
+            ).select_from(current_works).outerjoin(
+                originals, originals.c.work_id == current_works.c.work_id).where(
+                    ~current_works.c.pixiv_id.in_(select(ArchiveIntent.pixiv_illust_id).where(ArchiveIntent.mode == "suppressed")))).one()
             downloaded_pages, registered, verified, unknown, missing = totals
         status = "logged_in" if current.client is not None else (
             "pending" if get_pending_login_url() else "offline")

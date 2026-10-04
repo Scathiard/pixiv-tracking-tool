@@ -1,0 +1,37 @@
+{
+  "receipt": {
+    "kind": "task_indexes",
+    "schema_revision": "0003_revisions",
+    "created_at": "2026-10-04T03:09:18.651488+00:00",
+    "source": "D:\\PixivTracker\\data\\pixiv_tracker.db",
+    "backup": "D:\\PixivTracker\\data\\upgrade\\20261004-e9b70a32c8ef406082be0964e3569677\\backup.db",
+    "missing_indexes": [
+      "ix_items_target_work_asset",
+      "ix_items_target_work_record",
+      "ix_items_target_scope"
+    ],
+    "state": "complete",
+    "backup_bytes": 447590400
+  },
+  "counts_unchanged": true,
+  "counts": {
+    "works": 15290,
+    "work_revisions": 20106,
+    "assets": 48644,
+    "revision_assets": 64827,
+    "derivatives": 17997,
+    "operations": 2129,
+    "operation_items": 150861,
+    "schema": "0003_revisions",
+    "maintenance_states": {
+      "failed": 691,
+      "pending": 43197,
+      "skipped": 41,
+      "succeeded": 55425
+    }
+  },
+  "elapsed_seconds": 109.886,
+  "remote_calls": 0,
+  "started_workers": false,
+  "schema_revision_unchanged": true
+}

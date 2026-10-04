@@ -1,0 +1,39 @@
+{
+  "baseline": "b945073 original materialize method injected in isolated process only",
+  "red_test_result": "4 failed, 1 passed (no-op position reads and growing append VM)",
+  "green_test_result": "5 passed in 5.26s; includes unknown/NULL/empty lanes, duplicate/dependency ordering, rollback, empty operation starts at0, and no-op flush/wake",
+  "measurements": {
+    "b20261004.2-materialize-red-02": [
+      {
+        "file": "pytest\\test_append_position_cost_is_b0\\materialize-vm.json",
+        "vm_total": 5100,
+        "position_vm": [
+          5014
+        ]
+      },
+      {
+        "file": "pytest\\test_append_position_cost_is_b1\\materialize-vm.json",
+        "vm_total": 80100,
+        "position_vm": [
+          80014
+        ]
+      }
+    ],
+    "b20261004.2-materialize-green-02": [
+      {
+        "file": "pytest\\test_append_position_cost_is_b0\\materialize-vm.json",
+        "vm_total": 1166,
+        "position_vm": [
+          1080
+        ]
+      },
+      {
+        "file": "pytest\\test_append_position_cost_is_b1\\materialize-vm.json",
+        "vm_total": 1166,
+        "position_vm": [
+          1080
+        ]
+      }
+    ]
+  }
+}

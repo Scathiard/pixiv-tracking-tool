@@ -1,0 +1,84 @@
+{
+  "database_mode": "ro/query_only",
+  "sqlite": "3.53.1",
+  "samples": [
+    {
+      "label": "first480",
+      "ok": true,
+      "items": 480,
+      "result_sha256": "4bb594160bc29d9c3bed67e88eb6a10eae8175a7062d053331f3d80eb115caeb",
+      "seconds": 0.4549,
+      "statements": 13,
+      "slowest": [
+        {
+          "kind": "WITH",
+          "seconds": 0.074919
+        },
+        {
+          "kind": "SELECT",
+          "seconds": 0.021917
+        },
+        {
+          "kind": "SELECT",
+          "seconds": 0.02052
+        },
+        {
+          "kind": "SELECT",
+          "seconds": 0.006253
+        }
+      ]
+    },
+    {
+      "label": "middle480",
+      "ok": true,
+      "items": 480,
+      "result_sha256": "cd57c97fd7183761bff1603b51a85e8236e27aaaf991364423db783ee47455e6",
+      "seconds": 0.2934,
+      "statements": 13,
+      "slowest": [
+        {
+          "kind": "WITH",
+          "seconds": 0.066712
+        },
+        {
+          "kind": "SELECT",
+          "seconds": 0.00312
+        },
+        {
+          "kind": "SELECT",
+          "seconds": 0.001813
+        },
+        {
+          "kind": "SELECT",
+          "seconds": 0.001414
+        }
+      ]
+    },
+    {
+      "label": "sources",
+      "ok": true,
+      "items": 1,
+      "result_sha256": "9b4bbe11fa8d6b749a0a29246ee4dbfb7ea517cd2a0fe0f00ed716c70151a3b2",
+      "seconds": 0.1134,
+      "statements": 9,
+      "slowest": [
+        {
+          "kind": "SELECT",
+          "seconds": 0.10011
+        },
+        {
+          "kind": "SELECT",
+          "seconds": 0.001286
+        },
+        {
+          "kind": "BEGIN",
+          "seconds": 0.00094
+        },
+        {
+          "kind": "SELECT",
+          "seconds": 0.000422
+        }
+      ]
+    }
+  ]
+}

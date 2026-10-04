@@ -13,7 +13,7 @@ from typing import Protocol
 from datetime import timedelta
 from contextlib import nullcontext
 
-from sqlalchemy import and_, case, exists, func, or_, select, true
+from sqlalchemy import and_, case, exists, func, or_, select, true, union_all
 from sqlalchemy.orm import aliased
 
 from .database import ArchiveDatabase
@@ -287,13 +287,21 @@ class TaskQueue:
 
     def materialize_in_transaction(self, session, operation_id, specs):
         specs = list(specs)
+        if not specs:
+            session.flush()
+            self._wake.set()
+            return
         needed = {spec.key for spec in specs} | {key for spec in specs for key in spec.depends_on}
         existing = set()
         keys = list(needed)
         for offset in range(0, len(keys), 500):
             existing.update(session.scalars(select(OperationItem.item_key).where(
                 OperationItem.operation_id == operation_id, OperationItem.item_key.in_(keys[offset:offset + 500]))))
-        position = session.scalar(select(func.max(OperationItem.position)).where(OperationItem.operation_id == operation_id))
+        if all(spec.key in existing for spec in specs):
+            session.flush()
+            self._wake.set()
+            return
+        position = self._max_item_position(session, operation_id)
         position = 0 if position is None else position + 1
         for spec in specs:
             if spec.key in existing:
@@ -307,6 +315,32 @@ class TaskQueue:
             position += 1
         session.flush()
         self._wake.set()
+
+    @classmethod
+    def _max_item_position(cls, session, operation_id):
+        # Position is the fourth index column, after state and lane. Seek the
+        # end of each actual prefix instead of visiting all settled rows.
+        states = cls._item_states(operation_id)
+        first_lane = select(func.min(OperationItem.lane)).where(
+            OperationItem.operation_id == operation_id,
+            OperationItem.state == states.c.state).correlate(states).scalar_subquery()
+        lanes = select(states.c.state, first_lane.label("lane")).where(
+            states.c.state.is_not(None)).cte("item_lanes", recursive=True)
+        next_lane = select(func.min(OperationItem.lane)).where(
+            OperationItem.operation_id == operation_id, OperationItem.state == lanes.c.state,
+            OperationItem.lane > lanes.c.lane).correlate(lanes).scalar_subquery()
+        lanes = lanes.union_all(select(lanes.c.state, next_lane).where(lanes.c.lane.is_not(None)))
+        null_position = select(func.max(OperationItem.position)).where(
+            OperationItem.operation_id == operation_id, OperationItem.state == states.c.state,
+            OperationItem.lane.is_(None)).correlate(states).scalar_subquery()
+        lane_position = select(func.max(OperationItem.position)).where(
+            OperationItem.operation_id == operation_id, OperationItem.state == lanes.c.state,
+            OperationItem.lane == lanes.c.lane).correlate(lanes).scalar_subquery()
+        positions = union_all(
+            select(null_position.label("position")).select_from(states).where(states.c.state.is_not(None)),
+            select(lane_position.label("position")).select_from(lanes).where(lanes.c.lane.is_not(None)),
+        ).subquery()
+        return session.scalar(select(func.max(positions.c.position)))
 
     def submit(self, kind: str, parameters: dict, label: str, source="manual") -> dict:
         with self.database.write() as session:
@@ -931,7 +965,10 @@ class TaskQueue:
         if session is not None and op.state in ACTIVE and not waiting_connection:
             running = list(session.scalars(select(OperationItem).where(OperationItem.operation_id == op.id, OperationItem.state == "running").order_by(OperationItem.position).limit(4)))
             remote_pages = session.scalar(select(OperationItem.id).where(OperationItem.operation_id == op.id,
-                OperationItem.kind.in_(("discover_page", "bookmark_page", "bookmark_artist")), OperationItem.state.in_(("pending", "running"))).limit(1))
+                OperationItem.kind.in_(("discover_page", "bookmark_page", "bookmark_artist")),
+                OperationItem.state.in_(("pending", "running")),
+                OperationItem.phase.in_(("checking", "bookmarks")),
+                OperationItem.unit.in_(("pages", "artists"))).limit(1))
             if remote_pages:
                 phase["total"] = None
             lane = "check" if op.state == "planning" else None

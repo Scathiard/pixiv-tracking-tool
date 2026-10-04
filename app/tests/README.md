@@ -31,6 +31,9 @@
 - `test_archive_tasks.py`、`test_archive_workflows.py`：固定轮次、真实处理量、暂停边界、精确补下载；手动全库／画师／单件范围内旧动图 ZIP／时序补齐，自动任务不顺带补旧原包；来源核对／跳过、临时失败和失败保留 GIF；HTTP 使用本机模拟服务。
 - `test_archive_pipeline.py`：检查／下载／本地处理并行，逐项优先级、持久子任务、资源互斥、来源更新、真实核验计数与有界队列领取；仅合成元数据和媒体。
 - `test_task_claim_completed_dependencies.py`：旧 `lane=NULL` 与新通道的部分完成维护清单，使用 SQL 执行计划与包括结果读取的 SQLite VM 工作量验证有界领取和完整步骤预算；150,512 步合成配比、空通道推进、跨窗口依赖、暂停与重新创建队列不重复计数，以及索引统计／结案与原 SQL 等价（含未知状态、空阶段和空任务）。未给出的清单部分使用明确标注的已完成填充，不读取真实图库。
+- `test_task_materialize_scale.py`、`test_task_progress_remote_inventory.py`：追加清单只定位各状态／通道的末位，空清单和重复清单不扫描历史；进度按阶段和单位定位远端分页步骤，保留旧收藏步骤的未知分母，仅合成数据。
+- `test_task_target_indexes.py`、`test_task_index_preparation.py`：任务目标的类型、优先级、去重和旧范围兼容；十五万步骤的索引计划／工作量；持有图库租约、WAL 一致性备份、事务失败回滚、同名定义冲突、幂等及只读打开不修改，只使用隔离数据库。
+- `test_library_count_plan.py`、`test_settings_projection.py`：图库计数和排序窗口先读取窄行，筛选／排序／分页结果与原查询一致；设置统计复用作品形态，覆盖跨作品资产复用、历史版本、隐藏、删除阻止及缺失登记语义。
 - `test_archive_state.py`：图库／详情／流式统一整件作品原件与处理状态；首图可读不能覆盖缺页，具体媒体请求观察缺失后更新事实；5,000 件／2,000 页批量读取。
 - `test_reading_query_scale.py`：合成历史任务与无关媒体记录下的读取预算，保留历史任务状态选择规则；媒体索引仅作定位提示，仍核对授权与路径边界，历史来源版本的本地图保持可读，不读取真实图库。
 - `test_settings_lan_discovery.py`：禁止主机名 DNS 查询，设置末尾只枚举本地适配器且不占数据库连接；模拟适配器失败时保留其他设置并返回空局域网地址。

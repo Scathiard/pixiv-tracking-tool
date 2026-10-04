@@ -1,0 +1,22 @@
+{
+  "scope": "final shared candidate integration regression",
+  "version": "0.2.0",
+  "internal_build": "20261004.2",
+  "synthetic_only": true,
+  "passed": 53,
+  "failed": 0,
+  "seconds": 110.61,
+  "warnings": 1,
+  "warning": "Starlette TestClient AnyIO BlockingPortal alias deprecation",
+  "test_files": [
+    "tests/test_archive_api.py",
+    "tests/test_v022_api.py",
+    "tests/test_v022_integration.py",
+    "tests/test_archive_pipeline.py",
+    "tests/test_archive_tasks.py"
+  ],
+  "coverage": ["library/task/settings API contracts", "automatic and manual pause/resume", "task deduplication and durable restart", "parallel downloads/local work/publication", "source revision/ugoira/legacy preservation"],
+  "inputs": "input-hashes.json",
+  "junit": "junit.xml",
+  "limits": ["source tests only, not packaged EXE or real-data verification", "no source edits or commits", "no real library/account/config access", "isolated test processes finished"]
+}

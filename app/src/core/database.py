@@ -81,6 +81,8 @@ class ArchiveDatabase:
                 connection.exec_driver_sql("BEGIN IMMEDIATE")
                 operations = Operations(MigrationContext.configure(connection))
                 Base.metadata.create_all(connection)
+                from .task_indexes import create_task_indexes
+                create_task_indexes(connection)
                 operations.create_table(
                     "alembic_version",
                     Column("version_num", String(32), primary_key=True),
