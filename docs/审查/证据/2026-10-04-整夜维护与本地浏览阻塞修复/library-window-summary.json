@@ -1,0 +1,39 @@
+{
+  "passed": 36,
+  "failed": 0,
+  "duration_seconds": 16.29,
+  "warning": "Existing Starlette AnyIO alias deprecation",
+  "tests": [
+    "tests/test_library_count_plan.py",
+    "tests/test_filter_catalogue.py",
+    "tests/test_reading_queries.py",
+    "tests/test_delivery_reading.py"
+  ],
+  "fixture": "30 synthetic works in-memory plus existing isolated reading fixtures",
+  "window_red": "Original query projected full Work rows and opened wide Work table",
+  "window_green": "SELECT works.id via covering ix_works_order; VDBE does not open Work table",
+  "sorts": [
+    "newest",
+    "oldest",
+    "added",
+    "title"
+  ],
+  "filter_combinations": 9,
+  "offsets": [
+    0,
+    2,
+    15,
+    999
+  ],
+  "compact_modes": [
+    true,
+    false
+  ],
+  "real_database_access": "EXPLAIN QUERY PLAN and EXPLAIN only",
+  "schema_changes": false,
+  "pool_changes": false,
+  "source_files": [
+    "app/src/core/library.py",
+    "app/tests/test_library_count_plan.py"
+  ]
+}

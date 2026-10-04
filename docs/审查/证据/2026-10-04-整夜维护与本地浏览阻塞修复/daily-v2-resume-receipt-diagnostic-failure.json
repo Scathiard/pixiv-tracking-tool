@@ -1,0 +1,211 @@
+{
+  "captured_at": "2026-10-04T03:23:57.609034+00:00",
+  "requests": [
+    {
+      "label": "status",
+      "seconds": 0.0208,
+      "status": 200,
+      "bytes": 162,
+      "content_type": "application/json"
+    },
+    {
+      "label": "settings",
+      "seconds": 0.4761,
+      "status": 200,
+      "bytes": 505,
+      "content_type": "application/json"
+    },
+    {
+      "label": "first100",
+      "seconds": 0.1102,
+      "status": 200,
+      "bytes": 133098,
+      "content_type": "application/json"
+    },
+    {
+      "label": "middle480",
+      "seconds": 0.5784,
+      "status": 200,
+      "bytes": 604520,
+      "content_type": "application/json"
+    },
+    {
+      "label": "detail",
+      "seconds": 0.0223,
+      "status": 200,
+      "bytes": 2908,
+      "content_type": "application/json"
+    },
+    {
+      "label": "original-image",
+      "seconds": 0.0202,
+      "status": 200,
+      "bytes": 2155446,
+      "content_type": "image/png",
+      "image_format": "PNG",
+      "dimensions": [
+        1050,
+        1400
+      ]
+    },
+    {
+      "label": "thumbnail-0",
+      "seconds": 0.0036,
+      "status": 200,
+      "bytes": 21896,
+      "content_type": "text/plain; charset=utf-8",
+      "image_format": "WEBP",
+      "dimensions": [
+        360,
+        360
+      ]
+    },
+    {
+      "label": "thumbnail-1",
+      "seconds": 0.0033,
+      "status": 200,
+      "bytes": 30578,
+      "content_type": "text/plain; charset=utf-8",
+      "image_format": "WEBP",
+      "dimensions": [
+        360,
+        360
+      ]
+    },
+    {
+      "label": "thumbnail-2",
+      "seconds": 0.0027,
+      "status": 200,
+      "bytes": 27104,
+      "content_type": "text/plain; charset=utf-8",
+      "image_format": "WEBP",
+      "dimensions": [
+        360,
+        360
+      ]
+    },
+    {
+      "label": "thumbnail-3",
+      "seconds": 0.0026,
+      "status": 200,
+      "bytes": 16904,
+      "content_type": "text/plain; charset=utf-8",
+      "image_format": "WEBP",
+      "dimensions": [
+        360,
+        360
+      ]
+    },
+    {
+      "label": "progress",
+      "seconds": 0.0225,
+      "status": 200,
+      "bytes": 18486,
+      "content_type": "application/json"
+    }
+  ],
+  "settings": {
+    "version": "0.2.0",
+    "build": "20261004.2",
+    "current_port": 1919,
+    "next_port": 1919,
+    "data_root": "D:\\PixivTracker",
+    "automatic_paused": false,
+    "check_interval_minutes": 360,
+    "stats": {
+      "artists": 83,
+      "works": 15290,
+      "downloaded_pages": 45432,
+      "registered_originals": 46751,
+      "verified_originals": 46751,
+      "missing_originals": 439,
+      "unverified_originals": 0
+    },
+    "login_status": "logged_in"
+  },
+  "library": {
+    "total": 15290,
+    "first_count": 100,
+    "middle_count": 480
+  },
+  "progress": {
+    "worker_error": null,
+    "active_operation_count": 2,
+    "catalogue_revision": 142708,
+    "automatic_paused": false
+  },
+  "maintenance": {
+    "id": "5c0a6aa734ef4f56ac7406d11768cfd3",
+    "state": "paused",
+    "pause_requested": true,
+    "phase": {
+      "name": "reconciling",
+      "unit": "works",
+      "done": 7394,
+      "total": 15280
+    },
+    "phase_snapshots": {
+      "inventory:works": {
+        "phase": "inventory",
+        "unit": "works",
+        "done": 15280,
+        "total": 15280
+      },
+      "verifying:assets": {
+        "phase": "verifying",
+        "unit": "assets",
+        "done": 24174,
+        "total": 48517
+      },
+      "checking:works": {
+        "phase": "checking",
+        "unit": "works",
+        "done": 16010,
+        "total": 16010
+      },
+      "verifying:previews": {
+        "phase": "verifying",
+        "unit": "previews",
+        "done": 8123,
+        "total": 17981
+      },
+      "reconciling:works": {
+        "phase": "reconciling",
+        "unit": "works",
+        "done": 7394,
+        "total": 15280
+      },
+      "verifying:works": {
+        "phase": "verifying",
+        "unit": "works",
+        "done": 365,
+        "total": 1416
+      },
+      "downloading:assets": {
+        "phase": "downloading",
+        "unit": "assets",
+        "done": 8,
+        "total": 8
+      },
+      "checking:artists": {
+        "phase": "checking",
+        "unit": "artists",
+        "done": 83,
+        "total": 83
+      }
+    }
+  },
+  "maintenance_item_counts": {
+    "failed": 691,
+    "pending": 43197,
+    "skipped": 41,
+    "succeeded": 55425
+  },
+  "resume": {
+    "id": null,
+    "state": "running",
+    "pause_requested": false
+  },
+  "passed": false,
+  "error_type": "KeyError"
+}

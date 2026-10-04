@@ -1,0 +1,69 @@
+{
+  "source_commit": "83e11b41f84ff55c571f863ae133b5da47f2c5fb",
+  "source_hashes_before": {
+    "app/src/core/archive_state.py": "8ce0d03882079cbd6eb68ea577f9830f46323303daeb14cea59ee99ebf2dc261",
+    "app/src/core/tasks.py": "6fa26efb9dd272511a2f4ae389fa143645231580b4da49890837f9146aacf71c",
+    "app/src/core/runtime.py": "7391225a2100fe762a00253e73a3528aaaa20ee4a195f32f4f830f335003935d",
+    "app/src/routes/settings_api.py": "a981df3db2f5989c09d1a82c3b185f5399aeef4ac293d0e9235ade71587fe025"
+  },
+  "source_hashes_after": {
+    "app/src/core/archive_state.py": "8ce0d03882079cbd6eb68ea577f9830f46323303daeb14cea59ee99ebf2dc261",
+    "app/src/core/tasks.py": "6fa26efb9dd272511a2f4ae389fa143645231580b4da49890837f9146aacf71c",
+    "app/src/core/runtime.py": "7391225a2100fe762a00253e73a3528aaaa20ee4a195f32f4f830f335003935d",
+    "app/src/routes/settings_api.py": "a981df3db2f5989c09d1a82c3b185f5399aeef4ac293d0e9235ade71587fe025"
+  },
+  "source_unchanged_during_probe": true,
+  "rows": {
+    "work_count": 15000,
+    "asset_count": 45000,
+    "revision_refs": 90000,
+    "operation_items": 150512,
+    "initial_succeeded": 106626,
+    "background_completed": 11
+  },
+  "request_count": 40,
+  "response_ranges_seconds": {
+    "/api/library?limit=100&compact=1": [
+      0.8779449998401105,
+      1.8913502998184413
+    ],
+    "/api/library?limit=100&offset=100&compact=1": [
+      0.8081632000394166,
+      1.978110000025481
+    ],
+    "/api/library?limit=480&offset=500&compact=1": [
+      3.127161599928513,
+      3.8032703001517802
+    ],
+    "/api/works/1": [
+      0.2589699001982808,
+      1.261754299979657
+    ],
+    "/api/progress": [
+      0.20401540002785623,
+      1.3168736000079662
+    ],
+    "/api/settings": [
+      0.2849984001368284,
+      1.2236019000411034
+    ],
+    "/images/artist/1_p0.png": [
+      0.36266659991815686,
+      0.7024265001527965
+    ]
+  },
+  "max_response_seconds": 3.8032703001517802,
+  "latency_budget_seconds": 5,
+  "latency_budget_passed": true,
+  "pool_peak": 15,
+  "worker_error": null,
+  "max_connection_seconds": 3.3973623001948,
+  "max_sql_seconds": 0.22319979988969862,
+  "scope": "40 actual API calls including two galleries and media; actual unpaused queue with 150k partly settled legacy steps and synthetic local read handler; no external network",
+  "result": {
+    "passed": true,
+    "tests": 1,
+    "seconds": 20.441449400037527,
+    "latency_budget_seconds": 5
+  }
+}

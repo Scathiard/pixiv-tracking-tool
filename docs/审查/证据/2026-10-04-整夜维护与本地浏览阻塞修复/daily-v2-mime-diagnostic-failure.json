@@ -1,0 +1,73 @@
+{
+  "captured_at": "2026-10-04T03:22:45.020408+00:00",
+  "requests": [
+    {
+      "label": "status",
+      "seconds": 0.0024,
+      "status": 200,
+      "bytes": 162
+    },
+    {
+      "label": "settings",
+      "seconds": 0.5213,
+      "status": 200,
+      "bytes": 505
+    },
+    {
+      "label": "first100",
+      "seconds": 0.2155,
+      "status": 200,
+      "bytes": 133098
+    },
+    {
+      "label": "middle480",
+      "seconds": 0.6618,
+      "status": 200,
+      "bytes": 604481
+    },
+    {
+      "label": "detail",
+      "seconds": 0.0357,
+      "status": 200,
+      "bytes": 2908
+    },
+    {
+      "label": "original-image",
+      "seconds": 0.6733,
+      "status": 200,
+      "bytes": 2155446
+    },
+    {
+      "label": "thumbnail-0",
+      "seconds": 0.0039,
+      "status": 200,
+      "bytes": 21896
+    }
+  ],
+  "settings": {
+    "version": "0.2.0",
+    "build": "20261004.2",
+    "current_port": 1919,
+    "next_port": 1919,
+    "data_root": "D:\\PixivTracker",
+    "automatic_paused": false,
+    "check_interval_minutes": 360,
+    "stats": {
+      "artists": 83,
+      "works": 15290,
+      "downloaded_pages": 45432,
+      "registered_originals": 46751,
+      "verified_originals": 46751,
+      "missing_originals": 439,
+      "unverified_originals": 0
+    },
+    "login_status": "logged_in"
+  },
+  "library": {
+    "total": 15290,
+    "first_count": 100,
+    "middle_count": 480
+  },
+  "passed": false,
+  "error_type": "AssertionError"
+}
