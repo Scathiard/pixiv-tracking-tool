@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import timedelta
-from threading import Event, RLock
+from threading import Condition, Event, RLock
 import time
 from uuid import UUID, uuid4
 
@@ -76,6 +76,10 @@ class BookmarkService:
         # across server restarts as well as account switches within a process.
         self._account_epoch = time.time_ns() // 1000
         self._lock = RLock()
+        self._idle = Condition(self._lock)
+        self._submitting = 0
+        self._recovering = False
+        self._callbacks = 0
         self._executor = None
         self._futures = set()
         self._scheduled_ids = set()
@@ -89,7 +93,7 @@ class BookmarkService:
             self._stopping.clear()
             self._executor = ThreadPoolExecutor(
                 max_workers=self.max_workers, thread_name_prefix="bookmark")
-            self.reconcile_pending()
+        self.reconcile_pending()
 
     def reconcile_pending(self):
         """Wake persisted intents only when a remote connection is ready.
@@ -103,7 +107,7 @@ class BookmarkService:
                 if not available:
                     self._fresh.clear()
                 return 0
-            return self._refill_recovery()
+        return self._refill_recovery()
 
     def mark_disconnected(self):
         """Drop in-process confidence when Runtime knows the connection ended."""
@@ -126,6 +130,12 @@ class BookmarkService:
 
     def _mark_fresh(self, work_id, version, account_id):
         with self._lock:
+            current = self._current_account() if self._current_account is not None else account_id
+            if current is None or str(current) != str(account_id):
+                return
+            marker = self._fresh.get(work_id)
+            if marker is not None and marker[0] > version:
+                return
             self._last_account_id = str(account_id)
             self._fresh[work_id] = (version, str(account_id),
                                     self._clock() + self._fresh_seconds)
@@ -186,11 +196,17 @@ class BookmarkService:
             future.cancel()
 
     def stop(self, timeout=5.0):
-        with self._lock:
+        deadline = None if timeout is None else time.monotonic() + timeout
+        def remaining():
+            return None if deadline is None else max(0, deadline - time.monotonic())
+        with self._idle:
             executor = self._executor
             self._accepting = False
+            if not self._idle.wait_for(lambda: not self._submitting and not self._recovering and not self._callbacks,
+                                       timeout=remaining()):
+                return False
             active = {future for future in self._futures if not future.done()}
-        if active and wait(active, timeout=timeout).not_done:
+        if active and wait(active, timeout=remaining()).not_done:
             return False
         if executor is not None:
             executor.shutdown(wait=True, cancel_futures=self._stopping.is_set())
@@ -208,44 +224,66 @@ class BookmarkService:
         with self._lock:
             # Dormant persisted intents are safe to carry in a SQLite snapshot.
             # Scheduled work is not: the caller must retain DB/lease until it exits.
-            return bool(self._scheduled_ids or any(
+            return bool(self._submitting or self._recovering or self._callbacks or self._scheduled_ids or any(
                 not future.done() for future in self._futures))
 
     def _schedule(self, operation_id, readback_only=False):
-        if self._executor is None:
-            raise RuntimeError("收藏服务尚未启动")
-        self._scheduled_ids.add(operation_id)
-        future = self._executor.submit(self._run, operation_id, readback_only)
-        self._futures.add(future)
+        with self._lock:
+            if (self._executor is None or not self._accepting
+                    or operation_id in self._scheduled_ids
+                    or sum(not future.done() for future in self._futures) >= self.max_pending
+                    or readback_only and self._submitting):
+                return False
+            self._scheduled_ids.add(operation_id)
+            future = self._executor.submit(self._run, operation_id, readback_only)
+            self._futures.add(future)
+        # A completed Future calls its callback immediately. Register after
+        # leaving the memory lock: recovery/finishing may need a DB connection.
         future.add_done_callback(lambda completed: self._done(operation_id, completed))
+        return True
 
     def _done(self, operation_id, future):
         with self._lock:
+            self._callbacks += 1
             self._futures.discard(future)
             self._scheduled_ids.discard(operation_id)
+            recover = self._accepting and self._executor is not None and self._is_available()
+        try:
             if not future.cancelled() and future.exception() is not None:
                 try:
                     self._finish(operation_id, "unconfirmed", "收藏核对意外中断")
                 except Exception:
+                    # The persisted pending intent remains readback-only on restart.
                     pass
-            if self._accepting and self._executor is not None and self._is_available():
+            if recover:
                 self._refill_recovery()
+        finally:
+            with self._idle:
+                self._callbacks -= 1
+                self._idle.notify_all()
 
     def _refill_recovery(self):
         """Bound queued recovery work as well as active threads."""
-        room = self.max_pending - len(self._scheduled_ids)
-        if room <= 0:
-            return
-        with self.database.read() as session:
-            query = select(BookmarkOperation.id).where(
-                BookmarkOperation.status == "pending")
-            if self._scheduled_ids:
-                query = query.where(BookmarkOperation.id.not_in(self._scheduled_ids))
-            pending = session.scalars(query.order_by(
-                BookmarkOperation.created_at).limit(room)).all()
-        for operation_id in pending:
-            self._schedule(operation_id, readback_only=True)
-        return len(pending)
+        with self._lock:
+            # A Future is complete before its callback runs. Such a callback
+            # still counts toward safe shutdown, but cannot occupy a pending
+            # slot and turn a newly accepted write into recovery-only work.
+            room = self.max_pending - sum(not future.done() for future in self._futures)
+            if room <= 0 or self._recovering or self._submitting or not self._accepting:
+                return 0
+            self._recovering = True
+            scheduled = tuple(self._scheduled_ids)
+        try:
+            with self.database.read() as session:
+                query = select(BookmarkOperation.id).where(BookmarkOperation.status == "pending")
+                if scheduled:
+                    query = query.where(BookmarkOperation.id.not_in(scheduled))
+                pending = session.scalars(query.order_by(BookmarkOperation.created_at).limit(room)).all()
+            return sum(self._schedule(identity, readback_only=True) for identity in pending)
+        finally:
+            with self._idle:
+                self._recovering = False
+                self._idle.notify_all()
 
     @staticmethod
     def _request_id(value):
@@ -266,19 +304,18 @@ class BookmarkService:
 
     def refresh(self, work_id, automatic=False):
         if automatic:
-            with self._lock:
-                account, _ = self._account_context()
-                with self.database.read() as session:
-                    if session.get(Work, work_id) is None:
-                        raise LookupError("作品不存在")
-                    fact = session.get(RemoteBookmark, work_id)
-                    if not account or not self._is_available():
-                        return self._state_in_session(session, work_id)
-                    if (fact and fact.source in ("readback", "metadata") and
-                            fact.account_id == account and fact.confirmed_at and
-                            timedelta(0) <= utcnow() - fact.confirmed_at <
-                            timedelta(seconds=self._auto_refresh_seconds)):
-                        return self._state_in_session(session, work_id)
+            account, _ = self._account_context()
+            with self.database.read() as session:
+                if session.get(Work, work_id) is None:
+                    raise LookupError("作品不存在")
+                fact, operation = self._state_records(session, work_id)
+                cached = (not account or not self._is_available() or
+                    fact and fact.source in ("readback", "metadata") and
+                    fact.account_id == account and fact.confirmed_at and
+                    timedelta(0) <= utcnow() - fact.confirmed_at <
+                    timedelta(seconds=self._auto_refresh_seconds))
+            if cached:
+                return self.snapshot(fact, operation, work_id=work_id)
         return self._enqueue(work_id, None, str(uuid4()), "refresh")
 
     def _enqueue(self, work_id, desired, request_id, kind, expected_account_id=None):
@@ -287,79 +324,92 @@ class BookmarkService:
                 raise RuntimeError("当前正在切换图库，暂不接收收藏操作")
             if self._executor is None:
                 raise RuntimeError("收藏服务尚未启动")
-            with self.database.write() as session:
-                existing = session.scalar(select(BookmarkOperation).where(
-                    BookmarkOperation.request_id == request_id))
-                if existing:
-                    if (existing.work_id != work_id or existing.desired != desired or existing.kind != kind
-                            or expected_account_id is not None and existing.account_id != str(expected_account_id)):
-                        raise ValueError("request_id 已用于另一项收藏操作")
-                    return self._state_in_session(session, work_id)
-                work = session.get(Work, work_id)
-                if work is None:
-                    raise LookupError("作品不存在")
-                intent = session.get(ArchiveIntent, work.pixiv_illust_id)
-                if intent is not None and intent.mode == "suppressed":
-                    raise LookupError("作品已从本地存档删除")
-                existing = session.scalar(select(BookmarkOperation).where(
-                    BookmarkOperation.work_id == work_id,
-                    BookmarkOperation.status == "pending").order_by(
-                    BookmarkOperation.version.desc()).limit(1))
-                if existing:
-                    if expected_account_id is not None and existing.account_id != str(expected_account_id):
-                        raise ValueError("另一账号的收藏操作尚未核对，请稍后重试")
-                    return self._state_in_session(session, work_id)
-                pending_total = session.scalar(select(func.count()).select_from(
-                    BookmarkOperation).where(BookmarkOperation.status == "pending"))
-                if pending_total >= self.max_pending:
-                    raise RuntimeError("收藏操作繁忙，请稍后重试")
-                fact = session.get(RemoteBookmark, work_id)
-                if fact is None:
-                    fact = RemoteBookmark(work_id=work_id, value=None,
-                                          source="legacy_cache", version=0)
-                    session.add(fact)
-                fact.version += 1
-                operation = BookmarkOperation(
-                    request_id=request_id, work_id=work_id, desired=desired,
-                    kind=kind, version=fact.version, status="pending", phase="queued",
-                    account_id=str(expected_account_id) if expected_account_id is not None else None)
-                session.add(operation)
-                session.flush()
-                result = self._state_in_session(session, work_id)
-                operation_id = operation.id
+            self._submitting += 1
+        try:
+            return self._persist_submission(work_id, desired, request_id, kind, expected_account_id)
+        finally:
+            with self._idle:
+                self._submitting -= 1
+                self._idle.notify_all()
+
+    def _persist_submission(self, work_id, desired, request_id, kind, expected_account_id):
+        operation_id = None
+        with self.database.write() as session:
+            operation_id = self._enqueue_in_session(session, work_id, desired, request_id, kind, expected_account_id)
+            records = self._state_records(session, work_id)
+        if operation_id is not None:
             self._schedule(operation_id)
-            return result
+        return self.snapshot(*records, work_id=work_id)
+
+    def _enqueue_in_session(self, session, work_id, desired, request_id, kind, expected_account_id):
+        existing = session.scalar(select(BookmarkOperation).where(
+            BookmarkOperation.request_id == request_id))
+        if existing:
+            if (existing.work_id != work_id or existing.desired != desired or existing.kind != kind
+                    or expected_account_id is not None and existing.account_id != str(expected_account_id)):
+                raise ValueError("request_id 已用于另一项收藏操作")
+            return None
+        work = session.get(Work, work_id)
+        if work is None:
+            raise LookupError("作品不存在")
+        intent = session.get(ArchiveIntent, work.pixiv_illust_id)
+        if intent is not None and intent.mode == "suppressed":
+            raise LookupError("作品已从本地存档删除")
+        existing = session.scalar(select(BookmarkOperation).where(
+            BookmarkOperation.work_id == work_id,
+            BookmarkOperation.status == "pending").order_by(
+            BookmarkOperation.version.desc()).limit(1))
+        if existing:
+            if expected_account_id is not None and existing.account_id != str(expected_account_id):
+                raise ValueError("另一账号的收藏操作尚未核对，请稍后重试")
+            return None
+        pending_total = session.scalar(select(func.count()).select_from(
+            BookmarkOperation).where(BookmarkOperation.status == "pending"))
+        if pending_total >= self.max_pending:
+            raise RuntimeError("收藏操作繁忙，请稍后重试")
+        fact = session.get(RemoteBookmark, work_id)
+        if fact is None:
+            fact = RemoteBookmark(work_id=work_id, value=None,
+                                  source="legacy_cache", version=0)
+            session.add(fact)
+        fact.version += 1
+        operation = BookmarkOperation(
+            request_id=request_id, work_id=work_id, desired=desired,
+            kind=kind, version=fact.version, status="pending", phase="queued",
+            account_id=str(expected_account_id) if expected_account_id is not None else None)
+        session.add(operation)
+        session.flush()
+        return operation.id
 
     def state(self, work_id):
-        with self._lock:
-            with self.database.read() as session:
-                if session.get(Work, work_id) is None:
-                    raise LookupError("作品不存在")
-                return self._state_in_session(session, work_id)
+        with self.database.read() as session:
+            if session.get(Work, work_id) is None:
+                raise LookupError("作品不存在")
+            records = self._state_records(session, work_id)
+        return self.snapshot(*records, work_id=work_id)
 
-    def _state_in_session(self, session, work_id):
+    def _state_records(self, session, work_id):
         fact = session.get(RemoteBookmark, work_id)
         operation = session.scalar(select(BookmarkOperation).where(
             BookmarkOperation.work_id == work_id).order_by(
             BookmarkOperation.version.desc(), BookmarkOperation.created_at.desc()).limit(1))
-        return self.snapshot(fact, operation, work_id=work_id)
+        return fact, operation
 
     def operation(self, operation_id):
-        with self._lock:
-            with self.database.read() as session:
-                item = session.get(BookmarkOperation, operation_id)
-                if item is None:
-                    raise LookupError("收藏操作不存在")
-                result = self.snapshot(session.get(RemoteBookmark, item.work_id), item,
-                                       work_id=item.work_id)
-                result.update({"id": item.id, "request_id": item.request_id,
-                               "kind": item.kind, "phase": item.phase,
-                               "read_attempts": item.read_attempts,
-                               "created_at": item.created_at.isoformat() + "Z"})
-                result.update({"operation_id": item.id, "status": item.status,
-                               "desired": item.desired, "error": item.error,
-                               "version": item.version})
-                return result
+        with self.database.read() as session:
+            item = session.get(BookmarkOperation, operation_id)
+            if item is None:
+                raise LookupError("收藏操作不存在")
+            fact = session.get(RemoteBookmark, item.work_id)
+        result = self.snapshot(fact, item, work_id=item.work_id)
+        result.update({"id": item.id, "request_id": item.request_id,
+                       "kind": item.kind, "phase": item.phase,
+                       "read_attempts": item.read_attempts,
+                       "created_at": item.created_at.isoformat() + "Z"})
+        result.update({"operation_id": item.id, "status": item.status,
+                       "desired": item.desired, "error": item.error,
+                       "version": item.version})
+        return result
 
     def begin_observation(self, work_id):
         """Reserve a version before a remote metadata request begins."""
@@ -393,49 +443,67 @@ class BookmarkService:
     def apply_observation(self, work_id, value, account_id, version, source="metadata"):
         if type(value) is not bool or not account_id or version is None:
             return False
-        with self._lock:
-            with self.database.write() as session:
-                fact = session.get(RemoteBookmark, work_id)
-                if fact is None or fact.version != version:
-                    return False
-                if session.scalar(select(BookmarkOperation.id).where(
-                        BookmarkOperation.work_id == work_id,
-                        BookmarkOperation.status == "pending").limit(1)):
-                    return False
-                fact.value, fact.account_id, fact.source = value, str(account_id), source
-                fact.confirmed_at, fact.error = utcnow(), None
-            self._mark_fresh(work_id, version, account_id)
+        if self._current_account is not None and self._account_context()[0] != str(account_id):
+            return False
+        with self.database.write() as session:
+            fact = session.get(RemoteBookmark, work_id)
+            if fact is None or fact.version != version:
+                return False
+            if session.scalar(select(BookmarkOperation.id).where(
+                    BookmarkOperation.work_id == work_id,
+                    BookmarkOperation.status == "pending").limit(1)):
+                return False
+            fact.value, fact.account_id, fact.source = value, str(account_id), source
+            fact.confirmed_at, fact.error = utcnow(), None
+        self._mark_fresh(work_id, version, account_id)
         return True
 
     def _run(self, operation_id, readback_only):
-        from ..request_policy import ShutdownRequested
+        from ..request_policy import AccountChanged, RequestDeferred, ShutdownRequested
+        from .read_control import LocalReadError
         try:
-            self._run_active(operation_id, readback_only)
+            for pressure_attempt in range(3):
+                try:
+                    self._run_active(operation_id, readback_only)
+                    return
+                except LocalReadError:
+                    if self._stopping.wait(.1 * (pressure_attempt + 1)):
+                        return
+            self._finish(operation_id, "unconfirmed", "本地读取繁忙，收藏状态待确认")
         except ShutdownRequested:
             # A write may already have reached Pixiv: retain pending for a
             # readback on restart, never mark it successful or replay the write.
             return
+        except (AccountChanged, RequestDeferred):
+            self._finish(operation_id, "unconfirmed", "账号或连接状态变化，收藏状态待确认")
 
     def _run_active(self, operation_id, readback_only):
         if self._stopping.is_set():
             return
         if readback_only and not self._is_available():
             return
+        early_error = None
         with self.database.read() as session:
             item = session.get(BookmarkOperation, operation_id)
             if item is None or item.status != "pending":
                 return
             work = session.get(Work, item.work_id)
             if work is None:
-                self._finish(operation_id, "failed", "作品不存在")
-                return
-            pixiv_id = work.pixiv_illust_id
-            intent = session.get(ArchiveIntent, pixiv_id)
-            if intent is not None and intent.mode == "suppressed":
-                self._finish(operation_id, "failed", "作品已从本地存档删除")
-                return
+                early_error = "作品不存在"
+                pixiv_id = None
+            else:
+                pixiv_id = work.pixiv_illust_id
+                intent = session.get(ArchiveIntent, pixiv_id)
+                if intent is not None and intent.mode == "suppressed":
+                    early_error = "作品已从本地存档删除"
             expected_account = item.account_id
             desired, kind = item.desired, item.kind
+            # A local read can be interrupted after a remote write. Retrying
+            # that local boundary must never send the intent a second time.
+            readback_only = readback_only or item.write_started_at is not None
+        if early_error:
+            self._finish(operation_id, "failed", early_error)
+            return
         try:
             account = self._account_id()
             if expected_account and account != expected_account:
@@ -554,28 +622,27 @@ class BookmarkService:
             fact.confirmed_at, fact.error = utcnow(), None
 
     def _confirm(self, operation_id, value, account):
-        with self._lock:
-            with self.database.write() as session:
-                item = session.get(BookmarkOperation, operation_id)
-                fact = session.get(RemoteBookmark, item.work_id)
-                if item.status != "pending" or fact.version != item.version:
-                    return
-                fact.value, fact.account_id, fact.source = value, account, "readback"
-                fact.confirmed_at, fact.error = utcnow(), None
-                item.status, item.phase, item.error = "confirmed", "finished", None
-                item.finished_at = utcnow()
-                confirmed = (item.work_id, item.version)
-            self._mark_fresh(*confirmed, account)
+        with self.database.write() as session:
+            item = session.get(BookmarkOperation, operation_id)
+            fact = session.get(RemoteBookmark, item.work_id)
+            if item.status != "pending" or fact.version != item.version:
+                return
+            fact.value, fact.account_id, fact.source = value, account, "readback"
+            fact.confirmed_at, fact.error = utcnow(), None
+            item.status, item.phase, item.error = "confirmed", "finished", None
+            item.finished_at = utcnow()
+            confirmed = (item.work_id, item.version)
+        self._mark_fresh(*confirmed, account)
 
     def _finish(self, operation_id, status, error):
+        with self.database.write() as session:
+            item = session.get(BookmarkOperation, operation_id)
+            if item is None or item.status != "pending":
+                return
+            item.status, item.phase, item.error = status, "finished", error
+            item.finished_at = utcnow()
+            work_id, version = item.work_id, item.version
         with self._lock:
-            with self.database.write() as session:
-                item = session.get(BookmarkOperation, operation_id)
-                if item is None or item.status != "pending":
-                    return
-                item.status, item.phase, item.error = status, "finished", error
-                item.finished_at = utcnow()
-                work_id, version = item.work_id, item.version
             marker = self._fresh.get(work_id)
             if marker is not None and marker[0] == version:
                 self._fresh.pop(work_id, None)

@@ -7,6 +7,7 @@ import json
 from sqlalchemy import func, select
 from .models import ArchiveIntent, Artist, Asset, Derivative, Operation, OperationItem, RevisionAsset, RevisionDerivative, Work, WorkRevision, new_id, utcnow
 from .tasks import ItemResult, ItemSpec, PlanBatch, safe_failure
+from .read_control import LocalReadError
 
 WORK_BATCH = 4
 ARTIST_BATCH = 32
@@ -49,7 +50,9 @@ def _reserve_observations(handler, ids, context, cursor):
             context.queue.materialize_in_transaction(session, context.operation_id, observations)
             for spec in observations:
                 record = session.scalar(select(OperationItem).where(OperationItem.operation_id == context.operation_id, OperationItem.item_key == spec.key))
+                previous_state = record.state
                 record.state, record.result = "skipped", {"message": "检查开始前已固定核对世代"}
+                context.queue.record_settlement_in_transaction(session, record, previous_state)
         cursor["observation_after"] = rows[min(63, len(rows)-1)].id if rows else cursor.get("observation_after", 0)
         cursor["observations_complete"] = len(rows) <= 64
         return PlanBatch([], cursor, False)
@@ -125,6 +128,8 @@ def plan_batch(handler, parameters, context, cursor):
             try:
                 specs.extend(handler._plan_work(work_id, parameters, context))
             except Exception as exc:
+                if isinstance(exc, LocalReadError) or safe_failure(exc).get("retryable"):
+                    raise
                 specs.append(ItemSpec(f"work-error-{work_id}", "error", {**safe_failure(exc), "work_id": work_id}, "checking", "works"))
         with handler.database.write() as session:
             context.queue.materialize_in_transaction(session, context.operation_id, specs)
@@ -324,6 +329,11 @@ def _page(handler, remote_id, work_type, offset, operation_id):
     return {"items": [value], "next_offset": offset + 1}
 
 
+def _remote_generation(handler):
+    method = getattr(type(handler.client), "generation_context", None)
+    return method(handler.client) if callable(method) else None
+
+
 def execute(handler, item, context):
     if item.kind == "bookmark_artist":
         # Existing 0002 items keep their identity and dependency barrier while
@@ -345,11 +355,13 @@ def execute(handler, item, context):
                 remote_id = artist.pixiv_user_id
             context.checkpoint()
             work_type, offset = cursor.get("work_type", "illust"), cursor.get("offset", 0)
+            generation = _remote_generation(handler)
             page = _page(handler, remote_id, work_type, offset, context.operation_id)
             for data in page["items"]:
                 fingerprint = hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()[:12]
                 specs.append(ItemSpec(f"bookmark-work-{target['artist_id']}-{data['illust_id']}-{fingerprint}",
-                    "discover_work", {"artist_id": target["artist_id"], "data": data, "bookmark_only": True}, "checking", "works"))
+                    "discover_work", {"artist_id": target["artist_id"], "data": data, "bookmark_only": True,
+                        "remote_generation": generation}, "checking", "works"))
             next_offset = page.get("next_offset")
             if next_offset is None and work_type == "illust":
                 cursor.update(work_type="manga", offset=0)
@@ -389,12 +401,14 @@ def execute(handler, item, context):
                 with handler.database.write() as session:
                     context.queue.materialize_in_transaction(session, context.operation_id,
                         [ItemSpec(f"profile-{artist.id}", "metadata_artist", {"artist_id": artist.id}, "checking", "artists")])
+        generation = _remote_generation(handler)
         page = _page(handler, remote_id, target["work_type"], target["offset"], context.operation_id)
         specs = []
         for data in page["items"]:
             key = str(data["illust_id"]) + "-" + hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()[:12]
             specs.append(ItemSpec(f"{'bookmark' if item.kind == 'bookmark_page' else 'discover'}-work-{target['artist_id']}-{key}",
-                "discover_work", {"artist_id": target["artist_id"], "data": data, "bookmark_only": item.kind == "bookmark_page"}, "checking", "works"))
+                "discover_work", {"artist_id": target["artist_id"], "data": data, "bookmark_only": item.kind == "bookmark_page",
+                    "remote_generation": generation}, "checking", "works"))
         next_offset = page.get("next_offset")
         next_type = target["work_type"]
         if next_offset is None and next_type == "illust":
@@ -416,7 +430,19 @@ def execute(handler, item, context):
         return ItemResult(detail={"page_items": len(page["items"])})
     data, artist_id = item.target["data"], item.target["artist_id"]
     remote_id = str(data["illust_id"])
+    generation = _remote_generation(handler)
+    stale_observation = generation is not None and item.target.get("remote_generation") != generation
+    if stale_observation:
+        # A persisted page may outlive a login. Re-read the work using the
+        # dispatch-bound client before attributing any account-specific fields.
+        context.checkpoint()
+        data = handler.client.get_illust_detail(remote_id)
+        context.checkpoint()
+        with handler.database.write() as session:
+            stored = session.get(OperationItem, context.item_id)
+            stored.target = {**stored.target, "data": data, "remote_generation": generation}
     account = handler._bookmark_account()
+    current_account = account
     with handler.database.read() as session:
         existing = session.scalar(select(Work).where(Work.pixiv_illust_id == remote_id))
         work_id = existing.id if existing else None
@@ -432,6 +458,11 @@ def execute(handler, item, context):
     source_account = reserved.get("source_account", handler.source_status.account_context() if handler.source_status else account)
     source_version = reserved.get("source_version")
     account = reserved.get("account", account)
+    if stale_observation or account != current_account:
+        account = current_account
+        source_account = handler.source_status.account_context() if handler.source_status else account
+        versions = handler.bookmarks.begin_observations([work_id]) if handler.bookmarks and work_id else {}
+        source_version = handler.source_status.begin("work", work_id, source_account) if handler.source_status and work_id else None
     if observation is not None:
         deletion_revision = reserved["revision"]
     context.checkpoint()
@@ -455,6 +486,8 @@ def execute(handler, item, context):
             try:
                 metadata = handler.client.get_ugoira_metadata(remote_id)
             except Exception as exc:
+                if isinstance(exc, LocalReadError):
+                    raise
                 metadata_error = safe_failure(exc)
     work_id = handler._save_remote_work(artist_id, data, context=context, metadata=metadata, metadata_error=metadata_error,
         expected_work_id=work_id, expected_revision=deletion_revision, expected_source_version=source_version)

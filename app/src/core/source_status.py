@@ -5,6 +5,8 @@ requires an explicit, reviewed evidence record; HTTP errors never create it.
 """
 from __future__ import annotations
 
+from .read_control import LocalReadError
+
 from dataclasses import dataclass
 from datetime import timezone
 
@@ -222,6 +224,8 @@ class SourceStatus:
                 return None
             return {**data, "_source_observation": {"version": version, "account_id": account}}
         except Exception as exc:
+            if isinstance(exc, LocalReadError):
+                raise
             if self.account_context() == account:
                 self.apply_failure("artist", artist_id, exc, version, account)
             raise
@@ -237,6 +241,7 @@ class SourceStatus:
 class ArtistSourceHandler:
     def __init__(self, source_status):
         self.source_status = source_status
+        self.client = source_status.remote
 
     def plan(self, parameters, context):
         ids = parameters.get("artist_ids")
@@ -253,6 +258,8 @@ class ArtistSourceHandler:
             result = self.source_status.check_artist(item.target["artist_id"])
             return ItemResult("succeeded" if result["applied"] else "skipped", result)
         except Exception as exc:
+            if isinstance(exc, LocalReadError):
+                raise
             from ..request_policy import ShutdownRequested
             if isinstance(exc, ShutdownRequested):
                 raise

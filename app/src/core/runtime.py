@@ -6,6 +6,8 @@ import re
 from stat import S_ISREG
 import threading
 import time
+from uuid import uuid4
+from contextlib import contextmanager, nullcontext
 
 from sqlalchemy import func, select
 
@@ -35,26 +37,93 @@ class LibraryBusy(RuntimeError):
 class RemoteAccess:
     def __init__(self, runtime):
         self.runtime = runtime
+        self._task_context = threading.local()
+
+    def _binding(self):
+        binding = getattr(self._task_context, "binding", None)
+        if binding is not None:
+            self.assert_generation(binding[1])
+            return binding
+        client, generation = self.runtime.client_snapshot()
+        return client, self._generation(client, generation)
+
+    def _generation(self, client, generation):
+        method = getattr(type(client), "identity_generation", None)
+        identity = client.identity_generation() if callable(method) else None
+        return {"runtime": self.runtime._runtime_epoch, "client": generation,
+            "identity": list(identity) if identity is not None else None}
+
+    def generation_context(self):
+        return dict(self._binding()[1])
+
+    def assert_generation(self, expected):
+        from ..request_policy import AccountChanged
+        client, generation = self.runtime.client_snapshot()
+        if self._generation(client, generation) != expected:
+            raise AccountChanged()
+
+    @contextmanager
+    def task_scope(self, context):
+        """Explicit protocol: TaskQueue detects it on the proxy's type."""
+        client, generation = self.runtime.client_snapshot()
+        previous = getattr(self._task_context, "binding", None)
+        previous_guard = getattr(context, "remote_guard", None)
+        expected = self._generation(client, generation)
+        self._task_context.binding = (client, expected)
+        context.remote_guard = lambda: self.assert_generation(expected)
+        scope_factory = getattr(type(client), "task_scope", None)
+        try:
+            with scope_factory(client, context) if callable(scope_factory) else nullcontext():
+                yield
+        finally:
+            context.remote_guard = previous_guard
+            self._task_context.binding = previous
 
     def __getattr__(self, name):
         if self.runtime._closing.is_set():
             from ..request_policy import ShutdownRequested
             raise ShutdownRequested()
-        client = self.runtime.client
+        client, expected = self._binding()
         if client is None:
             raise LoginRequired(LoginRequired.user_message)
-        return getattr(client, name)
+        value = getattr(client, name)
+        if not callable(value):
+            return value
+        def invoke(*args, **kwargs):
+            self.assert_generation(expected)
+            try:
+                result = value(*args, **kwargs)
+            except Exception as exc:
+                if getattr(self._task_context, "binding", None) is not None and getattr(exc, "retryable", False):
+                    from ..request_policy import TaskRemoteRetry
+                    raise TaskRemoteRetry(exc) from None
+                raise
+            self.assert_generation(expected)
+            return result
+        return invoke
 
     def get_account_id(self):
         if self.runtime._closing.is_set():
             from ..request_policy import ShutdownRequested
             raise ShutdownRequested()
-        client = self.runtime.client
+        client, expected = self._binding()
         if client is None:
             self.runtime.account_id = self.runtime.library.account_id = None
             self.runtime.bookmarks.mark_disconnected()
             raise LoginRequired(LoginRequired.user_message)
         account_id = client.get_account_id()
+        # A legacy token can learn its identity through a refresh. That is the
+        # same login only when the client/runtime and login generation agree;
+        # a known account never changes under an already dispatched scope.
+        current_client, generation = self.runtime.client_snapshot()
+        current_generation = self._generation(current_client, generation)
+        previous_identity, identity = expected.get("identity"), current_generation.get("identity")
+        if (previous_identity is not None and not previous_identity[1] and identity is not None
+                and previous_identity[0] == identity[0] and identity[1] == str(account_id)
+                and {key: value for key, value in expected.items() if key != "identity"} ==
+                    {key: value for key, value in current_generation.items() if key != "identity"}):
+            expected["identity"] = identity
+        self.assert_generation(expected)
         # Local catalogue responses remain explicitly cached. An OAuth identity
         # alone does not prove that the current network can reach Pixiv.
         self.runtime.account_id = self.runtime.library.account_id = str(account_id) if account_id is not None else None
@@ -63,7 +132,11 @@ class RemoteAccess:
 
 class Runtime:
     def __init__(self, database_path: Path, images: Path, *, create=False, client=None, downloader=None,
-                 index_progress=None):
+                 index_progress=None, check_workers=1):
+        self._client_lock = threading.Lock()
+        self._runtime_epoch = uuid4().hex
+        self._client = None
+        self._client_generation = 0
         self._closing = threading.Event()
         self._closed = False
         self._close_lock = threading.Lock()
@@ -94,7 +167,8 @@ class Runtime:
             kind: ArchiveHandler(kind, self.database, self.publisher, remote, downloader,
                                  bookmarks=self.bookmarks, profiles=self.profiles, source_status=self.source_status)
             for kind in ("check", "metadata", "bookmarks", "repair", "verify", "backfill", "thumbnails", "delete")},
-            allowed_kinds=lambda: None if self.client is not None else ("verify", "thumbnails", "delete"))
+            allowed_kinds=lambda: None if self.client is not None else ("verify", "thumbnails", "delete"),
+            check_workers=check_workers)
         self.queue.handlers["reconcile"] = ReconcileHandler(self.database, self.publisher, remote, downloader,
             bookmarks=self.bookmarks, profiles=self.profiles, source_status=self.source_status)
         self.queue.handlers["compare"] = ReconcileHandler(self.database, self.publisher, remote, downloader,
@@ -103,6 +177,22 @@ class Runtime:
         self.maintenance = MissingMediaMaintenance(self.database, self.queue,
                                                     remote_available=lambda: self.client is not None)
         self.queue.maintenance = self.maintenance
+
+    @property
+    def client(self):
+        with self._client_lock:
+            return self._client
+
+    @client.setter
+    def client(self, value):
+        with self._client_lock:
+            if value is not self._client:
+                self._client_generation += 1
+                self._client = value
+
+    def client_snapshot(self):
+        with self._client_lock:
+            return self._client, self._client_generation
 
     def start(self):
         self.publisher.recover()

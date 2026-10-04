@@ -50,7 +50,7 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
 
     async def connect(interactive=False):
         from .auth import _try_refresh_token, auth
-        from .request_policy import ShutdownRequested
+        from .request_policy import AccountChanged, ShutdownRequested
         current = application.state.runtime
         if current is None or application.state.stopping:
             return
@@ -66,10 +66,16 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
                 current.client = installed_client
                 await asyncio.to_thread(current.remote.get_account_id)
                 await asyncio.to_thread(current.bookmarks.reconcile_pending)
+                if current.client is not installed_client or application.state.runtime is not current:
+                    return
                 application.state.login_error = None
                 if schedule and not application.state.stopping:
                     start_scheduler(current)
         except ShutdownRequested:
+            return
+        except AccountChanged:
+            # A later connection owns the state. This displaced attempt must
+            # neither report success nor disconnect the newly installed client.
             return
         except Exception:
             if installed_client is not None and current.client is installed_client:

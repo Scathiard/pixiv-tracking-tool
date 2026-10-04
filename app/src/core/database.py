@@ -3,14 +3,16 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from pathlib import Path
-from threading import RLock
+from threading import RLock, local
 
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from sqlalchemy import Column, String, URL, create_engine, event, inspect, text
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import OperationalError, TimeoutError as PoolTimeout
 
 from .models import Base
+from .read_control import LocalReadBusy, ReadBudget, ReadController, current_read
 
 SCHEMA_REVISION = "0003_revisions"
 
@@ -31,6 +33,8 @@ class ArchiveDatabase:
         if not self.path.is_file():
             raise FileNotFoundError(self.path)
         self._write_lock = RLock()
+        self._writer_state = local()
+        self.reads = ReadController()
         self.engine = self._engine(self.path)
         try:
             with self.engine.connect() as connection:
@@ -50,13 +54,16 @@ class ArchiveDatabase:
             self.engine.dispose()
             raise
         self.session = sessionmaker(self.engine, expire_on_commit=False)
+        self.writer_engine = self._engine(self.path, writer=True)
+        self.writer_session = sessionmaker(self.writer_engine, expire_on_commit=False)
         self._closed = False
 
     @staticmethod
-    def _engine(path: Path):
+    def _engine(path: Path, *, writer=False):
         engine = create_engine(
             URL.create("sqlite", database=str(path)),
             connect_args={"check_same_thread": False, "timeout": 5},
+            pool_size=1 if writer else 7, max_overflow=0, pool_timeout=.1,
         )
 
         @event.listens_for(engine, "connect")
@@ -102,24 +109,68 @@ class ArchiveDatabase:
     def read(self):
         if self._closed:
             raise RuntimeError("数据库已关闭")
-        with self.session() as session:
-            # sqlite's legacy transaction mode does not begin a snapshot on SELECT.
-            session.connection().exec_driver_sql("BEGIN")
-            yield session
+        budget = current_read.get()
+        owned = budget is None
+        token = None
+        if owned:
+            budget = ReadBudget()
+            self.reads.acquire_sync(budget)
+            token = current_read.set(budget)
+        connection = None
+        driver = None
+        try:
+            budget.checkpoint()
+            if self._closed:
+                raise RuntimeError("数据库已关闭")
+            connection = self.engine.connect()
+            driver = connection.connection.driver_connection
+            budget.attach(driver)
+            # SQLite lock waiting does not call the progress handler. Keep each
+            # lock wait finite as well; WAL readers normally do not wait at all.
+            driver.execute("PRAGMA busy_timeout=100")
+            with self.session(bind=connection) as session:
+                session.connection().exec_driver_sql("BEGIN")
+                yield session
+                budget.checkpoint()
+        except PoolTimeout as exc:
+            budget.checkpoint()
+            raise LocalReadBusy("本地读取繁忙，请稍后重试") from exc
+        except OperationalError as exc:
+            budget.checkpoint()
+            if "locked" in str(exc.orig).lower() or "busy" in str(exc.orig).lower():
+                raise LocalReadBusy("本地读取繁忙，请稍后重试") from exc
+            raise
+        finally:
+            if connection is not None:
+                try:
+                    connection.rollback()
+                finally:
+                    if driver is not None:
+                        budget.detach(driver)
+                    connection.close()
+            if owned:
+                current_read.reset(token)
+                self.reads.release(budget.lane)
 
     @contextmanager
     def write(self):
-        with self._write_lock, self.session() as session:
+        if getattr(self._writer_state, "active", False):
+            raise RuntimeError("嵌套写事务必须传递已有会话")
+        with self._write_lock, self.writer_session() as session:
             if self._closed:
                 raise RuntimeError("数据库已关闭")
             try:
+                self._writer_state.active = True
                 session.connection().exec_driver_sql("BEGIN IMMEDIATE")
                 yield session
                 session.commit()
             except BaseException:
                 session.rollback()
                 raise
+            finally:
+                self._writer_state.active = False
 
     def close(self):
         self._closed = True
         self.engine.dispose()
+        self.writer_engine.dispose()

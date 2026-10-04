@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 from ..core.models import Artist, Operation
 from ..core.tasks import safe_failure
+from ..core.read_control import local_read
 
 
 def artist_identity(query):
@@ -57,6 +58,7 @@ def create_artists_router(get_runtime):
             return views
 
     @router.get("/api/artists/check-status")
+    @local_read(get_runtime)
     def check_status_batch(artist_ids: str = Query(..., min_length=1, max_length=1200)):
         try:
             ids = sorted(set(int(value) for value in artist_ids.split(",")))
@@ -90,6 +92,7 @@ def create_artists_router(get_runtime):
             raise HTTPException(503, safe_failure(exc)["message"]) from exc
 
     @router.get("/api/artists/{artist_id}/check-status")
+    @local_read(get_runtime)
     def check_status(artist_id: int):
         runtime = current()
         views = check_views(runtime, [artist_id])

@@ -152,10 +152,24 @@ class Library:
 
     def _bookmark_view(self, work, operation=None):
         from .bookmarks import bookmark_snapshot
-        if self.bookmarks is not None:
-            return self.bookmarks.snapshot(work.bookmark, operation, work_id=work.id)
+        # SQL projection is deliberately independent of the bookmark service's
+        # memory lock. Add current-account freshness only after returning the
+        # read connection, so it cannot form a connection/lock cycle.
         return bookmark_snapshot(work.bookmark, operation,
                                  account_id=self.account_id, work_id=work.id)
+
+    def _refresh_bookmarks(self, views, works, operations):
+        if self.bookmarks is None:
+            return
+        snapshots = {work.id: self.bookmarks.snapshot(work.bookmark, operations.get(work.id), work_id=work.id)
+                     for work in works}
+        for view in views:
+            bookmark = snapshots[view.get("work_id", view.get("id"))]
+            view["bookmark"] = bookmark
+            if "is_bookmarked" in view:
+                view["is_bookmarked"] = bool(bookmark["value"])
+            if "bookmark_confirmed_at" in view:
+                view["bookmark_confirmed_at"] = bookmark["confirmed_at"]
 
     def _work_view(self, work, operation=None):
         bookmark = self._bookmark_view(work, operation)
@@ -350,8 +364,9 @@ class Library:
                 view["thumbnail"] = media_url(thumb.relative_path) if thumb else None
                 if view["thumbnail"] and thumb.sha256:
                     view["thumbnail"] += "?v=" + thumb.sha256[:16]
-            return {"items": views, "total": total, "offset": offset, "has_more": offset + len(views) < total,
-                    "ceiling": ceiling, "catalogue_revision": revision}
+        self._refresh_bookmarks(views, works, operations)
+        return {"items": views, "total": total, "offset": offset, "has_more": offset + len(views) < total,
+                "ceiling": ceiling, "catalogue_revision": revision}
 
     def counts(self, filters=LibraryFilter(), *, ceiling=None):
         """Counts do not hydrate any artwork, assets, or processing history."""
@@ -436,7 +451,8 @@ class Library:
                          "src": readable_page_url(record, animation=view["type"] == "ugoira"),
                          "width": record.width if record else None, "height": record.height if record else None,
                          "state": record.state if record else "missing"})
-            return {"items": items, "catalogue_revision": revision}
+        self._refresh_bookmarks(items, works.values(), operations)
+        return {"items": items, "catalogue_revision": revision}
 
     def detail(self, work_id, *, page_offset=0, page_limit=100, revision_id=None):
         if page_offset < 0 or not 1 <= page_limit <= 200:
@@ -449,7 +465,8 @@ class Library:
             snapshot = snapshots.get(work_id)
             if revision_id is not None and (snapshot is None or snapshot.state == "redundant"):
                 raise KeyError(revision_id)
-            view = self._work_view(work, self._bookmark_operations(session, [work.id]).get(work.id))
+            operations = self._bookmark_operations(session, [work.id])
+            view = self._work_view(work, operations.get(work.id))
             apply_snapshot(view, work, snapshot)
             states, revision = work_states(session, [work])
             view.update(states[work_id])
@@ -486,7 +503,8 @@ class Library:
                              for record in alternates if record.page_index == index and record.relative_path)
                 view["legacy_variants"].append({"page": index, "files": files})
             view["display_page_count"], view["has_more_pages"] = count, page_offset + len(view["pages"]) < count
-            return view
+        self._refresh_bookmarks([view], [work], operations)
+        return view
 
     def neighbors(self, work_id, filters=LibraryFilter(), *, ceiling):
         with self.database.read() as session:
@@ -567,8 +585,9 @@ class Library:
                         "src": readable_page_url(media, animation=work.type == "ugoira"),
                         "width": media.width if media else None, "height": media.height if media else None,
                         "state": media.state if media else "missing"})
-            return {"items": items, "total": total, "offset": offset, "ceiling": ceiling,
-                    "has_more": offset + len(items) < total, "catalogue_revision": revision}
+        self._refresh_bookmarks(items, works.values(), operations)
+        return {"items": items, "total": total, "offset": offset, "ceiling": ceiling,
+                "has_more": offset + len(items) < total, "catalogue_revision": revision}
 
     def missing_originals(self, offset=0, limit=100):
         with self.database.read() as session:

@@ -3,7 +3,7 @@ import time
 import requests
 from contextlib import contextmanager
 from . import config as _cfg
-from .request_policy import ShutdownRequested, is_rate_limit, retry_after_seconds
+from .request_policy import AccountChanged, RequestDeferred, ShutdownRequested, is_rate_limit, retry_after_seconds
 from .core.tag_translations import REQUESTED_LOCALE, parse_tag_details
 
 
@@ -119,6 +119,17 @@ class PixivClient:
         if context is not None:
             context.checkpoint()
 
+    @staticmethod
+    def identity_generation():
+        from .auth import credential_snapshot
+        token, _, login = credential_snapshot()
+        return (login, str(token.get("user_id", "")))
+
+    @staticmethod
+    def _check_identity(identity):
+        if PixivClient.identity_generation() != identity:
+            raise AccountChanged()
+
     def _get(self, endpoint, params=None):
         return self._request(endpoint, params, retry_token=True)
 
@@ -128,6 +139,9 @@ class PixivClient:
         attempts = 1 if getattr(getattr(self, "_task_context", None), "context", None) is not None else 3
         for attempt in range(attempts):
             self._checkpoint()
+            context = getattr(self._task_context, "context", None)
+            if context is not None:
+                context.mark_remote_attempt()
             try:
                 r = requests.get(
                     f"{API_HOST}{endpoint}",
@@ -152,9 +166,12 @@ class PixivClient:
 
     def _request(self, endpoint, params, retry_token):
         self._checkpoint()
-        self._throttle()
+        self._task_throttle()
         self._checkpoint()
 
+        from .auth import credential_snapshot, refresh_scope
+        token, generation, login = credential_snapshot()
+        identity = (login, str(token.get("user_id", "")))
         headers = _get_auth_header()
         headers["Accept-Language"] = REQUESTED_LOCALE
         headers["App-OS"] = "ios"
@@ -162,16 +179,26 @@ class PixivClient:
         headers["App-Version"] = "7.19.1"
         headers["User-Agent"] = "PixivIOSApp/7.19.1 (iOS 16.7.2; iPhone14,2)"
 
+        if credential_snapshot()[1] != generation:
+            raise AccountChanged()
         try:
             r = self._do_get(endpoint, headers, params)
         except requests.RequestException as exc:
             raise PixivRequestError(None, "Pixiv 网络连接失败，请稍后重试",
                 retryable=True, failure_code="api_network") from exc
+        self._check_identity(identity)
         self._note_api_limit(r)
-        if retry_token and _token_expired(r):
+        task = getattr(self._task_context, "context", None)
+        if retry_token and _token_expired(r) and (task is None or getattr(task, "allow_token_refresh", True)):
             self._checkpoint()
             from .auth import _try_refresh_token
-            if _try_refresh_token():
+            with refresh_scope(generation):
+                refreshed = _try_refresh_token()
+            self._check_identity(identity)
+            if refreshed:
+                if getattr(self._task_context, "context", None) is not None:
+                    task.auth_refreshed = True
+                    raise RequestDeferred(1, "登录已刷新，等待重试此项读取")
                 return self._request(endpoint, params, retry_token=False)
         data = _checked_response(r)
         self._note_api_limit(r, data)
@@ -191,9 +218,10 @@ class PixivClient:
     def _post(self, endpoint, data=None, retry_token=True):
         """Send a remote write once; its outcome may be uncertain on failure."""
         self._checkpoint()
-        self._throttle()
+        self._task_throttle()
         self._checkpoint()
 
+        identity = self.identity_generation()
         headers = _get_auth_header()
         headers["Accept-Language"] = REQUESTED_LOCALE
         headers["App-OS"] = "ios"
@@ -207,6 +235,7 @@ class PixivClient:
         except requests.RequestException as exc:
             raise PixivRequestError(None, "Pixiv 操作结果未确认，请稍后核对",
                 retryable=False, failure_code="api_write_unconfirmed") from exc
+        self._check_identity(identity)
         self._note_api_limit(r)
         resp = _checked_response(r)
         self._note_api_limit(r, resp)
@@ -256,6 +285,7 @@ class PixivClient:
 
     def write_bookmark(self, illust_id, desired, account_id):
         """Capture identity and bearer together, then issue exactly one POST."""
+        identity = self.identity_generation()
         headers = self._bound_headers(account_id)
         headers["Content-Type"] = "application/x-www-form-urlencoded"
         endpoint = "/v2/illust/bookmark/add" if desired else "/v1/illust/bookmark/delete"
@@ -263,11 +293,13 @@ class PixivClient:
         if desired:
             data["restrict"] = "public"
         self._bookmark_throttle()
+        self._check_identity(identity)
         try:
             response = self._do_post(endpoint, headers, data)
         except requests.RequestException as exc:
             raise PixivRequestError(None, "Pixiv 收藏结果未确认，请稍后核对",
                 retryable=False, failure_code="api_write_unconfirmed") from exc
+        self._check_identity(identity)
         self._note_bookmark_limit(response)
         self._note_api_limit(response)
         result = _checked_response(response)
@@ -282,8 +314,12 @@ class PixivClient:
 
     def read_bookmark_bound(self, illust_id, account_id):
         """One throttled read using the captured account's token."""
+        from .auth import credential_snapshot, refresh_scope
+        token, generation, login = credential_snapshot()
+        identity = (login, str(token.get("user_id", "")))
         headers = self._bound_headers(account_id)
         self._bookmark_throttle()
+        self._check_identity(identity)
         self._checkpoint()
         try:
             response = requests.get(f"{API_HOST}/v1/illust/detail", headers=headers,
@@ -291,12 +327,14 @@ class PixivClient:
         except requests.RequestException as exc:
             raise PixivRequestError(None, "Pixiv 收藏核对连接失败，请稍后重试",
                 retryable=True, failure_code="api_network") from exc
+        self._check_identity(identity)
         self._note_bookmark_limit(response)
         self._note_api_limit(response)
         if _token_expired(response):
             self._checkpoint()
             from .auth import _try_refresh_token
-            _try_refresh_token()
+            with refresh_scope(generation):
+                _try_refresh_token()
             raise PixivRequestError(response.status_code, "收藏核对登录已更新，请重试回读")
         result = _checked_response(response)
         self._note_api_limit(response, result)
@@ -318,7 +356,7 @@ class PixivClient:
                 raise PixivRequestError(None, "Pixiv 收藏请求受限，请稍后手动核对",
                     retry_after=max(0, int(type(self)._bookmark_cooldown_until - time.monotonic() + 0.999)),
                     retryable=True, failure_code="api_rate_limit")
-        self._throttle()
+        self._task_throttle()
 
     @classmethod
     def _note_bookmark_limit(cls, response):
@@ -359,9 +397,22 @@ class PixivClient:
                     retry_after=max(0, int(cls._api_cooldown_until - now + 0.999)),
                     retryable=True, failure_code="api_rate_limit")
             wait = cls._last_request + _MIN_INTERVAL - now
+            # Reserve a slot atomically; the ordinary caller waits outside the
+            # shared lock, so cooldown observations and other lanes can proceed.
+            cls._last_request = max(now, cls._last_request + _MIN_INTERVAL)
+        if wait > 0:
+            time.sleep(wait)
+
+    def _task_throttle(self):
+        if getattr(self._task_context, "context", None) is None:
+            return self._throttle()
+        cls = type(self)
+        with cls._lock:
+            now = time.monotonic()
+            wait = max(cls._api_cooldown_until, cls._last_request + _MIN_INTERVAL) - now
             if wait > 0:
-                time.sleep(wait)
-            cls._last_request = time.monotonic()
+                raise RequestDeferred(wait, "等待远端冷却或请求间隔")
+            cls._last_request = now
 
     def search_artist(self, keyword):
         """搜索画师。"""

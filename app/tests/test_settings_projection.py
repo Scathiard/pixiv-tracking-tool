@@ -53,6 +53,8 @@ def test_settings_materializes_shape_once_without_losing_cross_work_reuse(monkey
             LocalPreference(work_id=1,is_hidden=True), ArchiveIntent(pixiv_illust_id="102",mode="suppressed"),
         ])
     class MemoryDatabase:
+        from src.core.read_control import ReadController
+        reads = ReadController()
         @contextmanager
         def read(self):
             with Session(engine) as session:

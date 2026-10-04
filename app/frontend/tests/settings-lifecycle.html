@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Isolated read lifecycle fixture</title></head>
+<body data-theme="dark"><main id="fixture" style="height:100dvh;overflow:auto"></main>
+<script type="module">
+import {createApp} from 'vue'
+import SettingsView from '../src/views/SettingsView.vue'
+import ArtistsView from '../src/views/ArtistsView.vue'
+import {api} from '../src/api.ts'
+import {workDetail, invalidateWorkCache} from '../src/state/workCache.ts'
+import {ingestBookmark, bookmarkState, resumeBookmarkPolling} from '../src/state/bookmarks.ts'
+import '../src/style.css'
+
+let app
+const messages = []
+function mount(view = 'settings') {
+  app?.unmount()
+  app = createApp(view === 'artists' ? ArtistsView : SettingsView, {galleryMode: 'grid', onMessage: (...args) => messages.push(args)})
+  app.mount('#fixture')
+}
+window.lifecycleFixture = {mount, unmount: () => {app?.unmount(); app = null}, api, workDetail,
+  invalidateWorkCache, ingestBookmark, bookmarkState, resumeBookmarkPolling, messages}
+mount()
+</script></body></html>

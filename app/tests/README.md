@@ -1,5 +1,11 @@
 # 测试目录约定
 
+- `test_local_read_control.py`：真实 HTTP 断开、排队截止、可中断 SQL、共享读取最后使用者取消、连接安全复用、前台／后台配额及独立写连接；全部使用合成数据库。
+- `test_processing_log_windows.py`、`test_bookmark_lock_boundaries.py`：十五万条密集失败／跳过的有限扫描与续读、敏感字段过滤，以及收藏写入等待不占内存锁、阅览返回连接后合成收藏状态、旧可信缓存不能覆盖新版本。
+- `test_parallel_runtime_control.py`：正式 Runtime／RemoteAccess／PixivClient 与真实存档处理器的并行、持久重试、冷却、账号刷新单飞和代际保护；网络传输与凭据均为合成输入。
+- `parallel_reliability_probe.py --artifacts NEW_DIRECTORY --pilot-seconds 120 --check-workers both`：一万五千件作品／十五万零五百一十二条历史步骤的两组短测；去掉 `--pilot-seconds` 并指定单一检查者数量，执行至少八小时混合负载和完整维护。真实处理器、HTTP、文件与提交保持，远端只允许本机模拟服务；短测不等于长期验收，源码变化、失败或维护未完成均明确记录。
+- 前端 `tests/settings-lifecycle.html`：加载真实组件、使用隔离响应的页面读取生命周期验收入口；覆盖共享请求取消、关闭／重开日志、分页、超时、轮询、设置保存与旧响应，桌面／390／320px；不替代实际后端或 EXE 验收。
+
 - `client_mobile_chrome_browser.py --artifacts NEW_DIRECTORY [--exe EXE_PATH]`：正式前端的 390／360／320px 手机与明暗主题、单项／并行任务高度及遮图面积、真实计数、暂停／继续触摸请求、上一件／下一件／红心 44px 可触范围；使用 Chromium 原生安全区 0／24／48px，另以明确标记的 VisualViewport 信号回放布局／可见区域不一致、地址栏／键盘与恢复，覆盖横竖屏返回和捏合缩放时保留布局。另核对手机未知分母／断线／空闲无假进度，以及 1440px 详情／流式底栏在有无任务时的可达性。源码与 EXE 都只用隔离合成图库，EXE 走自带冒烟入口；新证据保留在主仓库 `.devtools/test-runs/b20261003.7-mobile-*`，不自动构建前端，不表示实体 Android Chrome 已验收。
 
 - `test_offline_task_gate.py`：旧任务离线保持、连接恢复、领取后断开、孤立规划状态、近十万待办及本地任务不饥饿；仅合成库与连接替身。

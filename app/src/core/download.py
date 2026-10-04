@@ -4,11 +4,12 @@ from __future__ import annotations
 import os
 import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 import requests
-from ..request_policy import retry_after_seconds
+from ..request_policy import RequestDeferred, retry_after_seconds
 
 
 class DownloadFailure(RuntimeError):
@@ -31,7 +32,17 @@ class AssetDownloader:
                  max_bytes=2 * 1024**3):
         self._session = session
         self._sessions = threading.local()
+        self._task_context = threading.local()
         self.allowed_hosts, self.allow_http, self.max_bytes = allowed_hosts, allow_http, max_bytes
+
+    @contextmanager
+    def task_scope(self, context):
+        previous = getattr(self._task_context, "context", None)
+        self._task_context.context = context
+        try:
+            yield
+        finally:
+            self._task_context.context = previous
 
     @property
     def session(self):
@@ -59,9 +70,20 @@ class AssetDownloader:
                     retry_after=max(0, int(cls._cooldown_until - now + 0.999)),
                     retryable=True, failure_code="image_rate_limit")
             wait = cls._last_request + 1.0 - now
+            cls._last_request = max(now, cls._last_request + 1.0)
+        if wait > 0:
+            time.sleep(wait)
+
+    def _admit_request(self):
+        if getattr(self._task_context, "context", None) is None:
+            return self._before_request()
+        cls = type(self)
+        with cls._lock:
+            now = time.monotonic()
+            wait = max(cls._cooldown_until, cls._last_request + 1.0) - now
             if wait > 0:
-                time.sleep(wait)
-            cls._last_request = time.monotonic()
+                raise RequestDeferred(wait, "等待图片来源冷却或请求间隔")
+            cls._last_request = now
 
     @classmethod
     def _note_limit(cls, response):
@@ -81,7 +103,10 @@ class AssetDownloader:
                 if report:
                     report(0, None)
                 self._check_url(url)
-                self._before_request()
+                self._admit_request()
+                context = getattr(self._task_context, "context", None)
+                if context is not None:
+                    context.mark_remote_attempt()
                 # The CDN rejects Requests' default UA. Keep the Pixiv client
                 # identity without sharing API credentials with image requests.
                 response = self.session.get(url, stream=True, allow_redirects=False,

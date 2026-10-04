@@ -56,7 +56,8 @@ def test_log_is_bounded_and_empty_archive_is_usable(tmp_path):
     app = FastAPI()
     app.include_router(create_settings_router(lambda: runtime))
     with TestClient(app) as client:
-        assert client.get("/api/logs").json() == {"lines": ["暂无后台处理记录。"], "truncated": False}
+        assert client.get("/api/logs").json() == {"lines": ["暂无后台处理记录。"], "truncated": False,
+                                                  "details_complete": True, "next_cursor": None}
         with database.write() as session:
             session.add_all([Operation(kind="check", dedupe_key=str(i), label="check", state="queued") for i in range(110)])
         result = client.get("/api/logs").json()

@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.datastructures import QueryParams
 
 from ..core.library import LibraryFilter
+from ..core.read_control import local_read
 from ..core.models import utcnow
 from ..core.tasks import safe_failure
 
@@ -117,6 +118,7 @@ def create_router(get_runtime):
             raise HTTPException(422, "筛选条件无效") from exc
 
     @router.get("/api/library")
+    @local_read(get_runtime)
     def library(request: Request, offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500), ceiling: int | None = Query(None, ge=0), compact: bool = False):
         pairs = list(request.query_params.multi_items())
         if "as_of" not in request.query_params:
@@ -129,14 +131,17 @@ def create_router(get_runtime):
         return {**runtime().library.query(selected, offset=offset, limit=limit, ceiling=ceiling, compact=compact), "as_of": parameters["as_of"]}
 
     @router.get("/api/library/feed")
+    @local_read(get_runtime)
     def feed(request: Request, offset: int = Query(0, ge=0), limit: int = Query(48, ge=1, le=120), ceiling: int = Query(..., ge=0)):
         return runtime().library.feed(filters(request), offset=offset, limit=limit, ceiling=ceiling)
 
     @router.get("/api/library/counts")
+    @local_read(get_runtime)
     def counts(request: Request, ceiling: int | None = Query(None, ge=0)):
         return runtime().library.counts(filters(request), ceiling=ceiling)
 
     @router.post("/api/reading-sessions")
+    @local_read(get_runtime)
     def reading_session(request: Request, ceiling: int | None = Query(None, ge=0)):
         return runtime().reading.create(filters(request), ceiling=ceiling)
 
@@ -154,6 +159,7 @@ def create_router(get_runtime):
         return {"ok": True}
 
     @router.get("/api/reading-sessions/{session_id}/entry")
+    @local_read(get_runtime)
     def reading_entry(session_id: str, index: int = Query(0, ge=0), mode: Literal["sequential", "random"] = "sequential", round: int = Query(0, ge=0)):
         try:
             return runtime().reading.entry(session_id, index, mode=mode, round_number=round)
@@ -161,6 +167,7 @@ def create_router(get_runtime):
             raise HTTPException(410, "阅读范围已过期或作品已移出，请重新打开图库") from exc
 
     @router.get("/api/reading-sessions/{session_id}/locate")
+    @local_read(get_runtime)
     def reading_locate(session_id: str, work_id: int, page: int = Query(0, ge=0), mode: Literal["sequential", "random"] = "sequential", round: int = Query(0, ge=0)):
         try:
             return runtime().reading.locate(session_id, work_id, page=page, mode=mode, round_number=round)
@@ -168,6 +175,7 @@ def create_router(get_runtime):
             raise HTTPException(410, "阅读范围已过期或作品已移出，请重新打开图库") from exc
 
     @router.get("/api/reading-sessions/{session_id}/feed")
+    @local_read(get_runtime)
     def reading_feed(session_id: str, offset: int = Query(0, ge=0), limit: int = Query(48, ge=1, le=120), mode: Literal["sequential", "random"] = "sequential"):
         try:
             return runtime().reading.feed(session_id, offset=offset, limit=limit, mode=mode)
@@ -175,6 +183,7 @@ def create_router(get_runtime):
             raise HTTPException(410, "阅读范围已过期，请重新打开图库；本地作品未改变") from exc
 
     @router.get("/api/library/locate")
+    @local_read(get_runtime)
     def locate(request: Request, work_id: int, page: int = Query(0, ge=0), ceiling: int = Query(..., ge=0)):
         try:
             return runtime().library.locate(work_id, filters(request), ceiling=ceiling, page=page)
@@ -182,14 +191,17 @@ def create_router(get_runtime):
             raise HTTPException(404, "阅读位置已不在当前范围内") from exc
 
     @router.get("/api/library/tags")
+    @local_read(get_runtime)
     def tags(request: Request, ceiling: int | None = Query(None, ge=0)):
         return {"tags": runtime().library.tags(filters(request), ceiling=ceiling)}
 
     @router.get("/api/library/missing-originals")
+    @local_read(get_runtime)
     def missing_originals(offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=100)):
         return {"items": runtime().library.missing_originals(offset, limit)}
 
     @router.get("/api/works/{work_id}")
+    @local_read(get_runtime)
     def work(work_id: int, page_offset: int = Query(0, ge=0), page_limit: int = Query(100, ge=1, le=200), revision_id: str | None = Query(None, max_length=64)):
         try:
             return runtime().library.detail(work_id, page_offset=page_offset, page_limit=page_limit, revision_id=revision_id)
@@ -197,6 +209,7 @@ def create_router(get_runtime):
             raise HTTPException(404, "作品不存在或已删除") from exc
 
     @router.get("/api/works/{work_id}/neighbors")
+    @local_read(get_runtime)
     def neighbors(request: Request, work_id: int, ceiling: int = Query(..., ge=0)):
         try:
             return runtime().library.neighbors(work_id, filters(request), ceiling=ceiling)
@@ -233,6 +246,7 @@ def create_router(get_runtime):
             raise HTTPException(503, safe_failure(exc)["message"]) from exc
 
     @router.get("/api/works/{work_id}/bookmark")
+    @local_read(get_runtime)
     def bookmark_state(work_id: int):
         try:
             return runtime().bookmarks.state(work_id)
@@ -240,6 +254,7 @@ def create_router(get_runtime):
             raise HTTPException(404, "作品不存在") from exc
 
     @router.get("/api/bookmark-operations/{operation_id}")
+    @local_read(get_runtime)
     def bookmark_operation(operation_id: str):
         try:
             return runtime().bookmarks.operation(operation_id)
@@ -254,6 +269,7 @@ def create_router(get_runtime):
             raise HTTPException(404, "部分作品不存在，已提交的删除决定仍保留") from exc
 
     @router.get("/api/artists")
+    @local_read(get_runtime)
     def artists(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=100),
                 q: str = Query("", max_length=200)):
         return runtime().library.artist_page(offset=offset, limit=limit, q=q)
@@ -266,6 +282,7 @@ def create_router(get_runtime):
             raise HTTPException(503, safe_failure(exc)["message"]) from exc
 
     @router.get("/api/artists/{artist_id}")
+    @local_read(get_runtime)
     def artist(artist_id: int):
         try:
             return runtime().library.artist_detail(artist_id)
@@ -284,6 +301,7 @@ def create_router(get_runtime):
             raise HTTPException(409, safe_failure(exc)["message"]) from exc
 
     @router.get("/api/library/source-status")
+    @local_read(get_runtime)
     def source_overview(kind: Literal["works", "artists"] = "works",
                         group: Literal["all", "deleted", "unavailable"] = "all",
                         offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=100)):
@@ -333,11 +351,13 @@ def create_router(get_runtime):
         return runtime().queue.submit(request.kind, parameters, LABELS[request.kind])
 
     @router.get("/api/progress")
+    @local_read(get_runtime)
     def progress():
         current = runtime()
         return {**current.queue.snapshot(), "recovery_issues": current.recovery_issues()}
 
     @router.get("/api/tasks/{operation_id}")
+    @local_read(get_runtime)
     def task_details(operation_id: str, offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=100), problems_only: bool = False):
         try:
             return runtime().queue.details(operation_id, offset, limit, problems_only)
@@ -353,6 +373,7 @@ def create_router(get_runtime):
         return {"ok": True}
 
     @router.get("/api/tasks")
+    @local_read(get_runtime)
     def history(before: str | None = None, limit: int = Query(20, ge=1, le=100), attention_only: bool = False):
         try:
             return runtime().queue.history(before, limit, attention_only)
@@ -381,6 +402,7 @@ def create_router(get_runtime):
             raise HTTPException(409, str(exc)) from exc
 
     @router.get("/images/{path:path}")
+    @local_read(get_runtime)
     def media(path: str, request: Request):
         file_path = runtime().media_path(path)
         if file_path is None:

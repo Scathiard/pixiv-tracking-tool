@@ -5,6 +5,8 @@ the local lane; the check lane obtains one reusable metadata/bookmark snapshot.
 """
 from __future__ import annotations
 
+from .read_control import LocalReadError
+
 from pathlib import PurePosixPath
 from urllib.parse import urlsplit
 import zipfile
@@ -141,6 +143,8 @@ class ReconcileHandler(ArchiveHandler):
         except ShutdownRequested:
             raise
         except Exception as exc:
+            if isinstance(exc, LocalReadError):
+                raise
             state, reason = classify_failure(exc)
             availability = self.source_status.snapshot("artist", artist_id, self.source_status.account_context())
             concluded = (state in ("unavailable", "private") and availability
@@ -157,6 +161,8 @@ class ReconcileHandler(ArchiveHandler):
             except ShutdownRequested:
                 raise
             except Exception as exc:
+                if isinstance(exc, LocalReadError):
+                    raise
                 return ItemResult("failed", {**safe_failure(exc), "availability": availability,
                     "message": "画师主页可访问，本地资料或头像刷新未完成，已有内容保留"})
         return ItemResult(detail={"availability": availability, "message": "画师主页来源核对完成"})
@@ -181,6 +187,8 @@ class ReconcileHandler(ArchiveHandler):
                 except ShutdownRequested:
                     raise
                 except Exception as exc:
+                    if isinstance(exc, LocalReadError):
+                        raise
                     failure = safe_failure(exc)
             saved = self._save_remote_work(work.artist_id, data, metadata=metadata,
                 expected_work_id=work.id, expected_revision=target["revision"], expected_source_version=version,
@@ -198,6 +206,8 @@ class ReconcileHandler(ArchiveHandler):
         except ShutdownRequested:
             raise
         except Exception as exc:
+            if isinstance(exc, LocalReadError):
+                raise
             if not self._current(target):
                 return ItemResult("skipped", {"message": "保存决定已改变，忽略旧查询结果"})
             if (isinstance(exc, WorkMetadataConflict) and isinstance(data, dict)

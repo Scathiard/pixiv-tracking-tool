@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { api, url, write } from '../api'
 import { sourceInaccessible, sourceStatusLabel, type Artist } from '../types'
-import { LatestIntent } from '../interaction'
+import { LatestIntent, ReadLifecycle } from '../interaction'
 import Icon from '../components/Icon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import MediaImage from '../MediaImage.vue'
@@ -16,6 +16,7 @@ interface CheckStatus {checked_at: string | null; operation: {id: string; state:
 const adding = ref(false), newPixivId = ref(''), previews = ref<Identity[]>([]), selectedIdentity = ref<Identity | null>(null), previewError = ref(''), previewLoading = ref(false)
 const previewRequest = new LatestIntent()
 const checkStatuses = ref(new Map<number, CheckStatus>())
+const checkStatusReads = new ReadLifecycle(), checkStatusError = ref('')
 const artistList = ref<HTMLElement | null>(null), previewWidth = ref(130)
 const previewStyle = computed(() => ({'--artist-preview-width': `${previewWidth.value}px`, '--artist-preview-height': `${previewWidth.value * 2 / 3}px`}))
 let resize: ResizeObserver | null = null
@@ -35,6 +36,7 @@ const drag = {id: -1, x: 0, left: 0, moved: false, target: null as HTMLElement |
 let timer = 0, generation = 0, suppressClickUntil = 0
 const LIMIT = 50
 async function load(reset = false) {
+  checkStatusReads.cancel()
   if (reset) offset.value = 0
   const epoch = ++generation, ticket = request.begin()
   loading.value = true; error.value = ''
@@ -47,7 +49,7 @@ async function load(reset = false) {
       if (epoch === generation) { artists.value = data.items; total.value = data.total }
     }
   } catch (failure) { if (epoch === generation && ticket.current()) error.value = failure instanceof Error ? failure.message : '画师列表暂时无法读取' }
-  finally { if (epoch === generation) { loading.value = false; void nextTick(sizePreviews); void loadCheckStatuses(epoch) } }
+  finally { if (epoch === generation && ticket.current()) { loading.value = false; void nextTick(sizePreviews); void loadCheckStatuses(epoch) } }
 }
 async function checkSource(artist: Artist) {
   if (checks.value.has(artist.id)) return
@@ -72,7 +74,7 @@ function taskCompleted(event: Event) {
 }
 function visibilityChanged() {
   if (document.visibilityState === 'visible') refreshArtists()
-  else { request.cancel(); generation++; loading.value = false }
+  else { request.cancel(); checkStatusReads.cancel(); generation++; loading.value = false }
 }
 function search() { clearTimeout(timer); timer = window.setTimeout(() => { query.value = draft.value; void load(true) }, 280) }
 async function lookupIdentity() {
@@ -109,12 +111,14 @@ async function checkNewWorks(artist: Artist) {
   try { const result = await write<{operation_id: string}>('/api/tasks', {kind:'check', artist_ids:[artist.id]}); emit('taskQueued', result.operation_id); emit('message', `已排队检查 ${artist.name} 的新作品`); await loadCheckStatuses(generation) }
   catch (failure) { emit('message', failure instanceof Error ? failure.message : '检查未能提交', true) }
 }
-async function loadCheckStatuses(epoch: number) {
-  if (!artists.value.length) return
-  try {
-    const data = await api<{items: Record<string, CheckStatus>}>(url('/api/artists/check-status', '', {artist_ids: artists.value.map(artist => artist.id).join(',')}))
-    if (epoch === generation) for (const [id, status] of Object.entries(data.items)) checkStatuses.value.set(Number(id), status)
-  } catch { /* A failed local status read must not invent a successful check. */ }
+function loadCheckStatuses(epoch: number) {
+  if (!artists.value.length || epoch !== generation || document.hidden) return Promise.resolve()
+  const path = url('/api/artists/check-status', '', {artist_ids: artists.value.map(artist => artist.id).join(',')})
+  return checkStatusReads.run(`${epoch}:${path}`, signal => api<{items: Record<string, CheckStatus>}>(path, {signal}), data => {
+    if (epoch !== generation) return
+    checkStatusError.value = ''
+    for (const [id, status] of Object.entries(data.items)) checkStatuses.value.set(Number(id), status)
+  }, failure => { checkStatusError.value = failure instanceof Error ? failure.message : '检查状态暂时无法读取' })
 }
 function checkLabel(artist: Artist) {
   const status = checkStatuses.value.get(artist.id), operation = status?.operation
@@ -158,11 +162,12 @@ function stripUp(event: PointerEvent) {
 function openWork(artistId: number, workId: number) { if (Date.now() >= suppressClickUntil) emit('work', artistId, workId) }
 watch(() => props.artistId, () => { void load(true) })
 onMounted(() => { resize = new ResizeObserver(sizePreviews); if (artistList.value) resize.observe(artistList.value); try { layout.value = localStorage.getItem('pixiv-local-artist-layout') === 'row' ? 'row' : 'grid' } catch { /* optional */ }; void load(); window.addEventListener('archive-updated', refreshArtists); window.addEventListener('task-completed', taskCompleted); document.addEventListener('visibilitychange', visibilityChanged) })
-onBeforeUnmount(() => { resize?.disconnect(); previewRequest.cancel(); generation++; request.cancel(); clearTimeout(timer); window.removeEventListener('archive-updated', refreshArtists); window.removeEventListener('task-completed', taskCompleted); document.removeEventListener('visibilitychange', visibilityChanged) })
+onBeforeUnmount(() => { resize?.disconnect(); previewRequest.cancel(); checkStatusReads.dispose(); generation++; request.cancel(); clearTimeout(timer); window.removeEventListener('archive-updated', refreshArtists); window.removeEventListener('task-completed', taskCompleted); document.removeEventListener('visibilitychange', visibilityChanged) })
 function setLayout(next: 'grid' | 'row') { layout.value = next; try { localStorage.setItem('pixiv-local-artist-layout', next) } catch { /* optional */ } }
 </script>
 <template>
   <section class="subpage artists-page">
+    <p v-if="checkStatusError" class="muted" role="status">检查状态暂不可得：{{ checkStatusError }}</p>
     <div class="artists-heading"><div><h1>我的画师</h1><p>管理关注的画师，按最近保存的作品继续阅读。</p></div><button class="primary" :disabled="busy" :aria-expanded="adding" @click="adding = !adding"><Icon name="plus" />添加画师</button></div>
     <div v-if="adding" class="artist-add-panel"><form class="identity-query" @submit.prevent="lookupIdentity"><label>名称、Pixiv 用户 ID 或主页地址<input v-model="newPixivId" autocomplete="off" autofocus placeholder="名称 / 123 / https://www.pixiv.net/users/123" @input="identityInput"></label><button class="primary" type="submit" :disabled="previewLoading || !newPixivId.trim()">{{ previewLoading ? '正在查询…' : '查询身份' }}</button><button type="button" @click="adding = false; identityInput()">取消</button></form><p v-if="previewError" class="error" role="alert">{{ previewError }}</p><div v-if="!selectedIdentity" class="identity-results"><button v-for="identity in previews" :key="identity.user_id" class="identity-choice" :disabled="previewLoading" @click="chooseIdentity(identity)"><img v-if="identity.avatar_url" :src="identity.avatar_url" alt="" referrerpolicy="no-referrer"><span>{{ identity.name }}<small>ID {{ identity.user_id }}{{ identity.artist_id ? ' · 已添加' : '' }}</small></span></button></div><article v-if="selectedIdentity" class="identity-confirm"><img v-if="selectedIdentity.avatar_url" :src="selectedIdentity.avatar_url" :alt="`${selectedIdentity.name}头像`" referrerpolicy="no-referrer"><div><h2>{{ selectedIdentity.name }}</h2><p>Pixiv ID {{ selectedIdentity.user_id }}</p><p class="identity-biography">{{ selectedIdentity.biography || '暂无画师简介' }}</p><a :href="`https://www.pixiv.net/users/${selectedIdentity.user_id}`" target="_blank" rel="noopener noreferrer">打开 Pixiv 主页</a><button class="primary" :disabled="busy || previewLoading" @click="addArtist">{{ selectedIdentity.artist_id ? '查看现有画师' : '确认身份并添加' }}</button></div></article></div>
     <div class="artists-toolbar"><label class="search-field"><Icon name="search" /><input v-model="draft" type="search" placeholder="搜索画师" aria-label="搜索画师" @input="search" @compositionend="search"></label><span class="muted">{{ total }} 位画师</span><div class="artist-layout-switch" aria-label="画师排列"><button :class="{active: layout === 'grid'}" :aria-pressed="layout === 'grid'" @click="setLayout('grid')"><Icon name="grid" />网格</button><button :class="{active: layout === 'row'}" :aria-pressed="layout === 'row'" @click="setLayout('row')"><Icon name="list" />列表</button></div></div>

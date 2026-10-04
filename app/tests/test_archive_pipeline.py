@@ -682,13 +682,13 @@ def test_parent_completion_gate_does_not_materialize_five_thousand_children(arch
         if isinstance(instance, Operation):
             entities.append(instance.id)
 
-    event.listen(db.engine, "before_cursor_execute", query_observer)
+    event.listen(db.writer_engine, "before_cursor_execute", query_observer)
     event.listen(Session, "loaded_as_persistent", entity_observer)
     try:
         with db.write() as session:
             queue._finalize(session, [parent_id])
     finally:
-        event.remove(db.engine, "before_cursor_execute", query_observer)
+        event.remove(db.writer_engine, "before_cursor_execute", query_observer)
         event.remove(Session, "loaded_as_persistent", entity_observer)
     assert entities == [parent_id]
     assert len(queries) < 10

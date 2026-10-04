@@ -5,6 +5,7 @@ import secrets
 import base64
 import webbrowser
 import threading
+from contextlib import contextmanager
 import requests
 from pathlib import Path
 from datetime import datetime, timezone
@@ -25,6 +26,30 @@ _received_code = None
 _code_event = threading.Event()
 _cancel_event = threading.Event()
 _token_lock = threading.RLock()
+_refresh_condition = threading.Condition(_token_lock)
+_refresh_flights = {}
+_credential_generation = 0
+_login_generation = 0
+_credential_context = threading.local()
+
+
+def credential_snapshot():
+    """Capture bearer, identity and generation together; callers never log this."""
+    with _token_lock:
+        token = _load_token()
+        # Fingerprint also fences externally replaced token files.
+        fingerprint = hashlib.sha256(json.dumps(token, sort_keys=True).encode()).hexdigest()
+        return token, (_credential_generation, fingerprint), _login_generation
+
+
+@contextmanager
+def refresh_scope(generation):
+    previous = getattr(_credential_context, "expected", None)
+    _credential_context.expected = generation
+    try:
+        yield
+    finally:
+        _credential_context.expected = previous
 
 
 def get_pending_login_url():
@@ -90,6 +115,7 @@ def _account_id_from_response(response):
 
 def _save_token(access_token, refresh_token, user_id=None):
     """原子写入 token，避免断电或进程退出留下半截 JSON。"""
+    global _credential_generation, _login_generation
     token_path = _token_file()
     token_path.parent.mkdir(parents=True, exist_ok=True)
     temporary = token_path.with_name(
@@ -106,6 +132,9 @@ def _save_token(access_token, refresh_token, user_id=None):
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(temporary, token_path)
+            _credential_generation += 1
+            if not getattr(_credential_context, "refreshing", False):
+                _login_generation += 1
         finally:
             try:
                 temporary.unlink(missing_ok=True)
@@ -125,9 +154,43 @@ def _load_token():
 
 
 def _try_refresh_token():
+    """One refresh per credential generation; a newer login always wins."""
     if _cancel_event.is_set():
         return None
-    saved = _load_token()
+    with _refresh_condition:
+        saved, generation, _ = credential_snapshot()
+        expected = getattr(_credential_context, "expected", None)
+        if expected is not None and expected != generation:
+            return saved.get("refresh_token")
+        flight = _refresh_flights.get(generation)
+        if flight is not None:
+            while not flight["done"] and not _cancel_event.is_set():
+                _refresh_condition.wait(0.1)
+            return None if _cancel_event.is_set() else flight["result"]
+        flight = {"done": False, "result": None}
+        _refresh_flights[generation] = flight
+        # Only in-flight generations need retention. Completed old generations
+        # are fenced by the snapshot, rather than by an unbounded token history.
+        for key in list(_refresh_flights):
+            if key != generation and _refresh_flights[key]["done"]:
+                _refresh_flights.pop(key)
+    result = None
+    try:
+        result = _refresh_captured_token(saved, generation)
+        return result
+    finally:
+        with _refresh_condition:
+            flight.update(done=True, result=result)
+            _refresh_condition.notify_all()
+            # Failure can be retried by a later request; existing waiters retain
+            # their flight reference and all observe this attempt's result.
+            if result is None:
+                _refresh_flights.pop(generation, None)
+
+
+def _refresh_captured_token(saved, generation):
+    if _cancel_event.is_set():
+        return None
     refresh_token = saved.get("refresh_token") or _cfg.PIXIV_REFRESH_TOKEN
 
     if not refresh_token:
@@ -161,8 +224,16 @@ def _try_refresh_token():
         next_refresh_token = body.get("refresh_token") or refresh_token
         if _cancel_event.is_set():
             return None
-        _save_token(body["access_token"], next_refresh_token,
-                    _account_id_from_response(resp))
+        with _token_lock:
+            current, current_generation, _ = credential_snapshot()
+            if current_generation != generation:
+                return current.get("refresh_token")
+            _credential_context.refreshing = True
+            try:
+                _save_token(body["access_token"], next_refresh_token,
+                            _account_id_from_response(resp) or saved.get("user_id"))
+            finally:
+                _credential_context.refreshing = False
         return next_refresh_token
 
     except Exception:

@@ -11,6 +11,7 @@ const feedback = createBookmarkFeedback({now: () => performance.now(),
   clearTimer: timer => window.clearTimeout(timer)}, reactive(new Map<number, BookmarkFeedback>()))
 const lastRead = new Map<number, number>()
 const polling = new Map<number, number>()
+const pollFlights = new Map<number, AbortController>()
 const inFlight = reactive(new Set<number>())
 const lastRefresh = new Map<number, number>()
 const queuedAdds = new Map<number, Promise<BookmarkState | undefined>>()
@@ -86,21 +87,30 @@ function stopPoll(id: number) {
   const timer = polling.get(id)
   if (timer !== undefined) clearTimeout(timer)
   polling.delete(id)
+  pollFlights.get(id)?.abort()
+  pollFlights.delete(id)
 }
 function poll(id: number, operationId: string, attempt = 0) {
-  if (polling.has(id) || document.hidden) return
+  if (polling.has(id) || pollFlights.has(id) || document.hidden) return
   const timer = window.setTimeout(async () => {
     polling.delete(id)
+    const controller = new AbortController()
+    pollFlights.set(id, controller)
+    let retry = false
     try {
-      const response = await api<unknown>(`/api/bookmark-operations/${encodeURIComponent(operationId)}`)
+      const response = await api<unknown>(`/api/bookmark-operations/${encodeURIComponent(operationId)}`, {signal: controller.signal})
       const current = states.get(id)
-      if (current?.operation_id !== operationId) return
+      if (controller.signal.aborted || current?.operation_id !== operationId) return
       const state = ingestBookmark(id, response, false)
-      if (state?.status === 'pending') poll(id, operationId, attempt + 1)
-    } catch {
+      retry = state?.status === 'pending'
+    } catch (failure) {
+      if (controller.signal.aborted) return
       const current = states.get(id)
-      if (current?.operation_id === operationId && current.status === 'pending') states.set(id, {...current, error: '暂时无法联系 Pixiv，稍后继续核对'})
-      if (attempt < 8 && states.get(id)?.operation_id === operationId) poll(id, operationId, attempt + 1)
+      if (current?.operation_id === operationId && current.status === 'pending') states.set(id, {...current, error: failure instanceof Error ? `${failure.message}；稍后继续核对` : '收藏状态暂时无法读取，稍后继续核对'})
+      retry = attempt < 8 && states.get(id)?.operation_id === operationId
+    } finally {
+      if (pollFlights.get(id) === controller) pollFlights.delete(id)
+      if (retry && !controller.signal.aborted) poll(id, operationId, attempt + 1)
     }
   }, Math.min(9000, 900 + attempt * 700))
   polling.set(id, timer)

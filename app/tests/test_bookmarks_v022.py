@@ -343,7 +343,7 @@ def test_metadata_observation_gets_same_short_freshness(database):
         assert service.stop()
 
 
-def test_confirmed_and_fresh_are_atomic_to_polling_reader(database):
+def test_committed_fact_is_readable_while_freshness_publication_waits(database):
     remote = Remote()
     service = BookmarkService(database, remote,
         current_account=lambda: remote.account)
@@ -370,12 +370,13 @@ def test_confirmed_and_fresh_are_atomic_to_polling_reader(database):
         reader = Thread(target=read_state)
         reader.start()
         assert reader_started.wait(1)
-        assert not reader_done.wait(.05)  # Cannot observe confirmed before freshness.
+        assert reader_done.wait(1)  # Memory publication must not retain the reader's connection.
+        assert reader_result["status"] == "confirmed" and reader_result["value"] is True
+        assert reader_result["cached"] is True  # Conservative until freshness is published.
         release.set()
         reader.join(2)
         assert reader_done.is_set()
         assert reader_result["status"] == "confirmed"
-        assert reader_result["cached"] is False
         assert wait_result(service, receipt["operation_id"])["cached"] is False
     finally:
         release.set()

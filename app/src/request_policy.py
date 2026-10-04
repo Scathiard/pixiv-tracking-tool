@@ -13,6 +13,25 @@ class ShutdownRequested(BaseException):
     """Cooperative stop, kept out of handlers' ordinary failure classification."""
 
 
+class AccountChanged(BaseException):
+    """An observation belongs to an earlier login/client, not a remote failure."""
+
+
+class RequestDeferred(BaseException):
+    """No request was sent: yield task resources until shared admission permits it."""
+
+    def __init__(self, seconds, message="等待远端请求间隔"):
+        self.retry_after = max(0.05, min(float(seconds), MAX_RETRY_AFTER))
+        self.user_message = message
+
+
+class TaskRemoteRetry(BaseException):
+    """Carry a retryable transport failure through domain fallback handlers."""
+
+    def __init__(self, error):
+        self.error = error
+
+
 def retry_after_seconds(headers, *, now=None):
     """Read RFC Retry-After seconds or an HTTP date without retaining headers."""
     raw = headers.get("Retry-After") if headers else None

@@ -1,7 +1,7 @@
 """Read-only settings snapshot and explicit user-initiated settings edits."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import and_, case, func, or_, select, union
 import socket
@@ -11,6 +11,7 @@ from .. import config
 from ..auth import get_pending_login_url
 from ..core.models import ArchiveIntent, Artist, Asset, RevisionAsset, Work, WorkRevision
 from ..core.activity_log import processing_log
+from ..core.read_control import local_read
 from ..version import __version__, __build__
 from ..scheduler import interval_snapshot, save_interval
 
@@ -116,12 +117,17 @@ def create_settings_router(get_runtime):
                       "missing_originals": missing, "unverified_originals": unknown}}
 
     @router.get("/api/settings")
+    @local_read(get_runtime)
     def settings():
         return snapshot()
 
     @router.get("/api/logs")
-    def logs():
-        return processing_log(runtime().database)
+    @local_read(get_runtime, lane="logs", coalesce=True)
+    def logs(cursor: str | None = Query(None, max_length=16000)):
+        try:
+            return processing_log(runtime().database, cursor=cursor)
+        except ValueError as exc:
+            raise HTTPException(422, "日志继续读取位置无效，请刷新") from exc
 
     @router.patch("/api/settings")
     def edit_settings(edit: SettingsEdit):

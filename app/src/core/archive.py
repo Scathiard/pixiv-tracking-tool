@@ -1,6 +1,8 @@
 """Archive task handlers: discover explicit assets, then execute the frozen manifest."""
 from __future__ import annotations
 
+from .read_control import LocalReadError
+
 import json
 import hashlib
 from datetime import datetime, timedelta, timezone
@@ -102,6 +104,8 @@ class ArchiveHandler:
             result = self._save_remote_work(artist_id, data, expected_work_id=work_id,
                 expected_revision=revision, expected_source_version=source_version)
         except Exception as exc:
+            if isinstance(exc, LocalReadError):
+                raise
             # A valid source can disagree with the retained local page count.
             # Keep that positive fact without replacing any archived pages.
             if (isinstance(exc, WorkMetadataConflict) and isinstance(data, dict)
@@ -433,6 +437,8 @@ class ArchiveHandler:
                                     try:
                                         metadata = self.client.get_ugoira_metadata(str(data["illust_id"]))
                                     except Exception as exc:
+                                        if isinstance(exc, LocalReadError):
+                                            raise
                                         metadata_error = safe_failure(exc)
                             observation = sources.get(str(data["illust_id"]), {})
                             work_id = self._save_remote_work(artist_id, data, context=context, metadata=metadata, metadata_error=metadata_error,
@@ -452,6 +458,8 @@ class ArchiveHandler:
                     with self.database.write() as session:
                         session.get(Artist, artist_id).last_checked_at = utcnow()
                 except Exception as exc:
+                    if isinstance(exc, LocalReadError):
+                        raise
                     specs.append(ItemSpec(f"artist-error-{artist_id}", "error", safe_failure(exc), "checking", "artists"))
                 context.report("checking", index + 1, len(ids), "artists", "已检查画师")
             return specs
@@ -467,6 +475,8 @@ class ArchiveHandler:
             except SuppressedWork:
                 specs.append(ItemSpec(f"suppressed-{work_id}", "skip", {"work_id": work_id, "message": "作品已删除，旧任务不再处理"}, "checking", "works"))
             except Exception as exc:
+                if isinstance(exc, LocalReadError):
+                    raise
                 specs.append(ItemSpec(f"work-error-{work_id}", "error", {**safe_failure(exc), "work_id": work_id}, "checking", "works"))
             context.report("inventory", index + 1, len(work_ids), "works", "已清点作品")
         return specs
@@ -670,6 +680,8 @@ class ArchiveHandler:
                             assets = revision_assets(session, work_revision)
                             missing = [asset for asset in assets if asset.state != "verified"]
                 except Exception as exc:
+                    if isinstance(exc, LocalReadError):
+                        raise
                     # Animation subresource failure does not establish a work fact.
                     # Check detail once for terminal metadata absence; temporary
                     # network/auth/rate limits retain their own failure cause.
@@ -679,6 +691,8 @@ class ArchiveHandler:
                         try:
                             self._refresh_work(work.artist_id, work.pixiv_illust_id, work_id)
                         except Exception as detail_exc:
+                            if isinstance(detail_exc, LocalReadError):
+                                raise
                             exc = detail_exc
                     remote_failure = safe_failure(exc)
                     with self.database.write() as session:
@@ -990,6 +1004,8 @@ class ArchiveHandler:
         except SuppressedWork:
             return ItemResult("skipped", {"message": "作品已删除，旧任务不再发布文件"})
         except Exception as exc:
+            if isinstance(exc, LocalReadError):
+                raise
             with self.database.write() as session:
                 stored = session.get(Derivative if derivative else Asset, record_id)
                 if stored is not None:
