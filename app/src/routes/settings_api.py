@@ -104,20 +104,22 @@ def create_settings_router(get_runtime):
             "pending" if get_pending_login_url() else "offline")
         # A GET must not contact Pixiv just to retrieve the current account ID.
         account_id = getattr(current, "account_id", None)
+        interval = interval_snapshot(current.database)
         return {"version": __version__, "build": __build__,
             "login": {"status": status, "account_id": account_id},
             "automatic_paused": current.queue.automatic_paused(),
             "current_port": config.LISTENING_PORT, "next_port": config.PORT,
             "data_root": str(config.DATA_ROOT),
-            "check_interval_minutes": interval_snapshot(current.database)["minutes"],
-            "next_check_at": interval_snapshot(current.database)["next_check_at"],
+            "check_interval_minutes": interval["minutes"],
+            "next_check_at": interval["next_check_at"],
             "lan_urls": lan_addresses(config.LISTENING_PORT),
             "stats": {"artists": artists, "works": works, "downloaded_pages": downloaded_pages,
                       "registered_originals": registered, "verified_originals": verified,
                       "missing_originals": missing, "unverified_originals": unknown}}
 
     @router.get("/api/settings")
-    @local_read(get_runtime)
+    @local_read(get_runtime, coalesce=True, coalesce_context=lambda current:
+        (config.PORT, config.LISTENING_PORT, bool(get_pending_login_url())))
     def settings():
         return snapshot()
 
@@ -136,6 +138,9 @@ def create_settings_router(get_runtime):
         current = runtime()
         if edit.port is not None:
             config.set_port(edit.port)
+            # Port persistence is outside SQLite, but later GETs still must
+            # not join a snapshot taken before this successful settings edit.
+            current.database.reads.advance_generation()
         if edit.automatic_paused is not None:
             current.queue.set_automatic_paused(edit.automatic_paused)
         if edit.check_interval_minutes is not None:

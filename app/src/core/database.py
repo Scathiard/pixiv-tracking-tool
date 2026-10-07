@@ -164,6 +164,9 @@ class ArchiveDatabase:
                 session.connection().exec_driver_sql("BEGIN IMMEDIATE")
                 yield session
                 session.commit()
+                # Even an empty successful transaction may conservatively
+                # fence snapshots; detecting DML must not borrow/read SQL here.
+                self.reads.advance_generation()
             except BaseException:
                 session.rollback()
                 raise

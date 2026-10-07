@@ -351,7 +351,7 @@ def create_router(get_runtime):
         return runtime().queue.submit(request.kind, parameters, LABELS[request.kind])
 
     @router.get("/api/progress")
-    @local_read(get_runtime)
+    @local_read(get_runtime, coalesce=True)
     def progress():
         current = runtime()
         return {**current.queue.snapshot(), "recovery_issues": current.recovery_issues()}

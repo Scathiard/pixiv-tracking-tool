@@ -1,0 +1,762 @@
+{
+  "mode": "complete_settings_handler_isolated",
+  "no_background_workers": true,
+  "http_transport": "ASGI production router plus local_read and complete JSON response",
+  "network_requests": 0,
+  "dotenv_reads_disabled": true,
+  "source_tree_sha256_before": "24628ee866161dc11cba769ec05f986d57ba4a32435c4aa69811b20966f111b5",
+  "source_tree_sha256_after": "24628ee866161dc11cba769ec05f986d57ba4a32435c4aa69811b20966f111b5",
+  "copy_seconds": 29.37705049989745,
+  "copied_database_bytes": 569794560,
+  "cache_note": "OS file cache is not cleared; copy can warm it",
+  "complete_responses": [
+    {
+      "request": 0,
+      "complete_http_seconds": 0.7998180000577122,
+      "status": 200,
+      "bytes": 578,
+      "stats": {
+        "artists": 12,
+        "works": 15002,
+        "downloaded_pages": 5,
+        "registered_originals": 15002,
+        "verified_originals": 17,
+        "missing_originals": 14,
+        "unverified_originals": 14971
+      }
+    },
+    {
+      "request": 1,
+      "complete_http_seconds": 0.3597351999487728,
+      "status": 200,
+      "bytes": 578,
+      "stats": {
+        "artists": 12,
+        "works": 15002,
+        "downloaded_pages": 5,
+        "registered_originals": 15002,
+        "verified_originals": 17,
+        "missing_originals": 14,
+        "unverified_originals": 14971
+      }
+    },
+    {
+      "request": 2,
+      "complete_http_seconds": 0.3702230998314917,
+      "status": 200,
+      "bytes": 578,
+      "stats": {
+        "artists": 12,
+        "works": 15002,
+        "downloaded_pages": 5,
+        "registered_originals": 15002,
+        "verified_originals": 17,
+        "missing_originals": 14,
+        "unverified_originals": 14971
+      }
+    },
+    {
+      "request": 3,
+      "complete_http_seconds": 0.3563581998459995,
+      "status": 200,
+      "bytes": 578,
+      "stats": {
+        "artists": 12,
+        "works": 15002,
+        "downloaded_pages": 5,
+        "registered_originals": 15002,
+        "verified_originals": 17,
+        "missing_originals": 14,
+        "unverified_originals": 14971
+      }
+    }
+  ],
+  "query_observations": [
+    {
+      "request": 0,
+      "sql": "BEGIN",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 1.4899997040629387e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.0014168999623507261,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 0,
+      "sql": "SELECT count(*) AS count_1 \nFROM artists",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 7.910002022981644e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.0011775000020861626,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 0,
+      "sql": "SELECT count(*) AS count_1 \nFROM works",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 0.0019313001539558172,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.011018099961802363,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 0,
+      "sql": "WITH current_works AS MATERIALIZED \n(SELECT works.id AS work_id, works.pixiv_illust_id AS pixiv_id, works.default_revision_id AS revision_id, coalesce(work_revisions.type, works.type) AS type, coalesce(work_revisions.page_count, works.page_count) AS page_count \nFROM works LEFT OUTER JOIN work_revisions ON work_revisions.id = works.default_revision_id)\n SELECT coalesce(sum(anon_1.downloaded_pages), ?) AS coalesce_1, coalesce(sum(anon_1.registered_originals), ?) AS coalesce_3, coalesce(sum(anon_1.verified_originals), ?) AS coalesce_5, coalesce(sum(anon_1.unverified_originals), ?) AS coalesce_7, coalesce(sum(CASE WHEN (CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) > ?) THEN CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) ELSE ? END), ?) AS coalesce_9 \nFROM current_works LEFT OUTER JOIN (SELECT assets.work_id AS work_id, sum(CASE WHEN (assets.role = ? AND assets.state = ?) THEN ? ELSE ? END) AS downloaded_pages, sum(CASE WHEN (length(assets.relative_path) > ?) THEN ? ELSE ? END) AS registered_originals, sum(CASE WHEN (assets.state = ?) THEN ? ELSE ? END) AS verified_originals, sum(CASE WHEN (assets.state = ? AND length(assets.relative_path) > ?) THEN ? ELSE ? END) AS unverified_originals, sum(CASE WHEN (length(assets.relative_path) > ? AND (assets.state NOT IN (?, ?, ?, ?, ?))) THEN ? ELSE ? END) AS usable \nFROM assets JOIN (SELECT revision_assets.asset_id AS asset_id \nFROM revision_assets JOIN current_works ON current_works.revision_id = revision_assets.revision_id UNION SELECT assets.id AS asset_id \nFROM assets JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.revision_id IS NULL AND assets.revision_id IS NULL) AS anon_2 ON anon_2.asset_id = assets.id JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.type = ? AND assets.role = ? OR current_works.type != ? AND assets.role = ? AND assets.page_index < current_works.page_count GROUP BY assets.work_id) AS anon_1 ON anon_1.work_id = current_works.work_id \nWHERE (current_works.pixiv_id NOT IN (SELECT archive_intents.pixiv_illust_id \nFROM archive_intents \nWHERE archive_intents.mode = ?))",
+      "parameters": [
+        0,
+        0,
+        0,
+        0,
+        "ugoira",
+        1,
+        0,
+        0,
+        "ugoira",
+        1,
+        0,
+        0,
+        0,
+        "image",
+        "verified",
+        1,
+        0,
+        0,
+        1,
+        0,
+        "verified",
+        1,
+        0,
+        "unknown",
+        0,
+        1,
+        0,
+        0,
+        "missing",
+        "failed",
+        "invalid",
+        "mismatch",
+        "corrupt",
+        1,
+        0,
+        "ugoira",
+        "ugoira_zip",
+        "ugoira",
+        "image",
+        "suppressed"
+      ],
+      "executemany": false,
+      "execute_seconds": 0.3281241999939084,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.32904089987277985,
+      "vm_steps_approximate": 3091000
+    },
+    {
+      "request": 0,
+      "sql": "BEGIN",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 1.6799895092844963e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.0016703000292181969,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 0,
+      "sql": "SELECT application_state.\"key\" AS application_state_key, application_state.value AS application_state_value \nFROM application_state \nWHERE application_state.\"key\" = ?",
+      "parameters": [
+        "automatic_check_interval"
+      ],
+      "executemany": false,
+      "execute_seconds": 8.079991675913334e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.00029450003057718277,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 0,
+      "sql": "BEGIN",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 5.800044164061546e-06,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.00014070002362132072,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 0,
+      "sql": "SELECT application_state.\"key\" AS application_state_key, application_state.value AS application_state_value \nFROM application_state \nWHERE application_state.\"key\" = ?",
+      "parameters": [
+        "automatic_paused"
+      ],
+      "executemany": false,
+      "execute_seconds": 1.5799887478351593e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 8.9599983766675e-05,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 1,
+      "sql": "BEGIN",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 1.3800105080008507e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.00023530004546046257,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 1,
+      "sql": "SELECT count(*) AS count_1 \nFROM artists",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 6.930017843842506e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.0003049001097679138,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 1,
+      "sql": "SELECT count(*) AS count_1 \nFROM works",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 0.0014208999928086996,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.004439899930730462,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 1,
+      "sql": "WITH current_works AS MATERIALIZED \n(SELECT works.id AS work_id, works.pixiv_illust_id AS pixiv_id, works.default_revision_id AS revision_id, coalesce(work_revisions.type, works.type) AS type, coalesce(work_revisions.page_count, works.page_count) AS page_count \nFROM works LEFT OUTER JOIN work_revisions ON work_revisions.id = works.default_revision_id)\n SELECT coalesce(sum(anon_1.downloaded_pages), ?) AS coalesce_1, coalesce(sum(anon_1.registered_originals), ?) AS coalesce_3, coalesce(sum(anon_1.verified_originals), ?) AS coalesce_5, coalesce(sum(anon_1.unverified_originals), ?) AS coalesce_7, coalesce(sum(CASE WHEN (CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) > ?) THEN CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) ELSE ? END), ?) AS coalesce_9 \nFROM current_works LEFT OUTER JOIN (SELECT assets.work_id AS work_id, sum(CASE WHEN (assets.role = ? AND assets.state = ?) THEN ? ELSE ? END) AS downloaded_pages, sum(CASE WHEN (length(assets.relative_path) > ?) THEN ? ELSE ? END) AS registered_originals, sum(CASE WHEN (assets.state = ?) THEN ? ELSE ? END) AS verified_originals, sum(CASE WHEN (assets.state = ? AND length(assets.relative_path) > ?) THEN ? ELSE ? END) AS unverified_originals, sum(CASE WHEN (length(assets.relative_path) > ? AND (assets.state NOT IN (?, ?, ?, ?, ?))) THEN ? ELSE ? END) AS usable \nFROM assets JOIN (SELECT revision_assets.asset_id AS asset_id \nFROM revision_assets JOIN current_works ON current_works.revision_id = revision_assets.revision_id UNION SELECT assets.id AS asset_id \nFROM assets JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.revision_id IS NULL AND assets.revision_id IS NULL) AS anon_2 ON anon_2.asset_id = assets.id JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.type = ? AND assets.role = ? OR current_works.type != ? AND assets.role = ? AND assets.page_index < current_works.page_count GROUP BY assets.work_id) AS anon_1 ON anon_1.work_id = current_works.work_id \nWHERE (current_works.pixiv_id NOT IN (SELECT archive_intents.pixiv_illust_id \nFROM archive_intents \nWHERE archive_intents.mode = ?))",
+      "parameters": [
+        0,
+        0,
+        0,
+        0,
+        "ugoira",
+        1,
+        0,
+        0,
+        "ugoira",
+        1,
+        0,
+        0,
+        0,
+        "image",
+        "verified",
+        1,
+        0,
+        0,
+        1,
+        0,
+        "verified",
+        1,
+        0,
+        "unknown",
+        0,
+        1,
+        0,
+        0,
+        "missing",
+        "failed",
+        "invalid",
+        "mismatch",
+        "corrupt",
+        1,
+        0,
+        "ugoira",
+        "ugoira_zip",
+        "ugoira",
+        "image",
+        "suppressed"
+      ],
+      "executemany": false,
+      "execute_seconds": 0.3293981999158859,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.3302080000285059,
+      "vm_steps_approximate": 3091000
+    },
+    {
+      "request": 1,
+      "sql": "BEGIN",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 1.0799849405884743e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.0002883998677134514,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 1,
+      "sql": "SELECT application_state.\"key\" AS application_state_key, application_state.value AS application_state_value \nFROM application_state \nWHERE application_state.\"key\" = ?",
+      "parameters": [
+        "automatic_check_interval"
+      ],
+      "executemany": false,
+      "execute_seconds": 4.409998655319214e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.00022709998302161694,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 1,
+      "sql": "BEGIN",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 1.1599855497479439e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.0002547998446971178,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 1,
+      "sql": "SELECT application_state.\"key\" AS application_state_key, application_state.value AS application_state_value \nFROM application_state \nWHERE application_state.\"key\" = ?",
+      "parameters": [
+        "automatic_paused"
+      ],
+      "executemany": false,
+      "execute_seconds": 2.6300083845853806e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.00015230011194944382,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 2,
+      "sql": "BEGIN",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 5.610007792711258e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.0005397999193519354,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 2,
+      "sql": "SELECT count(*) AS count_1 \nFROM artists",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 8.030002936720848e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.0007269000634551048,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 2,
+      "sql": "SELECT count(*) AS count_1 \nFROM works",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 0.0009128998499363661,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.00299579999409616,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 2,
+      "sql": "WITH current_works AS MATERIALIZED \n(SELECT works.id AS work_id, works.pixiv_illust_id AS pixiv_id, works.default_revision_id AS revision_id, coalesce(work_revisions.type, works.type) AS type, coalesce(work_revisions.page_count, works.page_count) AS page_count \nFROM works LEFT OUTER JOIN work_revisions ON work_revisions.id = works.default_revision_id)\n SELECT coalesce(sum(anon_1.downloaded_pages), ?) AS coalesce_1, coalesce(sum(anon_1.registered_originals), ?) AS coalesce_3, coalesce(sum(anon_1.verified_originals), ?) AS coalesce_5, coalesce(sum(anon_1.unverified_originals), ?) AS coalesce_7, coalesce(sum(CASE WHEN (CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) > ?) THEN CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) ELSE ? END), ?) AS coalesce_9 \nFROM current_works LEFT OUTER JOIN (SELECT assets.work_id AS work_id, sum(CASE WHEN (assets.role = ? AND assets.state = ?) THEN ? ELSE ? END) AS downloaded_pages, sum(CASE WHEN (length(assets.relative_path) > ?) THEN ? ELSE ? END) AS registered_originals, sum(CASE WHEN (assets.state = ?) THEN ? ELSE ? END) AS verified_originals, sum(CASE WHEN (assets.state = ? AND length(assets.relative_path) > ?) THEN ? ELSE ? END) AS unverified_originals, sum(CASE WHEN (length(assets.relative_path) > ? AND (assets.state NOT IN (?, ?, ?, ?, ?))) THEN ? ELSE ? END) AS usable \nFROM assets JOIN (SELECT revision_assets.asset_id AS asset_id \nFROM revision_assets JOIN current_works ON current_works.revision_id = revision_assets.revision_id UNION SELECT assets.id AS asset_id \nFROM assets JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.revision_id IS NULL AND assets.revision_id IS NULL) AS anon_2 ON anon_2.asset_id = assets.id JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.type = ? AND assets.role = ? OR current_works.type != ? AND assets.role = ? AND assets.page_index < current_works.page_count GROUP BY assets.work_id) AS anon_1 ON anon_1.work_id = current_works.work_id \nWHERE (current_works.pixiv_id NOT IN (SELECT archive_intents.pixiv_illust_id \nFROM archive_intents \nWHERE archive_intents.mode = ?))",
+      "parameters": [
+        0,
+        0,
+        0,
+        0,
+        "ugoira",
+        1,
+        0,
+        0,
+        "ugoira",
+        1,
+        0,
+        0,
+        0,
+        "image",
+        "verified",
+        1,
+        0,
+        0,
+        1,
+        0,
+        "verified",
+        1,
+        0,
+        "unknown",
+        0,
+        1,
+        0,
+        0,
+        "missing",
+        "failed",
+        "invalid",
+        "mismatch",
+        "corrupt",
+        1,
+        0,
+        "ugoira",
+        "ugoira_zip",
+        "ugoira",
+        "image",
+        "suppressed"
+      ],
+      "executemany": false,
+      "execute_seconds": 0.3416055999696255,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.3422747999429703,
+      "vm_steps_approximate": 3092000
+    },
+    {
+      "request": 2,
+      "sql": "BEGIN",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 9.19983722269535e-06,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.0006326998118311167,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 2,
+      "sql": "SELECT application_state.\"key\" AS application_state_key, application_state.value AS application_state_value \nFROM application_state \nWHERE application_state.\"key\" = ?",
+      "parameters": [
+        "automatic_check_interval"
+      ],
+      "executemany": false,
+      "execute_seconds": 5.530007183551788e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.00019260006956756115,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 2,
+      "sql": "BEGIN",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 5.800044164061546e-06,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.00016580009832978249,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 2,
+      "sql": "SELECT application_state.\"key\" AS application_state_key, application_state.value AS application_state_value \nFROM application_state \nWHERE application_state.\"key\" = ?",
+      "parameters": [
+        "automatic_paused"
+      ],
+      "executemany": false,
+      "execute_seconds": 2.5399960577487946e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.00013200007379055023,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 3,
+      "sql": "BEGIN",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 8.999835699796677e-06,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.0002552999649196863,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 3,
+      "sql": "SELECT count(*) AS count_1 \nFROM artists",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 6.459979340434074e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.0003199998755007982,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 3,
+      "sql": "SELECT count(*) AS count_1 \nFROM works",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 0.001254800008609891,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.004507099976763129,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 3,
+      "sql": "WITH current_works AS MATERIALIZED \n(SELECT works.id AS work_id, works.pixiv_illust_id AS pixiv_id, works.default_revision_id AS revision_id, coalesce(work_revisions.type, works.type) AS type, coalesce(work_revisions.page_count, works.page_count) AS page_count \nFROM works LEFT OUTER JOIN work_revisions ON work_revisions.id = works.default_revision_id)\n SELECT coalesce(sum(anon_1.downloaded_pages), ?) AS coalesce_1, coalesce(sum(anon_1.registered_originals), ?) AS coalesce_3, coalesce(sum(anon_1.verified_originals), ?) AS coalesce_5, coalesce(sum(anon_1.unverified_originals), ?) AS coalesce_7, coalesce(sum(CASE WHEN (CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) > ?) THEN CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) ELSE ? END), ?) AS coalesce_9 \nFROM current_works LEFT OUTER JOIN (SELECT assets.work_id AS work_id, sum(CASE WHEN (assets.role = ? AND assets.state = ?) THEN ? ELSE ? END) AS downloaded_pages, sum(CASE WHEN (length(assets.relative_path) > ?) THEN ? ELSE ? END) AS registered_originals, sum(CASE WHEN (assets.state = ?) THEN ? ELSE ? END) AS verified_originals, sum(CASE WHEN (assets.state = ? AND length(assets.relative_path) > ?) THEN ? ELSE ? END) AS unverified_originals, sum(CASE WHEN (length(assets.relative_path) > ? AND (assets.state NOT IN (?, ?, ?, ?, ?))) THEN ? ELSE ? END) AS usable \nFROM assets JOIN (SELECT revision_assets.asset_id AS asset_id \nFROM revision_assets JOIN current_works ON current_works.revision_id = revision_assets.revision_id UNION SELECT assets.id AS asset_id \nFROM assets JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.revision_id IS NULL AND assets.revision_id IS NULL) AS anon_2 ON anon_2.asset_id = assets.id JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.type = ? AND assets.role = ? OR current_works.type != ? AND assets.role = ? AND assets.page_index < current_works.page_count GROUP BY assets.work_id) AS anon_1 ON anon_1.work_id = current_works.work_id \nWHERE (current_works.pixiv_id NOT IN (SELECT archive_intents.pixiv_illust_id \nFROM archive_intents \nWHERE archive_intents.mode = ?))",
+      "parameters": [
+        0,
+        0,
+        0,
+        0,
+        "ugoira",
+        1,
+        0,
+        0,
+        "ugoira",
+        1,
+        0,
+        0,
+        0,
+        "image",
+        "verified",
+        1,
+        0,
+        0,
+        1,
+        0,
+        "verified",
+        1,
+        0,
+        "unknown",
+        0,
+        1,
+        0,
+        0,
+        "missing",
+        "failed",
+        "invalid",
+        "mismatch",
+        "corrupt",
+        1,
+        0,
+        "ugoira",
+        "ugoira_zip",
+        "ugoira",
+        "image",
+        "suppressed"
+      ],
+      "executemany": false,
+      "execute_seconds": 0.3259527999907732,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.32715959986671805,
+      "vm_steps_approximate": 3091000
+    },
+    {
+      "request": 3,
+      "sql": "BEGIN",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 1.2800097465515137e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.000524700153619051,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 3,
+      "sql": "SELECT application_state.\"key\" AS application_state_key, application_state.value AS application_state_value \nFROM application_state \nWHERE application_state.\"key\" = ?",
+      "parameters": [
+        "automatic_check_interval"
+      ],
+      "executemany": false,
+      "execute_seconds": 4.320009611546993e-05,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.0003559000324457884,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 3,
+      "sql": "BEGIN",
+      "parameters": [],
+      "executemany": false,
+      "execute_seconds": 5.499925464391708e-06,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.000323199899867177,
+      "vm_steps_approximate": 0
+    },
+    {
+      "request": 3,
+      "sql": "SELECT application_state.\"key\" AS application_state_key, application_state.value AS application_state_value \nFROM application_state \nWHERE application_state.\"key\" = ?",
+      "parameters": [
+        "automatic_paused"
+      ],
+      "executemany": false,
+      "execute_seconds": 0.00024329987354576588,
+      "vm_step_quantum": 1000,
+      "seconds_through_last_fetch": 0.0005449000746011734,
+      "vm_steps_approximate": 0
+    }
+  ],
+  "query_plans": {
+    "BEGIN": [],
+    "SELECT count(*) AS count_1 \nFROM artists": [
+      [
+        4,
+        0,
+        0,
+        "SCAN artists USING COVERING INDEX sqlite_autoindex_artists_1"
+      ]
+    ],
+    "SELECT count(*) AS count_1 \nFROM works": [
+      [
+        4,
+        0,
+        0,
+        "SCAN works USING COVERING INDEX ix_works_latest_revision_id"
+      ]
+    ],
+    "WITH current_works AS MATERIALIZED \n(SELECT works.id AS work_id, works.pixiv_illust_id AS pixiv_id, works.default_revision_id AS revision_id, coalesce(work_revisions.type, works.type) AS type, coalesce(work_revisions.page_count, works.page_count) AS page_count \nFROM works LEFT OUTER JOIN work_revisions ON work_revisions.id = works.default_revision_id)\n SELECT coalesce(sum(anon_1.downloaded_pages), ?) AS coalesce_1, coalesce(sum(anon_1.registered_originals), ?) AS coalesce_3, coalesce(sum(anon_1.verified_originals), ?) AS coalesce_5, coalesce(sum(anon_1.unverified_originals), ?) AS coalesce_7, coalesce(sum(CASE WHEN (CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) > ?) THEN CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) ELSE ? END), ?) AS coalesce_9 \nFROM current_works LEFT OUTER JOIN (SELECT assets.work_id AS work_id, sum(CASE WHEN (assets.role = ? AND assets.state = ?) THEN ? ELSE ? END) AS downloaded_pages, sum(CASE WHEN (length(assets.relative_path) > ?) THEN ? ELSE ? END) AS registered_originals, sum(CASE WHEN (assets.state = ?) THEN ? ELSE ? END) AS verified_originals, sum(CASE WHEN (assets.state = ? AND length(assets.relative_path) > ?) THEN ? ELSE ? END) AS unverified_originals, sum(CASE WHEN (length(assets.relative_path) > ? AND (assets.state NOT IN (?, ?, ?, ?, ?))) THEN ? ELSE ? END) AS usable \nFROM assets JOIN (SELECT revision_assets.asset_id AS asset_id \nFROM revision_assets JOIN current_works ON current_works.revision_id = revision_assets.revision_id UNION SELECT assets.id AS asset_id \nFROM assets JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.revision_id IS NULL AND assets.revision_id IS NULL) AS anon_2 ON anon_2.asset_id = assets.id JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.type = ? AND assets.role = ? OR current_works.type != ? AND assets.role = ? AND assets.page_index < current_works.page_count GROUP BY assets.work_id) AS anon_1 ON anon_1.work_id = current_works.work_id \nWHERE (current_works.pixiv_id NOT IN (SELECT archive_intents.pixiv_illust_id \nFROM archive_intents \nWHERE archive_intents.mode = ?))": [
+      [
+        3,
+        0,
+        0,
+        "MATERIALIZE current_works"
+      ],
+      [
+        8,
+        3,
+        216,
+        "SCAN works"
+      ],
+      [
+        10,
+        3,
+        46,
+        "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+      ],
+      [
+        38,
+        0,
+        0,
+        "MATERIALIZE anon_1"
+      ],
+      [
+        40,
+        38,
+        0,
+        "CO-ROUTINE anon_2"
+      ],
+      [
+        42,
+        40,
+        0,
+        "MERGE (UNION)"
+      ],
+      [
+        44,
+        42,
+        0,
+        "LEFT"
+      ],
+      [
+        50,
+        44,
+        224,
+        "SCAN revision_assets USING INDEX ix_revision_assets_asset_id"
+      ],
+      [
+        61,
+        44,
+        53,
+        "SEARCH current_works USING AUTOMATIC COVERING INDEX (revision_id=?)"
+      ],
+      [
+        71,
+        42,
+        0,
+        "RIGHT"
+      ],
+      [
+        77,
+        71,
+        68,
+        "SEARCH assets USING INDEX ix_assets_revision_id (revision_id=?)"
+      ],
+      [
+        85,
+        71,
+        0,
+        "BLOOM FILTER ON current_works (work_id=?)"
+      ],
+      [
+        97,
+        71,
+        53,
+        "SEARCH current_works USING AUTOMATIC PARTIAL COVERING INDEX (work_id=?)"
+      ],
+      [
+        110,
+        71,
+        0,
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      [
+        160,
+        38,
+        222,
+        "SCAN assets USING INDEX ix_assets_work_id"
+      ],
+      [
+        173,
+        38,
+        55,
+        "SEARCH anon_2 USING AUTOMATIC COVERING INDEX (asset_id=?)"
+      ],
+      [
+        179,
+        38,
+        0,
+        "BLOOM FILTER ON current_works (work_id=?)"
+      ],
+      [
+        190,
+        38,
+        53,
+        "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+      ],
+      [
+        318,
+        0,
+        216,
+        "SCAN current_works"
+      ],
+      [
+        323,
+        0,
+        0,
+        "LIST SUBQUERY 5"
+      ],
+      [
+        326,
+        323,
+        216,
+        "SCAN archive_intents"
+      ],
+      [
+        334,
+        323,
+        0,
+        "CREATE BLOOM FILTER"
+      ],
+      [
+        351,
+        0,
+        0,
+        "BLOOM FILTER ON anon_1 (work_id=?)"
+      ],
+      [
+        365,
+        0,
+        47,
+        "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+      ]
+    ],
+    "SELECT application_state.\"key\" AS application_state_key, application_state.value AS application_state_value \nFROM application_state \nWHERE application_state.\"key\" = ?": [
+      [
+        3,
+        0,
+        39,
+        "SEARCH application_state USING INDEX sqlite_autoindex_application_state_1 (key=?)"
+      ]
+    ]
+  },
+  "vm_note": "1000-step callback counts approximate per-statement VM work (within one callback quantum); callback cadence and cancellation predicate match production, and counts include fetching. Callback phase can carry between statements, so this is not a strict per-statement lower bound.",
+  "read_cleanup": {
+    "active": {
+      "frontend": 0,
+      "background": 0,
+      "logs": 0
+    },
+    "pending": {
+      "frontend": 0,
+      "background": 0,
+      "logs": 0
+    }
+  }
+}

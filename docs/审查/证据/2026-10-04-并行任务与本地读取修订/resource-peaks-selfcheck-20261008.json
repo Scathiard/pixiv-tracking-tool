@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "scope": "tiny controlled peak/restoration only",
+  "exact_peaks": {
+    "read_pending_frontend": 1,
+    "read_active_frontend": 4,
+    "read_admission_worker_dispatch_seconds": 0.011090300045907497,
+    "read_connections": 4,
+    "read_pool_lease_seconds": 0.0027447000611573458,
+    "read_sql_seconds": 0.00996659998781979,
+    "read_sync_admission_pool_begin_seconds": 0.002942899940535426,
+    "read_transaction_total_seconds": 0.012284200172871351,
+    "read_admission_execution_total_seconds": 0.0128220000769943,
+    "phase_verifying": 1,
+    "phase_verifying_seconds": 0,
+    "write_connections": 1,
+    "write_pool_lease_seconds": 0.00024019996635615826,
+    "write_sql_seconds": 0.0003349999897181988,
+    "writer_lock_pool_begin_seconds": 0.0005808998830616474,
+    "sqlite_commit_seconds": 1.2499978765845299e-05,
+    "flush_commit_seconds": 4.479987546801567e-05,
+    "writer_transaction_total_seconds": 0.0012417000252753496
+  },
+  "no_samples_taken": true,
+  "all_leases_returned": true,
+  "counter_identity_restored": true,
+  "methods_handlers_and_event_listeners_restored": true,
+  "no_new_connections_created_by_observer": true,
+  "resource_evidence_records": 4
+}

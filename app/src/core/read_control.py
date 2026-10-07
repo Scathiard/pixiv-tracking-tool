@@ -75,6 +75,17 @@ class ReadController:
         self.active = dict.fromkeys(self.capacities, 0)
         self.pending = dict.fromkeys(self.capacities, 0)
         self._shared = {}
+        self._generation = 0
+
+    @property
+    def generation(self):
+        with self._condition:
+            return self._generation
+
+    def advance_generation(self):
+        """Fence old in-flight snapshots after a successful local change."""
+        with self._condition:
+            self._generation += 1
 
     def _enqueue(self, lane):
         with self._condition:
@@ -187,7 +198,7 @@ async def run_read(request, database, function, *, lane="frontend", key=None, ti
         raise HTTPException(503, {"code": "read_busy", "message": str(exc)}, headers={"Retry-After": "1"}) from exc
 
 
-def local_read(get_runtime, *, lane="frontend", coalesce=False):
+def local_read(get_runtime, *, lane="frontend", coalesce=False, coalesce_context=None):
     """Keep endpoint validation while dispatching only after async admission."""
     def decorate(function):
         signature = inspect.signature(function, eval_str=True)
@@ -207,7 +218,16 @@ def local_read(get_runtime, *, lane="frontend", coalesce=False):
             runtime = get_runtime()
             if runtime is None:
                 raise HTTPException(503, "图库尚未准备好")
-            key = str(request.url) if coalesce and request is not None else None
+            key = None
+            if coalesce and request is not None and request.method == "GET":
+                snapshot = getattr(runtime, "client_snapshot", None)
+                client, generation = snapshot() if callable(snapshot) else (getattr(runtime, "client", None), None)
+                # Only short memory snapshots: never resolve credentials, query
+                # SQL or wait for the writer while preparing the sharing key.
+                account = getattr(runtime, "account_id", None)
+                key = (str(request.url), runtime.database.reads.generation,
+                       id(runtime), id(client), generation, account,
+                       coalesce_context(runtime) if coalesce_context is not None else None)
             return await run_read(request, runtime.database, lambda: function(*args, **kwargs), lane=lane, key=key)
         endpoint.__signature__ = signature
         return endpoint

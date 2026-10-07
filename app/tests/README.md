@@ -1,6 +1,7 @@
 # 测试目录约定
 
 - `test_local_read_control.py`：真实 HTTP 断开、排队截止、可中断 SQL、共享读取最后使用者取消、连接安全复用、前台／后台配额及独立写连接；全部使用合成数据库。
+- `test_snapshot_read_sharing.py`：设置／进度的同范围 GET 仅在执行期间共享，提交／端口／账号变化后的读取不复用旧结果，回滚不伪装成功；真实 HTTP 断开按使用者取消，不合并 POST 或其他 GET，只使用合成图库与本机服务。
 - `test_processing_log_windows.py`、`test_bookmark_lock_boundaries.py`：十五万条密集失败／跳过的有限扫描与续读、敏感字段过滤，以及收藏写入等待不占内存锁、阅览返回连接后合成收藏状态、旧可信缓存不能覆盖新版本。
 - `test_parallel_runtime_control.py`：正式 Runtime／RemoteAccess／PixivClient 与真实存档处理器的并行、持久重试、冷却、账号刷新单飞和代际保护；网络传输与凭据均为合成输入。
 - `test_account_publication.py`：账号最终核对与发布的竞态、旧连接失败不能清除新连接、账号／登录代际切换不能复活旧可信缓存，以及凭据等待不阻塞本地读取；只使用合成凭据，禁止外部网络。

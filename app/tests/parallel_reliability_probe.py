@@ -60,6 +60,8 @@ class Telemetry:
         self.counts = Counter()
         self.active = Counter()
         self.peak = Counter()
+        self.sampled_peak = Counter()
+        self.resource_peak_events = {}
         self.first_execution = {}
         self.first_remote_request = {}
         self.remote_slots = []
@@ -87,6 +89,7 @@ class Telemetry:
         return stamp
 
     def duration(self, name, seconds):
+        ended = time.monotonic() - self.started
         with self.lock:
             self.counts[name] += 1
             # Fixed-seed reservoirs represent the entire run, including late
@@ -105,7 +108,6 @@ class Telemetry:
                     values[slot] = seconds
             self.peak[name + "_seconds"] = max(self.peak[name + "_seconds"], seconds)
             if seconds >= .1:
-                ended = time.monotonic() - self.started
                 record = {"t": ended, "started": ended-seconds, "ended": ended,
                     "event": "probe_slow_segment", "segment": name,
                     "seconds": seconds, "thread_id": threading.get_ident()}
@@ -130,6 +132,15 @@ class Telemetry:
                 "executemany": many, "interrupted_or_failed": error,
                 "thread_id": threading.get_ident()}
             self._keep_largest(self.slow_sql_candidates, 100, seconds, self.slow_sql_samples, record)
+
+    def resource_peak(self, name, value):
+        # Admission calls this from inside the controller's existing condition;
+        # pool callbacks use the existing telemetry lock. Neither acquires an
+        # extra controller/DB lease. Retain one final maximum per resource.
+        if value > self.peak[name]:
+            self.peak[name] = value
+            self.resource_peak_events[name] = {"t": time.monotonic()-self.started,
+                "event": "probe_resource_peak", "resource": name, "value": value}
 
     def fail(self, message):
         with self.lock:
@@ -165,6 +176,8 @@ class Telemetry:
                     "p99_ms": ordered[int((len(ordered) - 1) * .99)] * 1000,
                     "max_ms": self.peak[name + "_seconds"] * 1000}
             return {"counts": dict(self.counts), "peaks": dict(self.peak),
+                    "sampled_peaks": dict(self.sampled_peak),
+                    "resource_peak_measurement": "admission counter mutations and pool checkout/checkin events",
                     "durations": durations, "failures": list(self.failures),
                     "slow_sql_observations": self.slow_sql_samples,
                     "slow_sql_retained": len(self.slow_sql_candidates),
@@ -172,6 +185,8 @@ class Telemetry:
 
     def close(self):
         if not self.slow_samples_saved:
+            for record in sorted(self.resource_peak_events.values(), key=lambda row: row['t']):
+                self.events.write(json.dumps(record)+"\n")
             segments = [entry[2] for heap in self.slow_segments.values() for entry in heap]
             for record in sorted(segments, key=lambda row: row['ended']):
                 self.events.write(json.dumps(record)+"\n")
@@ -447,7 +462,40 @@ def validate_seed(database, images, args, origin, frames):
 def instrument(runtime, telemetry):
     from sqlalchemy import event
     from src.core.tasks import TaskContext
+    restored_listeners = []
+    restored_methods = []
+    def listen(owner, name, callback):
+        event.listen(owner, name, callback)
+        restored_listeners.append((owner, name, callback))
+    controller = runtime.database.reads
+    original_counters = {}
+    class ObservedCounts(dict):
+        def __init__(self, values, prefix):
+            super().__init__(values)
+            self.prefix = prefix
+        def __setitem__(self, lane, value):
+            super().__setitem__(lane, value)
+            # The real mutation already holds ReadController._condition.
+            # Sampling after _try_acquire returns could miss a short lease.
+            telemetry.resource_peak(self.prefix+lane, value)
+    for attribute in ("active", "pending"):
+        original_counters[attribute] = getattr(controller, attribute)
+        observed = ObservedCounts(original_counters[attribute], "read_"+attribute+"_")
+        setattr(controller, attribute, observed)
+        for lane, value in observed.items():
+            telemetry.resource_peak(observed.prefix+lane, value)
     for engine, label in ((runtime.database.engine, "read"), (runtime.database.writer_engine, "write")):
+        telemetry.active[label+"_connections"] = 0
+        def checkout(connection, record, proxy, label=label):
+            with telemetry.lock:
+                name = label+"_connections"
+                telemetry.active[name] += 1
+                telemetry.resource_peak(name, telemetry.active[name])
+        def checkin(connection, record, label=label):
+            with telemetry.lock:
+                telemetry.active[label+"_connections"] -= 1
+        listen(engine, "checkout", checkout)
+        listen(engine, "checkin", checkin)
         def before(connection, cursor, statement, parameters, context, many, label=label):
             context._probe_started = time.perf_counter()
         def measured_sql(statement, context, many, *, label=label, error=False):
@@ -462,9 +510,9 @@ def instrument(runtime, telemetry):
             context = error_context.execution_context
             if context is not None and hasattr(context, "_probe_started"):
                 measured_sql(error_context.statement or "", context, context.executemany, error=True)
-        event.listen(engine, "handle_error", failed)
-        event.listen(engine, "before_cursor_execute", before)
-        event.listen(engine, "after_cursor_execute", after)
+        listen(engine, "handle_error", failed)
+        listen(engine, "before_cursor_execute", before)
+        listen(engine, "after_cursor_execute", after)
     def before_flush(session, context, instances):
         session.info["probe_flush"] = time.perf_counter()
     def after_flush(session, context):
@@ -473,11 +521,10 @@ def instrument(runtime, telemetry):
         session.info["probe_commit"] = time.perf_counter()
     def after_commit(session):
         telemetry.duration("flush_commit", time.perf_counter() - session.info.pop("probe_commit"))
-    event.listen(runtime.database.writer_session, "before_flush", before_flush)
-    event.listen(runtime.database.writer_session, "after_flush", after_flush)
-    event.listen(runtime.database.writer_session, "before_commit", before_commit)
-    event.listen(runtime.database.writer_session, "after_commit", after_commit)
-    restored_methods = []
+    listen(runtime.database.writer_session, "before_flush", before_flush)
+    listen(runtime.database.writer_session, "after_flush", after_flush)
+    listen(runtime.database.writer_session, "before_commit", before_commit)
+    listen(runtime.database.writer_session, "after_commit", after_commit)
     # Time the existing DBAPI commit without causing an extra checkout or
     # touching a SQLAlchemy Connection after the transaction has closed it.
     dialect = runtime.database.writer_engine.dialect
@@ -564,6 +611,7 @@ def instrument(runtime, telemetry):
     TaskContext.report_step = step_report
     for handler in runtime.queue.handlers.values():
         original = handler.execute
+        restored_methods.append((handler, "execute", original))
         def execute(item, context, original=original):
             work_id = item.target.get("work_id")
             began = telemetry.event("item_start", operation_id=context.operation_id, kind=item.kind, phase=item.phase, work_id=work_id)
@@ -581,11 +629,19 @@ def instrument(runtime, telemetry):
                         telemetry.work_intervals[work_id].append((began, time.monotonic()-telemetry.started, context.operation_id))
         handler.execute = execute
     def restore():
+        assert not any(controller.active.values()) and not any(controller.pending.values()), "restore requires drained read admissions"
+        assert not telemetry.active["read_connections"] and not telemetry.active["write_connections"], "restore requires returned pool leases"
         TaskContext.report = original_report
         TaskContext.report_step = original_step_report
         os.fsync = original_fsync
         for owner, name, method in restored_methods:
             setattr(owner, name, method)
+        for owner, name, callback in reversed(restored_listeners):
+            event.remove(owner, name, callback)
+        for attribute, original in original_counters.items():
+            original.clear()
+            original.update(getattr(controller, attribute))
+            setattr(controller, attribute, original)
     return restore
 
 
@@ -871,11 +927,11 @@ def run_case(out, args, check_workers):
                         "maintenance_settled": settled, "maintenance_outcome": outcome}
                     telemetry.samples.write(json.dumps(sample) + "\n")
                     for key in ("rss_bytes", "wal_bytes", "read_connections", "write_connections"):
-                        telemetry.peak[key] = max(telemetry.peak[key], sample[key])
+                        telemetry.sampled_peak[key] = max(telemetry.sampled_peak[key], sample[key])
                     for lane, value in sample["read_active"].items():
-                        telemetry.peak["read_active_" + lane] = max(telemetry.peak["read_active_" + lane], value)
+                        telemetry.sampled_peak["read_active_" + lane] = max(telemetry.sampled_peak["read_active_" + lane], value)
                     for lane, value in sample["read_pending"].items():
-                        telemetry.peak["read_pending_" + lane] = max(telemetry.peak["read_pending_" + lane], value)
+                        telemetry.sampled_peak["read_pending_" + lane] = max(telemetry.sampled_peak["read_pending_" + lane], value)
                     if runtime.queue.worker_error:
                         telemetry.fail("production worker error: " + runtime.queue.worker_error)
                     if settled != last_settled:
