@@ -26,9 +26,13 @@
 | `byte-progress-validation.md`、`byte-progress-result.json` | `b20261008-byte-progress-01`；13 项字节专项、24 项相关回归及最后 14 项复验；旧退出测试需真实等待共享下载准入，保留原冷却及最终核验要求 |
 | `observation-merge-validation.md`、`observation-merge-result.json`、`observation-merge-final.xml`、`observation-merge-metrics.jsonl` | `b20261008-observation-merge-07`；35 项实际处理器专项及同等正确事实的提交／WAL 对照；仅合成输入，不作墙时结论 |
 | `task-test-seams.xml` | `b20261008-fairness-test-seams-01`；3 项既有清点与领取后容量测试修正注入位置后通过，生产逻辑未随之更改；此前两处失败在 `observation-merge-06` 的旧四文件基线也能复现 |
+| `full-03-result.json`、`full-03.xml` | `b20261004.3-full-03`；固定 `b351dee` 完整执行 753 项，748 通过、5 失败，保留原结论；正式副本仅去除 XML 行尾空白，原始文件原位保留 |
+| `filter-runtime-contract.xml` | `b20261008-filter-contract-01`；为三项旧 Runtime 替身补入正式读取边界需要的同一合成 database 后，原筛选断言 3 项通过；未修改生产代码 |
+| `test-boundaries-validation.md`、`test-boundaries-targeted.xml`、`test-boundaries-final.xml` | `b20261008-test-boundaries-01`；清点与执行分层、内存预算进程隔离的 2 项定向及所属两文件全 20 项通过，2000 页及原 300 MiB 上限保留 |
+| `full-03-rechecks.json` | 主会话逐一对照全套原 5 个失败用例与复验 XML；五项全部复验通过、生产代码未改，不表示第二次全套运行 |
 
 | `storage-analysis.json`、`storage-comparison.json`、`storage-manifest.json` | `reliability-storage-20261008-15`；同合成数据库与 SQL 在 C: SSD／D: HDD 的定向对照及临时副本保留位置，不代表完整 APP 或真实库迁移验收 |
 
 | `storage-inventory.json` | 用户要求核对后仅枚举真实图片目录的文件长度及数据库文件长度；没有读取图片／数据库内容，94.48 GB 图片与 0.823 GB 数据库分开统计 |
 
-全套回归、大型对照、实际 8 小时持续运行及最终 EXE 证据尚待补入；本目录存在不代表已交付。中断的 `full-01` 和源码曾变化的 `reliability-01` 原位保留，仅作过程诊断。
+全套首次完成结果及五项失败的定向修订复验分开记录；大型对照、实际 8 小时持续运行及最终 EXE 证据尚待补入。本目录存在不代表已交付。中断的 `full-01` 和源码曾变化的 `reliability-01` 原位保留，仅作过程诊断。

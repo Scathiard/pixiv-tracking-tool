@@ -22,7 +22,7 @@ def test_full_catalogue_and_empty_selection(tmp_path):
         session.add(LocalPreference(work_id=301, is_hidden=True))
         session.add(ArchiveIntent(pixiv_illust_id="1300", mode="suppressed"))
     app = FastAPI()
-    app.include_router(create_router(lambda: SimpleNamespace(library=Library(database))))
+    app.include_router(create_router(lambda: SimpleNamespace(database=database, library=Library(database))))
     with TestClient(app) as client:
         artists = []
         for offset in (0, 100):
@@ -47,7 +47,7 @@ def test_literal_comma_tag_repeated_queries_and_legacy_csv(tmp_path):
         session.add_all([Work(id=i, pixiv_illust_id=str(i), artist_id=1, title=str(i)) for i in range(1, 5)])
         session.add_all([WorkTag(work_id=1, tag="逗号,标签"), WorkTag(work_id=2, tag="逗号"), WorkTag(work_id=3, tag="标签")])
     app = FastAPI()
-    app.include_router(create_router(lambda: SimpleNamespace(library=Library(database))))
+    app.include_router(create_router(lambda: SimpleNamespace(database=database, library=Library(database))))
     with TestClient(app) as client:
         literal = [("tags", "逗号,标签"), ("tags", "逗号,标签")]
         page = client.get("/api/library", params=literal).json()
@@ -73,7 +73,7 @@ def test_inverse_any_tag_and_shared_reading_scope(tmp_path):
         session.add(LocalPreference(work_id=3, is_hidden=True))
         session.add(RemoteBookmark(work_id=2, value=True, source="readback", confirmed_at=reference, version=1))
     app = FastAPI()
-    app.include_router(create_router(lambda: SimpleNamespace(library=Library(database))))
+    app.include_router(create_router(lambda: SimpleNamespace(database=database, library=Library(database))))
     with TestClient(app) as client:
         assert client.get("/api/library").json()["total"] == 3  # includes work 4 without tags
         assert client.get("/api/library?tags=A,B").json()["total"] == 2  # explicit all-known tags still excludes untagged work 4

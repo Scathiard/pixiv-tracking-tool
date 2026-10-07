@@ -1,6 +1,10 @@
 """Memory-only progress gate budgets; no real database, files or account."""
 from contextlib import contextmanager
 import json
+import os
+from pathlib import Path
+import subprocess
+import sys
 import time
 from types import SimpleNamespace
 
@@ -9,12 +13,15 @@ import psutil
 from sqlalchemy import create_engine, event, select, text
 from sqlalchemy.orm import sessionmaker
 
+if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from src.core.models import Base, Operation, OperationItem
 from src.core.tasks import TaskQueue
 
 
-@pytest.fixture
-def memory_database():
+@contextmanager
+def isolated_memory_database():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     database = SimpleNamespace(engine=engine, read=sessionmaker(engine, expire_on_commit=False))
@@ -22,6 +29,12 @@ def memory_database():
         yield database
     finally:
         engine.dispose()
+
+
+@pytest.fixture
+def memory_database():
+    with isolated_memory_database() as database:
+        yield database
 
 
 @contextmanager
@@ -67,8 +80,7 @@ def operation(database, kind="reconcile"):
     return TaskQueue(database, {})
 
 
-def test_progress_remote_gate_does_not_visit_unrelated_pending_targets(memory_database, tmp_path):
-    database = memory_database
+def remote_gate_memory_budget(database, evidence_path):
     queue = operation(database)
     # Generate the large target payload and all indexes solely in SQLite RAM.
     with database.engine.begin() as connection:
@@ -90,15 +102,30 @@ def test_progress_remote_gate_does_not_visit_unrelated_pending_targets(memory_da
     assert len(baseline) == len(candidate) == 1
     memory = psutil.Process().memory_info()
     peak_bytes = getattr(memory, "peak_wset", memory.rss)
-    evidence = {"memory_only_rows": 100000, "peak_process_mb": peak_bytes / 1024 / 1024,
+    evidence = {"memory_only_rows": 100000, "process_id": os.getpid(), "peak_process_mb": peak_bytes / 1024 / 1024,
         "baseline": baseline, "candidate": candidate}
-    (tmp_path / "remote-page-query.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
+    evidence_path.write_text(json.dumps(evidence, indent=2), encoding="utf-8")
     print(json.dumps({"baseline_vm": baseline[0]["vm_steps"], "candidate_vm": candidate[0]["vm_steps"],
         "peak_process_mb": evidence["peak_process_mb"]}))
     assert peak_bytes < 300 * 1024 * 1024
     assert baseline[0]["vm_steps"] > 500000
     assert candidate[0]["vm_steps"] < 5000
     assert any("operation_id=? AND state=? AND phase=? AND unit=?" in row[-1] for row in candidate[0]["plan"])
+
+
+def test_progress_remote_gate_does_not_visit_unrelated_pending_targets(tmp_path):
+    # peak_wset measures the process's lifetime peak, including earlier pytest
+    # fixtures. Run the unchanged 100k RAM query and budgets in a fresh process.
+    evidence_path = tmp_path / "remote-page-query.json"
+    result = subprocess.run([sys.executable, str(Path(__file__).resolve()), "--memory-budget", str(evidence_path)],
+        cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, timeout=120,
+        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
+    assert result.returncode == 0, result.stdout + result.stderr
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert evidence["process_id"] != os.getpid()
+    assert evidence["memory_only_rows"] == 100000
+    assert evidence["peak_process_mb"] < 300
+    print(result.stdout.strip())
 
 
 @pytest.mark.parametrize("kind,phase,unit,state,op_kind,unknown_total", [
@@ -121,3 +148,10 @@ def test_progress_remote_gate_preserves_new_and_legacy_unknown_denominators(
     with database.read() as session:
         view = queue._operation_view(session.get(Operation, "progress-op"), session)
     assert view["phase"]["total"] == (None if unknown_total else 100000)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3 or sys.argv[1] != "--memory-budget":
+        raise SystemExit("Expected --memory-budget EVIDENCE_PATH")
+    with isolated_memory_database() as database:
+        remote_gate_memory_budget(database, Path(sys.argv[2]))

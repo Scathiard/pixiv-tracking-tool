@@ -254,15 +254,41 @@ def test_two_thousand_page_inventory_is_bounded_and_pause_cursor_survives(db, tm
     restored = TaskQueue(db, queue.handlers)
     restored.recover()
     assert not restored._step("check")
+    assert not restored._plan(op)
+    with db.read() as session:
+        assert session.get(Operation, op).pause_requested is True
+        assert session.get(Operation, op).result["planning_cursor"]["work_inventory"]["page_after"] == 64
     restored.set_manual_paused(op, False)
+    # Drive the real inventory seam here: _step deliberately alternates ready
+    # checking with planning, so a pure-inventory attempts=0 assertion cannot
+    # describe a complete scheduler run.
+    assert restored._plan(op)
+    with db.read() as session:
+        assert session.scalar(select(func.count()).select_from(Asset)) == 128
+        assert session.get(Operation, op).result["planning_cursor"]["work_inventory"]["page_after"] == 128
     while restored.details(op)["result"]["planning_complete"] is False:
-        assert restored._step("check")
+        with db.read() as session:
+            before = session.scalar(select(func.count()).select_from(Asset))
+        assert restored._plan(op)
+        with db.read() as session:
+            after = session.scalar(select(func.count()).select_from(Asset))
+            assert 0 <= after - before <= 64
     with db.read() as session:
         assert session.scalar(select(func.count()).select_from(Asset)) == 2000
         rows = list(session.scalars(select(OperationItem).where(OperationItem.operation_id == op)))
         assert max(map(lambda item: len(item.depends_on), rows)) <= 65
         assert len([item for item in rows if item.kind == "reconcile_asset"]) == 2000
         assert all(item.attempts == 0 for item in rows)
+    # Keep the separate scheduler contract: a ready local inspection really
+    # claims/settles once, without accidentally executing the remaining pages.
+    assert restored._step("local")
+    with db.read() as session:
+        claimed = list(session.scalars(select(OperationItem).where(OperationItem.operation_id == op,
+            OperationItem.attempts != 0)))
+        assert len(claimed) == 1
+        assert claimed[0].kind == "reconcile_asset" and claimed[0].attempts == 1
+        assert claimed[0].state == "succeeded"
+        assert session.scalar(select(func.count()).select_from(Asset)) == 2000
 
 
 @pytest.mark.parametrize("interrupted", [False, True])
