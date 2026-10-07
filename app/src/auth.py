@@ -43,6 +43,18 @@ def credential_snapshot():
 
 
 @contextmanager
+def identity_scope():
+    """Keep one loaded login identity stable while publishing local context.
+
+    Acquire this before any runtime client lock. Token reads and save waits
+    finish before yielding, so local catalogue reads never wait behind them.
+    """
+    with _token_lock:
+        token, _, login = credential_snapshot()
+        yield (login, str(token.get("user_id", "")))
+
+
+@contextmanager
 def refresh_scope(generation):
     previous = getattr(_credential_context, "expected", None)
     _credential_context.expected = generation

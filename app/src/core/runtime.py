@@ -108,7 +108,7 @@ class RemoteAccess:
             raise ShutdownRequested()
         client, expected = self._binding()
         if client is None:
-            self.runtime.account_id = self.runtime.library.account_id = None
+            self.runtime.publish_account(expected, None)
             self.runtime.bookmarks.mark_disconnected()
             raise LoginRequired(LoginRequired.user_message)
         account_id = client.get_account_id()
@@ -123,11 +123,9 @@ class RemoteAccess:
                 and {key: value for key, value in expected.items() if key != "identity"} ==
                     {key: value for key, value in current_generation.items() if key != "identity"}):
             expected["identity"] = identity
-        self.assert_generation(expected)
         # Local catalogue responses remain explicitly cached. An OAuth identity
         # alone does not prove that the current network can reach Pixiv.
-        self.runtime.account_id = self.runtime.library.account_id = str(account_id) if account_id is not None else None
-        return self.runtime.account_id
+        return self.runtime.publish_account(expected, account_id)
 
 
 class Runtime:
@@ -137,6 +135,7 @@ class Runtime:
         self._runtime_epoch = uuid4().hex
         self._client = None
         self._client_generation = 0
+        self._published_account_context = None
         self._closing = threading.Event()
         self._closed = False
         self._close_lock = threading.Lock()
@@ -185,14 +184,61 @@ class Runtime:
 
     @client.setter
     def client(self, value):
+        changed = False
         with self._client_lock:
             if value is not self._client:
                 self._client_generation += 1
                 self._client = value
+                self.account_id = None
+                if hasattr(self, "library"):
+                    self.library.account_id = None
+                changed = True
+        # Bookmark snapshots can hold their memory lock while reading client;
+        # never acquire that lock while holding the client publication lock.
+        if changed and hasattr(self, "bookmarks"):
+            self.bookmarks.mark_disconnected()
 
     def client_snapshot(self):
         with self._client_lock:
             return self._client, self._client_generation
+
+    def publish_account(self, expected, account_id):
+        """Validate and publish one bound identity before replacement can win."""
+        from ..request_policy import AccountChanged
+        account = str(account_id) if account_id is not None else None
+        client, generation = self.client_snapshot()
+        scope_factory = getattr(type(client), "identity_scope", None)
+        scope = (client.identity_scope() if callable(scope_factory) else
+                 nullcontext(self.remote._generation(client, generation)["identity"]))
+        # Token wait/read is outside the client lock. Production clients hold
+        # token -> client until publication; the inner section compares only
+        # already-loaded values and never acquires SQL/bookmark/token locks.
+        with scope as identity:
+            current = {"runtime": self._runtime_epoch, "client": generation,
+                "identity": list(identity) if identity is not None else None}
+            with self._client_lock:
+                if self._client is not client or self._client_generation != generation or current != expected:
+                    raise AccountChanged()
+                changed = self.account_id != account or self._published_account_context != current
+                self.account_id = self.library.account_id = account
+                self._published_account_context = current
+        # A login can change before web replaces the client. Forget confidence
+        # even in that interval; a later publication may safely lose freshness,
+        # but cleanup must never alter its account or durable bookmark facts.
+        if changed:
+            self.bookmarks.mark_disconnected()
+        return account
+
+    def disconnect_client(self, expected_client):
+        """A failed connection may clear only the client it installed."""
+        with self._client_lock:
+            if self._client is not expected_client:
+                return False
+            self._client = None
+            self._client_generation += 1
+            self.account_id = self.library.account_id = None
+        self.bookmarks.mark_disconnected()
+        return True
 
     def start(self):
         self.publisher.recover()

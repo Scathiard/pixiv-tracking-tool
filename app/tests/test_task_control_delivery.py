@@ -124,8 +124,13 @@ def test_cooldown_yields_worker_and_retry_budget_is_finite(db):
         retryable = True
         retry_after = 60
         failure_code = "api_rate_limit"
+        status = 429
     handler = Handler()
+    sent_requests = []
     def fail(item, context):
+        # A server rejection consumed an actual request; local cooldown did not.
+        context.mark_remote_attempt()
+        sent_requests.append(item.key)
         raise RateLimited("no remote message retained")
     handler.execute = fail
     queue = TaskQueue(db, {"reconcile": handler, "metadata": Handler()})
@@ -144,6 +149,7 @@ def test_cooldown_yields_worker_and_retry_budget_is_finite(db):
         assert queue._step("check")
     assert queue.details(op)["state"] == "finished"
     assert queue.details(op)["items"][0]["attempts"] == 3
+    assert len(sent_requests) == 3
     assert "no remote message" not in json.dumps(queue.details(op))
 
 

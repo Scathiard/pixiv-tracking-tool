@@ -16,13 +16,16 @@ import argparse
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
+import heapq
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import io
 import json
+import math
 import os
 from pathlib import Path
+import random
 import socket
 import subprocess
 import sys
@@ -50,6 +53,9 @@ class Telemetry:
         self.events = (out / "timeline.jsonl").open("x", encoding="utf-8", buffering=1)
         self.samples = (out / "samples.jsonl").open("x", encoding="utf-8", buffering=1)
         self.http = (out / "http.jsonl").open("x", encoding="utf-8", buffering=1)
+        self.slow_sql = (out / "slow-sql.jsonl").open("x", encoding="utf-8", buffering=1)
+        self.slow_sql_samples = 0
+        self.slow_sql_candidates = []
         self.durations = defaultdict(list)
         self.counts = Counter()
         self.active = Counter()
@@ -62,6 +68,9 @@ class Telemetry:
         self.work_active = defaultdict(Counter)
         self.work_intervals = defaultdict(list)
         self.failures = []
+        self.slow_segments = defaultdict(list)
+        self.sample_random = {}
+        self.slow_samples_saved = False
 
     def event(self, name, **values):
         stamp = time.monotonic() - self.started
@@ -80,16 +89,47 @@ class Telemetry:
     def duration(self, name, seconds):
         with self.lock:
             self.counts[name] += 1
-            # Keep all ordinary eight-hour HTTP observations; heavily repeated
-            # SQL/progress timings use a bounded rolling sample and exact max.
+            # Fixed-seed reservoirs represent the entire run, including late
+            # periods, while counts and maxima remain exact.
             values = self.durations[name]
             bound = 100000 if name in ("metadata", "media_full", "media_ttfb", "small_admission") or name.startswith("/api/") else 10000
             if len(values) < bound:
                 values.append(seconds)
             else:
-                slot = self.counts[name] % bound
-                values[slot] = seconds
+                rng = self.sample_random.get(name)
+                if rng is None:
+                    rng = self.sample_random[name] = random.Random(
+                        int.from_bytes(hashlib.sha256(name.encode()).digest()[:8], 'big'))
+                slot = rng.randrange(self.counts[name])
+                if slot < bound:
+                    values[slot] = seconds
             self.peak[name + "_seconds"] = max(self.peak[name + "_seconds"], seconds)
+            if seconds >= .1:
+                ended = time.monotonic() - self.started
+                record = {"t": ended, "started": ended-seconds, "ended": ended,
+                    "event": "probe_slow_segment", "segment": name,
+                    "seconds": seconds, "thread_id": threading.get_ident()}
+                self._keep_largest(self.slow_segments[name], 25, seconds, self.counts[name], record)
+
+    @staticmethod
+    def _keep_largest(heap, bound, seconds, serial, record):
+        entry = (seconds, serial, record)
+        if len(heap) < bound:
+            heapq.heappush(heap, entry)
+        elif entry[:2] > heap[0][:2]:
+            heapq.heapreplace(heap, entry)
+
+    def record_slow_sql(self, label, seconds, statement, many, error):
+        if seconds < .1:
+            return
+        ended = time.monotonic()-self.started
+        with self.lock:
+            self.slow_sql_samples += 1
+            record = {"t": ended, "started": ended-seconds, "ended": ended,
+                "engine": label, "seconds": seconds, "sql": statement[:16000],
+                "executemany": many, "interrupted_or_failed": error,
+                "thread_id": threading.get_ident()}
+            self._keep_largest(self.slow_sql_candidates, 100, seconds, self.slow_sql_samples, record)
 
     def fail(self, message):
         with self.lock:
@@ -119,15 +159,26 @@ class Telemetry:
             for name, values in self.durations.items():
                 ordered = sorted(values)
                 durations[name] = {"count": self.counts[name], "sample_count": len(values),
+                    "sampling": "all_observations" if len(values) == self.counts[name] else "fixed_seed_reservoir_entire_run",
                     "p50_ms": ordered[int((len(ordered) - 1) * .50)] * 1000,
                     "p95_ms": ordered[int((len(ordered) - 1) * .95)] * 1000,
                     "p99_ms": ordered[int((len(ordered) - 1) * .99)] * 1000,
                     "max_ms": self.peak[name + "_seconds"] * 1000}
             return {"counts": dict(self.counts), "peaks": dict(self.peak),
-                    "durations": durations, "failures": list(self.failures)}
+                    "durations": durations, "failures": list(self.failures),
+                    "slow_sql_observations": self.slow_sql_samples,
+                    "slow_sql_retained": len(self.slow_sql_candidates),
+                    "slow_segment_sampling": "largest_25_per_category_with_start_end"}
 
     def close(self):
-        for handle in (self.events, self.samples, self.http):
+        if not self.slow_samples_saved:
+            segments = [entry[2] for heap in self.slow_segments.values() for entry in heap]
+            for record in sorted(segments, key=lambda row: row['ended']):
+                self.events.write(json.dumps(record)+"\n")
+            for _, _, record in sorted(self.slow_sql_candidates, key=lambda entry: entry[2]['ended']):
+                self.slow_sql.write(json.dumps(record)+"\n")
+            self.slow_samples_saved = True
+        for handle in (self.events, self.samples, self.http, self.slow_sql):
             handle.close()
 
 
@@ -220,8 +271,12 @@ def remote_value(endpoint, parameters, origin, total, width, frames):
 
 
 def seed(database, images, args, origin, png, thumbnail, archive, frames):
-    from sqlalchemy import insert
-    from src.core.models import ArchiveIntent, Artist, Asset, Derivative, Operation, OperationItem, RemoteBookmark, TrackingPolicy, Work, utcnow
+    from sqlalchemy import insert, select
+    from sqlalchemy.orm import selectinload
+    from src.client import PixivClient
+    from src.core.models import ArchiveIntent, Artist, Asset, Derivative, Operation, OperationItem, RemoteBookmark, TrackingPolicy, Work, WorkTag, utcnow
+    from src.core.revisions import ensure_legacy_revision
+    from src.core.tag_translations import merge_tag_translations
     images.mkdir(parents=True, exist_ok=True)
     (images / "seed").mkdir()
     now = utcnow()
@@ -229,22 +284,33 @@ def seed(database, images, args, origin, png, thumbnail, archive, frames):
         session.execute(insert(Artist), [{"id": ident, "pixiv_user_id": str(ident), "name": f"synthetic-{ident}"} for ident in range(1, 13)])
         session.execute(insert(TrackingPolicy), [{"artist_id": ident, "mode": "active"} for ident in range(1, 13)])
     for start in range(1, args.works + 1, 500):
-        works, intents, assets, derivatives, bookmarks = [], [], [], [], []
+        works, intents, assets, derivatives, bookmarks, tags = [], [], [], [], [], []
         for ident in range(start, min(start + 500, args.works + 1)):
             raw = raw_work(ident, origin, args.works, args.json_width)
+            parsed = PixivClient._parse_illust(raw)
+            posted = datetime.fromisoformat(parsed["posted_at"])
             animation = raw["type"] == "ugoira"
+            source = merge_tag_translations({"urls": parsed["urls"], "synthetic_wide": "x" * args.json_width},
+                parsed["tag_details"], checked_at="2026-01-01T00:00:00+00:00")
+            if animation:
+                source["ugoira_source"] = {"zip_url": origin + f"/media/{raw['id']}.zip",
+                    "timing_url": f"https://app-api.pixiv.net/v1/ugoira/metadata?illust_id={raw['id']}",
+                    "frames": frames}
             works.append({"id": ident, "pixiv_illust_id": str(raw["id"]), "artist_id": raw["user"]["id"],
                 "title": raw["title"], "type": raw["type"], "page_count": 1, "caption": raw["caption"],
-                "caption_state": "known", "posted_at": now, "source_metadata": {"urls": [{"original": origin + f"/media/{ident}.png"}], "synthetic_wide": "x" * args.json_width}})
+                "caption_state": "available", "posted_at": posted.astimezone(timezone.utc).replace(tzinfo=None),
+                "time_basis": "utc", "bookmark_count": parsed["bookmark_count"], "view_count": parsed["view_count"],
+                "x_restrict": parsed["x_restrict"], "restriction_verified": True, "source_metadata": source})
+            tags.extend({"work_id": ident, "tag": tag} for tag in parsed["tags"])
             intents.append({"pixiv_illust_id": str(raw["id"]), "mode": "keep"})
             bookmarks.append({"work_id": ident, "value": ident % 2 == 0, "account_id": "999", "source": "confirmed", "confirmed_at": now})
             if animation:
-                for role, suffix, content in (("ugoira_zip", "zip", archive), ("ugoira_timing", "json", json.dumps(frames).encode())):
+                for role, suffix, content in (("ugoira_zip", "zip", archive), ("ugoira_timing", "json", json.dumps({"frames": frames}).encode())):
                     relative = f"seed/{ident}.{suffix}"
                     (images / relative).write_bytes(content)
                     assets.append({"id": stable_id(f"asset-{ident}-{role}"), "work_id": ident,
                         "role": role, "state": "unknown", "relative_path": relative,
-                        "source_url": origin + f"/media/{ident}.zip" if suffix == "zip" else None})
+                        "source_url": source["ugoira_source"]["zip_url"] if suffix == "zip" else source["ugoira_source"]["timing_url"]})
             else:
                 relative = f"seed/{ident}.png"
                 missing = ident % 1000 == 0
@@ -258,7 +324,7 @@ def seed(database, images, args, origin, png, thumbnail, archive, frames):
                     derivatives.append({"id": stable_id(f"thumbnail-{ident}"), "work_id": ident, "kind": "thumbnail",
                         "relative_path": relative, "state": "unknown"})
         with database.write() as session:
-            for model, rows in ((Work, works), (ArchiveIntent, intents), (Asset, assets), (Derivative, derivatives), (RemoteBookmark, bookmarks)):
+            for model, rows in ((Work, works), (WorkTag, tags), (ArchiveIntent, intents), (Asset, assets), (Derivative, derivatives), (RemoteBookmark, bookmarks)):
                 if rows:
                     # Group heterogeneous keys so optional URL fields do not
                     # silently disappear under SQLAlchemy's executemany shape.
@@ -267,6 +333,18 @@ def seed(database, images, args, origin, png, thumbnail, archive, frames):
                         groups[tuple(sorted(row))].append(row)
                     for group in groups.values():
                         session.execute(insert(model), group)
+    with database.write() as session:
+        # Establish all 0003 revision references before timing the workload.
+        # The production helper owns signature, bindings, facts and projections;
+        # one transaction avoids introducing per-work commit pressure in setup.
+        for start in range(1, args.works + 1, 500):
+            works = list(session.scalars(select(Work).where(Work.id >= start, Work.id < start + 500)
+                .options(selectinload(Work.tags), selectinload(Work.assets), selectinload(Work.derivatives))))
+            for work in works:
+                ensure_legacy_revision(session, work)
+            session.flush()
+            session.expunge_all()
+    structure_validation = validate_seed(database, images, args, origin, frames)
     history = [stable_id(f"history-{ident}") for ident in range(12)]
     with database.write() as session:
         session.execute(insert(Operation), [{"id": ident, "kind": "reconcile", "parameters": {},
@@ -303,7 +381,67 @@ def seed(database, images, args, origin, png, thumbnail, archive, frames):
         "historical_state_counts": dict(history_state_counts), "wide_history_state_counts": dict(history_wide_counts),
         "wide_history_fraction": f"{sum(history_wide_counts.values())}/{args.history_steps}",
         "missing_originals": args.works // 1000, "missing_static_previews": args.works // 250,
-        "animation_zip_timing_pairs": 23, "deterministic_fixture_key": stable_id(f"{args.works}-{args.history_steps}-{args.json_width}")}
+        "animation_zip_timing_pairs": 23, "structure_validation": structure_validation,
+        "deterministic_fixture_key": stable_id(f"{args.works}-{args.history_steps}-{args.json_width}-native-0003")}
+
+
+def validate_seed(database, images, args, origin, frames):
+    """Check actual 0003 references and production same-observation semantics."""
+    from sqlalchemy import func, select
+    from src.client import PixivClient
+    from src.core.media import read_timing, verify_media, verify_ugoira_pair
+    from src.core.models import Asset, Derivative, RevisionAsset, RevisionDerivative, Work, WorkRevision
+    from src.core.revisions import observe_revision, selected_revision
+    from src.core.tag_translations import merge_tag_translations
+    with database.read() as session:
+        shape = {"work_revisions": session.scalar(select(func.count()).select_from(WorkRevision)),
+            "default_references": session.scalar(select(func.count()).select_from(Work).where(Work.default_revision_id.is_not(None))),
+            "latest_references": session.scalar(select(func.count()).select_from(Work).where(Work.latest_revision_id.is_not(None))),
+            "assets": session.scalar(select(func.count()).select_from(Asset)),
+            "asset_bindings": session.scalar(select(func.count()).select_from(RevisionAsset)),
+            "derivatives": session.scalar(select(func.count()).select_from(Derivative)),
+            "derivative_bindings": session.scalar(select(func.count()).select_from(RevisionDerivative)),
+            "missing_original_records": session.scalar(select(func.count()).select_from(Asset).where(Asset.state == "missing"))}
+    assert shape["work_revisions"] == shape["default_references"] == shape["latest_references"] == args.works, shape
+    assert shape["assets"] == shape["asset_bindings"] == args.works + 23, shape
+    assert shape["derivatives"] == shape["derivative_bindings"] == args.works - 23 - args.works//250, shape
+    assert shape["missing_original_records"] == args.works//1000, shape
+    samples = []
+    sample_ids = sorted({ident for ident in (1, 2, 24, 250, 1000, args.works) if ident <= args.works})
+    with database.write() as session:
+        for ident in sample_ids:
+            work = session.get(Work, ident)
+            revision = selected_revision(session, ident)
+            assert revision and revision.id == work.default_revision_id == work.latest_revision_id
+            parsed = PixivClient._parse_illust(raw_work(ident, origin, args.works, args.json_width))
+            source = merge_tag_translations(dict(revision.source_metadata), parsed["tag_details"], checked_at="2026-10-08T00:00:00+00:00")
+            source["urls"] = parsed["urls"]
+            if work.type == "ugoira":
+                source["ugoira_source"] = {"zip_url": origin+f"/media/{100000+ident}.zip",
+                    "timing_url": f"https://app-api.pixiv.net/v1/ugoira/metadata?illust_id={100000+ident}", "frames": frames}
+                assert read_timing(images/f"seed/{ident}.json") == frames
+                verify_media(images/f"seed/{ident}.zip", "ugoira_zip")
+                verify_media(images/f"seed/{ident}.json", "ugoira_timing")
+                verify_ugoira_pair(images/f"seed/{ident}.zip", images/f"seed/{ident}.json")
+            elif ident % 1000:
+                verify_media(images/f"seed/{ident}.png", "image")
+            else:
+                assert not (images/f"seed/{ident}.png").exists()
+            if work.type != "ugoira":
+                if ident % 250 == 0:
+                    assert not (images/f"seed/{ident}.webp").exists()
+                else:
+                    verify_media(images/f"seed/{ident}.webp", "image")
+            snapshot = dict(title=parsed["title"], caption=parsed["caption"], caption_state="available",
+                type=parsed["type"], page_count=parsed["page_count"], tags=sorted(parsed["tags"]), source_metadata=source)
+            observed, changed = observe_revision(session, work, snapshot)
+            assert not changed and observed.id == revision.id, "identical synthetic remote observation created a revision"
+            samples.append({"work_id": ident, "type": work.type,
+                "same_remote_observation_creates_revision": False,
+                "original_intentionally_missing": ident%1000 == 0,
+                "static_preview_intentionally_missing": work.type != "ugoira" and ident%250 == 0})
+    return {"shape": shape, "sample_ids": sample_ids, "samples": samples,
+        "timing_format": "production frames envelope", "revision_initialization": "production ensure_legacy_revision; one transaction"}
 
 
 def instrument(runtime, telemetry):
@@ -312,18 +450,102 @@ def instrument(runtime, telemetry):
     for engine, label in ((runtime.database.engine, "read"), (runtime.database.writer_engine, "write")):
         def before(connection, cursor, statement, parameters, context, many, label=label):
             context._probe_started = time.perf_counter()
-        def after(connection, cursor, statement, parameters, context, many, label=label):
-            telemetry.duration(label + "_sql", time.perf_counter() - context._probe_started)
+        def measured_sql(statement, context, many, *, label=label, error=False):
+            elapsed = time.perf_counter() - context._probe_started
+            telemetry.duration(label + "_sql", elapsed)
+            telemetry.record_slow_sql(label, elapsed, statement, many, error)
             if "operation_items" in statement and "GROUP BY" in statement:
                 telemetry.duration("progress_group_sql", time.perf_counter() - context._probe_started)
+        def after(connection, cursor, statement, parameters, context, many, measured_sql=measured_sql):
+            measured_sql(statement, context, many)
+        def failed(error_context, measured_sql=measured_sql):
+            context = error_context.execution_context
+            if context is not None and hasattr(context, "_probe_started"):
+                measured_sql(error_context.statement or "", context, context.executemany, error=True)
+        event.listen(engine, "handle_error", failed)
         event.listen(engine, "before_cursor_execute", before)
         event.listen(engine, "after_cursor_execute", after)
+    def before_flush(session, context, instances):
+        session.info["probe_flush"] = time.perf_counter()
+    def after_flush(session, context):
+        telemetry.duration("writer_flush", time.perf_counter() - session.info.pop("probe_flush"))
     def before_commit(session):
         session.info["probe_commit"] = time.perf_counter()
     def after_commit(session):
         telemetry.duration("flush_commit", time.perf_counter() - session.info.pop("probe_commit"))
+    event.listen(runtime.database.writer_session, "before_flush", before_flush)
+    event.listen(runtime.database.writer_session, "after_flush", after_flush)
     event.listen(runtime.database.writer_session, "before_commit", before_commit)
     event.listen(runtime.database.writer_session, "after_commit", after_commit)
+    restored_methods = []
+    # Time the existing DBAPI commit without causing an extra checkout or
+    # touching a SQLAlchemy Connection after the transaction has closed it.
+    dialect = runtime.database.writer_engine.dialect
+    original_commit = dialect.do_commit
+    def sqlite_commit(connection):
+        began = time.perf_counter()
+        try:
+            return original_commit(connection)
+        finally:
+            telemetry.duration("sqlite_commit", time.perf_counter()-began)
+    restored_methods.append((dialect, "do_commit", original_commit))
+    dialect.do_commit = sqlite_commit
+    for engine, label in ((runtime.database.engine, "read"), (runtime.database.writer_engine, "write")):
+        original_connect = engine.connect
+        def connect(*values, original_connect=original_connect, label=label, **kwargs):
+            began = time.perf_counter()
+            try:
+                return original_connect(*values, **kwargs)
+            finally:
+                telemetry.duration(label + "_pool_lease", time.perf_counter()-began)
+        restored_methods.append((engine, "connect", original_connect))
+        engine.connect = connect
+    original_write = runtime.database.write
+    @contextmanager
+    def write():
+        began = time.perf_counter()
+        try:
+            with original_write() as session:
+                telemetry.duration("writer_lock_pool_begin", time.perf_counter()-began)
+                yield session
+        finally:
+            telemetry.duration("writer_transaction_total", time.perf_counter()-began)
+    restored_methods.append((runtime.database, "write", original_write))
+    runtime.database.write = write
+    original_read = runtime.database.read
+    @contextmanager
+    def read():
+        began = time.perf_counter()
+        try:
+            with original_read() as session:
+                telemetry.duration("read_sync_admission_pool_begin", time.perf_counter()-began)
+                yield session
+        finally:
+            # Includes fetching rows, ORM/JSON decoding and rollback, unlike
+            # cursor execution events, which only time DBAPI execute itself.
+            telemetry.duration("read_transaction_total", time.perf_counter()-began)
+    restored_methods.append((runtime.database, "read", original_read))
+    runtime.database.read = read
+    original_execute = runtime.database.reads._execute
+    async def admitted_execute(budget, function):
+        began = time.perf_counter()
+        def admitted_work():
+            telemetry.duration("read_admission_worker_dispatch", time.perf_counter()-began)
+            return function()
+        try:
+            return await original_execute(budget, admitted_work)
+        finally:
+            telemetry.duration("read_admission_execution_total", time.perf_counter()-began)
+    restored_methods.append((runtime.database.reads, "_execute", original_execute))
+    runtime.database.reads._execute = admitted_execute
+    original_fsync = os.fsync
+    def fsync(descriptor):
+        began = time.perf_counter()
+        try:
+            return original_fsync(descriptor)
+        finally:
+            telemetry.duration("media_python_fsync", time.perf_counter()-began)
+    os.fsync = fsync
     original_report = TaskContext.report
     original_step_report = TaskContext.report_step
     def report(context, *args, **kwargs):
@@ -361,6 +583,9 @@ def instrument(runtime, telemetry):
     def restore():
         TaskContext.report = original_report
         TaskContext.report_step = original_step_report
+        os.fsync = original_fsync
+        for owner, name, method in restored_methods:
+            setattr(owner, name, method)
     return restore
 
 
@@ -457,6 +682,49 @@ def intervals_overlap(first, second):
     return any(max(a, c) < min(b, d) for a, b in first for c, d in second)
 
 
+class ActivityCoverage:
+    """Bounded measurements: elapsed time alone cannot prove continuous use."""
+    def __init__(self, began, wall_started):
+        self.began = began
+        self.last = {name: began for name in ("heartbeat", "sample", "burst")}
+        self.counts = Counter()
+        self.gaps = Counter()
+        self.wall_last = wall_started
+        self.wall_gap = 0.0
+
+    def observe(self, name, stamp):
+        self.gaps[name] = max(self.gaps[name], stamp-self.last[name])
+        self.last[name] = stamp
+        self.counts[name] += 1
+
+    def heartbeat(self, stamp, wall_stamp):
+        self.observe("heartbeat", stamp)
+        self.wall_gap = max(self.wall_gap, wall_stamp-self.wall_last)
+        self.wall_last = wall_stamp
+
+    def finish(self, stamp, wall_stamp, args):
+        duration = args.pilot_seconds if args.pilot_seconds is not None else args.duration_hours*3600
+        gaps = {name: max(self.gaps[name], stamp-self.last[name]) for name in self.last}
+        wall_gap = max(self.wall_gap, wall_stamp-self.wall_last)
+        # Allow one missing boundary burst; all actual responses must still
+        # satisfy their existing exact content/status/deadline assertions.
+        required_bursts = max(1, math.ceil(duration/args.burst_seconds)-1)
+        required_samples = max(1, math.floor(duration/10))
+        limits = {"heartbeat": 30.0, "sample": 30.0, "burst": args.burst_seconds+30.0}
+        violations = [f"{name} gap {gaps[name]:.3f}s > {limit:.3f}s"
+                      for name, limit in limits.items() if gaps[name] > limit]
+        if wall_gap > 30:
+            violations.append(f"wall-clock heartbeat gap {wall_gap:.3f}s > 30s")
+        for name, minimum in (("burst", required_bursts), ("sample", required_samples)):
+            if self.counts[name] < minimum:
+                violations.append(f"{name} coverage {self.counts[name]} < {minimum}")
+        return {"observations": dict(self.counts), "max_gap_seconds": gaps,
+            "max_wall_heartbeat_gap_seconds": wall_gap, "gap_limits_seconds": limits,
+            "minimum_bursts": required_bursts, "minimum_successful_resource_samples": required_samples,
+            "minimum_mixed_http_requests": required_bursts*40, "violations": violations,
+            "enforced_for_soak": args.pilot_seconds is None}
+
+
 def run_case(out, args, check_workers):
     import psutil
     import requests
@@ -475,6 +743,7 @@ def run_case(out, args, check_workers):
         "real_account_used": False, "remote_writes_permitted": False, "production_handlers_replaced": False,
         "synthetic_api_interval_seconds": args.api_interval, "synthetic_remote_delay_seconds": args.remote_delay,
         "synthetic_download_delay_seconds": args.download_delay, "burst_width": 40,
+        "localhost_proxy_policy": "trust_env=false; session and explicit proxies empty; environment unchanged",
         "burst_interval_seconds": args.burst_seconds, **source_identity()}
     png, thumbnail, archive, frames = media_bytes()
     remote_server, remote_thread = start_remote(args, telemetry, png, archive, frames)
@@ -500,6 +769,11 @@ def run_case(out, args, check_workers):
             context = getattr(getattr(client, "_task_context", None), "context", None)
             telemetry.event("remote_send", endpoint=address.path,
                 operation_id=getattr(context, "operation_id", None))
+        # Confined to guarded synthetic localhost requests. Disabling trust_env
+        # also prevents reading the user's existing netrc credentials.
+        session.trust_env = False
+        session.proxies = {}
+        kwargs["proxies"] = {}
         return original_request(session, method, url, *values, **kwargs)
     requests.sessions.Session.request = local_request
     runtime = None
@@ -534,6 +808,7 @@ def run_case(out, args, check_workers):
         assert server.started, "production HTTP server did not start"
         began = time.monotonic()
         started_wall = utcnow()
+        coverage = ActivityCoverage(began, time.time())
         deadline = began + (args.pilot_seconds if args.pilot_seconds is not None else args.duration_hours * 3600)
         # Independent discovery tasks create real new-work downloads and previews
         # while maintenance inspects existing missing originals.
@@ -555,8 +830,10 @@ def run_case(out, args, check_workers):
         last_settled = None
         progress_samples = []
         process = psutil.Process()
+        process.cpu_percent(interval=None)
         while time.monotonic() < deadline:
             now = time.monotonic()
+            coverage.heartbeat(now, time.time())
             if now >= next_small and deadline - now >= 10:
                 try:
                     small.append(submit_small(origin, runtime, telemetry, serial, args))
@@ -566,6 +843,7 @@ def run_case(out, args, check_workers):
                 next_small = now + args.small_seconds
             if now >= next_burst:
                 http_burst(origin, args, telemetry, png, burst)
+                coverage.observe("burst", time.monotonic())
                 burst += 1
                 next_burst = now + args.burst_seconds
             if now >= next_sample:
@@ -579,7 +857,12 @@ def run_case(out, args, check_workers):
                     if state == "finished" and outcome != "succeeded":
                         telemetry.fail(f"full maintenance finished with {outcome}")
                     wal = Path(str(runtime.database.path) + "-wal")
-                    sample = {"elapsed_seconds": now - began, "rss_bytes": process.memory_info().rss,
+                    sampled_at = time.monotonic()
+                    coverage.observe("sample", sampled_at)
+                    cpu = process.cpu_times()
+                    sample = {"elapsed_seconds": sampled_at - began, "rss_bytes": process.memory_info().rss,
+                        "cpu_user_seconds": cpu.user, "cpu_system_seconds": cpu.system,
+                        "cpu_percent_since_last_sample": process.cpu_percent(interval=None),
                         "wal_bytes": wal.stat().st_size if wal.exists() else 0,
                         "read_active": dict(runtime.database.reads.active), "read_pending": dict(runtime.database.reads.pending),
                         "read_connections": runtime.database.engine.pool.checkedout(),
@@ -604,6 +887,7 @@ def run_case(out, args, check_workers):
             time.sleep(.05)
         result.update(elapsed_seconds=time.monotonic() - began, bursts=burst, maintenance_completed=completed,
                       maintenance_progress=progress_samples)
+        result["activity_coverage"] = coverage.finish(time.monotonic(), time.time(), args)
         for operation in small:
             first = telemetry.first_remote_request.get(operation["operation_id"])
             until = first if first is not None else time.monotonic()-telemetry.started
@@ -631,6 +915,8 @@ def run_case(out, args, check_workers):
             "two_checks": telemetry.peak["phase_checking"] >= 2,
         }
         if args.pilot_seconds is None:
+            for violation in result["activity_coverage"]["violations"]:
+                telemetry.fail("continuous soak coverage: " + violation)
             if result["elapsed_seconds"] < max(8 * 3600, args.duration_hours * 3600):
                 telemetry.fail("soak duration shorter than eight actual hours")
             if not completed:

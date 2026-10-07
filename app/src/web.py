@@ -78,10 +78,13 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
             # neither report success nor disconnect the newly installed client.
             return
         except Exception:
-            if installed_client is not None and current.client is installed_client:
-                current.client = None
-                current.account_id = current.library.account_id = None
-                current.bookmarks.mark_disconnected()
+            if application.state.runtime is not current:
+                return
+            if installed_client is not None:
+                if not current.disconnect_client(installed_client):
+                    return
+            elif current.client is not None:
+                return
             application.state.login_error = "Pixiv 暂时无法连接，本地图库可继续使用"
 
     @asynccontextmanager

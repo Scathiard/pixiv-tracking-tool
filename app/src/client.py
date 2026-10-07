@@ -126,6 +126,11 @@ class PixivClient:
         return (login, str(token.get("user_id", "")))
 
     @staticmethod
+    def identity_scope():
+        from .auth import identity_scope
+        return identity_scope()
+
+    @staticmethod
     def _check_identity(identity):
         if PixivClient.identity_generation() != identity:
             raise AccountChanged()

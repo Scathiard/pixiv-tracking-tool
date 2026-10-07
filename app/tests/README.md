@@ -3,6 +3,8 @@
 - `test_local_read_control.py`：真实 HTTP 断开、排队截止、可中断 SQL、共享读取最后使用者取消、连接安全复用、前台／后台配额及独立写连接；全部使用合成数据库。
 - `test_processing_log_windows.py`、`test_bookmark_lock_boundaries.py`：十五万条密集失败／跳过的有限扫描与续读、敏感字段过滤，以及收藏写入等待不占内存锁、阅览返回连接后合成收藏状态、旧可信缓存不能覆盖新版本。
 - `test_parallel_runtime_control.py`：正式 Runtime／RemoteAccess／PixivClient 与真实存档处理器的并行、持久重试、冷却、账号刷新单飞和代际保护；网络传输与凭据均为合成输入。
+- `test_account_publication.py`：账号最终核对与发布的竞态、旧连接失败不能清除新连接、账号／登录代际切换不能复活旧可信缓存，以及凭据等待不阻塞本地读取；只使用合成凭据，禁止外部网络。
+- `test_planning_fairness.py`、`test_task_claim_progress.py`：清点与就绪核对有界轮转、同操作双检查者互斥、暂停／离线／恢复，以及开始进度与领取共用提交、回滚重算、空通道不占写连接；真实处理器配合合成图库／传输。
 - `parallel_reliability_probe.py --artifacts NEW_DIRECTORY --pilot-seconds 120 --check-workers both`：一万五千件作品／十五万零五百一十二条历史步骤的两组短测；去掉 `--pilot-seconds` 并指定单一检查者数量，执行至少八小时混合负载和完整维护。真实处理器、HTTP、文件与提交保持，远端只允许本机模拟服务；短测不等于长期验收，源码变化、失败或维护未完成均明确记录。
 - 前端 `tests/settings-lifecycle.html`：加载真实组件、使用隔离响应的页面读取生命周期验收入口；覆盖共享请求取消、关闭／重开日志、分页、超时、轮询、设置保存与旧响应，桌面／390／320px；不替代实际后端或 EXE 验收。
 
