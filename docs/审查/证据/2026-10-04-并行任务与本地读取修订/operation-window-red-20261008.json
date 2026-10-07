@@ -1,0 +1,65 @@
+{
+  "source_root": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261004.3\\app",
+  "tasks_sha256": "23cd0a96b6cc408312d95b3083aa90b93832298b7182957ee2a62e03142f2f29",
+  "blocked": {
+    "older_cooled_manual_operations": 64,
+    "total_operations": 65,
+    "check_step_calls": 32,
+    "handled_steps": 0,
+    "late_ready_executions": 0,
+    "late_task_after": {
+      "operation_state": "ready",
+      "item_state": "pending",
+      "attempts": 0,
+      "round_admitted": true,
+      "last_claim_seq": 0
+    },
+    "older_planning_unchanged": true,
+    "claim_sequence": 0,
+    "parent_graph_copy_work": [
+      {
+        "control_nodes": 4,
+        "copied_entries": 16,
+        "expected_n_squared": 16
+      },
+      {
+        "control_nodes": 8,
+        "copied_entries": 64,
+        "expected_n_squared": 64
+      },
+      {
+        "control_nodes": 16,
+        "copied_entries": 256,
+        "expected_n_squared": 256
+      },
+      {
+        "control_nodes": 32,
+        "copied_entries": 1024,
+        "expected_n_squared": 1024
+      },
+      {
+        "control_nodes": 64,
+        "copied_entries": 4096,
+        "expected_n_squared": 4096
+      }
+    ]
+  },
+  "control": {
+    "older_cooled_manual_operations": 63,
+    "total_operations": 64,
+    "check_step_calls": 32,
+    "handled_steps": 1,
+    "late_ready_executions": 1,
+    "late_task_after": {
+      "operation_state": "finished",
+      "item_state": "succeeded",
+      "attempts": 1,
+      "round_admitted": true,
+      "last_claim_seq": 1
+    },
+    "older_planning_unchanged": true,
+    "claim_sequence": 1
+  },
+  "reproduced": true,
+  "elapsed_seconds": 9.409952299902216
+}

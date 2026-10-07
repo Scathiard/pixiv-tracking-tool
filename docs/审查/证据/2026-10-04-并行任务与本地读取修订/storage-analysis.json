@@ -1,0 +1,221 @@
+[
+  {
+    "case": "ssd_nvme",
+    "database_path": "C:\\Users\\princ\\AppData\\Local\\Temp\\PixivTracker-synthetic-storage-20261008-5b45eea6-9842-4c5b-9595-fc6bb2bf8737\\archive.db",
+    "physical_disk": {
+      "drive": "C:",
+      "physical_disk": 4,
+      "model": "WD Blue SN570",
+      "media": "NVMe SSD"
+    },
+    "threshold": 1000,
+    "main_commit_seconds": {
+      "count": 64,
+      "p50": 0.0013107999693602324,
+      "p95": 0.004567800089716911,
+      "max": 0.039424199843779206
+    },
+    "empty_commit_seconds": {
+      "count": 64,
+      "p50": 1.009996049106121e-05,
+      "p95": 3.520003519952297e-05,
+      "max": 0.00014739995822310448
+    },
+    "writer_wait_seconds": {
+      "count": 64,
+      "p50": 0.0017250000964850187,
+      "p95": 0.004862200003117323,
+      "max": 0.041934699984267354
+    },
+    "reader_total_seconds": {
+      "count": 128,
+      "p50": 0.0008252998813986778,
+      "p95": 0.0035002001095563173,
+      "max": 0.02028439985588193
+    },
+    "reader_failures": [],
+    "long_main_commits": [],
+    "threshold_crossings": [
+      {
+        "index": 13,
+        "commit_seconds": 0.039424199843779206,
+        "wal_before_frames": 964,
+        "wal_after_frames": 1031,
+        "appended_frames": 67,
+        "distinct_pages": 67,
+        "restart": false
+      },
+      {
+        "index": 27,
+        "commit_seconds": 0.033624500036239624,
+        "wal_before_frames": 950,
+        "wal_after_frames": 1019,
+        "appended_frames": 69,
+        "distinct_pages": 69,
+        "restart": false
+      },
+      {
+        "index": 41,
+        "commit_seconds": 0.03331590001471341,
+        "wal_before_frames": 931,
+        "wal_after_frames": 1008,
+        "appended_frames": 77,
+        "distinct_pages": 77,
+        "restart": false
+      },
+      {
+        "index": 56,
+        "commit_seconds": 0.03393310005776584,
+        "wal_before_frames": 978,
+        "wal_after_frames": 1049,
+        "appended_frames": 71,
+        "distinct_pages": 71,
+        "restart": false
+      }
+    ],
+    "frame_write_scale": {
+      "count": 64,
+      "p50": 72,
+      "p95": 83,
+      "max": 87
+    },
+    "total_appended_frames": 4642,
+    "pool_peak": {
+      "read": 2,
+      "write": 1
+    },
+    "wal_peak_bytes": 4321912,
+    "workload_seconds": 1.136947700055316,
+    "final_checkpoint_seconds": 0.02245710021816194,
+    "workload_plus_checkpoint_seconds": 1.159404800273478,
+    "logical_transactions_per_second_including_final_checkpoint": 55.20073746883212
+  },
+  {
+    "case": "hdd",
+    "database_path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-storage-20261008-15\\hdd\\archive.db",
+    "physical_disk": {
+      "drive": "D:",
+      "physical_disk": 2,
+      "model": "ST2000VN004",
+      "media": "HDD"
+    },
+    "threshold": 1000,
+    "main_commit_seconds": {
+      "count": 64,
+      "p50": 0.053577000042423606,
+      "p95": 0.2064207000657916,
+      "max": 3.1310604999307543
+    },
+    "empty_commit_seconds": {
+      "count": 64,
+      "p50": 1.810002140700817e-05,
+      "p95": 5.970010533928871e-05,
+      "max": 0.00017250003293156624
+    },
+    "writer_wait_seconds": {
+      "count": 64,
+      "p50": 0.054908000165596604,
+      "p95": 0.20687459991313517,
+      "max": 3.1314480998553336
+    },
+    "reader_total_seconds": {
+      "count": 128,
+      "p50": 0.0008024000562727451,
+      "p95": 0.0030414999928325415,
+      "max": 0.007492600008845329
+    },
+    "reader_failures": [],
+    "long_main_commits": [
+      {
+        "index": 13,
+        "commit_seconds": 3.1310604999307543,
+        "wal_before_frames": 964,
+        "wal_after_frames": 1031,
+        "appended_frames": 67,
+        "distinct_pages": 67,
+        "restart": false
+      },
+      {
+        "index": 27,
+        "commit_seconds": 2.860882099950686,
+        "wal_before_frames": 950,
+        "wal_after_frames": 1019,
+        "appended_frames": 69,
+        "distinct_pages": 69,
+        "restart": false
+      },
+      {
+        "index": 41,
+        "commit_seconds": 2.9699913000222296,
+        "wal_before_frames": 931,
+        "wal_after_frames": 1008,
+        "appended_frames": 77,
+        "distinct_pages": 77,
+        "restart": false
+      },
+      {
+        "index": 56,
+        "commit_seconds": 2.914240699959919,
+        "wal_before_frames": 978,
+        "wal_after_frames": 1049,
+        "appended_frames": 71,
+        "distinct_pages": 71,
+        "restart": false
+      }
+    ],
+    "threshold_crossings": [
+      {
+        "index": 13,
+        "commit_seconds": 3.1310604999307543,
+        "wal_before_frames": 964,
+        "wal_after_frames": 1031,
+        "appended_frames": 67,
+        "distinct_pages": 67,
+        "restart": false
+      },
+      {
+        "index": 27,
+        "commit_seconds": 2.860882099950686,
+        "wal_before_frames": 950,
+        "wal_after_frames": 1019,
+        "appended_frames": 69,
+        "distinct_pages": 69,
+        "restart": false
+      },
+      {
+        "index": 41,
+        "commit_seconds": 2.9699913000222296,
+        "wal_before_frames": 931,
+        "wal_after_frames": 1008,
+        "appended_frames": 77,
+        "distinct_pages": 77,
+        "restart": false
+      },
+      {
+        "index": 56,
+        "commit_seconds": 2.914240699959919,
+        "wal_before_frames": 978,
+        "wal_after_frames": 1049,
+        "appended_frames": 71,
+        "distinct_pages": 71,
+        "restart": false
+      }
+    ],
+    "frame_write_scale": {
+      "count": 64,
+      "p50": 72,
+      "p95": 83,
+      "max": 87
+    },
+    "total_appended_frames": 4642,
+    "pool_peak": {
+      "read": 2,
+      "write": 1
+    },
+    "wal_peak_bytes": 4321912,
+    "workload_seconds": 16.79848080012016,
+    "final_checkpoint_seconds": 2.675469399895519,
+    "workload_plus_checkpoint_seconds": 19.47395020001568,
+    "logical_transactions_per_second_including_final_checkpoint": 3.286441597244532
+  }
+]

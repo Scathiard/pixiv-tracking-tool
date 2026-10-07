@@ -1,0 +1,36 @@
+{
+  "purpose": "Synthetic database SSD then HDD comparison; not complete application acceptance",
+  "source_synthetic_database": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-04\\check-workers-1\\archive.db",
+  "ssd_directory": "C:\\Users\\princ\\AppData\\Local\\Temp\\PixivTracker-synthetic-storage-20261008-5b45eea6-9842-4c5b-9595-fc6bb2bf8737",
+  "hdd_directory": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-storage-20261008-15\\hdd",
+  "evidence_directory": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-storage-20261008-15",
+  "retention": "Preserve all copies and evidence, no automatic cleanup or daily data path changes",
+  "order": [
+    "ssd_nvme",
+    "hdd"
+  ],
+  "synchronous": 2,
+  "wal_autocheckpoint": 1000,
+  "bounds": {
+    "transactions": 64,
+    "rows_per_transaction": 32,
+    "wal_bytes": 67108864,
+    "workload_seconds_per_case": 180
+  },
+  "physical_disks": {
+    "ssd_nvme": {
+      "drive": "C:",
+      "physical_disk": 4,
+      "model": "WD Blue SN570",
+      "media": "NVMe SSD"
+    },
+    "hdd": {
+      "drive": "D:",
+      "physical_disk": 2,
+      "model": "ST2000VN004",
+      "media": "HDD"
+    }
+  },
+  "physical_disk_evidence": "Verified by root this session; subagent Get-Partition/Get-Disk returned Access denied",
+  "boundaries": "Only closed -04 synthetic database; no real library, credentials, network, production changes"
+}

@@ -1,0 +1,353 @@
+{
+  "small_admissions": [
+    {
+      "admission": {
+        "t": 307.375,
+        "started": 304.86867449991405,
+        "ended": 307.375,
+        "event": "probe_slow_segment",
+        "segment": "small_admission",
+        "seconds": 2.50632550008595,
+        "thread_id": 41376
+      },
+      "submitted": {
+        "t": 307.39099999982864,
+        "event": "small_submitted",
+        "operation_id": "6451bf7afc27472182065613763998e4",
+        "work_id": 14999
+      },
+      "commits": [
+        {
+          "t": 307.2349999998696,
+          "started": 304.42423079977743,
+          "ended": 307.2349999998696,
+          "event": "probe_slow_segment",
+          "segment": "sqlite_commit",
+          "seconds": 2.8107692000921816,
+          "thread_id": 8656
+        }
+      ],
+      "segments": [
+        {
+          "t": 306.7029999999795,
+          "started": 304.5257128998637,
+          "ended": 306.7029999999795,
+          "event": "probe_slow_segment",
+          "segment": "read_sql",
+          "seconds": 2.177287100115791,
+          "thread_id": 46508
+        },
+        {
+          "t": 306.7029999999795,
+          "started": 304.5210732999258,
+          "ended": 306.7029999999795,
+          "event": "probe_slow_segment",
+          "segment": "read_sql",
+          "seconds": 2.1819267000537366,
+          "thread_id": 24920
+        },
+        {
+          "t": 306.71899999980815,
+          "started": 304.6262625998352,
+          "ended": 306.71899999980815,
+          "event": "probe_slow_segment",
+          "segment": "read_sync_admission_pool_begin",
+          "seconds": 2.0927373999729753,
+          "thread_id": 65048
+        },
+        {
+          "t": 307.2349999998696,
+          "started": 304.3978575998917,
+          "ended": 307.2349999998696,
+          "event": "probe_slow_segment",
+          "segment": "writer_transaction_total",
+          "seconds": 2.8371423999778926,
+          "thread_id": 8656
+        },
+        {
+          "t": 307.2349999998696,
+          "started": 304.42423079977743,
+          "ended": 307.2349999998696,
+          "event": "probe_slow_segment",
+          "segment": "sqlite_commit",
+          "seconds": 2.8107692000921816,
+          "thread_id": 8656
+        },
+        {
+          "t": 307.2349999998696,
+          "started": 304.4166260997299,
+          "ended": 307.2349999998696,
+          "event": "probe_slow_segment",
+          "segment": "flush_commit",
+          "seconds": 2.8183739001397043,
+          "thread_id": 8656
+        },
+        {
+          "t": 307.2349999998696,
+          "started": 304.88127879984677,
+          "ended": 307.2349999998696,
+          "event": "probe_slow_segment",
+          "segment": "writer_lock_pool_begin",
+          "seconds": 2.3537212000228465,
+          "thread_id": 19648
+        },
+        {
+          "t": 307.375,
+          "started": 304.8729586999398,
+          "ended": 307.375,
+          "event": "probe_slow_segment",
+          "segment": "writer_transaction_total",
+          "seconds": 2.5020413000602275,
+          "thread_id": 19648
+        }
+      ],
+      "sql": [
+        {
+          "t": 306.7029999999795,
+          "started": 304.5257128998637,
+          "ended": 306.7029999999795,
+          "engine": "read",
+          "seconds": 2.177287100115791,
+          "sql": "SELECT operations.id, operations.round_id, operations.kind, operations.parameters, operations.source, operations.dedupe_key, operations.label, operations.state, operations.phase, operations.phase_unit, operations.phase_total, operations.phase_done, operations.detail, operations.result, operations.needs_attention, operations.pause_requested, operations.last_claim_seq, operations.created_at, operations.updated_at, operations.started_at, operations.finished_at \nFROM operations \nWHERE operations.state IN (?, ?, ?, ?, ?) AND operations.pause_requested IS 0 ORDER BY operations.last_claim_seq, CASE WHEN (operations.source = ?) THEN ? ELSE ? END, operations.created_at, operations.id\n LIMIT ? OFFSET ?",
+          "executemany": false,
+          "interrupted_or_failed": false,
+          "thread_id": 46508
+        },
+        {
+          "t": 306.7029999999795,
+          "started": 304.5210732999258,
+          "ended": 306.7029999999795,
+          "engine": "read",
+          "seconds": 2.1819267000537366,
+          "sql": "SELECT operations.id, operations.round_id, operations.kind, operations.parameters, operations.source, operations.dedupe_key, operations.label, operations.state, operations.phase, operations.phase_unit, operations.phase_total, operations.phase_done, operations.detail, operations.result, operations.needs_attention, operations.pause_requested, operations.last_claim_seq, operations.created_at, operations.updated_at, operations.started_at, operations.finished_at \nFROM operations \nWHERE operations.state IN (?, ?, ?, ?, ?) AND operations.pause_requested IS 0 ORDER BY operations.last_claim_seq, CASE WHEN (operations.source = ?) THEN ? ELSE ? END, operations.created_at, operations.id\n LIMIT ? OFFSET ?",
+          "executemany": false,
+          "interrupted_or_failed": false,
+          "thread_id": 24920
+        }
+      ],
+      "events": [
+        {
+          "t": 303.29699999978766,
+          "event": "item_start",
+          "operation_id": "8f5a6c65f9954b3faa669f8cea84c505",
+          "kind": "reconcile_asset",
+          "phase": "verifying",
+          "work_id": 3
+        },
+        {
+          "t": 303.29699999978766,
+          "event": "phase_verifying_start",
+          "operation_id": "8f5a6c65f9954b3faa669f8cea84c505",
+          "kind": "reconcile_asset"
+        },
+        {
+          "t": 303.54699999978766,
+          "event": "phase_verifying_end",
+          "operation_id": "8f5a6c65f9954b3faa669f8cea84c505",
+          "kind": "reconcile_asset"
+        },
+        {
+          "t": 303.8599999998696,
+          "event": "item_start",
+          "operation_id": "8f5a6c65f9954b3faa669f8cea84c505",
+          "kind": "reconcile_asset",
+          "phase": "verifying",
+          "work_id": 3
+        },
+        {
+          "t": 303.8599999998696,
+          "event": "phase_verifying_start",
+          "operation_id": "8f5a6c65f9954b3faa669f8cea84c505",
+          "kind": "reconcile_asset"
+        },
+        {
+          "t": 303.9849999998696,
+          "event": "phase_verifying_end",
+          "operation_id": "8f5a6c65f9954b3faa669f8cea84c505",
+          "kind": "reconcile_asset"
+        },
+        {
+          "t": 304.3129999998491,
+          "event": "item_start",
+          "operation_id": "8f5a6c65f9954b3faa669f8cea84c505",
+          "kind": "checked",
+          "phase": "inventory",
+          "work_id": 3
+        },
+        {
+          "t": 304.3129999998491,
+          "event": "phase_inventory_start",
+          "operation_id": "8f5a6c65f9954b3faa669f8cea84c505",
+          "kind": "checked"
+        },
+        {
+          "t": 304.3129999998491,
+          "event": "phase_inventory_end",
+          "operation_id": "8f5a6c65f9954b3faa669f8cea84c505",
+          "kind": "checked"
+        },
+        {
+          "t": 307.39099999982864,
+          "event": "constraint_failure",
+          "message": "small operation admission 2.506s > 2s"
+        },
+        {
+          "t": 307.39099999982864,
+          "event": "small_submitted",
+          "operation_id": "6451bf7afc27472182065613763998e4",
+          "work_id": 14999
+        },
+        {
+          "t": 307.75,
+          "event": "remote_send",
+          "endpoint": "/v1/illust/detail",
+          "operation_id": null
+        },
+        {
+          "t": 307.75,
+          "event": "remote_start",
+          "endpoint": "/v1/illust/detail",
+          "illust_id": "114999"
+        },
+        {
+          "t": 307.79699999978766,
+          "event": "remote_end",
+          "endpoint": "/v1/illust/detail",
+          "illust_id": "114999"
+        },
+        {
+          "t": 308.0629999998491,
+          "event": "item_start",
+          "operation_id": "6451bf7afc27472182065613763998e4",
+          "kind": "metadata_work",
+          "phase": "captions",
+          "work_id": 14999
+        },
+        {
+          "t": 308.0629999998491,
+          "event": "phase_captions_start",
+          "operation_id": "6451bf7afc27472182065613763998e4",
+          "kind": "metadata_work"
+        },
+        {
+          "t": 308.14099999982864,
+          "event": "remote_send",
+          "endpoint": "/v1/illust/detail",
+          "operation_id": "6451bf7afc27472182065613763998e4"
+        },
+        {
+          "t": 308.14099999982864,
+          "event": "remote_start",
+          "endpoint": "/v1/illust/detail",
+          "illust_id": "114999"
+        },
+        {
+          "t": 308.1879999998491,
+          "event": "remote_end",
+          "endpoint": "/v1/illust/detail",
+          "illust_id": "114999"
+        },
+        {
+          "t": 308.25,
+          "event": "phase_captions_end",
+          "operation_id": "6451bf7afc27472182065613763998e4",
+          "kind": "metadata_work"
+        },
+        {
+          "t": 308.71899999980815,
+          "event": "item_start",
+          "operation_id": "8f5a6c65f9954b3faa669f8cea84c505",
+          "kind": "metadata_artist",
+          "phase": "checking",
+          "work_id": null
+        },
+        {
+          "t": 308.71899999980815,
+          "event": "phase_checking_start",
+          "operation_id": "8f5a6c65f9954b3faa669f8cea84c505",
+          "kind": "metadata_artist"
+        },
+        {
+          "t": 308.75,
+          "event": "remote_send",
+          "endpoint": "/v1/user/detail",
+          "operation_id": "8f5a6c65f9954b3faa669f8cea84c505"
+        },
+        {
+          "t": 308.75,
+          "event": "remote_start",
+          "endpoint": "/v1/user/detail",
+          "illust_id": null
+        },
+        {
+          "t": 308.8129999998491,
+          "event": "remote_end",
+          "endpoint": "/v1/user/detail",
+          "illust_id": null
+        },
+        {
+          "t": 308.875,
+          "event": "phase_checking_end",
+          "operation_id": "8f5a6c65f9954b3faa669f8cea84c505",
+          "kind": "metadata_artist"
+        }
+      ]
+    }
+  ],
+  "settings_stats_sql_observations": [
+    {
+      "t": 247.54699999978766,
+      "started": 245.30617439979687,
+      "ended": 247.54699999978766,
+      "engine": "read",
+      "seconds": 2.240825599990785,
+      "sql": "WITH current_works AS MATERIALIZED \n(SELECT works.id AS work_id, works.pixiv_illust_id AS pixiv_id, works.default_revision_id AS revision_id, coalesce(work_revisions.type, works.type) AS type, coalesce(work_revisions.page_count, works.page_count) AS page_count \nFROM works LEFT OUTER JOIN work_revisions ON work_revisions.id = works.default_revision_id)\n SELECT coalesce(sum(anon_1.downloaded_pages), ?) AS coalesce_1, coalesce(sum(anon_1.registered_originals), ?) AS coalesce_3, coalesce(sum(anon_1.verified_originals), ?) AS coalesce_5, coalesce(sum(anon_1.unverified_originals), ?) AS coalesce_7, coalesce(sum(CASE WHEN (CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) > ?) THEN CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) ELSE ? END), ?) AS coalesce_9 \nFROM current_works LEFT OUTER JOIN (SELECT assets.work_id AS work_id, sum(CASE WHEN (assets.role = ? AND assets.state = ?) THEN ? ELSE ? END) AS downloaded_pages, sum(CASE WHEN (length(assets.relative_path) > ?) THEN ? ELSE ? END) AS registered_originals, sum(CASE WHEN (assets.state = ?) THEN ? ELSE ? END) AS verified_originals, sum(CASE WHEN (assets.state = ? AND length(assets.relative_path) > ?) THEN ? ELSE ? END) AS unverified_originals, sum(CASE WHEN (length(assets.relative_path) > ? AND (assets.state NOT IN (?, ?, ?, ?, ?))) THEN ? ELSE ? END) AS usable \nFROM assets JOIN (SELECT revision_assets.asset_id AS asset_id \nFROM revision_assets JOIN current_works ON current_works.revision_id = revision_assets.revision_id UNION SELECT assets.id AS asset_id \nFROM assets JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.revision_id IS NULL AND assets.revision_id IS NULL) AS anon_2 ON anon_2.asset_id = assets.id JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.type = ? AND assets.role = ? OR current_works.type != ? AND assets.role = ? AND assets.page_index < current_works.page_count GROUP BY assets.work_id) AS anon_1 ON anon_1.work_id = current_works.work_id \nWHERE (current_works.pixiv_id NOT IN (SELECT archive_intents.pixiv_illust_id \nFROM archive_intents \nWHERE archive_intents.mode = ?))",
+      "executemany": false,
+      "interrupted_or_failed": false,
+      "thread_id": 26184
+    },
+    {
+      "t": 291.9529999999795,
+      "started": 291.07490660017356,
+      "ended": 291.9529999999795,
+      "engine": "read",
+      "seconds": 0.8780933998059481,
+      "sql": "WITH current_works AS MATERIALIZED \n(SELECT works.id AS work_id, works.pixiv_illust_id AS pixiv_id, works.default_revision_id AS revision_id, coalesce(work_revisions.type, works.type) AS type, coalesce(work_revisions.page_count, works.page_count) AS page_count \nFROM works LEFT OUTER JOIN work_revisions ON work_revisions.id = works.default_revision_id)\n SELECT coalesce(sum(anon_1.downloaded_pages), ?) AS coalesce_1, coalesce(sum(anon_1.registered_originals), ?) AS coalesce_3, coalesce(sum(anon_1.verified_originals), ?) AS coalesce_5, coalesce(sum(anon_1.unverified_originals), ?) AS coalesce_7, coalesce(sum(CASE WHEN (CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) > ?) THEN CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) ELSE ? END), ?) AS coalesce_9 \nFROM current_works LEFT OUTER JOIN (SELECT assets.work_id AS work_id, sum(CASE WHEN (assets.role = ? AND assets.state = ?) THEN ? ELSE ? END) AS downloaded_pages, sum(CASE WHEN (length(assets.relative_path) > ?) THEN ? ELSE ? END) AS registered_originals, sum(CASE WHEN (assets.state = ?) THEN ? ELSE ? END) AS verified_originals, sum(CASE WHEN (assets.state = ? AND length(assets.relative_path) > ?) THEN ? ELSE ? END) AS unverified_originals, sum(CASE WHEN (length(assets.relative_path) > ? AND (assets.state NOT IN (?, ?, ?, ?, ?))) THEN ? ELSE ? END) AS usable \nFROM assets JOIN (SELECT revision_assets.asset_id AS asset_id \nFROM revision_assets JOIN current_works ON current_works.revision_id = revision_assets.revision_id UNION SELECT assets.id AS asset_id \nFROM assets JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.revision_id IS NULL AND assets.revision_id IS NULL) AS anon_2 ON anon_2.asset_id = assets.id JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.type = ? AND assets.role = ? OR current_works.type != ? AND assets.role = ? AND assets.page_index < current_works.page_count GROUP BY assets.work_id) AS anon_1 ON anon_1.work_id = current_works.work_id \nWHERE (current_works.pixiv_id NOT IN (SELECT archive_intents.pixiv_illust_id \nFROM archive_intents \nWHERE archive_intents.mode = ?))",
+      "executemany": false,
+      "interrupted_or_failed": false,
+      "thread_id": 23012
+    },
+    {
+      "t": 336.8129999998491,
+      "started": 335.59951039985754,
+      "ended": 336.8129999998491,
+      "engine": "read",
+      "seconds": 1.2134895999915898,
+      "sql": "WITH current_works AS MATERIALIZED \n(SELECT works.id AS work_id, works.pixiv_illust_id AS pixiv_id, works.default_revision_id AS revision_id, coalesce(work_revisions.type, works.type) AS type, coalesce(work_revisions.page_count, works.page_count) AS page_count \nFROM works LEFT OUTER JOIN work_revisions ON work_revisions.id = works.default_revision_id)\n SELECT coalesce(sum(anon_1.downloaded_pages), ?) AS coalesce_1, coalesce(sum(anon_1.registered_originals), ?) AS coalesce_3, coalesce(sum(anon_1.verified_originals), ?) AS coalesce_5, coalesce(sum(anon_1.unverified_originals), ?) AS coalesce_7, coalesce(sum(CASE WHEN (CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) > ?) THEN CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) ELSE ? END), ?) AS coalesce_9 \nFROM current_works LEFT OUTER JOIN (SELECT assets.work_id AS work_id, sum(CASE WHEN (assets.role = ? AND assets.state = ?) THEN ? ELSE ? END) AS downloaded_pages, sum(CASE WHEN (length(assets.relative_path) > ?) THEN ? ELSE ? END) AS registered_originals, sum(CASE WHEN (assets.state = ?) THEN ? ELSE ? END) AS verified_originals, sum(CASE WHEN (assets.state = ? AND length(assets.relative_path) > ?) THEN ? ELSE ? END) AS unverified_originals, sum(CASE WHEN (length(assets.relative_path) > ? AND (assets.state NOT IN (?, ?, ?, ?, ?))) THEN ? ELSE ? END) AS usable \nFROM assets JOIN (SELECT revision_assets.asset_id AS asset_id \nFROM revision_assets JOIN current_works ON current_works.revision_id = revision_assets.revision_id UNION SELECT assets.id AS asset_id \nFROM assets JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.revision_id IS NULL AND assets.revision_id IS NULL) AS anon_2 ON anon_2.asset_id = assets.id JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.type = ? AND assets.role = ? OR current_works.type != ? AND assets.role = ? AND assets.page_index < current_works.page_count GROUP BY assets.work_id) AS anon_1 ON anon_1.work_id = current_works.work_id \nWHERE (current_works.pixiv_id NOT IN (SELECT archive_intents.pixiv_illust_id \nFROM archive_intents \nWHERE archive_intents.mode = ?))",
+      "executemany": false,
+      "interrupted_or_failed": false,
+      "thread_id": 18168
+    }
+  ],
+  "settings_stats_sql_observed_count": 3,
+  "settings_stats_sql_observed_concurrency": 1,
+  "http_settings_count": 21,
+  "slow_write_sql_observed_count": 1,
+  "events_by_kind": {
+    "download": 4,
+    "thumbnail": 18,
+    "metadata_work": 2,
+    "metadata_artist": 12,
+    "reconcile_asset": 23,
+    "checked": 24,
+    "reconcile_derivative": 1,
+    "reconcile_pair": 11,
+    "discover_page": 4,
+    "discover_work": 2,
+    "reconcile_snapshot": 23,
+    "reconcile_prepare": 12,
+    "ugoira_pair": 7,
+    "gif": 7
+  },
+  "limit": "Only SQL >=100ms retained; no DML parameters, rowcount, stack, operation context or full transaction statement manifest was recorded."
+}

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="3.075" timestamp="2026-10-08T02:09:45.586058+08:00" hostname="Baseline"><testcase classname="tests.test_archive_database" name="test_short_checkpoint_cycles_preserve_pinned_snapshot_and_committed_rows" time="1.699"><failure message="AssertionError: assert b'\x0c\xfeX\xc2&amp;\xe6\xc0\xb0' != b'\x0c\xfeX\xc2&amp;\xe6\xc0\xb0'">tmp_path = WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/.devtools/test-runs/b20261004.3-checkpoint-regression-01/pytest-red/test_short_checkpoint_cycles_p0')
+
+    def test_short_checkpoint_cycles_preserve_pinned_snapshot_and_committed_rows(tmp_path):
+        path = tmp_path / "checkpoint.db"
+        db = ArchiveDatabase.create(path)
+        observer = sqlite3.connect(path)
+        expected = 0
+        try:
+            page_size = observer.execute("PRAGMA page_size").fetchone()[0]
+            observer.execute("BEGIN")
+            assert observer.execute("SELECT count(*) FROM operations").fetchone()[0] == 0
+            wal = path.with_name(path.name + "-wal")
+            # A long external snapshot can pin the WAL. The writer must still
+            # commit, and recycle it once that snapshot ends; no forced truncation.
+            for batch in range(32):
+                with db.write() as session:
+                    for index in range(16):
+                        ident = f"checkpoint-{batch}-{index}"
+                        session.add(Operation(id=ident, kind="verify", label=ident,
+                            dedupe_key=ident, parameters={"payload": "x" * 2048}))
+                expected += 16
+                if wal.stat().st_size &gt; 300 * (page_size + 24) + 32:
+                    break
+            else:
+                pytest.fail("Synthetic writes did not cross the small checkpoint window")
+            assert wal.stat().st_size &lt; 1000 * (page_size + 24) + 32
+            assert observer.execute("SELECT count(*) FROM operations").fetchone()[0] == 0
+            with db.read() as session:
+                assert session.query(Operation).count() == expected
+            with wal.open("rb") as stream:
+                initial_salt = stream.read(24)[16:24]
+            observer.rollback()
+            for number in range(2):
+                with db.write() as session:
+                    session.get(Operation, "checkpoint-0-0").label = f"committed-{number}"
+            with wal.open("rb") as stream:
+&gt;               assert stream.read(24)[16:24] != initial_salt
+E               AssertionError: assert b'\x0c\xfeX\xc2&amp;\xe6\xc0\xb0' != b'\x0c\xfeX\xc2&amp;\xe6\xc0\xb0'
+
+tests\test_archive_database.py:118: AssertionError</failure></testcase></testsuite></testsuites>

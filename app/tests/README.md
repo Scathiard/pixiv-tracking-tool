@@ -6,6 +6,7 @@
 - `test_parallel_runtime_control.py`：正式 Runtime／RemoteAccess／PixivClient 与真实存档处理器的并行、持久重试、冷却、账号刷新单飞和代际保护；网络传输与凭据均为合成输入。
 - `test_account_publication.py`：账号最终核对与发布的竞态、旧连接失败不能清除新连接、账号／登录代际切换不能复活旧可信缓存，以及凭据等待不阻塞本地读取；只使用合成凭据，禁止外部网络。
 - `test_planning_fairness.py`、`test_task_claim_progress.py`：清点与就绪核对有界轮转、同操作双检查者互斥、暂停／离线／恢复，以及开始进度与领取共用提交、回滚重算、空通道不占写连接；真实处理器配合合成图库／传输。
+- `test_task_operation_fairness.py`：冷却操作超过 64 项后的续扫、新意图优先、无变化去重、双检查者互斥及暂停父图的线性快照；父子关系只在提交后发布，覆盖回滚、已完成中间节点与重启。
 - `parallel_reliability_probe.py --artifacts NEW_DIRECTORY --pilot-seconds 120 --check-workers both`：一万五千件作品／十五万零五百一十二条历史步骤的两组短测；去掉 `--pilot-seconds` 并指定单一检查者数量，执行至少八小时混合负载和完整维护。真实处理器、HTTP、文件与提交保持，远端只允许本机模拟服务；短测不等于长期验收，源码变化、失败或维护未完成均明确记录。
 - 前端 `tests/settings-lifecycle.html`：加载真实组件、使用隔离响应的页面读取生命周期验收入口；覆盖共享请求取消、关闭／重开日志、分页、超时、轮询、设置保存与旧响应，桌面／390／320px；不替代实际后端或 EXE 验收。
 
@@ -35,6 +36,7 @@
 - `test_migration.py`：数据目录预检、SQLite 快照、复制和失败回退。
 - `browser_fixture.py` + `browser_smoke.py`：真实 Chromium 的桌面/手机冒烟，只使用隔离夹具，不读取真实 Pixiv token 或图库。
 - `test_archive_database.py`、`test_legacy_archive_import.py`：新结构约束、旧 ID／偏好／路径映射、候选库失败回滚；只创建合成数据。
+- `test_archive_database.py` 另验证旧读取快照、并行新读取、WAL 复用、回滚及重开内容；保持 FULL，不把检查点阈值当作文件硬上限或断电实测。
 - `test_archive_media.py`、`test_archive_recovery.py`：文件解码、动图原包和时序、发布／删除中断恢复与单写入者。
 - `test_archive_card_motion.py`：有界动画缩略图、短循环和总时长、GIF-only 离线生成、后台维护、源版本与发布恢复；compact 图库使用轻量缓存，详情保留原 GIF。
 - `test_archive_tasks.py`、`test_archive_workflows.py`：固定轮次、真实处理量、暂停边界、精确补下载；手动全库／画师／单件范围内旧动图 ZIP／时序补齐，自动任务不顺带补旧原包；来源核对／跳过、临时失败和失败保留 GIF；HTTP 使用本机模拟服务。

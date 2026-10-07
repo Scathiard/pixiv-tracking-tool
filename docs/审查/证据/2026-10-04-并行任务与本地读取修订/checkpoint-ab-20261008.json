@@ -1,0 +1,168 @@
+[
+  {
+    "threshold": 1000,
+    "main_commit_seconds": {
+      "count": 64,
+      "p50": 0.10987059981562197,
+      "p95": 0.48836840013973415,
+      "max": 6.626968000084162
+    },
+    "empty_commit_seconds": {
+      "count": 64,
+      "p50": 1.6600126400589943e-05,
+      "p95": 4.720012657344341e-05,
+      "max": 0.0007007000967860222
+    },
+    "writer_wait_seconds": {
+      "count": 64,
+      "p50": 0.11110839992761612,
+      "p95": 0.4892241000197828,
+      "max": 6.6274011000059545
+    },
+    "reader_total_seconds": {
+      "count": 128,
+      "p50": 0.0008527000900357962,
+      "p95": 0.0049316000659018755,
+      "max": 0.3714284999296069
+    },
+    "reader_failures": [],
+    "long_main_commits": [
+      {
+        "index": 13,
+        "commit_seconds": 6.626968000084162,
+        "wal_before_frames": 964,
+        "wal_after_frames": 1031,
+        "appended_frames": 67,
+        "distinct_pages": 67,
+        "restart": false
+      },
+      {
+        "index": 27,
+        "commit_seconds": 3.3409211998805404,
+        "wal_before_frames": 950,
+        "wal_after_frames": 1019,
+        "appended_frames": 69,
+        "distinct_pages": 69,
+        "restart": false
+      },
+      {
+        "index": 41,
+        "commit_seconds": 3.1895135000813752,
+        "wal_before_frames": 931,
+        "wal_after_frames": 1008,
+        "appended_frames": 77,
+        "distinct_pages": 77,
+        "restart": false
+      },
+      {
+        "index": 56,
+        "commit_seconds": 3.4787308999802917,
+        "wal_before_frames": 978,
+        "wal_after_frames": 1049,
+        "appended_frames": 71,
+        "distinct_pages": 71,
+        "restart": false
+      }
+    ],
+    "threshold_crossings": [
+      {
+        "index": 13,
+        "commit_seconds": 6.626968000084162,
+        "wal_before_frames": 964,
+        "wal_after_frames": 1031,
+        "appended_frames": 67,
+        "distinct_pages": 67,
+        "restart": false
+      },
+      {
+        "index": 27,
+        "commit_seconds": 3.3409211998805404,
+        "wal_before_frames": 950,
+        "wal_after_frames": 1019,
+        "appended_frames": 69,
+        "distinct_pages": 69,
+        "restart": false
+      },
+      {
+        "index": 41,
+        "commit_seconds": 3.1895135000813752,
+        "wal_before_frames": 931,
+        "wal_after_frames": 1008,
+        "appended_frames": 77,
+        "distinct_pages": 77,
+        "restart": false
+      },
+      {
+        "index": 56,
+        "commit_seconds": 3.4787308999802917,
+        "wal_before_frames": 978,
+        "wal_after_frames": 1049,
+        "appended_frames": 71,
+        "distinct_pages": 71,
+        "restart": false
+      }
+    ],
+    "frame_write_scale": {
+      "count": 64,
+      "p50": 72,
+      "p95": 83,
+      "max": 87
+    },
+    "total_appended_frames": 4642,
+    "pool_peak": {
+      "read": 2,
+      "write": 1
+    },
+    "wal_peak_bytes": 4321912,
+    "workload_seconds": 26.01833439990878,
+    "final_checkpoint_seconds": 1.997050799895078,
+    "workload_plus_checkpoint_seconds": 28.01538519980386,
+    "logical_transactions_per_second_including_final_checkpoint": 2.2844590407576506
+  },
+  {
+    "threshold": 0,
+    "main_commit_seconds": {
+      "count": 64,
+      "p50": 0.049435599939897656,
+      "p95": 0.16649400000460446,
+      "max": 0.323975799838081
+    },
+    "empty_commit_seconds": {
+      "count": 64,
+      "p50": 1.6300007700920105e-05,
+      "p95": 3.3899908885359764e-05,
+      "max": 8.659996092319489e-05
+    },
+    "writer_wait_seconds": {
+      "count": 64,
+      "p50": 0.05028570001013577,
+      "p95": 0.1668835999444127,
+      "max": 0.3243135998491198
+    },
+    "reader_total_seconds": {
+      "count": 128,
+      "p50": 0.0008527999743819237,
+      "p95": 0.002988100051879883,
+      "max": 0.010462200036272407
+    },
+    "reader_failures": [],
+    "long_main_commits": [],
+    "threshold_crossings": [],
+    "frame_write_scale": {
+      "count": 64,
+      "p50": 72,
+      "p95": 83,
+      "max": 87
+    },
+    "total_appended_frames": 4642,
+    "pool_peak": {
+      "read": 2,
+      "write": 1
+    },
+    "wal_peak_bytes": 19149792,
+    "workload_seconds": 5.122825700091198,
+    "final_checkpoint_seconds": 5.191115400055423,
+    "workload_plus_checkpoint_seconds": 10.313941100146621,
+    "logical_transactions_per_second_including_final_checkpoint": 6.205193473432788
+  }
+]

@@ -7,13 +7,13 @@ import logging
 import re
 import threading
 import time
-from collections import Counter
+from collections import Counter, deque
 from dataclasses import dataclass, field
 from typing import Protocol
 from datetime import timedelta
 from contextlib import ExitStack, contextmanager
 
-from sqlalchemy import and_, case, exists, func, or_, select, true, union_all
+from sqlalchemy import and_, case, event, exists, func, or_, select, true, tuple_, union_all
 from sqlalchemy.orm import aliased
 
 from .database import ArchiveDatabase
@@ -180,11 +180,28 @@ class TaskQueue:
         self._round_admissions = 0
         self._candidate_after = {}
         self._candidate_epochs = {}
+        self._operation_after = {}
+        self._operation_epochs = {}
+        self._pause_generation = 0
+        self._pause_cache = None
         self._validated_phases = set()
         self._scan_context = threading.local()
         self._last_scan_more = False
         with self.database.read() as session:
             records = session.execute(select(Operation.id, Operation.pause_requested, Operation.result).where(Operation.state.in_(ACTIVE))).all()
+            # Finished intermediates can still connect an active grandchild to
+            # its paused ancestor. Restore only ancestors referenced by this graph.
+            known = {ident for ident, _, _ in records}
+            pending = {parent for _, _, result in records for parent in result.get("parent_operation_ids", [])} - known
+            while pending:
+                requested = list(pending)[:500]
+                known.update(requested)
+                pending.difference_update(requested)
+                ancestors = session.execute(select(Operation.id, Operation.pause_requested, Operation.result)
+                    .where(Operation.id.in_(requested))).all()
+                records.extend(ancestors)
+                pending.update(parent for _, _, result in ancestors for parent in result.get("parent_operation_ids", [])
+                    if parent not in known)
         self._paused_operations = {ident for ident, paused, _ in records if paused}
         self._control_parents = {ident: result.get("parent_operation_ids", []) for ident, _, result in records}
 
@@ -211,6 +228,91 @@ class TaskQueue:
     def kind_allowed(self, kind):
         allowed = self.allowed_kinds() if self.allowed_kinds else None
         return allowed is None or kind in allowed
+
+    def _reset_operation_windows_locked(self, key=None):
+        keys = (set(self._operation_epochs) | set(self._operation_after)) if key is None else (key,)
+        for current in keys:
+            self._operation_after.pop(current, None)
+            self._operation_epochs[current] = self._operation_epochs.get(current, 0) + 1
+
+    def _advance_operation_cursor(self, key, expected_epoch, after):
+        with self._scheduler_lock:
+            if self._operation_epochs.get(key, 0) != expected_epoch:
+                return False
+            self._operation_epochs[key] = expected_epoch + 1
+            if after is None:
+                self._operation_after.pop(key, None)
+            else:
+                self._operation_after[key] = after
+            return True
+
+    def _publish_controls_after_commit(self, session, *, parents=None, paused=None):
+        # Caller-owned transactions can append to an existing child's parents.
+        # Publish only committed relationships; callbacks use no SQL/connection.
+        key = ("task_controls", id(self))
+        changes = session.info.get(key)
+        if changes is None:
+            changes = session.info[key] = {"parents": {}, "paused": {}}
+
+            def committed(owner):
+                pending = owner.info.pop(key, None)
+                if pending is None:
+                    return
+                with self._scheduler_lock:
+                    self._control_parents.update(pending["parents"])
+                    for ident, value in pending["paused"].items():
+                        if value:
+                            self._paused_operations.add(ident)
+                        else:
+                            self._paused_operations.discard(ident)
+                    if pending["parents"] or pending["paused"]:
+                        self._pause_generation += 1
+                        self._pause_cache = None
+                    self._reset_operation_windows_locked()
+                self._wake.set()
+
+            def rolled_back(owner):
+                owner.info.pop(key, None)
+
+            event.listen(session, "after_commit", committed, once=True)
+            event.listen(session, "after_rollback", rolled_back, once=True)
+        if parents is not None:
+            changes["parents"][parents[0]] = tuple(parents[1])
+        if paused is not None:
+            changes["paused"][paused[0]] = paused[1]
+
+    @staticmethod
+    def _paused_closure(paused, parents):
+        children = {}
+        for child, ancestors in parents.items():
+            for ancestor in ancestors:
+                children.setdefault(ancestor, []).append(child)
+        effective = set(paused)
+        pending = deque(paused)
+        while pending:
+            for child in children.get(pending.popleft(), ()):
+                if child not in effective:
+                    effective.add(child)
+                    pending.append(child)
+        return frozenset(effective)
+
+    def _effective_paused(self):
+        while True:
+            with self._scheduler_lock:
+                generation = self._pause_generation
+                if self._pause_cache is not None and self._pause_cache[0] == generation:
+                    return self._pause_cache[1]
+                if not self._paused_operations:
+                    effective = frozenset()
+                    self._pause_cache = (generation, effective)
+                    return effective
+                paused = set(self._paused_operations)
+                parents = {ident: tuple(values) for ident, values in self._control_parents.items()}
+            effective = self._paused_closure(paused, parents)
+            with self._scheduler_lock:
+                if self._pause_generation == generation:
+                    self._pause_cache = (generation, effective)
+                    return effective
 
     def _allowed_query(self, query):
         allowed = self.allowed_kinds() if self.allowed_kinds else None
@@ -250,23 +352,12 @@ class TaskQueue:
                 session.add(ApplicationState(key="automatic_paused", value=paused))
             else:
                 setting.value = paused
+            self._publish_controls_after_commit(session)
         self._wake.set()
         return paused
 
     def operation_paused(self, operation_id):
-        with self._scheduler_lock:
-            paused = set(self._paused_operations)
-            parents = dict(self._control_parents)
-        pending, seen = [operation_id], set()
-        while pending:
-            ident = pending.pop()
-            if ident in seen:
-                continue
-            if ident in paused:
-                return True
-            seen.add(ident)
-            pending.extend(parents.get(ident, []))
-        return False
+        return operation_id in self._effective_paused()
 
     @staticmethod
     def _paused_in_transaction(session, operation):
@@ -293,11 +384,7 @@ class TaskQueue:
             operation.updated_at = utcnow()
             operation.detail = "已请求暂停，当前步骤安全结束后停下" if paused else "已继续，等待处理未完成部分"
             result = {"operation_id": operation_id, "pause_requested": paused, "state": operation.state}
-        with self._scheduler_lock:
-            if paused:
-                self._paused_operations.add(operation_id)
-            else:
-                self._paused_operations.discard(operation_id)
+            self._publish_controls_after_commit(session, paused=(operation_id, paused))
         self._wake.set()
         return result
 
@@ -321,6 +408,7 @@ class TaskQueue:
             statement = statement.where(Operation.source == "automatic" if automatic_check else Operation.source != "automatic")
         operation = session.scalar(statement)
         created = operation is None
+        promoted = not created and source == "manual" and operation.source != "manual"
         if created:
             operation = Operation(kind=kind, parameters=parameters, source=source, label=label, dedupe_key=key)
             session.add(operation)
@@ -331,19 +419,22 @@ class TaskQueue:
                 self.materialize_in_transaction(session, operation.id, specs)
         elif source == "manual":
             operation.source = "manual"
+        inherited_round = False
         if parent_id is not None:
             parent = session.get(Operation, parent_id)
             children = list(parent.result.get("child_operation_ids", []))
             if operation.id not in children:
                 children.append(operation.id)
-            parent.result = {**parent.result, "child_operation_ids": children}
+                parent.result = {**parent.result, "child_operation_ids": children}
             parents = list(operation.result.get("parent_operation_ids", []))
             if parent_id not in parents:
                 parents.append(parent_id)
-            operation.result = {**operation.result, "parent_operation_ids": parents}
-            with self._scheduler_lock:
-                self._control_parents[operation.id] = parents
+                operation.result = {**operation.result, "parent_operation_ids": parents}
+                self._publish_controls_after_commit(session, parents=(operation.id, parents))
+            inherited_round = operation.round_id is None and parent.round_id is not None
             operation.round_id = operation.round_id or parent.round_id
+        if created or promoted or inherited_round:
+            self._publish_controls_after_commit(session)
         self._wake.set()
         return {"operation_id": operation.id, "created": created, "state": operation.state, "round_id": operation.round_id}
 
@@ -566,18 +657,25 @@ class TaskQueue:
                 with self.database.write() as session:
                     self._claim_round_in_transaction(session)
         claim = None
+        operation_key = (lane, round_id)
+        with self._scheduler_lock:
+            operation_after = self._operation_after.get(operation_key)
+            operation_epoch = self._operation_epochs.get(operation_key, 0)
+        paused_ids = self._effective_paused()
         with self.database.read() as session:
             query = self._allowed_query(select(Operation).where(Operation.state.in_(("queued", "planning", "ready", "running", "interrupted")),
                 Operation.pause_requested.is_(False)))
             if round_id is not None:
                 query = query.where(Operation.round_id == round_id)
-            with self._scheduler_lock:
-                controlled = tuple(self._control_parents)
-            paused_ids = [ident for ident in controlled if self.operation_paused(ident)]
             if paused_ids:
                 query = query.where(~Operation.id.in_(paused_ids))
-            operations = list(session.scalars(query.order_by(Operation.last_claim_seq,
-                case((Operation.source == "manual", 0), else_=1), Operation.created_at, Operation.id).limit(64)))
+            priority = case((Operation.source == "manual", 0), else_=1)
+            window = query
+            if operation_after is not None:
+                window = window.where(tuple_(Operation.last_claim_seq, priority, Operation.created_at, Operation.id) > operation_after)
+            scanned = list(session.scalars(window.order_by(Operation.last_claim_seq,
+                priority, Operation.created_at, Operation.id).limit(64)))
+            operations = list(scanned)
             if claim_sequence % 8 == 7:
                 maintenance = session.scalar(query.where(Operation.source == "maintenance",
                     Operation.round_id.is_not(None)).order_by(Operation.last_claim_seq,
@@ -651,6 +749,11 @@ class TaskQueue:
                     candidates.append(("plan", operation.id))
                 if candidates:
                     break
+        if not candidates:
+            after = ((scanned[-1].last_claim_seq, 0 if scanned[-1].source == "manual" else 1,
+                      scanned[-1].created_at, scanned[-1].id) if len(scanned) == 64 else None)
+            advanced = self._advance_operation_cursor(operation_key, operation_epoch, after)
+            self._last_scan_more = self._last_scan_more or after is not None or not advanced
         # Finalization belongs to planning/item completion and deferred round
         # release below. An empty lane has no state change to commit; a later
         # submission or dependency settlement wakes the workers normally.
@@ -670,7 +773,8 @@ class TaskQueue:
                             self._finalize_round(session, previous_round)
                 for candidate in candidates:
                     operation = session.get(Operation, candidate[1])
-                    if operation.state == "finished" or self._paused_in_transaction(session, operation) or not self.kind_allowed(operation.kind):
+                    if (operation is None or operation.state == "finished" or self.operation_paused(operation.id)
+                            or self._paused_in_transaction(session, operation) or not self.kind_allowed(operation.kind)):
                         continue
                     if candidate[0] == "plan":
                         not_before = operation.result.get("planning_not_before")
@@ -715,6 +819,7 @@ class TaskQueue:
                     with self._scheduler_lock:
                         self._claim_sequence = max(self._claim_sequence, operation.last_claim_seq) + 1
                         sequence = self._claim_sequence
+                        self._reset_operation_windows_locked(operation_key)
                     if candidate[0] != "plan":
                         operation.last_claim_seq = sequence
                     break

@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 
 from src.core.database import ArchiveDatabase, UpgradeRequired
 from src.core.models import (
-    ArchiveIntent, Artist, Asset, LocalPreference, TrackingPolicy, Work,
+    ArchiveIntent, Artist, Asset, LocalPreference, Operation, TrackingPolicy, Work,
 )
 
 
@@ -79,3 +79,59 @@ def test_asset_identity_is_unique_and_suppression_survives_missing_work(tmp_path
             assert session.get(ArchiveIntent, "deleted-work").mode == "suppressed"
     finally:
         db.close()
+
+
+def test_checkpoint_recycling_preserves_pinned_snapshot_and_committed_rows(tmp_path):
+    path = tmp_path / "checkpoint.db"
+    db = ArchiveDatabase.create(path)
+    observer = sqlite3.connect(path)
+    expected = 0
+    try:
+        page_size = observer.execute("PRAGMA page_size").fetchone()[0]
+        with db.writer_engine.connect() as connection:
+            threshold = connection.exec_driver_sql("PRAGMA wal_autocheckpoint").scalar_one()
+            assert 0 < threshold <= 1000
+            assert connection.exec_driver_sql("PRAGMA synchronous").scalar_one() == 2
+        observer.execute("BEGIN")
+        assert observer.execute("SELECT count(*) FROM operations").fetchone()[0] == 0
+        wal = path.with_name(path.name + "-wal")
+        # A long external snapshot can pin the WAL. The writer must still
+        # commit, and recycle it once that snapshot ends; no forced truncation.
+        for batch in range(128):
+            with db.write() as session:
+                for index in range(16):
+                    ident = f"checkpoint-{batch}-{index}"
+                    session.add(Operation(id=ident, kind="verify", label=ident,
+                        dedupe_key=ident, parameters={"payload": "x" * 2048}))
+            expected += 16
+            if wal.stat().st_size > (threshold + 40) * (page_size + 24) + 32:
+                break
+        else:
+            pytest.fail("Synthetic writes did not cross the checkpoint window")
+        assert observer.execute("SELECT count(*) FROM operations").fetchone()[0] == 0
+        with db.read() as session:
+            assert session.query(Operation).count() == expected
+        with wal.open("rb") as stream:
+            initial_salt = stream.read(24)[16:24]
+        observer.rollback()
+        for number in range(2):
+            with db.write() as session:
+                session.get(Operation, "checkpoint-0-0").label = f"committed-{number}"
+        with wal.open("rb") as stream:
+            assert stream.read(24)[16:24] != initial_salt
+        with pytest.raises(RuntimeError, match="rollback marker"), db.write() as session:
+            session.get(Operation, "checkpoint-0-0").label = "must roll back"
+            raise RuntimeError("rollback marker")
+    finally:
+        observer.close()
+        db.close()
+    reopened = ArchiveDatabase(path)
+    try:
+        with reopened.read() as session:
+            assert session.query(Operation).count() == expected
+            assert session.get(Operation, "checkpoint-0-0").label == "committed-1"
+        with reopened.writer_engine.connect() as connection:
+            assert connection.exec_driver_sql("PRAGMA synchronous").scalar_one() == 2
+            assert connection.exec_driver_sql("PRAGMA quick_check").scalar_one() == "ok"
+    finally:
+        reopened.close()

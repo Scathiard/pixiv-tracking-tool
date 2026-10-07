@@ -1,0 +1,18 @@
+{
+  "source_head": "86e81fbdbb48f47b0db9658f733c35832fe7dcfa",
+  "tasks_sha256": "D2BF23A5D44007D17EF6BE7A20CB96D58A5C8CE557FA0408AA5C4E843AA4EF94",
+  "specialty_tests": 18,
+  "final_specialty_and_affected_regressions": {"passed": 21, "seconds": 17.53},
+  "preceding_direct_regressions": {"passed": 29, "seconds": 71.11},
+  "cold_prefix_to_first_ready_check_steps": {"63": 1, "64": 2, "128": 3},
+  "graph_sizes": [4, 8, 16, 32, 64],
+  "previous_graph_copied_entries": [16, 64, 256, 1024, 4096],
+  "fixed_paused_graph_copied_entries_per_generation": [4, 8, 16, 32, 64],
+  "fixed_unpaused_graph_additional_copied_entries": 0,
+  "same_operation_peak_check_workers": 1,
+  "parent_rollback_published": false,
+  "frozen": true,
+  "large_pilot_run": false,
+  "full_suite_run": false,
+  "network_requests": 0
+}

@@ -15,5 +15,15 @@
 | `reliability-seed-contract.json`、`reliability-instrument-selfcheck.json` | `reliability-seed-selfcheck-20261008-05`／`reliability-instrument-final-20261008-06`；规范版本／时序结构与无多余新版本的小型自检、计时采样及持续覆盖守卫验证，不等于大规模通过 |
 | `snapshot-sharing-related.xml`、`snapshot-sharing-final.xml`、`snapshot-sharing-final-result.json` | `b20261008-read-sharing-03`／`05`；44 项相关回归、最终 23 项专项；GET 在途共享与写后／账号／取消边界，无真实账号或图库 |
 | `settings-isolated-20261008.json`、`resource-peaks-selfcheck-20261008.json` | `reliability-settings-isolated-20261008-07`／`resource-freeze-20261008-10`；完整静止读取及真实资源峰值封装自检，不等于维护中的响应时间 |
+| `reliability-shared-pilot-20261008.json`、`operation-window-red-20261008.json` | `reliability-20261008-04`／`window-fairness-01`；共享读取后 120/120 HTTP 成功但一次小任务受理仍超标，以及第 65 个操作饥饿／暂停父图平方复制的独立红证据 |
+
+| `operation-window-fix-20261008.json`、`operation-window-validation-20261008.md` | `b20261008-operation-fairness-fix-01`；最终 21 项专项及受影响回归、此前 29 项相关回归，红反例另保留 |
+| `commit-wait-attribution-20261008.json`、`checkpoint-ab-20261008.json`、`checkpoint-reverse-20261008.json` | 诊断 run 11／12／14；真实等待分段及固定合成 SQL 的检查点对照，逆序组先同步副本；保留吞吐代价和边界，不等于正式任务通过 |
+
+| `checkpoint-regression-red.xml`、`checkpoint-regression-green.xml` | `b20261004.3-checkpoint-regression-01`；小周期复用先红后绿，41 项数据库／恢复／读取相关回归通过 |
+
+| `storage-analysis.json`、`storage-comparison.json`、`storage-manifest.json` | `reliability-storage-20261008-15`；同合成数据库与 SQL 在 C: SSD／D: HDD 的定向对照及临时副本保留位置，不代表完整 APP 或真实库迁移验收 |
+
+| `storage-inventory.json` | 用户要求核对后仅枚举真实图片目录的文件长度及数据库文件长度；没有读取图片／数据库内容，94.48 GB 图片与 0.823 GB 数据库分开统计 |
 
 全套回归、大型对照、实际 8 小时持续运行及最终 EXE 证据尚待补入；本目录存在不代表已交付。中断的 `full-01` 和源码曾变化的 `reliability-01` 原位保留，仅作过程诊断。
