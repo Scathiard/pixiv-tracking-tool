@@ -30,6 +30,8 @@
 | `filter-runtime-contract.xml` | `b20261008-filter-contract-01`；为三项旧 Runtime 替身补入正式读取边界需要的同一合成 database 后，原筛选断言 3 项通过；未修改生产代码 |
 | `test-boundaries-validation.md`、`test-boundaries-targeted.xml`、`test-boundaries-final.xml` | `b20261008-test-boundaries-01`；清点与执行分层、内存预算进程隔离的 2 项定向及所属两文件全 20 项通过，2000 页及原 300 MiB 上限保留 |
 | `full-03-rechecks.json` | 主会话逐一对照全套原 5 个失败用例与复验 XML；五项全部复验通过、生产代码未改，不表示第二次全套运行 |
+| `reliability-program-only-check-1.json`、`reliability-program-only-check-2.json`、`reliability-program-only-comparison.json` | `b20261004.3-reliability-20261008-05`；固定 `e67f490` 在 D: 独占运行的两组规范规模短测，各 120 秒、120 个 HTTP 全成功；两组短测门槛均通过，仍有提交长尾，第二名检查者未改善整体延迟，继续保留 1 名 |
+| `reliability-failfast-selfcheck.json` | `b20261004.3-reliability-instrument-failfast-20261008-16`；1000 件／1024 步的仪器自检，实际 HTTP 后显式注入失败；长测模式 2.56 秒后正常收尾仍判失败，短测仍跑满 12 秒，两组均正常关闭。不是大型验收，八小时和完整维护门槛未放宽 |
 
 | `storage-analysis.json`、`storage-comparison.json`、`storage-manifest.json` | `reliability-storage-20261008-15`；同合成数据库与 SQL 在 C: SSD／D: HDD 的定向对照及临时副本保留位置，不代表完整 APP 或真实库迁移验收 |
 

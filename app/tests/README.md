@@ -9,7 +9,7 @@
 - `test_account_publication.py`：账号最终核对与发布的竞态、旧连接失败不能清除新连接、账号／登录代际切换不能复活旧可信缓存，以及凭据等待不阻塞本地读取；只使用合成凭据，禁止外部网络。
 - `test_planning_fairness.py`、`test_task_claim_progress.py`：清点与就绪核对有界轮转、同操作双检查者互斥、暂停／离线／恢复，以及开始进度与领取共用提交、回滚重算、空通道不占写连接；真实处理器配合合成图库／传输。
 - `test_task_operation_fairness.py`：冷却操作超过 64 项后的续扫、新意图优先、无变化去重、双检查者互斥及暂停父图的线性快照；父子关系只在提交后发布，覆盖回滚、已完成中间节点与重启。
-- `parallel_reliability_probe.py --artifacts NEW_DIRECTORY --pilot-seconds 120 --check-workers both`：一万五千件作品／十五万零五百一十二条历史步骤的两组短测；去掉 `--pilot-seconds` 并指定单一检查者数量，执行至少八小时混合负载和完整维护。真实处理器、HTTP、文件与提交保持，远端只允许本机模拟服务；短测不等于长期验收，源码变化、失败或维护未完成均明确记录。
+- `parallel_reliability_probe.py --artifacts NEW_DIRECTORY --pilot-seconds 120 --check-workers both`：一万五千件作品／十五万零五百一十二条历史步骤的两组短测；去掉 `--pilot-seconds` 并指定单一检查者数量，执行至少八小时混合负载和完整维护。长测一旦记录验收失败便正常收尾并保留失败，完整时长和维护完成门槛仍强制执行；短测始终跑完指定窗口。真实处理器、HTTP、文件与提交保持，远端只允许本机模拟服务；短测不等于长期验收，源码变化、失败或维护未完成均明确记录。
 - 前端 `tests/settings-lifecycle.html`：加载真实组件、使用隔离响应的页面读取生命周期验收入口；覆盖共享请求取消、关闭／重开日志、分页、超时、轮询、设置保存与旧响应，桌面／390／320px；不替代实际后端或 EXE 验收。
 
 - `client_mobile_chrome_browser.py --artifacts NEW_DIRECTORY [--exe EXE_PATH]`：正式前端的 390／360／320px 手机与明暗主题、单项／并行任务高度及遮图面积、真实计数、暂停／继续触摸请求、上一件／下一件／红心 44px 可触范围；使用 Chromium 原生安全区 0／24／48px，另以明确标记的 VisualViewport 信号回放布局／可见区域不一致、地址栏／键盘与恢复，覆盖横竖屏返回和捏合缩放时保留布局。另核对手机未知分母／断线／空闲无假进度，以及 1440px 详情／流式底栏在有无任务时的可达性。源码与 EXE 都只用隔离合成图库，EXE 走自带冒烟入口；新证据保留在主仓库 `.devtools/test-runs/b20261003.7-mobile-*`，不自动构建前端，不表示实体 Android Chrome 已验收。

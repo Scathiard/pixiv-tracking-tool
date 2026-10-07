@@ -148,6 +148,10 @@ class Telemetry:
                 self.failures.append(message)
         self.event("constraint_failure", message=message)
 
+    def has_failures(self):
+        with self.lock:
+            return bool(self.failures)
+
     @contextmanager
     def span(self, category, **values):
         start = self.event(category + "_start", **values)
@@ -940,6 +944,12 @@ def run_case(out, args, check_workers):
                 except Exception as exc:
                     telemetry.fail(f"progress/resource sample: {type(exc).__name__}")
                 next_sample = now + 5
+            if args.pilot_seconds is None and telemetry.has_failures():
+                # A failed soak cannot become a pass by waiting eight hours.
+                # Preserve the evidence and use the normal finally cleanup;
+                # the full duration/completion gates below remain mandatory.
+                result["stopped_early_after_failure"] = True
+                break
             time.sleep(.05)
         result.update(elapsed_seconds=time.monotonic() - began, bursts=burst, maintenance_completed=completed,
                       maintenance_progress=progress_samples)
