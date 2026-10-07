@@ -1,0 +1,20 @@
+{
+  "source_head": "f0df243943ae54bba3842b171dc65435d0efe398",
+  "tasks_sha256": "66E635C7473E7D93B6FE8BE2225AE53D09BFC82630D51C4BBE9EA9FFCFBC093F",
+  "byte_reports": [10, 50, 100],
+  "before_cumulative_report_commits": [1, 2, 3],
+  "after_cumulative_report_commits": [0, 0, 0],
+  "after_minimal_step_total_commits": 3,
+  "bytes_100_while_item_running": true,
+  "specialty_tests_passed": 13,
+  "direct_regressions_initial": {"passed": 24, "failed": 1},
+  "old_shutdown_seam_reproduced_with_baseline_tasks": true,
+  "final_specialty_and_corrected_shutdown": {"passed": 14, "failed": 0},
+  "selected_direct_regressions_with_passing_evidence": 25,
+  "unresolved_failures": 0,
+  "frozen": true,
+  "full_suite_run": false,
+  "large_pilot_run": false,
+  "storage_paths_changed": false,
+  "network_requests": 0
+}

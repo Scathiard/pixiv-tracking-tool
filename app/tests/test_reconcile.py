@@ -613,8 +613,10 @@ def test_planning_reads_catalogue_without_decoding_or_hashing_files(archive, mon
     round_id = queue._claim_round()
     assert queue._step("check", round_id)
     assert queue.details(operation_id)["state"] == "planning"
+    # The scheduler now fairly interleaves already-ready checks with inventory.
+    # Exercise inventory itself here; executing those checks is covered separately.
     while queue.details(operation_id)["state"] == "planning":
-        assert queue._step("check", round_id)
+        queue._plan(operation_id)
     assert queue.details(operation_id)["state"] == "ready"
     assert progress[0][0] >= 0 and progress[-1] == (26, None, "works")
     assert any(0 < done < 26 for done, _, _ in progress)

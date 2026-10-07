@@ -417,7 +417,12 @@ def test_real_downloader_unwinds_then_archive_resumes_without_false_failure(tmp_
     recovered = Runtime(tmp_path / "archive.db", tmp_path / "images", downloader=downloader, client=connected)
     try:
         recovered.queue.recover()
-        assert recovered.queue.run_round()
+        # The reused downloader still enforces its real request interval after
+        # restart; a synchronous round can legitimately yield during cooldown.
+        deadline = time.monotonic() + 10
+        while not recovered.queue.run_round():
+            assert time.monotonic() < deadline, "recovered download did not finish after normal admission"
+            time.sleep(0.05)
         assert recovered.queue.details(operation)["state"] == "finished"
         with recovered.database.read() as session:
             asset = session.scalar(select(Asset))

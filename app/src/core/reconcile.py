@@ -170,8 +170,7 @@ class ReconcileHandler(ArchiveHandler):
     def _snapshot(self, work, target, context):
         from ..request_policy import ShutdownRequested
         account = self._bookmark_account()
-        bookmark_version = self.bookmarks.begin_observation(work.id) if account is not None else None
-        version = self.source_status.begin("work", work.id, account) if self.source_status else None
+        bookmark_version, version, _, account_context = self._begin_work_observation(work.id, account)
         metadata, data = None, None
         try:
             data = self.client.get_illust_detail(work.pixiv_illust_id)
@@ -190,14 +189,12 @@ class ReconcileHandler(ArchiveHandler):
                     if isinstance(exc, LocalReadError):
                         raise
                     failure = safe_failure(exc)
-            saved = self._save_remote_work(work.artist_id, data, metadata=metadata,
-                expected_work_id=work.id, expected_revision=target["revision"], expected_source_version=version,
+            saved = self._save_work_observation(work.artist_id, data, metadata=metadata,
+                work_id=work.id, revision=target["revision"], source_version=version,
+                bookmark_version=bookmark_version, account=account, account_context=account_context,
                 compare_content=self.compare_content)
             if saved is None:
                 return ItemResult(detail={"remote_ready": False, "message": "来源已有较新核对，旧响应不再应用"})
-            if self.source_status and self._bookmark_account() == account:
-                self.source_status.apply_available("work", work.id, data, version, account)
-            self._apply_bookmark(work.id, data, bookmark_version, account)
             with self.database.read() as session:
                 revision = latest_revision(session, work.id)
             return ItemResult(detail={"metadata": metadata, "failure": failure, "remote_ready": failure is None,

@@ -93,9 +93,10 @@ class ConnectionRequired(BaseException):
 
 
 class TaskContext:
-    def __init__(self, queue: TaskQueue, operation_id: str, item_id: str | None = None, *, kind=None):
+    def __init__(self, queue: TaskQueue, operation_id: str, item_id: str | None = None, *, kind=None, byte_token=None):
         self.queue, self.operation_id, self.item_id = queue, operation_id, item_id
         self.kind = kind
+        self._byte_token = byte_token
         self.requests_sent = 0
 
     def mark_remote_attempt(self):
@@ -129,11 +130,12 @@ class TaskContext:
 
     def report_bytes(self, done: int, total: int | None):
         self.checkpoint()
-        with self.queue.database.write() as session:
-            operation = session.get(Operation, self.operation_id)
-            current_items = dict(operation.result.get("current_items", {}))
-            current_items[self.item_id] = {"id": self.item_id, "unit": "bytes", "done": done, "total": total}
-            operation.result = {**operation.result, "current_items": current_items, "current_item": current_items[self.item_id]}
+        try:
+            self.queue._record_byte_progress(self.item_id, self._byte_token, done, total)
+        except Exception as exc:
+            # A display failure must not lose an otherwise valid download or
+            # its publication/settlement. Control exceptions above still yield.
+            log.warning("task_byte_progress operation=%s error=%s", self.operation_id, type(exc).__name__)
 
     def detail(self, text):
         self.checkpoint()
@@ -184,6 +186,8 @@ class TaskQueue:
         self._operation_epochs = {}
         self._pause_generation = 0
         self._pause_cache = None
+        self._byte_attempts = {}
+        self._byte_progress_generation = 0
         self._validated_phases = set()
         self._scan_context = threading.local()
         self._last_scan_more = False
@@ -229,6 +233,64 @@ class TaskQueue:
         allowed = self.allowed_kinds() if self.allowed_kinds else None
         return allowed is None or kind in allowed
 
+    @property
+    def byte_progress_generation(self):
+        with self._scheduler_lock:
+            return self._byte_progress_generation
+
+    def _begin_byte_attempt(self, operation_id, item):
+        token = object()
+        with self._scheduler_lock:
+            self._byte_attempts[item.id] = (operation_id, token, item.attempts, None)
+            self._byte_progress_generation += 1
+        return token
+
+    def _end_byte_attempt(self, item_id, token):
+        with self._scheduler_lock:
+            current = self._byte_attempts.get(item_id)
+            if current is not None and current[1] is token:
+                self._byte_attempts.pop(item_id)
+                self._byte_progress_generation += 1
+
+    def _clear_byte_attempts(self, operation_ids=None):
+        with self._scheduler_lock:
+            removed = [ident for ident, value in self._byte_attempts.items()
+                       if operation_ids is None or value[0] in operation_ids]
+            for ident in removed:
+                self._byte_attempts.pop(ident)
+            if removed:
+                self._byte_progress_generation += 1
+
+    def _record_byte_progress(self, item_id, token, done, total):
+        if (type(done) is not int or done < 0 or
+                total is not None and (type(total) is not int or total < 0 or done > total)):
+            return
+        value = {"id": item_id, "unit": "bytes", "done": done, "total": total}
+        with self._scheduler_lock:
+            current = self._byte_attempts.get(item_id)
+            if current is None or current[1] is not token or self._stop.is_set():
+                return
+            if current[3] != value:
+                self._byte_attempts[item_id] = (*current[:3], value)
+                self._byte_progress_generation += 1
+
+    def _merge_byte_progress(self, views, running_items):
+        # Call only after returning the foreground read connection. Each copy
+        # is bounded by current executions, never by historical operation size.
+        with self._scheduler_lock:
+            current = {ident: (value[0], value[2], dict(value[3]))
+                       for ident, value in self._byte_attempts.items() if value[3] is not None}
+        for view in views:
+            items = {}
+            for ident, attempt in running_items.get(view["id"], ()):
+                value = current.get(ident)
+                if value is not None and value[0] == view["id"] and value[1] == attempt:
+                    items[ident] = value[2]
+            view["result"]["current_items"] = items
+            if items:
+                view["result"]["current_item"] = next(iter(items.values()))
+        return views
+
     def _reset_operation_windows_locked(self, key=None):
         keys = (set(self._operation_epochs) | set(self._operation_after)) if key is None else (key,)
         for current in keys:
@@ -269,6 +331,8 @@ class TaskQueue:
                         self._pause_generation += 1
                         self._pause_cache = None
                     self._reset_operation_windows_locked()
+                if pending["parents"] or pending["paused"]:
+                    self._clear_byte_attempts(self._effective_paused())
                 self._wake.set()
 
             def rolled_back(owner):
@@ -510,6 +574,7 @@ class TaskQueue:
 
     def recover(self):
         """Call after filesystem journal recovery, before starting the sole worker."""
+        self._clear_byte_attempts()
         with self.database.write() as session:
             for item in session.scalars(select(OperationItem).where(OperationItem.state == "running")):
                 item.state = "pending"
@@ -535,6 +600,7 @@ class TaskQueue:
         # Called directly from the tray: do not wait for an in-flight DB writer.
         self._accepting = False
         self._stop.set()
+        self._clear_byte_attempts()
         self._wake.set()
 
     def stop(self, timeout=5):
@@ -569,6 +635,7 @@ class TaskQueue:
                 self.worker_error = type(exc).__name__
                 log.error("任务执行器中断，未完成记录已保留", exc_info=False)
                 self._stop.set()
+                self._clear_byte_attempts()
 
     @staticmethod
     def _lane(item):
@@ -1060,7 +1127,8 @@ class TaskQueue:
         operation.detail, operation.updated_at = "正在处理", utcnow()
         snapshots = dict(operation.result.get("phase_snapshots", {}))
         snapshots[phase + ":" + unit] = {"phase": phase, "unit": unit, **progress}
-        operation.result = {**operation.result, "phase_snapshots": snapshots}
+        operation.result = {**{key: value for key, value in operation.result.items()
+                              if key not in ("current_item", "current_items")}, "phase_snapshots": snapshots}
 
     @staticmethod
     def record_settlement_in_transaction(session, item, previous_state):
@@ -1074,11 +1142,19 @@ class TaskQueue:
             operation.result = {**operation.result, "step_progress": progress}
 
     def _execute_item(self, operation_id, item, dependency_failed=False, *, progress_prepared=False):
+        token = self._begin_byte_attempt(operation_id, item)
+        try:
+            return self._execute_item_attempt(operation_id, item, dependency_failed,
+                progress_prepared=progress_prepared, byte_token=token)
+        finally:
+            self._end_byte_attempt(item.id, token)
+
+    def _execute_item_attempt(self, operation_id, item, dependency_failed=False, *, progress_prepared=False, byte_token=None):
         from ..request_policy import ShutdownRequested
         phase_key = item.phase + ":" + item.unit
         with self.database.read() as session:
             kind = session.get(Operation, operation_id).kind
-        context = TaskContext(self, operation_id, item.id, kind=kind)
+        context = TaskContext(self, operation_id, item.id, kind=kind, byte_token=byte_token)
         context.allow_token_refresh = not item.result.get("auth_refreshed", False)
         # Claim happened just before shutdown: leave the item pending rather than
         # classifying cancellation as a failed or successful attempt.
@@ -1269,6 +1345,7 @@ class TaskQueue:
             operation.needs_attention = False
 
     def snapshot(self, *, history_limit=20):
+        running_items = {}
         with self.database.read() as session:
             current = session.scalar(select(TaskRound).order_by(TaskRound.created_at.desc()).limit(1))
             waiting = session.scalar(select(func.count()).select_from(Operation).where(
@@ -1289,16 +1366,19 @@ class TaskQueue:
             history = list(session.scalars(select(Operation).where(Operation.state == "finished").order_by(
                 Operation.finished_at.desc()).limit(max(1, min(history_limit, 100)))))
             attention_count = session.scalar(select(func.count()).select_from(Operation).where(Operation.needs_attention.is_(True)))
-            views = [self._operation_view(op, session) for op in active + history]
+            views = [self._operation_view(op, session, running_items) for op in active + history]
             for view in views:
                 view["result"] = {key: value for key, value in view["result"].items() if key not in ("child_operation_ids", "parent_operation_ids")}
-            return {"active_operation_count": active_operation_count, "queued_operation_count": queued_operation_count, "catalogue_revision": catalogue_revision(session), "round": rounds, "next_round_count": waiting, "needs_attention_count": attention_count,
+            response = {"active_operation_count": active_operation_count, "queued_operation_count": queued_operation_count, "catalogue_revision": catalogue_revision(session), "round": rounds, "next_round_count": waiting, "needs_attention_count": attention_count,
                     "automatic_paused": bool((setting := session.get(ApplicationState, "automatic_paused")) and setting.value),
                     "worker_error": self.worker_error,
                     "operations": views}
+        self._merge_byte_progress(views, running_items)
+        return response
 
-    def _operation_view(self, op, session=None):
-        result = dict(op.result)
+    def _operation_view(self, op, session=None, running_items=None):
+        # Durable snapshots from older versions are never live byte progress.
+        result = {key: value for key, value in op.result.items() if key not in ("current_item", "current_items")}
         running = []
         manually_paused = self.operation_paused(op.id)
         waiting_connection = op.state in ACTIVE and not self.kind_allowed(op.kind)
@@ -1322,10 +1402,8 @@ class TaskQueue:
                 phase = {"name": item.phase, "unit": item.unit, "done": progress["done"],
                     "total": None if result.get("planning_complete") is False or remote_pages else progress["total"], "detail": "正在处理"}
                 lane = TaskQueue._lane(item)
-                current = result.get("current_items", {}).get(item.id)
-                result.pop("current_item", None)
-                if current:
-                    result["current_item"] = current
+                if running_items is not None:
+                    running_items[op.id] = [(stored.id, stored.attempts) for stored in running]
         return {"id": op.id, "round_id": op.round_id, "kind": op.kind, "label": op.label,
                 "source": op.source, "lane": lane,
                 "state": ("pausing" if running or op.id in self._planning else "paused") if manually_paused else "queued" if waiting_connection else op.state,
@@ -1337,6 +1415,7 @@ class TaskQueue:
 
     def details(self, operation_id, offset=0, limit=100, problems_only=False):
         limit = max(1, min(limit, 100))
+        running_items = {}
         with self.database.read() as session:
             operation = session.get(Operation, operation_id)
             if operation is None:
@@ -1350,10 +1429,12 @@ class TaskQueue:
             items = found[:limit]
             phases = session.execute(select(OperationItem.phase, OperationItem.unit, OperationItem.state, func.count()).where(
                 OperationItem.operation_id == operation_id).group_by(OperationItem.phase, OperationItem.unit, OperationItem.state))
-            return {**self._operation_view(operation, session), "counts": counts, "has_more_items": len(found) > limit,
+            response = {**self._operation_view(operation, session, running_items), "counts": counts, "has_more_items": len(found) > limit,
                 "phases": [{"phase": p, "unit": u, "state": s, "count": c} for p, u, s, c in phases],
                 "items": [{"id": i.id, "key": i.item_key, "state": i.state, "phase": i.phase,
                            "attempts": i.attempts, "result": i.result} for i in items]}
+        self._merge_byte_progress([response], running_items)
+        return response
 
     def history(self, before=None, limit=20, attention_only=False):
         limit = max(1, min(limit, 100))

@@ -1,0 +1,16 @@
+{
+  "exit_code": 0,
+  "seconds": 46.95299999997951,
+  "arguments": [
+    "-q",
+    "tests/test_observation_transactions.py",
+    "--basetemp",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-observation-merge-07\\pytest-temp",
+    "--junitxml",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-observation-merge-07\\junit.xml"
+  ],
+  "external_connection_attempts": 0,
+  "credential_access_attempts_outside_round": 0,
+  "real_account_used": false,
+  "real_library_used": false
+}

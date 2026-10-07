@@ -20,7 +20,12 @@
 | `operation-window-fix-20261008.json`、`operation-window-validation-20261008.md` | `b20261008-operation-fairness-fix-01`；最终 21 项专项及受影响回归、此前 29 项相关回归，红反例另保留 |
 | `commit-wait-attribution-20261008.json`、`checkpoint-ab-20261008.json`、`checkpoint-reverse-20261008.json` | 诊断 run 11／12／14；真实等待分段及固定合成 SQL 的检查点对照，逆序组先同步副本；保留吞吐代价和边界，不等于正式任务通过 |
 
-| `checkpoint-regression-red.xml`、`checkpoint-regression-green.xml` | `b20261004.3-checkpoint-regression-01`；小周期复用先红后绿，41 项数据库／恢复／读取相关回归通过 |
+| `checkpoint-regression-red.xml`、`checkpoint-regression-green.xml` | `b20261004.3-checkpoint-regression-01`；小周期复用先红后绿，41 项数据库／恢复／读取相关回归通过；256 页候选随后撤回，属于实验结果 |
+| `checkpoint-default-regression.xml` | `b20261004.3-checkpoint-regression-02`；撤回参数候选后，默认策略下的旧快照、WAL 复用、回滚和重开等 6 项数据库专项通过 |
+| `byte-progress-http-red.xml`、`byte-progress-http-green.xml` | `b20261008-byte-progress-http-01`；实际任务在两次 GET 之间仅更新内存字节数，旧入口误共享旧值的反例先红；加入字节世代后全 24 项在途共享专项通过 |
+| `byte-progress-validation.md`、`byte-progress-result.json` | `b20261008-byte-progress-01`；13 项字节专项、24 项相关回归及最后 14 项复验；旧退出测试需真实等待共享下载准入，保留原冷却及最终核验要求 |
+| `observation-merge-validation.md`、`observation-merge-result.json`、`observation-merge-final.xml`、`observation-merge-metrics.jsonl` | `b20261008-observation-merge-07`；35 项实际处理器专项及同等正确事实的提交／WAL 对照；仅合成输入，不作墙时结论 |
+| `task-test-seams.xml` | `b20261008-fairness-test-seams-01`；3 项既有清点与领取后容量测试修正注入位置后通过，生产逻辑未随之更改；此前两处失败在 `observation-merge-06` 的旧四文件基线也能复现 |
 
 | `storage-analysis.json`、`storage-comparison.json`、`storage-manifest.json` | `reliability-storage-20261008-15`；同合成数据库与 SQL 在 C: SSD／D: HDD 的定向对照及临时副本保留位置，不代表完整 APP 或真实库迁移验收 |
 

@@ -88,21 +88,62 @@ class ArchiveHandler:
             return self.bookmarks.apply_observation(work_id, data.get("is_bookmarked"), account, version)
         return False
 
+    def _begin_work_observation(self, work_id, account):
+        """One short reservation transaction before remote work starts."""
+        account_context = self.bookmarks._account_context() if self.bookmarks else None
+        with self.database.write() as session:
+            bookmark_version = (self.bookmarks._begin_observations(session, [work_id]).get(work_id)
+                if account is not None else None)
+            source_version = self.source_status._begin(session, "work", work_id, account) if self.source_status else None
+            work = session.get(Work, work_id)
+            intent = session.get(ArchiveIntent, work.pixiv_illust_id) if work else None
+            revision = intent.revision if intent else None
+        return bookmark_version, source_version, revision, account_context
+
+    def _save_work_observation(self, artist_id, data, *, work_id, revision, bookmark_version,
+            source_version, account, account_context, metadata=None, compare_content=False):
+        # Credential resolution may wait or contact Pixiv: finish it before the
+        # writer. Inside the transaction only the existing memory context is read.
+        if self._bookmark_account() != account:
+            return None
+        source_current = (not self.source_status or self.source_status.remote is None
+            or self.source_status.account_context() == account)
+        fresh = False
+        with self.database.write() as session:
+            if self.bookmarks and self.bookmarks._account_context() != account_context:
+                return None
+            result = self._save_remote_work_in_session(session, artist_id, data, metadata=metadata,
+                expected_work_id=work_id, expected_revision=revision,
+                expected_source_version=source_version, compare_content=compare_content, account_id=account)
+            if result is None:
+                return None
+            if self.source_status:
+                if source_current:
+                    self.source_status._apply_available(session, "work", work_id, data, source_version, account)
+            else:
+                self._record_availability_in_session(session, work_id, "available", None, account)
+            if self.bookmarks and account is not None:
+                fresh = self.bookmarks._apply_observation(session, work_id,
+                    data.get("is_bookmarked"), account, bookmark_version)
+        # Never publish a fact from a rolled-back transaction or another account
+        # epoch. A newer bookmark version remains protected by _mark_fresh.
+        if fresh:
+            self.bookmarks._mark_fresh(work_id, bookmark_version, account,
+                expected_context=account_context)
+        return result
+
     def _refresh_work(self, artist_id, remote_id, work_id):
         account = self._bookmark_account()
-        version = self.bookmarks.begin_observation(work_id) if account is not None else None
-        source_version = self.source_status.begin("work", work_id, account) if self.source_status else None
-        with self.database.read() as session:
-            intent = session.get(ArchiveIntent, str(remote_id))
-            revision = intent.revision if intent else None
+        version, source_version, revision, account_context = self._begin_work_observation(work_id, account)
         data = None
         try:
             data = self.client.get_illust_detail(remote_id)
             if str(data.get("illust_id", "")) != str(remote_id):
                 from .source_status import SourceIdentityMismatch
                 raise SourceIdentityMismatch()
-            result = self._save_remote_work(artist_id, data, expected_work_id=work_id,
-                expected_revision=revision, expected_source_version=source_version)
+            result = self._save_work_observation(artist_id, data, work_id=work_id,
+                revision=revision, source_version=source_version, bookmark_version=version,
+                account=account, account_context=account_context)
         except Exception as exc:
             if isinstance(exc, LocalReadError):
                 raise
@@ -124,28 +165,26 @@ class ArchiveHandler:
                           "主站暂时无法获取此作品，尚不能确认是否删除；已有存档保留")
                 self._record_availability(work_id, state, reason)
             raise
-        if self.source_status and result is not None:
-            if self._bookmark_account() == account:
-                self.source_status.apply_available("work", work_id, data, source_version, account)
-        elif not self.source_status and result is not None:
-            self._record_availability(work_id, "available", None)
-        self._apply_bookmark(result, data, version, account)
         return result
 
     def _record_availability(self, work_id, state, reason):
         if work_id is None:
             return
+        account = self._bookmark_account()
         with self.database.write() as session:
-            work = session.get(Work, work_id)
-            if work is not None:
-                prior = (work.source_metadata or {}).get("remote_availability", {})
-                changed = (prior.get("state"), prior.get("reason")) != (state, reason)
-                work.source_metadata = {**(work.source_metadata or {}), "remote_availability": {
-                    "state": state, "checked_at": utcnow().replace(tzinfo=timezone.utc).isoformat(),
-                    "reason": reason, "confirmed": True, "policy": "source-v2",
-                    "account_id": self._bookmark_account()}}
-                if changed:
-                    bump_catalogue_revision(session)
+            self._record_availability_in_session(session, work_id, state, reason, account)
+
+    def _record_availability_in_session(self, session, work_id, state, reason, account):
+        work = session.get(Work, work_id)
+        if work is not None:
+            prior = (work.source_metadata or {}).get("remote_availability", {})
+            changed = (prior.get("state"), prior.get("reason")) != (state, reason)
+            work.source_metadata = {**(work.source_metadata or {}), "remote_availability": {
+                "state": state, "checked_at": utcnow().replace(tzinfo=timezone.utc).isoformat(),
+                "reason": reason, "confirmed": True, "policy": "source-v2",
+                "account_id": account}}
+            if changed:
+                bump_catalogue_revision(session)
 
     def _clear_remote_attention_if_complete(self, work_id):
         with self.database.write() as session:
@@ -196,87 +235,96 @@ class ArchiveHandler:
         return result
 
     def _save_remote_work(self, artist_id, data, *, context=None, metadata=None, metadata_error=None, expected_work_id=None, expected_revision=None, expected_source_version=None, compare_content=False):
+        account_id = self._bookmark_account()
+        with self.database.write() as session:
+            return self._save_remote_work_in_session(session, artist_id, data, context=context,
+                metadata=metadata, metadata_error=metadata_error, expected_work_id=expected_work_id,
+                expected_revision=expected_revision, expected_source_version=expected_source_version,
+                compare_content=compare_content, account_id=account_id)
+
+    def _save_remote_work_in_session(self, session, artist_id, data, *, context=None, metadata=None, metadata_error=None, expected_work_id=None, expected_revision=None, expected_source_version=None, compare_content=False, account_id=None):
         remote_id = str(data["illust_id"])
         if not remote_id.isdigit() or data.get("type") not in ("illust", "manga", "ugoira"):
             raise ValueError("无效作品信息")
         count = int(data["page_count"])
         if count <= 0:
             raise ValueError("无效页数")
-        with self.database.write() as session:
-            intent = session.get(ArchiveIntent, remote_id)
-            if intent and intent.mode == "suppressed":
-                return None
-            if intent is None:
-                intent = ArchiveIntent(pixiv_illust_id=remote_id)
-                session.add(intent)
-            work = session.scalar(select(Work).where(Work.pixiv_illust_id == remote_id))
-            if expected_work_id is not None and (work is None or work.id != expected_work_id or
-                    intent.mode != "keep" or intent.revision != expected_revision):
-                return None
-            if expected_source_version is not None and (work is None or
-                    (work.source_metadata or {}).get("remote_availability", {}).get("version") != expected_source_version):
-                return None
-            if work and work.artist_id != artist_id:
-                raise WorkMetadataConflict("主站画师身份与本地作品不一致；已有存档保留")
-            if work is None:
-                posted = datetime.fromisoformat(data["posted_at"]) if data.get("posted_at") else None
-                work = Work(pixiv_illust_id=remote_id, artist_id=artist_id, title=data["title"],
-                    type=data["type"], page_count=count, caption="", caption_state="unknown",
-                    posted_at=posted.astimezone(timezone.utc).replace(tzinfo=None) if posted and posted.tzinfo else posted,
-                    time_basis="utc" if posted and posted.tzinfo else "unknown", source_metadata={})
-                work.preference, work.bookmark = LocalPreference(), RemoteBookmark()
-                session.add(work); session.flush()
-            else:
-                ensure_legacy_revision(session, work)
-            availability = (work.source_metadata or {}).get("remote_availability")
-            if not self.source_status or availability is None:
-                availability = {"state": "available", "confirmed": True,
-                    "checked_at": utcnow().replace(tzinfo=timezone.utc).isoformat(), "reason": None,
-                    "policy": "source-v2", "account_id": self._bookmark_account()}
-            source = {**(work.source_metadata or {}), "urls": data.get("urls", []), "remote_availability": availability}
-            source = merge_tag_translations(source, data.get("tag_details"),
-                checked_at=utcnow().replace(tzinfo=timezone.utc).isoformat())
-            # Pending updates belonged to mutable 0002 records. Revision references
-            # now preserve their originals; new records carry their own source.
-            pending_source_change = bool(source.pop("source_updates", None))
-            if metadata is not None and data["type"] == "ugoira":
-                source["ugoira_source"] = {"zip_url": metadata.get("zip_urls", {}).get("original") or metadata.get("zip_urls", {}).get("medium"),
-                    "timing_url": f"https://app-api.pixiv.net/v1/ugoira/metadata?illust_id={remote_id}",
-                    "frames": metadata["frames"]}
-            previous = latest_revision(session, work.id)
-            caption = data.get("caption") if data.get("caption") is not None else previous.caption if previous else work.caption
-            snapshot = dict(title=data["title"], type=data["type"], page_count=count,
-                caption=caption, caption_state=("available" if caption else "empty") if data.get("caption") is not None else previous.caption_state if previous else work.caption_state,
-                tags=sorted({tag for tag in data.get("tags", previous.tags if previous else []) if isinstance(tag, str)}), source_metadata=source)
-            revision, changed = observe_revision(session, work, snapshot,
-                compare_content=compare_content or pending_source_change)
-            # Work is a current-source search projection, never the reader's media snapshot.
-            work.title, work.type, work.page_count = snapshot["title"], snapshot["type"], count
-            work.caption, work.caption_state = snapshot["caption"], snapshot["caption_state"]
-            work.source_metadata = revision.source_metadata
-            existing_tags = {tag.tag: tag for tag in work.tags}
-            work.tags = [existing_tags[tag] if tag in existing_tags else WorkTag(tag=tag) for tag in snapshot["tags"]]
-            work.bookmark_count, work.view_count = data.get("bookmark_count"), data.get("view_count")
-            if data.get("x_restrict") is not None:
-                work.x_restrict, work.restriction_verified = data["x_restrict"], True
-            if work.bookmark is None:
-                work.bookmark = RemoteBookmark()
-            session.flush()
-            refresh_revision(session, revision)
-            if changed:
-                bump_catalogue_revision(session)
-            if context is not None:
-                specs = self._discovery_specs(session, work, metadata)
-                if metadata_error:
-                    specs.append(ItemSpec(f"remote-error-{work.id}", "error", {**metadata_error, "work_id": work.id}, "downloading", "assets"))
-                if specs:
-                    parent = session.get(Operation, context.operation_id)
-                    requests = [{"asset_id": spec.target["asset_id"], "requested_url": spec.target.get("requested_url"),
-                        "expected_fingerprint": spec.target.get("expected_fingerprint"), "revision": spec.target.get("revision"),
-                        "work_revision_id": revision.id} for spec in specs if spec.target.get("asset_id")]
-                    context.queue.enqueue_in_transaction(session, "repair", {"work_ids": [work.id], "asset_requests": requests},
-                        f"保存 {work.title}", parent.source, parent_id=context.operation_id, specs=specs)
-            return work.id
+        intent = session.get(ArchiveIntent, remote_id)
+        if intent and intent.mode == "suppressed":
+            return None
+        if intent is None:
+            intent = ArchiveIntent(pixiv_illust_id=remote_id)
+            session.add(intent)
+        work = session.scalar(select(Work).where(Work.pixiv_illust_id == remote_id))
+        if expected_work_id is not None and (work is None or work.id != expected_work_id or
+                intent.mode != "keep" or intent.revision != expected_revision):
+            return None
+        if expected_source_version is not None and (work is None or
+                (work.source_metadata or {}).get("remote_availability", {}).get("version") != expected_source_version):
+            return None
+        if work and work.artist_id != artist_id:
+            raise WorkMetadataConflict("主站画师身份与本地作品不一致；已有存档保留")
+        if work is None:
+            posted = datetime.fromisoformat(data["posted_at"]) if data.get("posted_at") else None
+            work = Work(pixiv_illust_id=remote_id, artist_id=artist_id, title=data["title"],
+                type=data["type"], page_count=count, caption="", caption_state="unknown",
+                posted_at=posted.astimezone(timezone.utc).replace(tzinfo=None) if posted and posted.tzinfo else posted,
+                time_basis="utc" if posted and posted.tzinfo else "unknown", source_metadata={})
+            work.preference, work.bookmark = LocalPreference(), RemoteBookmark()
+            session.add(work); session.flush()
+        else:
+            ensure_legacy_revision(session, work)
+        availability = (work.source_metadata or {}).get("remote_availability")
+        if not self.source_status or availability is None:
+            availability = {"state": "available", "confirmed": True,
+                "checked_at": utcnow().replace(tzinfo=timezone.utc).isoformat(), "reason": None,
+                "policy": "source-v2", "account_id": account_id}
+        source = {**(work.source_metadata or {}), "urls": data.get("urls", []), "remote_availability": availability}
+        source = merge_tag_translations(source, data.get("tag_details"),
+            checked_at=utcnow().replace(tzinfo=timezone.utc).isoformat())
+        # Pending updates belonged to mutable 0002 records. Revision references
+        # now preserve their originals; new records carry their own source.
+        pending_source_change = bool(source.pop("source_updates", None))
+        if metadata is not None and data["type"] == "ugoira":
+            source["ugoira_source"] = {"zip_url": metadata.get("zip_urls", {}).get("original") or metadata.get("zip_urls", {}).get("medium"),
+                "timing_url": f"https://app-api.pixiv.net/v1/ugoira/metadata?illust_id={remote_id}",
+                "frames": metadata["frames"]}
+        previous = latest_revision(session, work.id)
+        caption = data.get("caption") if data.get("caption") is not None else previous.caption if previous else work.caption
+        snapshot = dict(title=data["title"], type=data["type"], page_count=count,
+            caption=caption, caption_state=("available" if caption else "empty") if data.get("caption") is not None else previous.caption_state if previous else work.caption_state,
+            tags=sorted({tag for tag in data.get("tags", previous.tags if previous else []) if isinstance(tag, str)}), source_metadata=source)
+        revision, changed = observe_revision(session, work, snapshot,
+            compare_content=compare_content or pending_source_change)
+        # Work is a current-source search projection, never the reader's media snapshot.
+        work.title, work.type, work.page_count = snapshot["title"], snapshot["type"], count
+        work.caption, work.caption_state = snapshot["caption"], snapshot["caption_state"]
+        # An unchanged immutable revision can carry an older availability
+        # snapshot. Its projection must retain this observation's reservation.
+        work.source_metadata = {**revision.source_metadata, "remote_availability": availability}
+        existing_tags = {tag.tag: tag for tag in work.tags}
+        work.tags = [existing_tags[tag] if tag in existing_tags else WorkTag(tag=tag) for tag in snapshot["tags"]]
+        work.bookmark_count, work.view_count = data.get("bookmark_count"), data.get("view_count")
+        if data.get("x_restrict") is not None:
+            work.x_restrict, work.restriction_verified = data["x_restrict"], True
+        if work.bookmark is None:
+            work.bookmark = RemoteBookmark()
+        session.flush()
+        refresh_revision(session, revision)
+        if changed:
+            bump_catalogue_revision(session)
+        if context is not None:
+            specs = self._discovery_specs(session, work, metadata)
+            if metadata_error:
+                specs.append(ItemSpec(f"remote-error-{work.id}", "error", {**metadata_error, "work_id": work.id}, "downloading", "assets"))
+            if specs:
+                parent = session.get(Operation, context.operation_id)
+                requests = [{"asset_id": spec.target["asset_id"], "requested_url": spec.target.get("requested_url"),
+                    "expected_fingerprint": spec.target.get("expected_fingerprint"), "revision": spec.target.get("revision"),
+                    "work_revision_id": revision.id} for spec in specs if spec.target.get("asset_id")]
+                context.queue.enqueue_in_transaction(session, "repair", {"work_ids": [work.id], "asset_requests": requests},
+                    f"保存 {work.title}", parent.source, parent_id=context.operation_id, specs=specs)
+        return work.id
 
     @staticmethod
     def _timing_fingerprint(metadata):

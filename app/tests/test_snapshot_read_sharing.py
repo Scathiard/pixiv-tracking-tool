@@ -15,6 +15,7 @@ import uvicorn
 from src.core.models import Artist
 from src.core.read_control import current_read
 from src.core.runtime import Runtime
+from src.core.tasks import ItemResult, ItemSpec
 from src.routes.archive_api import create_router
 from src.routes import settings_api
 
@@ -217,6 +218,56 @@ def test_get_after_committed_setting_does_not_join_older_snapshot(harness, path)
             barrier.release.set()
         assert older.result(timeout=5).json()['automatic_paused'] is False
         assert later.result(timeout=5).json()['automatic_paused'] is True
+
+
+def test_byte_update_without_commit_does_not_join_older_progress_snapshot(harness):
+    runtime, barrier, client, _ = harness
+    first_report, advance, next_report, finish = (Event() for _ in range(4))
+
+    class Download:
+        def execute(self, item, context):
+            context.report_bytes(10, 100)
+            first_report.set()
+            assert advance.wait(5)
+            context.report_bytes(60, 100)
+            next_report.set()
+            assert finish.wait(5)
+            return ItemResult()
+
+    runtime.queue.handlers['repair'] = Download()
+    with runtime.database.write() as session:
+        ident = runtime.queue.enqueue_in_transaction(
+            session, 'repair', {}, 'synthetic download',
+            specs=[ItemSpec('one', 'download', {}, 'downloading', 'assets')],
+        )['operation_id']
+
+    def byte_count(response):
+        assert response.status_code == 200
+        operation = next(value for value in response.json()['operations'] if value['id'] == ident)
+        assert operation['phase']['done'] == 0
+        return operation['result']['current_item']['done']
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        task = pool.submit(runtime.queue._step, 'download')
+        try:
+            assert first_report.wait(3)
+            older = pool.submit(client.get, '/api/progress')
+            wait_for(lambda: barrier.calls['/api/progress'] == 1)
+            previous = runtime.database.reads.generation
+            advance.set()
+            assert next_report.wait(2)
+            assert runtime.database.reads.generation == previous
+            later = pool.submit(client.get, '/api/progress')
+            wait_for(lambda: barrier.calls['/api/progress'] == 2)
+            barrier.release.set()
+            assert byte_count(older.result(timeout=5)) == 10
+            assert byte_count(later.result(timeout=5)) == 60
+        finally:
+            barrier.release.set()
+            advance.set()
+            finish.set()
+        assert task.result(timeout=5)
+    assert runtime.queue.details(ident)['counts'] == {'succeeded': 1}
 
 
 @pytest.mark.parametrize('failure', ['rollback', 'failed_commit'])

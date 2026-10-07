@@ -122,14 +122,17 @@ class SourceStatus:
 
     def begin(self, kind, local_id, account_id=None):
         with self.database.write() as session:
-            _, _, record, value = self._record(session, kind, local_id, create=True)
-            if record is None:
-                return None
-            prior = value.get("version", 0)
-            version = (prior if type(prior) is int and prior >= 0 else 0) + 1
-            self._store(kind, record, {**value, "version": version,
-                        "observation_account_id": account_id})
-            return version
+            return self._begin(session, kind, local_id, account_id)
+
+    def _begin(self, session, kind, local_id, account_id=None):
+        _, _, record, value = self._record(session, kind, local_id, create=True)
+        if record is None:
+            return None
+        prior = value.get("version", 0)
+        version = (prior if type(prior) is int and prior >= 0 else 0) + 1
+        self._store(kind, record, {**value, "version": version,
+                    "observation_account_id": account_id})
+        return version
 
     def begin_many(self, kind, local_ids, account_id=None):
         """Reserve a known selection before I/O in one bounded transaction."""
@@ -169,20 +172,32 @@ class SourceStatus:
         if self.remote is not None and self.account_context() != account_id:
             return False
         with self.database.write() as session:
-            _, remote_id, record, value = self._record(session, kind, local_id, create=True)
-            if record is None or version is None or value.get("version") != version:
-                return False
-            if value.get("observation_account_id") != account_id:
-                return False
-            checked = _timestamp()
-            result = {**value, "last_attempt": {"state": state or "failed", "reason": reason,
-                       "checked_at": checked, "version": version}}
-            if state is not None:
-                result.update(state=state, reason=reason, checked_at=checked, confirmed=True,
-                              account_id=account_id, deletion_evidence=state == "deleted", policy="source-v2")
-            self._store(kind, record, result)
-            bump_catalogue_revision(session)
-            return True
+            return self._apply_in_session(session, kind, local_id, version, account_id,
+                state=state, reason=reason, evidence=evidence)
+
+    def _apply_in_session(self, session, kind, local_id, version, account_id, *, state=None, reason=None, evidence=None):
+        """The caller resolves remote identity before owning this transaction."""
+        _, _, record, value = self._record(session, kind, local_id, create=True)
+        if record is None or version is None or value.get("version") != version:
+            return False
+        if value.get("observation_account_id") != account_id:
+            return False
+        checked = _timestamp()
+        result = {**value, "last_attempt": {"state": state or "failed", "reason": reason,
+                   "checked_at": checked, "version": version}}
+        if state is not None:
+            result.update(state=state, reason=reason, checked_at=checked, confirmed=True,
+                          account_id=account_id, deletion_evidence=state == "deleted", policy="source-v2")
+        self._store(kind, record, result)
+        bump_catalogue_revision(session)
+        return True
+
+    def _apply_available(self, session, kind, local_id, data, version, account_id=None):
+        _, remote_id, _, _ = self._record(session, kind, local_id)
+        field = "user_id" if kind == "artist" else "illust_id"
+        if not isinstance(data, dict) or str(data.get(field, "")) != str(remote_id):
+            raise SourceIdentityMismatch()
+        return self._apply_in_session(session, kind, local_id, version, account_id, state="available")
 
     def apply_available(self, kind, local_id, data, version, account_id=None):
         with self.database.read() as session:

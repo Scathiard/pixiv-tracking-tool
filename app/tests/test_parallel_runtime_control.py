@@ -264,14 +264,24 @@ def test_local_pressure_after_claim_never_strands_running_item(credentials, monk
         monkeypatch.setattr(runtime.profiles, "save", pressured_save)
     else:
         original_read = runtime.database.read
-        reads = []
+        original_execute = runtime.queue._execute_item
+        claimed, pressured = [], []
+        def execute_claimed(operation_id, item, *args, **kwargs):
+            # Candidate scanning may add reads. Fence the fault to the real
+            # persisted claim instead of guessing a global read ordinal.
+            with original_read() as session:
+                stored = session.get(OperationItem, item.id)
+                assert stored.state == "running" and stored.attempts == 1
+            claimed.append(item.id)
+            return original_execute(operation_id, item, *args, **kwargs)
         @contextmanager
         def pressured_read(*args, **kwargs):
-            reads.append(1)
-            if len(reads) == 2:
+            if claimed and not pressured:
+                pressured.append(True)
                 raise LocalReadBusy("synthetic pressure after the atomic claim")
             with original_read(*args, **kwargs) as session:
                 yield session
+        monkeypatch.setattr(runtime.queue, "_execute_item", execute_claimed)
         monkeypatch.setattr(runtime.database, "read", pressured_read)
     try:
         deferred_after = utcnow()
@@ -288,7 +298,9 @@ def test_local_pressure_after_claim_never_strands_running_item(credentials, monk
         if after_send:
             monkeypatch.setattr(runtime.profiles, "save", original_save)
         else:
+            assert claimed == [item_id] and pressured == [True]
             monkeypatch.setattr(runtime.database, "read", original_read)
+            monkeypatch.setattr(runtime.queue, "_execute_item", original_execute)
         with runtime.database.write() as session:
             session.get(OperationItem, item_id).not_before = None
         assert runtime.queue._step("check")

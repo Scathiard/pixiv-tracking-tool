@@ -128,8 +128,10 @@ class BookmarkService:
                 self._account_epoch = max(time.time_ns() // 1000, self._account_epoch + 1)
             return current, self._account_epoch
 
-    def _mark_fresh(self, work_id, version, account_id):
+    def _mark_fresh(self, work_id, version, account_id, *, expected_context=None):
         with self._lock:
+            if expected_context is not None and self._account_context() != expected_context:
+                return
             current = self._current_account() if self._current_account is not None else account_id
             if current is None or str(current) != str(account_id):
                 return
@@ -417,45 +419,60 @@ class BookmarkService:
 
     def begin_observations(self, work_ids):
         """Reserve versions for a page in one transaction before network work."""
+        with self.database.write() as session:
+            return self._begin_observations(session, work_ids)
+
+    def _begin_observations(self, session, work_ids):
+        """Reserve using an explicitly owned transaction; no I/O or cache publication."""
         ids = list(dict.fromkeys(work_ids))
         results = {work_id: None for work_id in ids}
-        with self.database.write() as session:
-            for start in range(0, len(ids), 900):
-                batch = ids[start:start + 900]
-                existing = set(session.scalars(select(Work.id).where(Work.id.in_(batch))))
-                pending = set(session.scalars(select(BookmarkOperation.work_id).where(
-                    BookmarkOperation.work_id.in_(batch),
-                    BookmarkOperation.status == "pending")))
-                facts = {fact.work_id: fact for fact in session.scalars(
-                    select(RemoteBookmark).where(RemoteBookmark.work_id.in_(batch)))}
-                for work_id in batch:
-                    if work_id not in existing or work_id in pending:
-                        continue
-                    fact = facts.get(work_id)
-                    if fact is None:
-                        fact = RemoteBookmark(work_id=work_id, value=None,
-                                              source="legacy_cache", version=0)
-                        session.add(fact)
-                    fact.version += 1
-                    results[work_id] = fact.version
+        for start in range(0, len(ids), 900):
+            batch = ids[start:start + 900]
+            existing = set(session.scalars(select(Work.id).where(Work.id.in_(batch))))
+            pending = set(session.scalars(select(BookmarkOperation.work_id).where(
+                BookmarkOperation.work_id.in_(batch), BookmarkOperation.status == "pending")))
+            facts = {fact.work_id: fact for fact in session.scalars(
+                select(RemoteBookmark).where(RemoteBookmark.work_id.in_(batch)))}
+            for work_id in batch:
+                if work_id not in existing or work_id in pending:
+                    continue
+                fact = facts.get(work_id)
+                if fact is None:
+                    fact = RemoteBookmark(work_id=work_id, value=None,
+                                          source="legacy_cache", version=0)
+                    session.add(fact)
+                fact.version += 1
+                results[work_id] = fact.version
         return results
 
     def apply_observation(self, work_id, value, account_id, version, source="metadata"):
         if type(value) is not bool or not account_id or version is None:
             return False
-        if self._current_account is not None and self._account_context()[0] != str(account_id):
+        account_context = self._account_context()
+        if self._current_account is not None and account_context[0] != str(account_id):
             return False
         with self.database.write() as session:
-            fact = session.get(RemoteBookmark, work_id)
-            if fact is None or fact.version != version:
-                return False
-            if session.scalar(select(BookmarkOperation.id).where(
-                    BookmarkOperation.work_id == work_id,
-                    BookmarkOperation.status == "pending").limit(1)):
-                return False
-            fact.value, fact.account_id, fact.source = value, str(account_id), source
-            fact.confirmed_at, fact.error = utcnow(), None
-        self._mark_fresh(work_id, version, account_id)
+            applied = (self._account_context() == account_context and
+                self._apply_observation(session, work_id, value, account_id, version, source))
+        if applied:
+            self._mark_fresh(work_id, version, account_id, expected_context=account_context)
+        return applied
+
+    def _apply_observation(self, session, work_id, value, account_id, version, source="metadata"):
+        """Apply durable facts only; the transaction owner publishes freshness after commit."""
+        if type(value) is not bool or not account_id or version is None:
+            return False
+        if self._current_account is not None and self._account_context()[0] != str(account_id):
+            return False
+        fact = session.get(RemoteBookmark, work_id)
+        if fact is None or fact.version != version:
+            return False
+        if session.scalar(select(BookmarkOperation.id).where(
+                BookmarkOperation.work_id == work_id,
+                BookmarkOperation.status == "pending").limit(1)):
+            return False
+        fact.value, fact.account_id, fact.source = value, str(account_id), source
+        fact.confirmed_at, fact.error = utcnow(), None
         return True
 
     def _run(self, operation_id, readback_only):
