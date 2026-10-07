@@ -101,34 +101,38 @@ class ArchiveHandler:
         return bookmark_version, source_version, revision, account_context
 
     def _save_work_observation(self, artist_id, data, *, work_id, revision, bookmark_version,
-            source_version, account, account_context, metadata=None, compare_content=False):
+            source_version, account, account_context, metadata=None, compare_content=False,
+            source_account=..., context=None, metadata_error=None):
         # Credential resolution may wait or contact Pixiv: finish it before the
         # writer. Inside the transaction only the existing memory context is read.
         if self._bookmark_account() != account:
             return None
+        if source_account is ...:
+            source_account = account
         source_current = (not self.source_status or self.source_status.remote is None
-            or self.source_status.account_context() == account)
+            or self.source_status.account_context() == source_account)
         fresh = False
         with self.database.write() as session:
             if self.bookmarks and self.bookmarks._account_context() != account_context:
                 return None
             result = self._save_remote_work_in_session(session, artist_id, data, metadata=metadata,
+                context=context, metadata_error=metadata_error,
                 expected_work_id=work_id, expected_revision=revision,
                 expected_source_version=source_version, compare_content=compare_content, account_id=account)
             if result is None:
                 return None
             if self.source_status:
-                if source_current:
-                    self.source_status._apply_available(session, "work", work_id, data, source_version, account)
+                if source_current and source_version is not None:
+                    self.source_status._apply_available(session, "work", result, data, source_version, source_account)
             else:
-                self._record_availability_in_session(session, work_id, "available", None, account)
+                self._record_availability_in_session(session, result, "available", None, account)
             if self.bookmarks and account is not None:
-                fresh = self.bookmarks._apply_observation(session, work_id,
+                fresh = self.bookmarks._apply_observation(session, result,
                     data.get("is_bookmarked"), account, bookmark_version)
         # Never publish a fact from a rolled-back transaction or another account
         # epoch. A newer bookmark version remains protected by _mark_fresh.
         if fresh:
-            self.bookmarks._mark_fresh(work_id, bookmark_version, account,
+            self.bookmarks._mark_fresh(result, bookmark_version, account,
                 expected_context=account_context)
         return result
 

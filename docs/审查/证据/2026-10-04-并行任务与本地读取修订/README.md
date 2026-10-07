@@ -32,6 +32,10 @@
 | `full-03-rechecks.json` | 主会话逐一对照全套原 5 个失败用例与复验 XML；五项全部复验通过、生产代码未改，不表示第二次全套运行 |
 | `reliability-program-only-check-1.json`、`reliability-program-only-check-2.json`、`reliability-program-only-comparison.json` | `b20261004.3-reliability-20261008-05`；固定 `e67f490` 在 D: 独占运行的两组规范规模短测，各 120 秒、120 个 HTTP 全成功；两组短测门槛均通过，仍有提交长尾，第二名检查者未改善整体延迟，继续保留 1 名 |
 | `reliability-failfast-selfcheck.json` | `b20261004.3-reliability-instrument-failfast-20261008-16`；1000 件／1024 步的仪器自检，实际 HTTP 后显式注入失败；长测模式 2.56 秒后正常收尾仍判失败，短测仍跑满 12 秒，两组均正常关闭。不是大型验收，八小时和完整维护门槛未放宽 |
+| `reliability-program-only-soak-failed.json`、`reliability-program-only-soak-http.jsonl` | `b20261004.3-reliability-20261008-06/check-workers-1`；同规模长测约 50 秒重现 7 个设置及 1 个图库 504，72/80 HTTP 成功后按失败收尾；原 SQL／完整轨迹保留在原目录。没有完成八小时或完整维护，服务和 Runtime 均正常关闭 |
+| `checkpoint-owner-auto.json`、`checkpoint-owner-passive.json`、`checkpoint-owner-followup.json`、`checkpoint-owner-comparison.json` | `reliability-checkpoint-owner-20261008-17`；同一合成来源在 D: 上的有界机制模型，加入保存途中定时读。默认组 57／64 步后预算失败，独立组另续测完整 64 步；两组正常关闭、重开核验通过。仅共同前 57 步的提交可作前缀对照，不比较总吞吐；候选仍有读停顿和 WAL 增长，未改正式连接策略 |
+| `checkpoint-noop-capability.json` | `checkpoint-noop-probe-20261008-18`；当前 SQLite 3.53.1 在一个全新微型合成库上确认 NOOP 不合并帧，FULL 保持、重开通过；仅能力探针，不是性能或完整程序验收 |
+| `discovery-observation-validation.md`、`discovery-observation-result.json`、`discovery-observation-red.xml`、`discovery-observation-related.xml`、`discovery-observation-final.xml`、`discovery-observation-*-metrics.jsonl` | `b20261008-discovery-observation-01`；真实发现作品处理器的事实事务从 3 到 1，先红后绿；新增 21 项及既有 54 项最终全部通过。主会话按 XML 身份核对原两项新夹具失败的复验，非一次全套通过；账号／版本／删除、派生、回滚与提交后缓存保持，仅合成输入 |
 
 | `storage-analysis.json`、`storage-comparison.json`、`storage-manifest.json` | `reliability-storage-20261008-15`；同合成数据库与 SQL 在 C: SSD／D: HDD 的定向对照及临时副本保留位置，不代表完整 APP 或真实库迁移验收 |
 

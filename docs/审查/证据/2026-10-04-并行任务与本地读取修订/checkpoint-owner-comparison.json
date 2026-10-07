@@ -1,0 +1,85 @@
+{
+  "source_tree_unchanged_during_model": true,
+  "full_pair_completed": false,
+  "throughput_comparison_valid": false,
+  "owner_matches_run15_full_sql_and_data": true,
+  "common_prefix_steps": 57,
+  "cases": {
+    "auto1000": {
+      "status": "bounded_incomplete",
+      "completed": 57,
+      "first57_commits": {
+        "count": 57,
+        "p50_seconds": 0.07659439998678863,
+        "p95_seconds": 2.9918491998687387,
+        "maximum_seconds": 5.532688400009647,
+        "failures": 0
+      },
+      "first57_competing_writes": {
+        "count": 57,
+        "p50_seconds": 0.07758440007455647,
+        "p95_seconds": 2.9945617001503706,
+        "maximum_seconds": 5.0120806999038905,
+        "failures": 1
+      },
+      "full_case_periodic_reads": {
+        "count": 131,
+        "p50_seconds": 4.359986633062363e-05,
+        "p95_seconds": 3.3195235999301076,
+        "maximum_seconds": 5.019364600069821,
+        "failures": 4
+      },
+      "full_case_commit_start_reads": {
+        "count": 114,
+        "p50_seconds": 0.00016779988072812557,
+        "p95_seconds": 0.0005420998204499483,
+        "maximum_seconds": 0.001357200089842081,
+        "failures": 0
+      },
+      "wal_peak_bytes": 4321912,
+      "normal_close": true,
+      "quick_check": [
+        "ok"
+      ]
+    },
+    "owner_passive": {
+      "status": "complete",
+      "completed": 64,
+      "first57_commits": {
+        "count": 57,
+        "p50_seconds": 0.06628719996660948,
+        "p95_seconds": 0.43362749996595085,
+        "maximum_seconds": 0.5109653000254184,
+        "failures": 0
+      },
+      "first57_competing_writes": {
+        "count": 57,
+        "p50_seconds": 0.06893670000135899,
+        "p95_seconds": 0.43407389987260103,
+        "maximum_seconds": 0.5115495000500232,
+        "failures": 0
+      },
+      "full_case_periodic_reads": {
+        "count": 125,
+        "p50_seconds": 4.0499959141016006e-05,
+        "p95_seconds": 1.649720299988985,
+        "maximum_seconds": 2.437237000092864,
+        "failures": 0
+      },
+      "full_case_commit_start_reads": {
+        "count": 128,
+        "p50_seconds": 0.00016950001008808613,
+        "p95_seconds": 1.3659325998742133,
+        "maximum_seconds": 1.7510308001656085,
+        "failures": 0
+      },
+      "wal_peak_bytes": 19149792,
+      "normal_close": true,
+      "quick_check": [
+        "ok"
+      ]
+    }
+  },
+  "limitation": "Same-D sequential synthetic mechanism experiment. Automatic case stopped at 57/64, owner continued unused presynced copy for 64/64; periodic read counts differ. Not a full Runtime/browser or eight-hour acceptance test.",
+  "existing_model_and_auto_results_unchanged": true
+}

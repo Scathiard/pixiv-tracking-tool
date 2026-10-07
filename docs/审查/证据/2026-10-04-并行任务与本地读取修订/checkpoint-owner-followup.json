@@ -1,0 +1,32 @@
+{
+  "status": "owner_complete",
+  "case": "owner_passive",
+  "requested_transactions": 64,
+  "reuse": "Original frozen run_case, bounds, FULL and audit function; no strategy changes",
+  "automatic_group_completed_transactions": 57,
+  "comparison": "Common prefix only, never complete 64-step A/B or total throughput",
+  "output": "owner-followup.json",
+  "existing_results": "Never modify automatic result, original script or original summary",
+  "model_sha256": "12c02024538fb8f084916a69fbe52de475ba71ca13bb82babcbc4ffc3ebcfcae",
+  "script_sha256": "7b68775703c761c81b0906f21eaffa968fcda9bf94b2b09c76c54df957263aff",
+  "existing_inputs_and_results_unchanged": true,
+  "common_prefix_steps": 57,
+  "full_64_step_ab_valid": false,
+  "total_throughput_comparison_valid": false,
+  "owner_result": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-checkpoint-owner-20261008-17\\owner_passive\\result.json",
+  "owner_completed_transactions": 64,
+  "owner_status": "complete",
+  "owner_stop_reasons": [],
+  "owner_normal_close": true,
+  "owner_reopen": {
+    "new_items": 2048,
+    "canonical_sha256": "e9f6e5fd6df1e02317af6e965487b296b6ebc641666cb69ea2a47f70abaed069",
+    "quick_check": [
+      "ok"
+    ],
+    "seconds": 1.0408383999019861
+  },
+  "owner_full_run_seconds_including_final_checkpoint_close": 22.03169950004667,
+  "comparison_limitation": "Automatic case stopped after 57 steps. Parent may post-analyze only shared-prefix timing/budget failures from the two result files. Different timing, later order and OS cache prohibit full-volume A/B or total throughput claims.",
+  "posthoc_prefix_comparison_by_parent": true
+}

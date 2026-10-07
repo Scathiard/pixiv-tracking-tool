@@ -443,6 +443,7 @@ def execute(handler, item, context):
             stored.target = {**stored.target, "data": data, "remote_generation": generation}
     account = handler._bookmark_account()
     current_account = account
+    account_context = handler.bookmarks._account_context() if handler.bookmarks else None
     with handler.database.read() as session:
         existing = session.scalar(select(Work).where(Work.pixiv_illust_id == remote_id))
         work_id = existing.id if existing else None
@@ -489,9 +490,8 @@ def execute(handler, item, context):
                 if isinstance(exc, LocalReadError):
                     raise
                 metadata_error = safe_failure(exc)
-    work_id = handler._save_remote_work(artist_id, data, context=context, metadata=metadata, metadata_error=metadata_error,
-        expected_work_id=work_id, expected_revision=deletion_revision, expected_source_version=source_version)
-    if work_id and source_version is not None:
-        handler.source_status.apply_available("work", work_id, data, source_version, source_account)
-    handler._apply_bookmark(work_id, data, versions.get(work_id, 0), account)
+    handler._save_work_observation(artist_id, data, context=context, metadata=metadata,
+        metadata_error=metadata_error, work_id=work_id, revision=deletion_revision,
+        source_version=source_version, source_account=source_account,
+        bookmark_version=versions.get(work_id, 0), account=account, account_context=account_context)
     return ItemResult()
