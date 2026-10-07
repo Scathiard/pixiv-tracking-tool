@@ -614,7 +614,12 @@ class TaskQueue:
         from ..request_policy import ShutdownRequested
         while not self._stop.is_set():
             try:
-                if lane == "check" and self.maintenance is not None and self._maintenance_lock.acquire(blocking=False):
+                if not self.database.background_can_advance():
+                    self._wake.wait(0.1)
+                    self._wake.clear()
+                    continue
+                if (lane == "check" and not self.database.background_pressured()
+                        and self.maintenance is not None and self._maintenance_lock.acquire(blocking=False)):
                     try:
                         self.maintenance.tick()
                         self.maintenance_error = None
@@ -700,7 +705,17 @@ class TaskQueue:
         return sorted(current + legacy, key=lambda item: item.position)[:64]
 
     def _step(self, lane, round_id=None):
+        background_tokens = []
+        try:
+            return self._step_candidate(lane, round_id, background_tokens)
+        finally:
+            for token in background_tokens:
+                self.database.finish_background_step(token)
+
+    def _step_candidate(self, lane, round_id, background_tokens):
         """Select a bounded indexed window before entering the atomic claim."""
+        if not self.database.background_can_advance():
+            return False
         started = time.monotonic()
         self._last_scan_more = False
         with self._scheduler_lock:
@@ -722,7 +737,11 @@ class TaskQueue:
                 admission_pending = session.scalar(waiting.limit(1)) is not None
             if admission_pending:
                 with self.database.write() as session:
-                    self._claim_round_in_transaction(session)
+                    self._claim_round_in_transaction(session, background_tokens=background_tokens)
+                if background_tokens:
+                    # Round allocation used the one pressure probe. It is a
+                    # completed unit, not permission to claim another item.
+                    return True
         claim = None
         operation_key = (lane, round_id)
         with self._scheduler_lock:
@@ -834,10 +853,17 @@ class TaskQueue:
                 for operation_id in deferred:
                     operation = session.get(Operation, operation_id)
                     if operation.source == "automatic" and operation.started_at is None:
+                        allowed, token = self.database.begin_background_step()
+                        if not allowed:
+                            return False
+                        if token is not None:
+                            background_tokens.append(token)
                         previous_round, operation.round_id = operation.round_id, None
                         session.flush()
                         if previous_round:
                             self._finalize_round(session, previous_round)
+                        if background_tokens:
+                            return True
                 for candidate in candidates:
                     operation = session.get(Operation, candidate[1])
                     if (operation is None or operation.state == "finished" or self.operation_paused(operation.id)
@@ -853,6 +879,11 @@ class TaskQueue:
                                 continue
                             if self._check_turns.get(operation.id, "plan") != check_turns.get(operation.id, "plan"):
                                 continue
+                            allowed, token = self.database.begin_background_step()
+                            if not allowed:
+                                continue
+                            if token is not None:
+                                background_tokens.append(token)
                             self._planning.add(operation.id)
                             self._check_turns[operation.id] = "item"
                         operation.state = "planning"
@@ -872,6 +903,11 @@ class TaskQueue:
                                 continue
                             if lane == "check" and self._check_turns.get(operation.id, "plan") != check_turns.get(operation.id, "plan"):
                                 continue
+                            allowed, token = self.database.begin_background_step()
+                            if not allowed:
+                                continue
+                            if token is not None:
+                                background_tokens.append(token)
                             self._resources.update(resource)
                             if lane == "check":
                                 self._checking.add(operation.id)
@@ -937,7 +973,7 @@ class TaskQueue:
             self._wake.set()
         return True
 
-    def _claim_round_in_transaction(self, session):
+    def _claim_round_in_transaction(self, session, *, background_tokens=None):
         paused = session.get(ApplicationState, "automatic_paused")
         query = self._allowed_query(select(Operation).where(Operation.state.in_(("queued", "ready", "planning", "interrupted")),
             Operation.round_id.is_(None), Operation.pause_requested.is_(False)))
@@ -959,6 +995,12 @@ class TaskQueue:
                     waiting = waiting[:63] + [maintenance]
         if not waiting:
             return None
+        if background_tokens is not None:
+            allowed, token = self.database.begin_background_step()
+            if not allowed:
+                return None
+            if token is not None:
+                background_tokens.append(token)
         with self._scheduler_lock:
             self._round_admissions += 1
         current = TaskRound()
@@ -969,11 +1011,16 @@ class TaskQueue:
         return current.id
 
     def _claim_round(self):
-        with self.database.write() as session:
-            eligible_rounds = self._allowed_query(select(Operation.round_id).where(Operation.state.in_(ACTIVE)))
-            current = session.scalar(select(TaskRound).where(TaskRound.state.in_(("planning", "running")),
-                TaskRound.id.in_(eligible_rounds)).order_by(TaskRound.created_at))
-            return current.id if current else self._claim_round_in_transaction(session)
+        tokens = []
+        try:
+            with self.database.write() as session:
+                eligible_rounds = self._allowed_query(select(Operation.round_id).where(Operation.state.in_(ACTIVE)))
+                current = session.scalar(select(TaskRound).where(TaskRound.state.in_(("planning", "running")),
+                    TaskRound.id.in_(eligible_rounds)).order_by(TaskRound.created_at))
+                return current.id if current else self._claim_round_in_transaction(session, background_tokens=tokens)
+        finally:
+            for token in tokens:
+                self.database.finish_background_step(token)
 
     def _plan(self, operation_id):
         from ..request_policy import ShutdownRequested

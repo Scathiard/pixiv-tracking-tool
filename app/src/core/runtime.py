@@ -24,6 +24,7 @@ from .profiles import ArtistProfiles
 from .reconcile import ReconcileHandler
 from .source_status import ArtistSourceHandler, SourceStatus
 from .tasks import TaskQueue
+from .wal_maintenance import WalMaintenance
 
 
 class LoginRequired(RuntimeError):
@@ -138,6 +139,7 @@ class Runtime:
         self._published_account_context = None
         self._closing = threading.Event()
         self._closed = False
+        self._started = False
         self._close_lock = threading.Lock()
         self.lease = LibraryLease(images).acquire()
         try:
@@ -150,6 +152,7 @@ class Runtime:
             self.lease.close()
             raise
         self.images, self.client = Path(images).resolve(), client
+        self.wal_maintenance = WalMaintenance(self.database.path)
         self.account_id = None
         self.library = Library(self.database)
         self.reading = ReadingSessions(self.library)
@@ -241,10 +244,22 @@ class Runtime:
         return True
 
     def start(self):
-        self.publisher.recover()
-        self.bookmarks.start()
-        self.queue.recover()
-        self.queue.start()
+        with self._close_lock:
+            if self._closing.is_set():
+                raise RuntimeError("已开始关闭的图库不能重新启动")
+            if self._started:
+                return
+            self.wal_maintenance.start()
+            self.database.enable_wal_maintenance(self.wal_maintenance)
+            self.publisher.recover()
+            if self._closing.is_set():
+                raise RuntimeError("图库正在关闭，未启动业务工作者")
+            self.bookmarks.start()
+            self.queue.recover()
+            if self._closing.is_set():
+                raise RuntimeError("图库正在关闭，未启动任务工作者")
+            self.queue.start()
+            self._started = True
 
     def request_stop(self, *, cancel_remote=False):
         self._closing.set()
@@ -258,21 +273,31 @@ class Runtime:
                 stop()
 
     def close(self, timeout=5):
+        deadline = None if timeout is None else time.monotonic() + max(0, timeout)
         self.request_stop()
-        with self._close_lock:
+        acquired = (self._close_lock.acquire() if deadline is None else
+            self._close_lock.acquire(timeout=max(0, deadline - time.monotonic())))
+        if not acquired:
+            return False
+        try:
             if self._closed:
                 return True
-            deadline = None if timeout is None else time.monotonic() + timeout
-            if not self.queue.stop(timeout=timeout):
+            remaining = None if deadline is None else max(0, deadline - time.monotonic())
+            if not self.queue.stop(timeout=remaining):
                 # Retain ownership and DB while a worker is still writing.
                 return False
             remaining = None if deadline is None else max(0, deadline - time.monotonic())
             if not self.bookmarks.stop(timeout=remaining):
                 return False
+            remaining = None if deadline is None else max(0, deadline - time.monotonic())
+            if not self.wal_maintenance.stop(timeout=remaining):
+                return False
             self.database.close()
             self.lease.close()
             self._closed = True
             return True
+        finally:
+            self._close_lock.release()
 
     def busy(self):
         if self.bookmarks.busy() or self.queue._planning or self.queue._resources:

@@ -3,6 +3,8 @@
 - `test_local_read_control.py`：真实 HTTP 断开、排队截止、可中断 SQL、共享读取最后使用者取消、连接安全复用、前台／后台配额及独立写连接；全部使用合成数据库。
 - `test_snapshot_read_sharing.py`：设置／进度的同范围 GET 仅在执行期间共享，提交／端口／账号／内存字节进度变化后的读取不复用旧结果，回滚不伪装成功；真实 HTTP 断开按使用者取消，不合并 POST 或其他 GET，只使用合成图库与本机服务。
 - `test_observation_transactions.py`：真实资料刷新与维护处理器的同次观察提交次数和 WAL 帧对照；合并事务的回滚、账号／版本／删除／待写收藏保护，以及无变化响应仍保留来源核对；全部使用合成数据。
+- `test_discovery_observation_transactions.py`：新作发现的资料／来源／收藏事实共用提交，覆盖删除优先、观察版本、账号代际和整体回滚；旧历史结果不代替本次源码验证。
+- `test_wal_maintenance.py`：独立数据库整理连接的启停、FULL、回滚重开、日志积压与复用、读取占用、故障退避和退出超时；只使用微型合成数据库与受控线程，不代替大型性能验收。
 - `test_task_byte_progress.py`：下载字节只在有界内存展示，实际任务领取与结案继续持久化；覆盖并行、旧回调、暂停／暂缓／停止与重启，100% 字节不等于已核验成功。
 - `test_processing_log_windows.py`、`test_bookmark_lock_boundaries.py`：十五万条密集失败／跳过的有限扫描与续读、敏感字段过滤，以及收藏写入等待不占内存锁、阅览返回连接后合成收藏状态、旧可信缓存不能覆盖新版本。
 - `test_parallel_runtime_control.py`：正式 Runtime／RemoteAccess／PixivClient 与真实存档处理器的并行、持久重试、冷却、账号刷新单飞和代际保护；网络传输与凭据均为合成输入。
@@ -10,6 +12,7 @@
 - `test_planning_fairness.py`、`test_task_claim_progress.py`：清点与就绪核对有界轮转、同操作双检查者互斥、暂停／离线／恢复，以及开始进度与领取共用提交、回滚重算、空通道不占写连接；真实处理器配合合成图库／传输。
 - `test_task_operation_fairness.py`：冷却操作超过 64 项后的续扫、新意图优先、无变化去重、双检查者互斥及暂停父图的线性快照；父子关系只在提交后发布，覆盖回滚、已完成中间节点与重启。
 - `parallel_reliability_probe.py --artifacts NEW_DIRECTORY --pilot-seconds 120 --check-workers both`：一万五千件作品／十五万零五百一十二条历史步骤的两组短测；去掉 `--pilot-seconds` 并指定单一检查者数量，执行至少八小时混合负载和完整维护。长测一旦记录验收失败便正常收尾并保留失败，完整时长和维护完成门槛仍强制执行；短测始终跑完指定窗口。真实处理器、HTTP、文件与提交保持，远端只允许本机模拟服务；短测不等于长期验收，源码变化、失败或维护未完成均明确记录。
+- 上述整体验证另核对生产启动后的业务连接 FULL／关闭自动整理，以及独立整理者的实际调用耗时、总帧／待回写帧、压力与退出；定时状态取自内存，不额外发起检查点，WAL 物理大小与当前日志量分开记录。
 - 前端 `tests/settings-lifecycle.html`：加载真实组件、使用隔离响应的页面读取生命周期验收入口；覆盖共享请求取消、关闭／重开日志、分页、超时、轮询、设置保存与旧响应，桌面／390／320px；不替代实际后端或 EXE 验收。
 
 - `client_mobile_chrome_browser.py --artifacts NEW_DIRECTORY [--exe EXE_PATH]`：正式前端的 390／360／320px 手机与明暗主题、单项／并行任务高度及遮图面积、真实计数、暂停／继续触摸请求、上一件／下一件／红心 44px 可触范围；使用 Chromium 原生安全区 0／24／48px，另以明确标记的 VisualViewport 信号回放布局／可见区域不一致、地址栏／键盘与恢复，覆盖横竖屏返回和捏合缩放时保留布局。另核对手机未知分母／断线／空闲无假进度，以及 1440px 详情／流式底栏在有无任务时的可达性。源码与 EXE 都只用隔离合成图库，EXE 走自带冒烟入口；新证据保留在主仓库 `.devtools/test-runs/b20261003.7-mobile-*`，不自动构建前端，不表示实体 Android Chrome 已验收。

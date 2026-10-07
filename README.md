@@ -59,4 +59,4 @@
 - [AGENTS.md](AGENTS.md)：唯一工作规则；团队通信已冻结。
 - [测试目录约定](app/tests/README.md)：隔离数据与分层验证。
 
-Python 3.12 / FastAPI / SQLite；前端 Vue 3 / TypeScript / Vue Router。前端在 `app/frontend/` 构建，Python 测试在 `app/` 运行，EXE 构建入口为 `app/build_release.py`（`release.bat` 调用，复用 `app/build.spec`），按公开版本和内部构建号输出新目录，不覆盖旧包。依赖和验证缓存只使用项目局部目录。真实数据、配置与令牌不进入 Git；旧 release 原样保留。真实图库、真实账号、实体手机和用户体验的验收状态见集中交付记录，不能由源码或合成测试代替。既有历史备份保存在 `D:\PixivTracker-v022-backup\20260928-104556`，新一轮升级仍须另建对应备份；程序与图库同版升级按 D-024 / R-058 执行。
+Python 3.12 / FastAPI / SQLite；前端 Vue 3 / TypeScript / Vue Router。后台数据库整理候选要求 Python 实际链接的 SQLite ≥ 3.51.3；EXE 随包携带运行时，源码运行可用 `python -c "import sqlite3; print(sqlite3.sqlite_version)"` 核对。前端在 `app/frontend/` 构建，Python 测试在 `app/` 运行，EXE 构建入口为 `app/build_release.py`（`release.bat` 调用，复用 `app/build.spec`），按公开版本和内部构建号输出新目录，不覆盖旧包。依赖和验证缓存只使用项目局部目录。真实数据、配置与令牌不进入 Git；旧 release 原样保留。真实图库、真实账号、实体手机和用户体验的验收状态见集中交付记录，不能由源码或合成测试代替。既有历史备份保存在 `D:\PixivTracker-v022-backup\20260928-104556`，新一轮升级仍须另建对应备份；程序与图库同版升级按 D-024 / R-058 执行。

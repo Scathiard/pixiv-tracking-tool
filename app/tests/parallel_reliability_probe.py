@@ -471,6 +471,18 @@ def instrument(runtime, telemetry):
     def listen(owner, name, callback):
         event.listen(owner, name, callback)
         restored_listeners.append((owner, name, callback))
+    maintenance = runtime.wal_maintenance
+    original_checkpoint = maintenance._checkpoint
+    def measured_checkpoint(connection, mode):
+        began = time.perf_counter()
+        try:
+            return original_checkpoint(connection, mode)
+        finally:
+            # Measure only the real owner's SQL; never issue extra checkpoints
+            # or per-call disk logs from the acceptance instrumentation.
+            telemetry.duration("checkpoint_" + mode.lower(), time.perf_counter()-began)
+    restored_methods.append((maintenance, "_checkpoint", original_checkpoint))
+    maintenance._checkpoint = measured_checkpoint
     controller = runtime.database.reads
     original_counters = {}
     class ObservedCounts(dict):
@@ -866,6 +878,16 @@ def run_case(out, args, check_workers):
         while not server.started and time.monotonic() < until:
             time.sleep(.05)
         assert server.started, "production HTTP server did not start"
+        # The production lifespan must activate the owner, not a probe-only
+        # replacement. Check actual connection policy once, before workload.
+        result["checkpoint_start"] = runtime.wal_maintenance.snapshot()
+        with runtime.database.writer_engine.connect() as connection:
+            result["writer_policy"] = {
+                "synchronous": connection.exec_driver_sql("PRAGMA synchronous").scalar(),
+                "wal_autocheckpoint": connection.exec_driver_sql("PRAGMA wal_autocheckpoint").scalar(),
+            }
+        assert result["checkpoint_start"]["running"], "production checkpoint owner did not start"
+        assert result["writer_policy"] == {"synchronous": 2, "wal_autocheckpoint": 0}, "production writer policy is not FULL with an active independent owner"
         began = time.monotonic()
         started_wall = utcnow()
         coverage = ActivityCoverage(began, time.time())
@@ -928,7 +950,8 @@ def run_case(out, args, check_workers):
                         "read_connections": runtime.database.engine.pool.checkedout(),
                         "write_connections": runtime.database.writer_engine.pool.checkedout(),
                         "worker_error": runtime.queue.worker_error, "maintenance_state": state,
-                        "maintenance_settled": settled, "maintenance_outcome": outcome}
+                        "maintenance_settled": settled, "maintenance_outcome": outcome,
+                        "checkpoint": runtime.wal_maintenance.snapshot()}
                     telemetry.samples.write(json.dumps(sample) + "\n")
                     for key in ("rss_bytes", "wal_bytes", "read_connections", "write_connections"):
                         telemetry.sampled_peak[key] = max(telemetry.sampled_peak[key], sample[key])
@@ -936,6 +959,13 @@ def run_case(out, args, check_workers):
                         telemetry.sampled_peak["read_active_" + lane] = max(telemetry.sampled_peak["read_active_" + lane], value)
                     for lane, value in sample["read_pending"].items():
                         telemetry.sampled_peak["read_pending_" + lane] = max(telemetry.sampled_peak["read_pending_" + lane], value)
+                    for key in ("log_frames", "pending_frames"):
+                        value = sample["checkpoint"][key]
+                        if value is not None:
+                            name = "checkpoint_" + key
+                            telemetry.sampled_peak[name] = max(telemetry.sampled_peak[name], value)
+                    if not sample["checkpoint"]["running"] or sample["checkpoint"]["error_count"]:
+                        telemetry.fail("production checkpoint owner stopped or encountered an I/O/policy error")
                     if runtime.queue.worker_error:
                         telemetry.fail("production worker error: " + runtime.queue.worker_error)
                     if settled != last_settled:
@@ -1001,9 +1031,13 @@ def run_case(out, args, check_workers):
             if serving.is_alive():
                 telemetry.fail("HTTP server did not stop within 30 seconds")
         if runtime is not None:
+            result["checkpoint_before_close"] = runtime.wal_maintenance.snapshot()
             result["runtime_closed"] = runtime.close(30)
+            result["checkpoint_after_close"] = runtime.wal_maintenance.snapshot()
             if not result["runtime_closed"]:
                 telemetry.fail("runtime workers did not close cleanly")
+            if result["checkpoint_after_close"]["running"]:
+                telemetry.fail("checkpoint owner remains active after shutdown")
             result["cleanup"] = {"active_reads": dict(runtime.database.reads.active),
                 "pending_reads": dict(runtime.database.reads.pending),
                 "worker_error": runtime.queue.worker_error}

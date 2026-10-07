@@ -54,12 +54,15 @@ class ArchiveDatabase:
             self.engine.dispose()
             raise
         self.session = sessionmaker(self.engine, expire_on_commit=False)
-        self.writer_engine = self._engine(self.path, writer=True)
+        self._wal_owner = None
+        self._writer_autocheckpoint = 1000
+        self.writer_engine = self._engine(self.path, writer=True,
+            writer_policy=lambda: self._writer_autocheckpoint)
         self.writer_session = sessionmaker(self.writer_engine, expire_on_commit=False)
         self._closed = False
 
     @staticmethod
-    def _engine(path: Path, *, writer=False):
+    def _engine(path: Path, *, writer=False, writer_policy=None):
         engine = create_engine(
             URL.create("sqlite", database=str(path)),
             connect_args={"check_same_thread": False, "timeout": 5},
@@ -70,6 +73,9 @@ class ArchiveDatabase:
         def configure(connection, _):
             connection.execute("PRAGMA foreign_keys=ON")
             connection.execute("PRAGMA busy_timeout=5000")
+            if writer:
+                connection.execute("PRAGMA synchronous=FULL")
+                connection.execute(f"PRAGMA wal_autocheckpoint={writer_policy() if writer_policy else 1000}")
 
         return engine
 
@@ -167,13 +173,54 @@ class ArchiveDatabase:
                 # Even an empty successful transaction may conservatively
                 # fence snapshots; detecting DML must not borrow/read SQL here.
                 self.reads.advance_generation()
+                if self._wal_owner is not None:
+                    self._wal_owner.notify_commit()
             except BaseException:
                 session.rollback()
                 raise
             finally:
                 self._writer_state.active = False
 
+    def enable_wal_maintenance(self, owner):
+        """Runtime opts in only after the dedicated connection is ready."""
+        if not owner.alive() or not owner._ready.is_set() or owner._startup_error is not None:
+            raise RuntimeError("数据库整理执行者尚未就绪")
+        with self._write_lock:
+            if self._closed:
+                raise RuntimeError("数据库已关闭")
+            if self._wal_owner is not None and self._wal_owner is not owner:
+                raise RuntimeError("数据库已有整理执行者")
+            try:
+                self._writer_autocheckpoint = 0
+                with self.writer_engine.connect() as connection:
+                    connection.exec_driver_sql("PRAGMA wal_autocheckpoint=0")
+                    if connection.scalar(text("PRAGMA wal_autocheckpoint")) != 0:
+                        raise RuntimeError("业务连接未关闭自动整理")
+                self._wal_owner = owner
+            except BaseException:
+                self._writer_autocheckpoint = 1000
+                with self.writer_engine.connect() as connection:
+                    connection.exec_driver_sql("PRAGMA wal_autocheckpoint=1000")
+                raise
+
+    def background_pressured(self):
+        return self._wal_owner is not None and self._wal_owner.pressured()
+
+    def background_can_advance(self):
+        return not self.background_pressured() or (self._wal_owner is not None and self._wal_owner.can_probe())
+
+    def begin_background_step(self):
+        if not getattr(self._writer_state, "active", False):
+            raise RuntimeError("后台推进许可必须在已有写事务中核对")
+        return self._wal_owner.begin_step() if self._wal_owner is not None else (not self.background_pressured(), None)
+
+    def finish_background_step(self, token):
+        if token is not None and self._wal_owner is not None:
+            self._wal_owner.finish_step(token)
+
     def close(self):
+        if self._wal_owner is not None and self._wal_owner.alive():
+            raise RuntimeError("数据库整理连接仍在活动，不能关闭数据库")
         self._closed = True
         self.engine.dispose()
         self.writer_engine.dispose()
