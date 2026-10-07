@@ -1,0 +1,19 @@
+{
+  "source_commit": "05e3c30ad1df2b26ccd855ee120e0bf97bbc0d17",
+  "source_tree_sha256": "fc12f2121add4e9a65788021bb125aecece122eae51a32dc5414a1f972eaa7bb",
+  "comparison": "Matches completed normative pilot; recorded during full suite without source changes",
+  "tests_root": "app/tests",
+  "real_data_used": false,
+  "tests": 803,
+  "failed_cases": [
+    {
+      "classname": "tests.test_snapshot_read_sharing",
+      "name": "test_port_patch_fences_only_successful_save_and_is_never_shared[False]"
+    }
+  ],
+  "passed": 802,
+  "skipped": 0,
+  "seconds": 1071.76,
+  "source_tree_sha256_after": "fc12f2121add4e9a65788021bb125aecece122eae51a32dc5414a1f972eaa7bb",
+  "status": "failed_pending_diagnosis"
+}

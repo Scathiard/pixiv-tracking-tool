@@ -37,6 +37,8 @@
 | `checkpoint-noop-capability.json` | `checkpoint-noop-probe-20261008-18`；当前 SQLite 3.53.1 在一个全新微型合成库上确认 NOOP 不合并帧，FULL 保持、重开通过；仅能力探针，不是性能或完整程序验收 |
 | `checkpoint-restart-gap-red.xml` | `b20261008-checkpoint-owner-implementation-01`；PASSIVE 后受控插入真实前台提交，RESTART 前出现 10 个未回写帧；反驳“零锁等待就不会持写锁整理”的假设，候选已决定弃用 RESTART。此文件是失败证据，不是最终候选回归结果 |
 | `checkpoint-runtime-validation.md`、`checkpoint-runtime-hashes.json`、`checkpoint-runtime-final.xml`、`checkpoint-runtime-start-red.xml` | 同批正式 Runtime 候选：29 项整理专项及 55 项受影响回归共 84 项通过；主会话核对全部 XML 身份、零失败／错误／跳过及 5 个冻结文件散列。初始失败 XML 的正式副本仅去除一处行尾空格，原件原位保留。独立静态复审通过，尚未完成大库、八小时或 EXE 验收 |
+| `checkpoint-runtime-pilot.json`、`checkpoint-runtime-pilot-http.jsonl`、`checkpoint-runtime-pilot-samples.jsonl` | `b20261004.3-reliability-20261008-07`；固定 `05e3c30`、规范规模独占 120 秒短测，120 个 HTTP 全成功，小操作受理均 < 0.3 秒；实际 owner/FULL 策略、压力探测及正常退出已记录。维护全轮和八小时未完成，媒体为微型合成输入 |
+| `full-04-result.json`、`full-04.xml` | `b20261008-full-04`；固定 `05e3c30` 完整执行 803 项，802 通过、1 失败，1071.76 秒；运行中／后生产散列均与前项短测相同。设置失败后的后继 GET 未到读取入口；下项记录测试边界修正，原失败不覆盖；正式 XML 副本仅去行尾空白，原始日志／XML 原位保留 |
 | `discovery-observation-validation.md`、`discovery-observation-result.json`、`discovery-observation-red.xml`、`discovery-observation-related.xml`、`discovery-observation-final.xml`、`discovery-observation-*-metrics.jsonl` | `b20261008-discovery-observation-01`；真实发现作品处理器的事实事务从 3 到 1，先红后绿；新增 21 项及既有 54 项最终全部通过。主会话按 XML 身份核对原两项新夹具失败的复验，非一次全套通过；账号／版本／删除、派生、回滚与提交后缓存保持，仅合成输入 |
 
 | `storage-analysis.json`、`storage-comparison.json`、`storage-manifest.json` | `reliability-storage-20261008-15`；同合成数据库与 SQL 在 C: SSD／D: HDD 的定向对照及临时副本保留位置，不代表完整 APP 或真实库迁移验收 |
@@ -44,3 +46,4 @@
 | `storage-inventory.json` | 用户要求核对后仅枚举真实图片目录的文件长度及数据库文件长度；没有读取图片／数据库内容，94.48 GB 图片与 0.823 GB 数据库分开统计 |
 
 全套首次完成结果及五项失败的定向修订复验分开记录；大型对照、实际 8 小时持续运行及最终 EXE 证据尚待补入。本目录存在不代表已交付。中断的 `full-01` 和源码曾变化的 `reliability-01` 原位保留，仅作过程诊断。
+| `sharing-fixture-resolution.md`、`sharing-fixture-red.txt`、`sharing-fixture-green.txt`、`sharing-fixture-regression.xml`、`sharing-fixture-close-probe.py`、`sharing-fixture-baseline.py` | `b20261008-sharing-failure-01`；真实 HTTP 关闭时序反例确认失败 PATCH 连接干扰后继 GET；只隔离注入失败请求后同探针通过，相关 24 项全部通过。原全套未捕获 Future 异常，不将反例当作逐字证明；生产代码及原时限／断言未变。正式文本副本仅去行尾空白，原件保留 |

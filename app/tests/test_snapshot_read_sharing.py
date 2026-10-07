@@ -388,7 +388,7 @@ def test_pending_login_url_rotation_shares_the_same_display_state(harness, monke
 
 @pytest.mark.parametrize('success', [True, False])
 def test_port_patch_fences_only_successful_save_and_is_never_shared(harness, monkeypatch, success):
-    runtime, barrier, client, _ = harness
+    runtime, barrier, client, origin = harness
     saved = Event()
     def save_port(value):
         if success:
@@ -397,12 +397,19 @@ def test_port_patch_fences_only_successful_save_and_is_never_shared(harness, mon
         if not success:
             raise OSError('synthetic settings save failure')
     monkeypatch.setattr(settings_api.config, 'set_port', save_port)
+    def patch_settings():
+        if success:
+            return client.patch('/api/settings', json={'port': 18888})
+        # Uvicorn closes a connection after the unhandled synthetic save error.
+        # Keep that failing PATCH out of the two GETs' reusable connection pool.
+        with httpx.Client(base_url=origin, trust_env=False, timeout=5) as patch_client:
+            return patch_client.patch('/api/settings', json={'port': 18888})
     with ThreadPoolExecutor(max_workers=3) as pool:
         older = pool.submit(client.get, '/api/settings')
         try:
             wait_for(lambda: barrier.calls['/api/settings'] == 1)
             previous = runtime.database.reads.generation
-            patch = pool.submit(client.patch, '/api/settings', json={'port': 18888})
+            patch = pool.submit(patch_settings)
             assert saved.wait(2)
             if success:
                 wait_for(lambda: runtime.database.reads.generation > previous)

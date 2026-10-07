@@ -1,0 +1,84 @@
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 421, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\test-runs\b20261008-sharing-failure-01\close_race_plugin.py", line 25, in observed_app
+    return await app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 56, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\fastapi\applications.py", line 1135, in __call__
+    await super().__call__(scope, receive, send)
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\applications.py", line 107, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__
+    raise exc
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\fastapi\routing.py", line 118, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\fastapi\routing.py", line 104, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\fastapi\routing.py", line 428, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\fastapi\routing.py", line 316, in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\starlette\concurrency.py", line 32, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\anyio\to_thread.py", line 65, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\anyio\_backends\_asyncio.py", line 2706, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\anyio\_backends\_asyncio.py", line 1100, in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\routes\settings_api.py", line 140, in edit_settings
+    config.set_port(edit.port)
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\test_snapshot_read_sharing.py", line 398, in save_port
+    raise OSError('synthetic settings save failure')
+OSError: synthetic settings save failure
+[DEBUG-sharing-failure] 500 sent; yield until later GET selects its connection
+[DEBUG-sharing-failure] PATCH response 500 Connection= None request-connection= keep-alive pool= <ConnectionPool [Requests: 0 active, 0 queued | Connections: 0 active, 1 idle]>
+[DEBUG-sharing-failure] pool before later GET <ConnectionPool [Requests: 1 active, 0 queued | Connections: 1 active, 0 idle]>
+[DEBUG-sharing-failure] later transport trace connection.connect_tcp.started {'host': '127.0.0.1', 'port': 64789, 'local_address': None, 'timeout': 5, 'socket_options': None}
+[DEBUG-sharing-failure] later transport trace connection.connect_tcp.complete {'return_value': <httpcore._backends.sync.SyncStream object at 0x0000016D87DC3A70>}
+[DEBUG-sharing-failure] later GET selected connection; wait for actual server close
+[DEBUG-sharing-failure] original Uvicorn exception path closed PATCH transport
+.
+============================== warnings summary ===============================
+tests/test_snapshot_read_sharing.py::test_port_patch_fences_only_successful_save_and_is_never_shared[False]
+  D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\websockets\legacy\__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_snapshot_read_sharing.py::test_port_patch_fences_only_successful_save_and_is_never_shared[False]
+  D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\uvicorn\protocols\websockets\websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 passed, 2 warnings in 2.30s
