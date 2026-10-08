@@ -1,0 +1,72 @@
+[
+  {
+    "file": "http.jsonl",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-12\\check-workers-1\\http.jsonl",
+    "sha256": "DEA0C2CB25EB5E47301B9683C245A8B40553C051D7DEA7419D90A147811DA94B",
+    "bytes": 248534,
+    "copied": true
+  },
+  {
+    "file": "samples.jsonl",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-12\\check-workers-1\\samples.jsonl",
+    "sha256": "3C2BFBC1E070183F687018522FE86B9469C3277FE852F3A01F8AE78865EB3047",
+    "bytes": 170959,
+    "copied": true
+  },
+  {
+    "file": "slow-sql.jsonl",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-12\\check-workers-1\\slow-sql.jsonl",
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "bytes": 0,
+    "copied": true
+  },
+  {
+    "file": "README.md",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-observed-load-driver-01\\README.md",
+    "sha256": "2E6B0FBB612C01AA31CF43517CFB7E198A0BCA8C7C730F56F8F91CB9E07F971D",
+    "bytes": 1154,
+    "copied": true
+  },
+  {
+    "file": "run_probe.py",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-observed-load-driver-01\\run_probe.py",
+    "sha256": "BEA297E5606DC7B377319BD678E665D95C465329AE8C8B228892CED612B9F1BC",
+    "bytes": 4444,
+    "copied": true
+  },
+  {
+    "file": "soak.started.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-observed-load-driver-01\\soak.started.json",
+    "sha256": "5C8DD3FF6132E48C1B5A8E4DA67FD56B2782C43C55E6E28E9073F4702472E84F",
+    "bytes": 915,
+    "copied": true
+  },
+  {
+    "file": "soak.stdout.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-observed-load-driver-01\\soak.stdout.log",
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "bytes": 0,
+    "copied": true
+  },
+  {
+    "file": "soak.stderr.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-observed-load-driver-01\\soak.stderr.log",
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "bytes": 0,
+    "copied": true
+  },
+  {
+    "file": "soak.interruption-observed.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-observed-load-driver-01\\soak.interruption-observed.json",
+    "sha256": "19BB6A8AB6415272EEE9AB518EA8C3729521B46EC862741ED359EE7E2AFB09FE",
+    "bytes": 877,
+    "copied": true
+  },
+  {
+    "file": "timeline.jsonl",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-12\\check-workers-1\\timeline.jsonl",
+    "sha256": "12A3164C014F47B04EE35BD8087CADBF1EB3D7D050AED9F644591E45CDA56836",
+    "bytes": 1601974,
+    "copied": false
+  }
+]

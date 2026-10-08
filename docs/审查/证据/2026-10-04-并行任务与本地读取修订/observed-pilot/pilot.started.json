@@ -1,0 +1,23 @@
+{
+  "command": [
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Scripts\\python.exe",
+    "-X",
+    "faulthandler",
+    "-u",
+    "tests/parallel_reliability_probe.py",
+    "--artifacts",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-11",
+    "--check-workers",
+    "1",
+    "--pilot-seconds",
+    "120"
+  ],
+  "cwd": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261004.3\\app",
+  "instrument_before": {
+    "tests/parallel_reliability_probe.py": "d03abc9bf731fe59335e0987ed21ed698fdc4bdc0fd2c5d34aba6c3f4adbbe87",
+    "tests/parallel_reliability_observation.py": "7a3a0b9a36f561dbab5eae4bb2e4ee898bc1008a1b4757f5d10975d6d78c3966"
+  },
+  "production_before": "f5401afcc839470959608a354e30a1b77e2914224a890b6bdeac084d33efefaa",
+  "started_utc": "2026-10-08T04:44:42.217307+00:00",
+  "pid": 63768
+}

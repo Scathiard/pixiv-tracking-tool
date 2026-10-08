@@ -70,16 +70,22 @@ def _image_source():
 async def _request_status(app, path):
     messages = []
     delivered = False
+    response_complete = asyncio.Event()
 
     async def receive():
         nonlocal delivered
         if not delivered:
             delivered = True
             return {"type": "http.request", "body": b"", "more_body": False}
+        # Stay connected while the response is running; cancellation of a
+        # disconnect probe must not synthesize a disconnected client.
+        await response_complete.wait()
         return {"type": "http.disconnect"}
 
     async def send(message):
         messages.append(message)
+        if message["type"] == "http.response.body" and not message.get("more_body", False):
+            response_complete.set()
 
     scope = {
         "type": "http",

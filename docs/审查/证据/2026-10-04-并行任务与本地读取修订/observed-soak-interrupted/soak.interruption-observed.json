@@ -1,0 +1,27 @@
+{
+  "status": "interrupted_without_final_result",
+  "observed_at": "2026-10-08T13:17:58.3565692+08:00",
+  "driver_pid": 68232,
+  "owned_python_process_found": false,
+  "driver_exit_code": null,
+  "driver_result_exists": false,
+  "probe_result_exists": false,
+  "last_maintenance": {
+    "elapsed_seconds": 1005.0159999998286,
+    "response_seconds": 0.015999999828636646,
+    "state": "planning",
+    "outcome": null,
+    "finished_at": null,
+    "counts": {
+      "pending": 738,
+      "succeeded": 3080
+    },
+    "settled": 3080,
+    "completion_observed_in_window": false
+  },
+  "mixed_http_count": 920,
+  "maintenance_http_count": 202,
+  "http_failures": 0,
+  "normal_shutdown_confirmed": false,
+  "interpretation": "Execution control was reset and the known process is absent. No completion, exit code, or cause of process loss is inferred."
+}

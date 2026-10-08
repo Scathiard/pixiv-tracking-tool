@@ -1,0 +1,94 @@
+{
+  "classification": "cancelled_by_user_after_normal_cleanup",
+  "eight_hour_passed": false,
+  "elapsed_seconds": 3572.812999999849,
+  "maintenance_completed": false,
+  "http_count": 3915,
+  "http_failures": 0,
+  "metadata_max_ms": 3718.9999998081475,
+  "small_admission_max_ms": 1080.1886001136154,
+  "small_operations": 60,
+  "overlap": {
+    "checking_download": true,
+    "checking_preview": true,
+    "two_checks": false
+  },
+  "normal_cleanup": {
+    "http_server_stopped": true,
+    "runtime_closed": true,
+    "remote_server_stopped": true,
+    "cleanup": {
+      "active_reads": {
+        "frontend": 0,
+        "background": 0,
+        "logs": 0
+      },
+      "pending_reads": {
+        "frontend": 0,
+        "background": 0,
+        "logs": 0
+      },
+      "worker_error": null,
+      "read_connections": 0,
+      "write_connections": 0,
+      "owner_lease_closed": true
+    }
+  },
+  "original_failures": [
+    "soak duration shorter than eight actual hours",
+    "full 15000-work maintenance cycle did not complete successfully within the run window",
+    "continuous soak coverage: burst coverage 80 < 639",
+    "continuous soak coverage: sample coverage 715 < 2880",
+    "continuous soak coverage: maintenance coverage 715 < 2880",
+    "closed persistence audit: durable maintenance is unfinished/unsuccessful"
+  ],
+  "production_persistence": {
+    "verified_assets": 2046,
+    "verified_previews": 2067,
+    "bookmark_observations": 2548,
+    "publication_journals": 91
+  },
+  "source_tree_sha256": "f5401afcc839470959608a354e30a1b77e2914224a890b6bdeac084d33efefaa",
+  "source_tree_sha256_after": "f5401afcc839470959608a354e30a1b77e2914224a890b6bdeac084d33efefaa",
+  "outer_exit_code": null,
+  "outer_receipt_missing_reason": "The verified private test console received one Ctrl+C; driver also interrupted.",
+  "process_exit_observation": "Parent observed all four recorded test process identities absent after normal cleanup.",
+  "access_violation_in_output": false,
+  "raw_files": [
+    {
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-13\\check-workers-1\\result.json",
+      "bytes": 301478,
+      "sha256": "205af03d9f39ff6264aca7a812109ee6bc594cc88fe1df5c622ebcf2c7365d9f"
+    },
+    {
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-13\\check-workers-1\\http.jsonl",
+      "bytes": 872616,
+      "sha256": "4b0dbb807760dfe3c05769c0bb0f8d3c05e23f343993c564c4d2d3dc32ca58b9"
+    },
+    {
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-13\\check-workers-1\\samples.jsonl",
+      "bytes": 605035,
+      "sha256": "8e979895877c7f742527f6f5cadaec908e5cd85bfb82d4761740c9d6a09cf578"
+    },
+    {
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-13\\check-workers-1\\slow-sql.jsonl",
+      "bytes": 82552,
+      "sha256": "413ecc2e9be3e0e9ea911bf3655f5b833edf4a062ac4f1c9c280f01b7d6a520d"
+    },
+    {
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-observed-load-driver-02\\soak.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-observed-load-driver-02\\soak.stderr.log",
+      "bytes": 665,
+      "sha256": "44771203985ce2a11cd67a0112c51c2774768755c7e7cdfa20fb8a069386edae"
+    },
+    {
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-observed-load-driver-02\\stop-requested.json",
+      "bytes": 2167,
+      "sha256": "a341f6edaa79d330778d632010b7fd41f0242aa9a44d375e2ed50f6075f03fab"
+    }
+  ]
+}
