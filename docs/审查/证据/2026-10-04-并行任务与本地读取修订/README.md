@@ -47,3 +47,4 @@
 
 全套首次完成结果及五项失败的定向修订复验分开记录；大型对照、实际 8 小时持续运行及最终 EXE 证据尚待补入。本目录存在不代表已交付。中断的 `full-01` 和源码曾变化的 `reliability-01` 原位保留，仅作过程诊断。
 | `sharing-fixture-resolution.md`、`sharing-fixture-red.txt`、`sharing-fixture-green.txt`、`sharing-fixture-regression.xml`、`sharing-fixture-close-probe.py`、`sharing-fixture-baseline.py` | `b20261008-sharing-failure-01`；真实 HTTP 关闭时序反例确认失败 PATCH 连接干扰后继 GET；只隔离注入失败请求后同探针通过，相关 24 项全部通过。原全套未捕获 Future 异常，不将反例当作逐字证明；生产代码及原时限／断言未变。正式文本副本仅去行尾空白，原件保留 |
+| `checkpoint-runtime-soak-failed.json`、`checkpoint-runtime-soak-failure-context.json` | `b20261004.3-reliability-20261008-08`；固定 `9eb03bc` 实际 9191.125 秒后失败，8200 个 HTTP 中 7 个设置 504，后继驱动简单统计也超时；正常收尾、源文件未变。原始 16MB 事件轨迹及 SQL 留在原目录；未完成整轮维护/八小时，不构建交付 |
