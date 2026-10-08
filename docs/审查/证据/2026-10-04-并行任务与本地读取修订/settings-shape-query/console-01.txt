@@ -1,0 +1,4 @@
+baseline [(4.5082, 'OperationalError: interrupted', None), (4.6055, 'OperationalError: interrupted', None), (4.5169, 'OperationalError: interrupted', None)]
+candidate [(4.5181, 'OperationalError: interrupted', None), (4.5128, 'OperationalError: interrupted', None), (2.4464, None, [5137, 15002, 5160, 9833, 9])]
+candidate [(0.2974, None, [5137, 15002, 5160, 9833, 9]), (0.2621, None, [5137, 15002, 5160, 9833, 9]), (0.3253, None, [5137, 15002, 5160, 9833, 9])]
+baseline [(4.9822, 'OperationalError: interrupted', None), (5.605, 'OperationalError: interrupted', None), (5.5987, 'OperationalError: interrupted', None)]

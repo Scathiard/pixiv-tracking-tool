@@ -18,7 +18,7 @@
 - `client_mobile_chrome_browser.py --artifacts NEW_DIRECTORY [--exe EXE_PATH]`：正式前端的 390／360／320px 手机与明暗主题、单项／并行任务高度及遮图面积、真实计数、暂停／继续触摸请求、上一件／下一件／红心 44px 可触范围；使用 Chromium 原生安全区 0／24／48px，另以明确标记的 VisualViewport 信号回放布局／可见区域不一致、地址栏／键盘与恢复，覆盖横竖屏返回和捏合缩放时保留布局。另核对手机未知分母／断线／空闲无假进度，以及 1440px 详情／流式底栏在有无任务时的可达性。源码与 EXE 都只用隔离合成图库，EXE 走自带冒烟入口；新证据保留在主仓库 `.devtools/test-runs/b20261003.7-mobile-*`，不自动构建前端，不表示实体 Android Chrome 已验收。
 
 - `test_offline_task_gate.py`：旧任务离线保持、连接恢复、领取后断开、孤立规划状态、近十万待办及本地任务不饥饿；仅合成库与连接替身。
-- `test_settings_scale.py`：15,000 件合成作品的当前版本原件统计、历史引用复用、旧记录、隐藏／删除阻止与动图，记录 SQL 计划、接口耗时及写后即时更新；不以缓存掩盖重复统计。
+- `test_settings_scale.py`：15,000 件合成作品的当前版本原件统计、历史引用复用、旧记录、隐藏／删除阻止与动图，记录 SELECT／WITH 实际 SQL 计划、接口耗时及写后即时更新；不以缓存掩盖重复统计，既有 1 秒门槛保持。
 
 - `test_task_control_delivery.py`：2,000／20,000／100,000 步骤的索引领取与短写事务、前台／后台公平推进、持久手动暂停、下载子任务与重启、有限冷却重试及 2,000 页分批清单；全部合成数据。
 - `task_acceptance_probe.py --source-db SYNTHETIC_DB --artifacts NEW_DIRECTORY`：复制既有十万项隔离库，实际 localhost 测量远端替身等待期间的 20 次不同单件任务受理、本地详情与计数；每次要求 created=True，不连接真实主站。
@@ -49,7 +49,9 @@
 - `test_task_claim_completed_dependencies.py`：旧 `lane=NULL` 与新通道的部分完成维护清单，使用 SQL 执行计划与包括结果读取的 SQLite VM 工作量验证有界领取和完整步骤预算；150,512 步合成配比、空通道推进、跨窗口依赖、暂停与重新创建队列不重复计数，以及索引统计／结案与原 SQL 等价（含未知状态、空阶段和空任务）。未给出的清单部分使用明确标注的已完成填充，不读取真实图库。
 - `test_task_materialize_scale.py`、`test_task_progress_remote_inventory.py`：追加清单只定位各状态／通道的末位，空清单和重复清单不扫描历史；进度按阶段和单位定位远端分页步骤，保留旧收藏步骤的未知分母，仅合成数据。
 - `test_task_target_indexes.py`、`test_task_index_preparation.py`：任务目标的类型、优先级、去重和旧范围兼容；十五万步骤的索引计划／工作量；持有图库租约、WAL 一致性备份、事务失败回滚、同名定义冲突、幂等及只读打开不修改，只使用隔离数据库。
+- `test_settings_index_preparation.py`：两条设置覆盖索引的新库声明、启动 worker 前准备、WAL 备份、同名定义冲突、幂等、只读打开和严格旧结构显式升级；DDL／receipt／提交前异常回滚与租约释放仅用微型合成库，提交事件异常不等于真实断电验证。
 - `test_library_count_plan.py`、`test_settings_projection.py`：图库计数和排序窗口先读取窄行，筛选／排序／分页结果与原查询一致；设置统计复用作品形态，覆盖跨作品资产复用、历史版本、隐藏、删除阻止及缺失登记语义。
+- `test_settings_projection.py` 另以 20,000 条历史版本、500 条小批插入和四条合成资产验证窄投影；实际 GET 与默认版本切换即时反馈、自然覆盖扫描计划、API／SQL 耗时和进程内存留证，固定图库不足 100 MiB，保留 4.5 秒读取／5 秒完整响应门槛，不代替八小时或 EXE 验收。
 - `test_archive_state.py`：图库／详情／流式统一整件作品原件与处理状态；首图可读不能覆盖缺页，具体媒体请求观察缺失后更新事实；5,000 件／2,000 页批量读取。
 - `test_reading_query_scale.py`：合成历史任务与无关媒体记录下的读取预算，保留历史任务状态选择规则；媒体索引仅作定位提示，仍核对授权与路径边界，历史来源版本的本地图保持可读，不读取真实图库。
 - `test_settings_lan_discovery.py`：禁止主机名 DNS 查询，设置末尾只枚举本地适配器且不占数据库连接；模拟适配器失败时保留其他设置并返回空局域网地址。

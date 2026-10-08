@@ -56,6 +56,7 @@ class Work(Base):
         Index("ix_works_order", "posted_at", "id"),
         Index("ix_works_artist_order", "artist_id", "posted_at", "id"),
         Index("ix_works_type_order", "type", "posted_at", "id"),
+        Index("ix_works_settings_shape", "default_revision_id", "pixiv_illust_id", "type", "page_count"),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
     pixiv_illust_id: Mapped[str] = mapped_column(String, unique=True)
@@ -94,7 +95,9 @@ class WorkTag(Base):
 class WorkRevision(Base):
     __tablename__ = "work_revisions"
     __table_args__ = (UniqueConstraint("work_id", "ordinal"),
-        Index("ix_revision_work_order", "work_id", "ordinal"), CheckConstraint("page_count >= 1"))
+        Index("ix_revision_work_order", "work_id", "ordinal"),
+        Index("ix_revisions_settings_shape", "id", "type", "page_count"),
+        CheckConstraint("page_count >= 1"))
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_id)
     work_id: Mapped[int] = mapped_column(ForeignKey("works.id"), index=True)
     ordinal: Mapped[int] = mapped_column(Integer)

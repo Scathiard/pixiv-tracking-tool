@@ -1,0 +1,3303 @@
+{
+  "protocol": {
+    "baseline_commit": "a21c86e",
+    "source_database": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-08\\check-workers-1\\archive.db",
+    "source_size": 605646848,
+    "source_mtime_ns": 1791419335562859200,
+    "sql": "WITH current_works AS MATERIALIZED \n(SELECT works.id AS work_id, works.pixiv_illust_id AS pixiv_id, works.default_revision_id AS revision_id, coalesce(work_revisions.type, works.type) AS type, coalesce(work_revisions.page_count, works.page_count) AS page_count \nFROM works LEFT OUTER JOIN work_revisions ON work_revisions.id = works.default_revision_id)\n SELECT coalesce(sum(anon_1.downloaded_pages), ?) AS coalesce_1, coalesce(sum(anon_1.registered_originals), ?) AS coalesce_3, coalesce(sum(anon_1.verified_originals), ?) AS coalesce_5, coalesce(sum(anon_1.unverified_originals), ?) AS coalesce_7, coalesce(sum(CASE WHEN (CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) > ?) THEN CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) ELSE ? END), ?) AS coalesce_9 \nFROM current_works LEFT OUTER JOIN (SELECT assets.work_id AS work_id, sum(CASE WHEN (assets.role = ? AND assets.state = ?) THEN ? ELSE ? END) AS downloaded_pages, sum(CASE WHEN (length(assets.relative_path) > ?) THEN ? ELSE ? END) AS registered_originals, sum(CASE WHEN (assets.state = ?) THEN ? ELSE ? END) AS verified_originals, sum(CASE WHEN (assets.state = ? AND length(assets.relative_path) > ?) THEN ? ELSE ? END) AS unverified_originals, sum(CASE WHEN (length(assets.relative_path) > ? AND (assets.state NOT IN (?, ?, ?, ?, ?))) THEN ? ELSE ? END) AS usable \nFROM assets JOIN (SELECT revision_assets.asset_id AS asset_id \nFROM revision_assets JOIN current_works ON current_works.revision_id = revision_assets.revision_id UNION SELECT assets.id AS asset_id \nFROM assets JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.revision_id IS NULL AND assets.revision_id IS NULL) AS anon_2 ON anon_2.asset_id = assets.id JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.type = ? AND assets.role = ? OR current_works.type != ? AND assets.role = ? AND assets.page_index < current_works.page_count GROUP BY assets.work_id) AS anon_1 ON anon_1.work_id = current_works.work_id \nWHERE (current_works.pixiv_id NOT IN (SELECT archive_intents.pixiv_illust_id \nFROM archive_intents \nWHERE archive_intents.mode = ?))",
+    "parameters": [
+      0,
+      0,
+      0,
+      0,
+      "ugoira",
+      1,
+      0,
+      0,
+      "ugoira",
+      1,
+      0,
+      0,
+      0,
+      "image",
+      "verified",
+      1,
+      0,
+      0,
+      1,
+      0,
+      "verified",
+      1,
+      0,
+      "unknown",
+      0,
+      1,
+      0,
+      0,
+      "missing",
+      "failed",
+      "invalid",
+      "mismatch",
+      "corrupt",
+      1,
+      0,
+      "ugoira",
+      "ugoira_zip",
+      "ugoira",
+      "image",
+      "suppressed"
+    ],
+    "expected_result": [
+      5137,
+      15002,
+      5160,
+      9833,
+      9
+    ],
+    "columns": [
+      "downloaded_pages",
+      "registered_originals",
+      "verified_originals",
+      "unverified_originals",
+      "missing_originals"
+    ],
+    "process_snapshot_helper": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-settings-query-review-01\\measure.py",
+    "process_snapshot_helper_sha256": "5591d52d7b3c6bba2611c0044173125291a3fdb971093f25b3dd8f768138ea74",
+    "progress_budget_seconds": 4.5,
+    "query_hard_budget_seconds": 10,
+    "arms": {
+      "baseline": [],
+      "works_only": [
+        "works"
+      ],
+      "revisions_only": [
+        "revisions"
+      ],
+      "both": [
+        "works",
+        "revisions"
+      ]
+    },
+    "indexes": {
+      "works": "CREATE INDEX ix_works_settings_shape ON works(default_revision_id,pixiv_illust_id,type,page_count)",
+      "revisions": "CREATE INDEX ix_revisions_settings_shape ON work_revisions(id,type,page_count)"
+    }
+  },
+  "source_sha256": "b00a418a6bba973fbd30cf6ce083edc7fc6ce7a1d61a4b94b2cc174c17a4cdc1",
+  "source_metadata_unchanged": true,
+  "os_cache_not_flushed": true,
+  "copy_verification_and_creation_warm_os_cache": true,
+  "process_io_is_not_physical_io": true,
+  "ready_arms": [
+    "baseline",
+    "works_only",
+    "revisions_only",
+    "both"
+  ],
+  "records": [
+    {
+      "stage": "copy",
+      "arm": "baseline",
+      "pid": 23544,
+      "exit_code": 0,
+      "supervisor_seconds": 33.609255800023675,
+      "failure": null,
+      "result": {
+        "copy": {
+          "label": "copy",
+          "seconds": 32.55319579993375,
+          "cpu_seconds": 0.953125,
+          "error": null,
+          "value": {
+            "sha256": "b00a418a6bba973fbd30cf6ce083edc7fc6ce7a1d61a4b94b2cc174c17a4cdc1",
+            "bytes": 605646848
+          },
+          "io_delta": {
+            "read_operations": 580,
+            "write_operations": 578,
+            "other_operations": 51,
+            "read_bytes": 605646848,
+            "write_bytes": 605646848,
+            "other_bytes": 5876
+          },
+          "rss_bytes": 26034176,
+          "peak_rss_bytes": 28139520
+        },
+        "target_verification": {
+          "label": "verify_target",
+          "seconds": 0.7643104000017047,
+          "cpu_seconds": 0.484375,
+          "error": null,
+          "value": {
+            "sha256": "b00a418a6bba973fbd30cf6ce083edc7fc6ce7a1d61a4b94b2cc174c17a4cdc1",
+            "bytes": 605646848,
+            "matches_source_stream": true
+          },
+          "io_delta": {
+            "read_operations": 580,
+            "write_operations": 0,
+            "other_operations": 5,
+            "read_bytes": 605646848,
+            "write_bytes": 0,
+            "other_bytes": 220
+          },
+          "rss_bytes": 26034176,
+          "peak_rss_bytes": 28139520
+        }
+      },
+      "log": "00-copy-baseline.jsonl"
+    },
+    {
+      "stage": "copy",
+      "arm": "works_only",
+      "pid": 12564,
+      "exit_code": 0,
+      "supervisor_seconds": 12.456703200004995,
+      "failure": null,
+      "result": {
+        "copy": {
+          "label": "copy",
+          "seconds": 11.107250599889085,
+          "cpu_seconds": 0.796875,
+          "error": null,
+          "value": {
+            "sha256": "b00a418a6bba973fbd30cf6ce083edc7fc6ce7a1d61a4b94b2cc174c17a4cdc1",
+            "bytes": 605646848
+          },
+          "io_delta": {
+            "read_operations": 580,
+            "write_operations": 578,
+            "other_operations": 51,
+            "read_bytes": 605646848,
+            "write_bytes": 605646848,
+            "other_bytes": 5876
+          },
+          "rss_bytes": 25534464,
+          "peak_rss_bytes": 27639808
+        },
+        "target_verification": {
+          "label": "verify_target",
+          "seconds": 0.9957373000215739,
+          "cpu_seconds": 0.5,
+          "error": null,
+          "value": {
+            "sha256": "b00a418a6bba973fbd30cf6ce083edc7fc6ce7a1d61a4b94b2cc174c17a4cdc1",
+            "bytes": 605646848,
+            "matches_source_stream": true
+          },
+          "io_delta": {
+            "read_operations": 580,
+            "write_operations": 0,
+            "other_operations": 5,
+            "read_bytes": 605646848,
+            "write_bytes": 0,
+            "other_bytes": 220
+          },
+          "rss_bytes": 25534464,
+          "peak_rss_bytes": 27639808
+        }
+      },
+      "log": "01-copy-works_only.jsonl"
+    },
+    {
+      "stage": "copy",
+      "arm": "revisions_only",
+      "pid": 30320,
+      "exit_code": 0,
+      "supervisor_seconds": 14.404110499890521,
+      "failure": null,
+      "result": {
+        "copy": {
+          "label": "copy",
+          "seconds": 12.777725599939004,
+          "cpu_seconds": 0.8125,
+          "error": null,
+          "value": {
+            "sha256": "b00a418a6bba973fbd30cf6ce083edc7fc6ce7a1d61a4b94b2cc174c17a4cdc1",
+            "bytes": 605646848
+          },
+          "io_delta": {
+            "read_operations": 580,
+            "write_operations": 578,
+            "other_operations": 51,
+            "read_bytes": 605646848,
+            "write_bytes": 605646848,
+            "other_bytes": 5876
+          },
+          "rss_bytes": 25542656,
+          "peak_rss_bytes": 27648000
+        },
+        "target_verification": {
+          "label": "verify_target",
+          "seconds": 1.2042145999148488,
+          "cpu_seconds": 0.453125,
+          "error": null,
+          "value": {
+            "sha256": "b00a418a6bba973fbd30cf6ce083edc7fc6ce7a1d61a4b94b2cc174c17a4cdc1",
+            "bytes": 605646848,
+            "matches_source_stream": true
+          },
+          "io_delta": {
+            "read_operations": 580,
+            "write_operations": 0,
+            "other_operations": 5,
+            "read_bytes": 605646848,
+            "write_bytes": 0,
+            "other_bytes": 220
+          },
+          "rss_bytes": 25542656,
+          "peak_rss_bytes": 27648000
+        }
+      },
+      "log": "02-copy-revisions_only.jsonl"
+    },
+    {
+      "stage": "copy",
+      "arm": "both",
+      "pid": 36048,
+      "exit_code": 0,
+      "supervisor_seconds": 13.92499059997499,
+      "failure": null,
+      "result": {
+        "copy": {
+          "label": "copy",
+          "seconds": 12.448930900078267,
+          "cpu_seconds": 0.6875,
+          "error": null,
+          "value": {
+            "sha256": "b00a418a6bba973fbd30cf6ce083edc7fc6ce7a1d61a4b94b2cc174c17a4cdc1",
+            "bytes": 605646848
+          },
+          "io_delta": {
+            "read_operations": 580,
+            "write_operations": 578,
+            "other_operations": 51,
+            "read_bytes": 605646848,
+            "write_bytes": 605646848,
+            "other_bytes": 5876
+          },
+          "rss_bytes": 25571328,
+          "peak_rss_bytes": 27676672
+        },
+        "target_verification": {
+          "label": "verify_target",
+          "seconds": 1.0152624000329524,
+          "cpu_seconds": 0.46875,
+          "error": null,
+          "value": {
+            "sha256": "b00a418a6bba973fbd30cf6ce083edc7fc6ce7a1d61a4b94b2cc174c17a4cdc1",
+            "bytes": 605646848,
+            "matches_source_stream": true
+          },
+          "io_delta": {
+            "read_operations": 580,
+            "write_operations": 0,
+            "other_operations": 5,
+            "read_bytes": 605646848,
+            "write_bytes": 0,
+            "other_bytes": 220
+          },
+          "rss_bytes": 25571328,
+          "peak_rss_bytes": 27676672
+        }
+      },
+      "log": "03-copy-both.jsonl"
+    },
+    {
+      "stage": "prepare",
+      "arm": "baseline",
+      "pid": 67996,
+      "exit_code": 0,
+      "supervisor_seconds": 0.9196101000998169,
+      "failure": null,
+      "result": {
+        "before": {
+          "page_size": 4096,
+          "page_count": 147863,
+          "freelist_count": 1,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "wal"
+        },
+        "after": {
+          "page_size": 4096,
+          "page_count": 147863,
+          "freelist_count": 1,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "wal"
+        },
+        "creations": [],
+        "index_sizes": {},
+        "checkpoint": {
+          "label": "checkpoint",
+          "seconds": 9.460002183914185e-05,
+          "cpu_seconds": 0.0,
+          "error": null,
+          "value": [
+            0,
+            0,
+            0
+          ],
+          "io_delta": {
+            "read_operations": 0,
+            "write_operations": 0,
+            "other_operations": 6,
+            "read_bytes": 0,
+            "write_bytes": 0,
+            "other_bytes": 112
+          },
+          "rss_bytes": 22646784,
+          "peak_rss_bytes": 22646784
+        },
+        "closed_without_wal": true,
+        "ready": true
+      },
+      "log": "04-prepare-baseline.jsonl"
+    },
+    {
+      "stage": "prepare",
+      "arm": "works_only",
+      "pid": 21436,
+      "exit_code": 0,
+      "supervisor_seconds": 13.88985799998045,
+      "failure": null,
+      "result": {
+        "before": {
+          "page_size": 4096,
+          "page_count": 147863,
+          "freelist_count": 1,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "wal"
+        },
+        "after": {
+          "page_size": 4096,
+          "page_count": 148067,
+          "freelist_count": 0,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "wal"
+        },
+        "creations": [
+          {
+            "label": "create_works",
+            "seconds": 13.288347899913788,
+            "cpu_seconds": 0.40625,
+            "error": null,
+            "value": null,
+            "io_delta": {
+              "read_operations": 33767,
+              "write_operations": 415,
+              "other_operations": 39,
+              "read_bytes": 138309632,
+              "write_bytes": 852872,
+              "other_bytes": 5348
+            },
+            "rss_bytes": 28909568,
+            "peak_rss_bytes": 30965760
+          }
+        ],
+        "index_sizes": {
+          "ix_works_settings_shape": {
+            "definition": "CREATE INDEX ix_works_settings_shape ON works(default_revision_id,pixiv_illust_id,type,page_count)",
+            "pages": 205,
+            "bytes": 839680
+          }
+        },
+        "checkpoint": {
+          "label": "checkpoint",
+          "seconds": 0.10468630003742874,
+          "cpu_seconds": 0.0,
+          "error": null,
+          "value": [
+            0,
+            0,
+            0
+          ],
+          "io_delta": {
+            "read_operations": 207,
+            "write_operations": 207,
+            "other_operations": 6,
+            "read_bytes": 847872,
+            "write_bytes": 847872,
+            "other_bytes": 16
+          },
+          "rss_bytes": 28946432,
+          "peak_rss_bytes": 30965760
+        },
+        "closed_without_wal": true,
+        "ready": true
+      },
+      "log": "05-prepare-works_only.jsonl"
+    },
+    {
+      "stage": "prepare",
+      "arm": "revisions_only",
+      "pid": 63560,
+      "exit_code": 0,
+      "supervisor_seconds": 0.8467666001524776,
+      "failure": null,
+      "result": {
+        "before": {
+          "page_size": 4096,
+          "page_count": 147863,
+          "freelist_count": 1,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "wal"
+        },
+        "after": {
+          "page_size": 4096,
+          "page_count": 148041,
+          "freelist_count": 0,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "wal"
+        },
+        "creations": [
+          {
+            "label": "create_revisions",
+            "seconds": 0.40383050008676946,
+            "cpu_seconds": 0.09375,
+            "error": null,
+            "value": null,
+            "io_delta": {
+              "read_operations": 17984,
+              "write_operations": 363,
+              "other_operations": 6,
+              "read_bytes": 73662464,
+              "write_bytes": 745752,
+              "other_bytes": 104
+            },
+            "rss_bytes": 26124288,
+            "peak_rss_bytes": 27041792
+          }
+        ],
+        "index_sizes": {
+          "ix_revisions_settings_shape": {
+            "definition": "CREATE INDEX ix_revisions_settings_shape ON work_revisions(id,type,page_count)",
+            "pages": 179,
+            "bytes": 733184
+          }
+        },
+        "checkpoint": {
+          "label": "checkpoint",
+          "seconds": 0.12348509998992085,
+          "cpu_seconds": 0.0,
+          "error": null,
+          "value": [
+            0,
+            0,
+            0
+          ],
+          "io_delta": {
+            "read_operations": 181,
+            "write_operations": 181,
+            "other_operations": 6,
+            "read_bytes": 741376,
+            "write_bytes": 741376,
+            "other_bytes": 16
+          },
+          "rss_bytes": 26161152,
+          "peak_rss_bytes": 27041792
+        },
+        "closed_without_wal": true,
+        "ready": true
+      },
+      "log": "06-prepare-revisions_only.jsonl"
+    },
+    {
+      "stage": "prepare",
+      "arm": "both",
+      "pid": 56868,
+      "exit_code": 0,
+      "supervisor_seconds": 2.5687051999848336,
+      "failure": null,
+      "result": {
+        "before": {
+          "page_size": 4096,
+          "page_count": 147863,
+          "freelist_count": 1,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "wal"
+        },
+        "after": {
+          "page_size": 4096,
+          "page_count": 148246,
+          "freelist_count": 0,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "wal"
+        },
+        "creations": [
+          {
+            "label": "create_works",
+            "seconds": 0.2954559999052435,
+            "cpu_seconds": 0.078125,
+            "error": null,
+            "value": null,
+            "io_delta": {
+              "read_operations": 33767,
+              "write_operations": 415,
+              "other_operations": 6,
+              "read_bytes": 138309632,
+              "write_bytes": 852872,
+              "other_bytes": 104
+            },
+            "rss_bytes": 26206208,
+            "peak_rss_bytes": 28291072
+          },
+          {
+            "label": "create_revisions",
+            "seconds": 0.1815600001718849,
+            "cpu_seconds": 0.078125,
+            "error": null,
+            "value": null,
+            "io_delta": {
+              "read_operations": 17983,
+              "write_operations": 362,
+              "other_operations": 1,
+              "read_bytes": 73658368,
+              "write_bytes": 745720,
+              "other_bytes": 0
+            },
+            "rss_bytes": 26210304,
+            "peak_rss_bytes": 28291072
+          }
+        ],
+        "index_sizes": {
+          "ix_works_settings_shape": {
+            "definition": "CREATE INDEX ix_works_settings_shape ON works(default_revision_id,pixiv_illust_id,type,page_count)",
+            "pages": 205,
+            "bytes": 839680
+          },
+          "ix_revisions_settings_shape": {
+            "definition": "CREATE INDEX ix_revisions_settings_shape ON work_revisions(id,type,page_count)",
+            "pages": 179,
+            "bytes": 733184
+          }
+        },
+        "checkpoint": {
+          "label": "checkpoint",
+          "seconds": 1.9072308999020606,
+          "cpu_seconds": 0.03125,
+          "error": null,
+          "value": [
+            0,
+            0,
+            0
+          ],
+          "io_delta": {
+            "read_operations": 386,
+            "write_operations": 386,
+            "other_operations": 39,
+            "read_bytes": 1581056,
+            "write_bytes": 1581056,
+            "other_bytes": 5260
+          },
+          "rss_bytes": 29081600,
+          "peak_rss_bytes": 29081600
+        },
+        "closed_without_wal": true,
+        "ready": true
+      },
+      "log": "07-prepare-both.jsonl"
+    },
+    {
+      "stage": "query",
+      "arm": "baseline",
+      "pid": 58592,
+      "exit_code": 0,
+      "supervisor_seconds": 14.08083700016141,
+      "failure": null,
+      "result": {
+        "plan": [
+          [
+            3,
+            0,
+            0,
+            "MATERIALIZE current_works"
+          ],
+          [
+            8,
+            3,
+            216,
+            "SCAN works"
+          ],
+          [
+            10,
+            3,
+            46,
+            "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+          ],
+          [
+            38,
+            0,
+            0,
+            "MATERIALIZE anon_1"
+          ],
+          [
+            40,
+            38,
+            0,
+            "CO-ROUTINE anon_2"
+          ],
+          [
+            42,
+            40,
+            0,
+            "MERGE (UNION)"
+          ],
+          [
+            44,
+            42,
+            0,
+            "LEFT"
+          ],
+          [
+            50,
+            44,
+            224,
+            "SCAN revision_assets USING INDEX ix_revision_assets_asset_id"
+          ],
+          [
+            61,
+            44,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (revision_id=?)"
+          ],
+          [
+            71,
+            42,
+            0,
+            "RIGHT"
+          ],
+          [
+            77,
+            71,
+            68,
+            "SEARCH assets USING INDEX ix_assets_revision_id (revision_id=?)"
+          ],
+          [
+            85,
+            71,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            97,
+            71,
+            53,
+            "SEARCH current_works USING AUTOMATIC PARTIAL COVERING INDEX (work_id=?)"
+          ],
+          [
+            110,
+            71,
+            0,
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          [
+            160,
+            38,
+            222,
+            "SCAN assets USING INDEX ix_assets_work_id"
+          ],
+          [
+            173,
+            38,
+            55,
+            "SEARCH anon_2 USING AUTOMATIC COVERING INDEX (asset_id=?)"
+          ],
+          [
+            179,
+            38,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            190,
+            38,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+          ],
+          [
+            318,
+            0,
+            216,
+            "SCAN current_works"
+          ],
+          [
+            323,
+            0,
+            0,
+            "LIST SUBQUERY 5"
+          ],
+          [
+            326,
+            323,
+            216,
+            "SCAN archive_intents"
+          ],
+          [
+            334,
+            323,
+            0,
+            "CREATE BLOOM FILTER"
+          ],
+          [
+            351,
+            0,
+            0,
+            "BLOOM FILTER ON anon_1 (work_id=?)"
+          ],
+          [
+            365,
+            0,
+            47,
+            "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+          ]
+        ],
+        "metadata": {
+          "page_size": 4096,
+          "page_count": 147863,
+          "freelist_count": 1,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "delete"
+        },
+        "rows": [
+          {
+            "label": "query_0",
+            "seconds": 4.569233800051734,
+            "cpu_seconds": 0.28125,
+            "error": "OperationalError: interrupted",
+            "value": null,
+            "io_delta": {
+              "read_operations": 4926,
+              "write_operations": 0,
+              "other_operations": 37,
+              "read_bytes": 20176896,
+              "write_bytes": 0,
+              "other_bytes": 5348
+            },
+            "rss_bytes": 28176384,
+            "peak_rss_bytes": 28176384,
+            "repeat": 0,
+            "temperature": "new_process_connection_first",
+            "vm_steps_lower_bound": 22000,
+            "vm_steps_upper_bound": 22999,
+            "equal_expected": false
+          },
+          {
+            "label": "query_1",
+            "seconds": 4.557353400159627,
+            "cpu_seconds": 0.3125,
+            "error": "OperationalError: interrupted",
+            "value": null,
+            "io_delta": {
+              "read_operations": 12055,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 49377280,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 28438528,
+            "peak_rss_bytes": 28438528,
+            "repeat": 1,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 54000,
+            "vm_steps_upper_bound": 54999,
+            "equal_expected": false
+          },
+          {
+            "label": "query_2",
+            "seconds": 4.572490599937737,
+            "cpu_seconds": 0.203125,
+            "error": "OperationalError: interrupted",
+            "value": null,
+            "io_delta": {
+              "read_operations": 17240,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 70615040,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 28463104,
+            "peak_rss_bytes": 28463104,
+            "repeat": 2,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 77000,
+            "vm_steps_upper_bound": 77999,
+            "equal_expected": false
+          }
+        ],
+        "all_equal": false
+      },
+      "log": "08-query-baseline.jsonl"
+    },
+    {
+      "stage": "query",
+      "arm": "works_only",
+      "pid": 45372,
+      "exit_code": 0,
+      "supervisor_seconds": 14.306765400106087,
+      "failure": null,
+      "result": {
+        "plan": [
+          [
+            3,
+            0,
+            0,
+            "MATERIALIZE current_works"
+          ],
+          [
+            8,
+            3,
+            210,
+            "SCAN works USING COVERING INDEX ix_works_settings_shape"
+          ],
+          [
+            10,
+            3,
+            46,
+            "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+          ],
+          [
+            38,
+            0,
+            0,
+            "MATERIALIZE anon_1"
+          ],
+          [
+            40,
+            38,
+            0,
+            "CO-ROUTINE anon_2"
+          ],
+          [
+            42,
+            40,
+            0,
+            "MERGE (UNION)"
+          ],
+          [
+            44,
+            42,
+            0,
+            "LEFT"
+          ],
+          [
+            50,
+            44,
+            224,
+            "SCAN revision_assets USING INDEX ix_revision_assets_asset_id"
+          ],
+          [
+            61,
+            44,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (revision_id=?)"
+          ],
+          [
+            71,
+            42,
+            0,
+            "RIGHT"
+          ],
+          [
+            77,
+            71,
+            68,
+            "SEARCH assets USING INDEX ix_assets_revision_id (revision_id=?)"
+          ],
+          [
+            85,
+            71,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            97,
+            71,
+            53,
+            "SEARCH current_works USING AUTOMATIC PARTIAL COVERING INDEX (work_id=?)"
+          ],
+          [
+            110,
+            71,
+            0,
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          [
+            160,
+            38,
+            222,
+            "SCAN assets USING INDEX ix_assets_work_id"
+          ],
+          [
+            173,
+            38,
+            55,
+            "SEARCH anon_2 USING AUTOMATIC COVERING INDEX (asset_id=?)"
+          ],
+          [
+            179,
+            38,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            190,
+            38,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+          ],
+          [
+            318,
+            0,
+            216,
+            "SCAN current_works"
+          ],
+          [
+            323,
+            0,
+            0,
+            "LIST SUBQUERY 5"
+          ],
+          [
+            326,
+            323,
+            216,
+            "SCAN archive_intents"
+          ],
+          [
+            334,
+            323,
+            0,
+            "CREATE BLOOM FILTER"
+          ],
+          [
+            351,
+            0,
+            0,
+            "BLOOM FILTER ON anon_1 (work_id=?)"
+          ],
+          [
+            365,
+            0,
+            47,
+            "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+          ]
+        ],
+        "metadata": {
+          "page_size": 4096,
+          "page_count": 148067,
+          "freelist_count": 0,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "delete"
+        },
+        "rows": [
+          {
+            "label": "query_0",
+            "seconds": 4.698926500044763,
+            "cpu_seconds": 0.046875,
+            "error": "OperationalError: interrupted",
+            "value": null,
+            "io_delta": {
+              "read_operations": 564,
+              "write_operations": 0,
+              "other_operations": 37,
+              "read_bytes": 2310144,
+              "write_bytes": 0,
+              "other_bytes": 5348
+            },
+            "rss_bytes": 28053504,
+            "peak_rss_bytes": 28053504,
+            "repeat": 0,
+            "temperature": "new_process_connection_first",
+            "vm_steps_lower_bound": 5000,
+            "vm_steps_upper_bound": 5999,
+            "equal_expected": false
+          },
+          {
+            "label": "query_1",
+            "seconds": 4.643518999917433,
+            "cpu_seconds": 0.109375,
+            "error": "OperationalError: interrupted",
+            "value": null,
+            "io_delta": {
+              "read_operations": 1195,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 4894720,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 28069888,
+            "peak_rss_bytes": 28069888,
+            "repeat": 1,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 11000,
+            "vm_steps_upper_bound": 11999,
+            "equal_expected": false
+          },
+          {
+            "label": "query_2",
+            "seconds": 4.690415800083429,
+            "cpu_seconds": 0.015625,
+            "error": "OperationalError: interrupted",
+            "value": null,
+            "io_delta": {
+              "read_operations": 1855,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 7598080,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 28168192,
+            "peak_rss_bytes": 28168192,
+            "repeat": 2,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 17000,
+            "vm_steps_upper_bound": 17999,
+            "equal_expected": false
+          }
+        ],
+        "all_equal": false
+      },
+      "log": "09-query-works_only.jsonl"
+    },
+    {
+      "stage": "query",
+      "arm": "revisions_only",
+      "pid": 17016,
+      "exit_code": 0,
+      "supervisor_seconds": 1.5846085001248866,
+      "failure": null,
+      "result": {
+        "plan": [
+          [
+            3,
+            0,
+            0,
+            "MATERIALIZE current_works"
+          ],
+          [
+            8,
+            3,
+            216,
+            "SCAN works"
+          ],
+          [
+            10,
+            3,
+            46,
+            "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+          ],
+          [
+            38,
+            0,
+            0,
+            "MATERIALIZE anon_1"
+          ],
+          [
+            40,
+            38,
+            0,
+            "CO-ROUTINE anon_2"
+          ],
+          [
+            42,
+            40,
+            0,
+            "MERGE (UNION)"
+          ],
+          [
+            44,
+            42,
+            0,
+            "LEFT"
+          ],
+          [
+            50,
+            44,
+            224,
+            "SCAN revision_assets USING INDEX ix_revision_assets_asset_id"
+          ],
+          [
+            61,
+            44,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (revision_id=?)"
+          ],
+          [
+            71,
+            42,
+            0,
+            "RIGHT"
+          ],
+          [
+            77,
+            71,
+            68,
+            "SEARCH assets USING INDEX ix_assets_revision_id (revision_id=?)"
+          ],
+          [
+            85,
+            71,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            97,
+            71,
+            53,
+            "SEARCH current_works USING AUTOMATIC PARTIAL COVERING INDEX (work_id=?)"
+          ],
+          [
+            110,
+            71,
+            0,
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          [
+            160,
+            38,
+            222,
+            "SCAN assets USING INDEX ix_assets_work_id"
+          ],
+          [
+            173,
+            38,
+            55,
+            "SEARCH anon_2 USING AUTOMATIC COVERING INDEX (asset_id=?)"
+          ],
+          [
+            179,
+            38,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            190,
+            38,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+          ],
+          [
+            318,
+            0,
+            216,
+            "SCAN current_works"
+          ],
+          [
+            323,
+            0,
+            0,
+            "LIST SUBQUERY 5"
+          ],
+          [
+            326,
+            323,
+            216,
+            "SCAN archive_intents"
+          ],
+          [
+            334,
+            323,
+            0,
+            "CREATE BLOOM FILTER"
+          ],
+          [
+            351,
+            0,
+            0,
+            "BLOOM FILTER ON anon_1 (work_id=?)"
+          ],
+          [
+            365,
+            0,
+            47,
+            "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+          ]
+        ],
+        "metadata": {
+          "page_size": 4096,
+          "page_count": 148041,
+          "freelist_count": 0,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "delete"
+        },
+        "rows": [
+          {
+            "label": "query_0",
+            "seconds": 0.42056130012497306,
+            "cpu_seconds": 0.328125,
+            "error": null,
+            "value": [
+              5137,
+              15002,
+              5160,
+              9833,
+              9
+            ],
+            "io_delta": {
+              "read_operations": 60686,
+              "write_operations": 0,
+              "other_operations": 4,
+              "read_bytes": 248569856,
+              "write_bytes": 0,
+              "other_bytes": 104
+            },
+            "rss_bytes": 25329664,
+            "peak_rss_bytes": 29261824,
+            "repeat": 0,
+            "temperature": "new_process_connection_first",
+            "vm_steps_lower_bound": 3081000,
+            "vm_steps_upper_bound": 3081999,
+            "equal_expected": true
+          },
+          {
+            "label": "query_1",
+            "seconds": 0.40104030002839863,
+            "cpu_seconds": 0.265625,
+            "error": null,
+            "value": [
+              5137,
+              15002,
+              5160,
+              9833,
+              9
+            ],
+            "io_delta": {
+              "read_operations": 60681,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 248549376,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 25858048,
+            "peak_rss_bytes": 29384704,
+            "repeat": 1,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 3081000,
+            "vm_steps_upper_bound": 3081999,
+            "equal_expected": true
+          },
+          {
+            "label": "query_2",
+            "seconds": 0.44678859994746745,
+            "cpu_seconds": 0.265625,
+            "error": null,
+            "value": [
+              5137,
+              15002,
+              5160,
+              9833,
+              9
+            ],
+            "io_delta": {
+              "read_operations": 60681,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 248549376,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 25878528,
+            "peak_rss_bytes": 29384704,
+            "repeat": 2,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 3081000,
+            "vm_steps_upper_bound": 3081999,
+            "equal_expected": true
+          }
+        ],
+        "all_equal": true
+      },
+      "log": "10-query-revisions_only.jsonl"
+    },
+    {
+      "stage": "query",
+      "arm": "both",
+      "pid": 65208,
+      "exit_code": 0,
+      "supervisor_seconds": 1.435972800012678,
+      "failure": null,
+      "result": {
+        "plan": [
+          [
+            3,
+            0,
+            0,
+            "MATERIALIZE current_works"
+          ],
+          [
+            8,
+            3,
+            210,
+            "SCAN works USING COVERING INDEX ix_works_settings_shape"
+          ],
+          [
+            10,
+            3,
+            46,
+            "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+          ],
+          [
+            38,
+            0,
+            0,
+            "MATERIALIZE anon_1"
+          ],
+          [
+            40,
+            38,
+            0,
+            "CO-ROUTINE anon_2"
+          ],
+          [
+            42,
+            40,
+            0,
+            "MERGE (UNION)"
+          ],
+          [
+            44,
+            42,
+            0,
+            "LEFT"
+          ],
+          [
+            50,
+            44,
+            224,
+            "SCAN revision_assets USING INDEX ix_revision_assets_asset_id"
+          ],
+          [
+            61,
+            44,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (revision_id=?)"
+          ],
+          [
+            71,
+            42,
+            0,
+            "RIGHT"
+          ],
+          [
+            77,
+            71,
+            68,
+            "SEARCH assets USING INDEX ix_assets_revision_id (revision_id=?)"
+          ],
+          [
+            85,
+            71,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            97,
+            71,
+            53,
+            "SEARCH current_works USING AUTOMATIC PARTIAL COVERING INDEX (work_id=?)"
+          ],
+          [
+            110,
+            71,
+            0,
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          [
+            160,
+            38,
+            222,
+            "SCAN assets USING INDEX ix_assets_work_id"
+          ],
+          [
+            173,
+            38,
+            55,
+            "SEARCH anon_2 USING AUTOMATIC COVERING INDEX (asset_id=?)"
+          ],
+          [
+            179,
+            38,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            190,
+            38,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+          ],
+          [
+            318,
+            0,
+            216,
+            "SCAN current_works"
+          ],
+          [
+            323,
+            0,
+            0,
+            "LIST SUBQUERY 5"
+          ],
+          [
+            326,
+            323,
+            216,
+            "SCAN archive_intents"
+          ],
+          [
+            334,
+            323,
+            0,
+            "CREATE BLOOM FILTER"
+          ],
+          [
+            351,
+            0,
+            0,
+            "BLOOM FILTER ON anon_1 (work_id=?)"
+          ],
+          [
+            365,
+            0,
+            47,
+            "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+          ]
+        ],
+        "metadata": {
+          "page_size": 4096,
+          "page_count": 148246,
+          "freelist_count": 0,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "delete"
+        },
+        "rows": [
+          {
+            "label": "query_0",
+            "seconds": 0.4019985001068562,
+            "cpu_seconds": 0.234375,
+            "error": null,
+            "value": [
+              5137,
+              15002,
+              5160,
+              9833,
+              9
+            ],
+            "io_delta": {
+              "read_operations": 30920,
+              "write_operations": 0,
+              "other_operations": 4,
+              "read_bytes": 126648320,
+              "write_bytes": 0,
+              "other_bytes": 104
+            },
+            "rss_bytes": 25436160,
+            "peak_rss_bytes": 29356032,
+            "repeat": 0,
+            "temperature": "new_process_connection_first",
+            "vm_steps_lower_bound": 3081000,
+            "vm_steps_upper_bound": 3081999,
+            "equal_expected": true
+          },
+          {
+            "label": "query_1",
+            "seconds": 0.48425510013476014,
+            "cpu_seconds": 0.234375,
+            "error": null,
+            "value": [
+              5137,
+              15002,
+              5160,
+              9833,
+              9
+            ],
+            "io_delta": {
+              "read_operations": 30916,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 126631936,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 25722880,
+            "peak_rss_bytes": 29503488,
+            "repeat": 1,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 3081000,
+            "vm_steps_upper_bound": 3081999,
+            "equal_expected": true
+          },
+          {
+            "label": "query_2",
+            "seconds": 0.36995050008408725,
+            "cpu_seconds": 0.234375,
+            "error": null,
+            "value": [
+              5137,
+              15002,
+              5160,
+              9833,
+              9
+            ],
+            "io_delta": {
+              "read_operations": 30916,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 126631936,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 26128384,
+            "peak_rss_bytes": 29503488,
+            "repeat": 2,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 3081000,
+            "vm_steps_upper_bound": 3081999,
+            "equal_expected": true
+          }
+        ],
+        "all_equal": true
+      },
+      "log": "11-query-both.jsonl"
+    },
+    {
+      "stage": "query",
+      "arm": "both",
+      "pid": 47804,
+      "exit_code": 0,
+      "supervisor_seconds": 1.1612207000143826,
+      "failure": null,
+      "result": {
+        "plan": [
+          [
+            3,
+            0,
+            0,
+            "MATERIALIZE current_works"
+          ],
+          [
+            8,
+            3,
+            210,
+            "SCAN works USING COVERING INDEX ix_works_settings_shape"
+          ],
+          [
+            10,
+            3,
+            46,
+            "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+          ],
+          [
+            38,
+            0,
+            0,
+            "MATERIALIZE anon_1"
+          ],
+          [
+            40,
+            38,
+            0,
+            "CO-ROUTINE anon_2"
+          ],
+          [
+            42,
+            40,
+            0,
+            "MERGE (UNION)"
+          ],
+          [
+            44,
+            42,
+            0,
+            "LEFT"
+          ],
+          [
+            50,
+            44,
+            224,
+            "SCAN revision_assets USING INDEX ix_revision_assets_asset_id"
+          ],
+          [
+            61,
+            44,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (revision_id=?)"
+          ],
+          [
+            71,
+            42,
+            0,
+            "RIGHT"
+          ],
+          [
+            77,
+            71,
+            68,
+            "SEARCH assets USING INDEX ix_assets_revision_id (revision_id=?)"
+          ],
+          [
+            85,
+            71,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            97,
+            71,
+            53,
+            "SEARCH current_works USING AUTOMATIC PARTIAL COVERING INDEX (work_id=?)"
+          ],
+          [
+            110,
+            71,
+            0,
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          [
+            160,
+            38,
+            222,
+            "SCAN assets USING INDEX ix_assets_work_id"
+          ],
+          [
+            173,
+            38,
+            55,
+            "SEARCH anon_2 USING AUTOMATIC COVERING INDEX (asset_id=?)"
+          ],
+          [
+            179,
+            38,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            190,
+            38,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+          ],
+          [
+            318,
+            0,
+            216,
+            "SCAN current_works"
+          ],
+          [
+            323,
+            0,
+            0,
+            "LIST SUBQUERY 5"
+          ],
+          [
+            326,
+            323,
+            216,
+            "SCAN archive_intents"
+          ],
+          [
+            334,
+            323,
+            0,
+            "CREATE BLOOM FILTER"
+          ],
+          [
+            351,
+            0,
+            0,
+            "BLOOM FILTER ON anon_1 (work_id=?)"
+          ],
+          [
+            365,
+            0,
+            47,
+            "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+          ]
+        ],
+        "metadata": {
+          "page_size": 4096,
+          "page_count": 148246,
+          "freelist_count": 0,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "delete"
+        },
+        "rows": [
+          {
+            "label": "query_0",
+            "seconds": 0.3330943000037223,
+            "cpu_seconds": 0.234375,
+            "error": null,
+            "value": [
+              5137,
+              15002,
+              5160,
+              9833,
+              9
+            ],
+            "io_delta": {
+              "read_operations": 30920,
+              "write_operations": 0,
+              "other_operations": 4,
+              "read_bytes": 126648320,
+              "write_bytes": 0,
+              "other_bytes": 104
+            },
+            "rss_bytes": 25522176,
+            "peak_rss_bytes": 29331456,
+            "repeat": 0,
+            "temperature": "new_process_connection_first",
+            "vm_steps_lower_bound": 3081000,
+            "vm_steps_upper_bound": 3081999,
+            "equal_expected": true
+          },
+          {
+            "label": "query_1",
+            "seconds": 0.307948200032115,
+            "cpu_seconds": 0.25,
+            "error": null,
+            "value": [
+              5137,
+              15002,
+              5160,
+              9833,
+              9
+            ],
+            "io_delta": {
+              "read_operations": 30916,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 126631936,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 25894912,
+            "peak_rss_bytes": 29442048,
+            "repeat": 1,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 3081000,
+            "vm_steps_upper_bound": 3081999,
+            "equal_expected": true
+          },
+          {
+            "label": "query_2",
+            "seconds": 0.33795489999465644,
+            "cpu_seconds": 0.234375,
+            "error": null,
+            "value": [
+              5137,
+              15002,
+              5160,
+              9833,
+              9
+            ],
+            "io_delta": {
+              "read_operations": 30916,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 126631936,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 26095616,
+            "peak_rss_bytes": 29442048,
+            "repeat": 2,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 3081000,
+            "vm_steps_upper_bound": 3081999,
+            "equal_expected": true
+          }
+        ],
+        "all_equal": true
+      },
+      "log": "12-query-both.jsonl"
+    },
+    {
+      "stage": "query",
+      "arm": "revisions_only",
+      "pid": 36428,
+      "exit_code": 0,
+      "supervisor_seconds": 1.5151202999986708,
+      "failure": null,
+      "result": {
+        "plan": [
+          [
+            3,
+            0,
+            0,
+            "MATERIALIZE current_works"
+          ],
+          [
+            8,
+            3,
+            216,
+            "SCAN works"
+          ],
+          [
+            10,
+            3,
+            46,
+            "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+          ],
+          [
+            38,
+            0,
+            0,
+            "MATERIALIZE anon_1"
+          ],
+          [
+            40,
+            38,
+            0,
+            "CO-ROUTINE anon_2"
+          ],
+          [
+            42,
+            40,
+            0,
+            "MERGE (UNION)"
+          ],
+          [
+            44,
+            42,
+            0,
+            "LEFT"
+          ],
+          [
+            50,
+            44,
+            224,
+            "SCAN revision_assets USING INDEX ix_revision_assets_asset_id"
+          ],
+          [
+            61,
+            44,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (revision_id=?)"
+          ],
+          [
+            71,
+            42,
+            0,
+            "RIGHT"
+          ],
+          [
+            77,
+            71,
+            68,
+            "SEARCH assets USING INDEX ix_assets_revision_id (revision_id=?)"
+          ],
+          [
+            85,
+            71,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            97,
+            71,
+            53,
+            "SEARCH current_works USING AUTOMATIC PARTIAL COVERING INDEX (work_id=?)"
+          ],
+          [
+            110,
+            71,
+            0,
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          [
+            160,
+            38,
+            222,
+            "SCAN assets USING INDEX ix_assets_work_id"
+          ],
+          [
+            173,
+            38,
+            55,
+            "SEARCH anon_2 USING AUTOMATIC COVERING INDEX (asset_id=?)"
+          ],
+          [
+            179,
+            38,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            190,
+            38,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+          ],
+          [
+            318,
+            0,
+            216,
+            "SCAN current_works"
+          ],
+          [
+            323,
+            0,
+            0,
+            "LIST SUBQUERY 5"
+          ],
+          [
+            326,
+            323,
+            216,
+            "SCAN archive_intents"
+          ],
+          [
+            334,
+            323,
+            0,
+            "CREATE BLOOM FILTER"
+          ],
+          [
+            351,
+            0,
+            0,
+            "BLOOM FILTER ON anon_1 (work_id=?)"
+          ],
+          [
+            365,
+            0,
+            47,
+            "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+          ]
+        ],
+        "metadata": {
+          "page_size": 4096,
+          "page_count": 148041,
+          "freelist_count": 0,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "delete"
+        },
+        "rows": [
+          {
+            "label": "query_0",
+            "seconds": 0.4264309999998659,
+            "cpu_seconds": 0.28125,
+            "error": null,
+            "value": [
+              5137,
+              15002,
+              5160,
+              9833,
+              9
+            ],
+            "io_delta": {
+              "read_operations": 60686,
+              "write_operations": 0,
+              "other_operations": 4,
+              "read_bytes": 248569856,
+              "write_bytes": 0,
+              "other_bytes": 104
+            },
+            "rss_bytes": 25264128,
+            "peak_rss_bytes": 29069312,
+            "repeat": 0,
+            "temperature": "new_process_connection_first",
+            "vm_steps_lower_bound": 3081000,
+            "vm_steps_upper_bound": 3081999,
+            "equal_expected": true
+          },
+          {
+            "label": "query_1",
+            "seconds": 0.4216807000339031,
+            "cpu_seconds": 0.265625,
+            "error": null,
+            "value": [
+              5137,
+              15002,
+              5160,
+              9833,
+              9
+            ],
+            "io_delta": {
+              "read_operations": 60681,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 248549376,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 25411584,
+            "peak_rss_bytes": 29175808,
+            "repeat": 1,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 3081000,
+            "vm_steps_upper_bound": 3081999,
+            "equal_expected": true
+          },
+          {
+            "label": "query_2",
+            "seconds": 0.4916455999482423,
+            "cpu_seconds": 0.3125,
+            "error": null,
+            "value": [
+              5137,
+              15002,
+              5160,
+              9833,
+              9
+            ],
+            "io_delta": {
+              "read_operations": 60681,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 248549376,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 25346048,
+            "peak_rss_bytes": 29208576,
+            "repeat": 2,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 3081000,
+            "vm_steps_upper_bound": 3081999,
+            "equal_expected": true
+          }
+        ],
+        "all_equal": true
+      },
+      "log": "13-query-revisions_only.jsonl"
+    },
+    {
+      "stage": "query",
+      "arm": "works_only",
+      "pid": 62932,
+      "exit_code": 0,
+      "supervisor_seconds": 14.502145500155166,
+      "failure": null,
+      "result": {
+        "plan": [
+          [
+            3,
+            0,
+            0,
+            "MATERIALIZE current_works"
+          ],
+          [
+            8,
+            3,
+            210,
+            "SCAN works USING COVERING INDEX ix_works_settings_shape"
+          ],
+          [
+            10,
+            3,
+            46,
+            "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+          ],
+          [
+            38,
+            0,
+            0,
+            "MATERIALIZE anon_1"
+          ],
+          [
+            40,
+            38,
+            0,
+            "CO-ROUTINE anon_2"
+          ],
+          [
+            42,
+            40,
+            0,
+            "MERGE (UNION)"
+          ],
+          [
+            44,
+            42,
+            0,
+            "LEFT"
+          ],
+          [
+            50,
+            44,
+            224,
+            "SCAN revision_assets USING INDEX ix_revision_assets_asset_id"
+          ],
+          [
+            61,
+            44,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (revision_id=?)"
+          ],
+          [
+            71,
+            42,
+            0,
+            "RIGHT"
+          ],
+          [
+            77,
+            71,
+            68,
+            "SEARCH assets USING INDEX ix_assets_revision_id (revision_id=?)"
+          ],
+          [
+            85,
+            71,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            97,
+            71,
+            53,
+            "SEARCH current_works USING AUTOMATIC PARTIAL COVERING INDEX (work_id=?)"
+          ],
+          [
+            110,
+            71,
+            0,
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          [
+            160,
+            38,
+            222,
+            "SCAN assets USING INDEX ix_assets_work_id"
+          ],
+          [
+            173,
+            38,
+            55,
+            "SEARCH anon_2 USING AUTOMATIC COVERING INDEX (asset_id=?)"
+          ],
+          [
+            179,
+            38,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            190,
+            38,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+          ],
+          [
+            318,
+            0,
+            216,
+            "SCAN current_works"
+          ],
+          [
+            323,
+            0,
+            0,
+            "LIST SUBQUERY 5"
+          ],
+          [
+            326,
+            323,
+            216,
+            "SCAN archive_intents"
+          ],
+          [
+            334,
+            323,
+            0,
+            "CREATE BLOOM FILTER"
+          ],
+          [
+            351,
+            0,
+            0,
+            "BLOOM FILTER ON anon_1 (work_id=?)"
+          ],
+          [
+            365,
+            0,
+            47,
+            "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+          ]
+        ],
+        "metadata": {
+          "page_size": 4096,
+          "page_count": 148067,
+          "freelist_count": 0,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "delete"
+        },
+        "rows": [
+          {
+            "label": "query_0",
+            "seconds": 4.727408300153911,
+            "cpu_seconds": 0.0625,
+            "error": "OperationalError: interrupted",
+            "value": null,
+            "io_delta": {
+              "read_operations": 2533,
+              "write_operations": 0,
+              "other_operations": 37,
+              "read_bytes": 10375168,
+              "write_bytes": 0,
+              "other_bytes": 5348
+            },
+            "rss_bytes": 28151808,
+            "peak_rss_bytes": 28151808,
+            "repeat": 0,
+            "temperature": "new_process_connection_first",
+            "vm_steps_lower_bound": 23000,
+            "vm_steps_upper_bound": 23999,
+            "equal_expected": false
+          },
+          {
+            "label": "query_1",
+            "seconds": 4.839109299937263,
+            "cpu_seconds": 0.046875,
+            "error": "OperationalError: interrupted",
+            "value": null,
+            "io_delta": {
+              "read_operations": 3167,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 12972032,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 28168192,
+            "peak_rss_bytes": 28168192,
+            "repeat": 1,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 29000,
+            "vm_steps_upper_bound": 29999,
+            "equal_expected": false
+          },
+          {
+            "label": "query_2",
+            "seconds": 4.755376299843192,
+            "cpu_seconds": 0.0625,
+            "error": "OperationalError: interrupted",
+            "value": null,
+            "io_delta": {
+              "read_operations": 3826,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 15671296,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 28184576,
+            "peak_rss_bytes": 28184576,
+            "repeat": 2,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 35000,
+            "vm_steps_upper_bound": 35999,
+            "equal_expected": false
+          }
+        ],
+        "all_equal": false
+      },
+      "log": "14-query-works_only.jsonl"
+    },
+    {
+      "stage": "query",
+      "arm": "baseline",
+      "pid": 62816,
+      "exit_code": 0,
+      "supervisor_seconds": 13.767480199923739,
+      "failure": null,
+      "result": {
+        "plan": [
+          [
+            3,
+            0,
+            0,
+            "MATERIALIZE current_works"
+          ],
+          [
+            8,
+            3,
+            216,
+            "SCAN works"
+          ],
+          [
+            10,
+            3,
+            46,
+            "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+          ],
+          [
+            38,
+            0,
+            0,
+            "MATERIALIZE anon_1"
+          ],
+          [
+            40,
+            38,
+            0,
+            "CO-ROUTINE anon_2"
+          ],
+          [
+            42,
+            40,
+            0,
+            "MERGE (UNION)"
+          ],
+          [
+            44,
+            42,
+            0,
+            "LEFT"
+          ],
+          [
+            50,
+            44,
+            224,
+            "SCAN revision_assets USING INDEX ix_revision_assets_asset_id"
+          ],
+          [
+            61,
+            44,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (revision_id=?)"
+          ],
+          [
+            71,
+            42,
+            0,
+            "RIGHT"
+          ],
+          [
+            77,
+            71,
+            68,
+            "SEARCH assets USING INDEX ix_assets_revision_id (revision_id=?)"
+          ],
+          [
+            85,
+            71,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            97,
+            71,
+            53,
+            "SEARCH current_works USING AUTOMATIC PARTIAL COVERING INDEX (work_id=?)"
+          ],
+          [
+            110,
+            71,
+            0,
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          [
+            160,
+            38,
+            222,
+            "SCAN assets USING INDEX ix_assets_work_id"
+          ],
+          [
+            173,
+            38,
+            55,
+            "SEARCH anon_2 USING AUTOMATIC COVERING INDEX (asset_id=?)"
+          ],
+          [
+            179,
+            38,
+            0,
+            "BLOOM FILTER ON current_works (work_id=?)"
+          ],
+          [
+            190,
+            38,
+            53,
+            "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+          ],
+          [
+            318,
+            0,
+            216,
+            "SCAN current_works"
+          ],
+          [
+            323,
+            0,
+            0,
+            "LIST SUBQUERY 5"
+          ],
+          [
+            326,
+            323,
+            216,
+            "SCAN archive_intents"
+          ],
+          [
+            334,
+            323,
+            0,
+            "CREATE BLOOM FILTER"
+          ],
+          [
+            351,
+            0,
+            0,
+            "BLOOM FILTER ON anon_1 (work_id=?)"
+          ],
+          [
+            365,
+            0,
+            47,
+            "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+          ]
+        ],
+        "metadata": {
+          "page_size": 4096,
+          "page_count": 147863,
+          "freelist_count": 1,
+          "cache_size": -2000,
+          "synchronous": 2,
+          "journal_mode": "delete"
+        },
+        "rows": [
+          {
+            "label": "query_0",
+            "seconds": 4.524257799843326,
+            "cpu_seconds": 0.203125,
+            "error": "OperationalError: interrupted",
+            "value": null,
+            "io_delta": {
+              "read_operations": 21979,
+              "write_operations": 0,
+              "other_operations": 37,
+              "read_bytes": 90025984,
+              "write_bytes": 0,
+              "other_bytes": 5348
+            },
+            "rss_bytes": 28471296,
+            "peak_rss_bytes": 28471296,
+            "repeat": 0,
+            "temperature": "new_process_connection_first",
+            "vm_steps_lower_bound": 98000,
+            "vm_steps_upper_bound": 98999,
+            "equal_expected": false
+          },
+          {
+            "label": "query_1",
+            "seconds": 4.530880300095305,
+            "cpu_seconds": 0.359375,
+            "error": "OperationalError: interrupted",
+            "value": null,
+            "io_delta": {
+              "read_operations": 27693,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 113430528,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 28217344,
+            "peak_rss_bytes": 28725248,
+            "repeat": 1,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 124000,
+            "vm_steps_upper_bound": 124999,
+            "equal_expected": false
+          },
+          {
+            "label": "query_2",
+            "seconds": 4.53156920010224,
+            "cpu_seconds": 0.484375,
+            "error": "OperationalError: interrupted",
+            "value": null,
+            "io_delta": {
+              "read_operations": 38263,
+              "write_operations": 0,
+              "other_operations": 0,
+              "read_bytes": 156725248,
+              "write_bytes": 0,
+              "other_bytes": 0
+            },
+            "rss_bytes": 28229632,
+            "peak_rss_bytes": 28758016,
+            "repeat": 2,
+            "temperature": "same_connection_warm",
+            "vm_steps_lower_bound": 173000,
+            "vm_steps_upper_bound": 173999,
+            "equal_expected": false
+          }
+        ],
+        "all_equal": false
+      },
+      "log": "15-query-baseline.jsonl"
+    },
+    {
+      "stage": "update",
+      "arm": "baseline",
+      "pid": 68188,
+      "exit_code": 0,
+      "supervisor_seconds": 0.8919023000635207,
+      "failure": null,
+      "result": {
+        "original": [
+          1,
+          "257b6bdbea1b4cadb1ab9c28429ba1ce",
+          "illust",
+          1,
+          "illust",
+          1
+        ],
+        "rows": [
+          {
+            "label": "update_0",
+            "seconds": 0.3539100999478251,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 0.2269544000737369,
+              "commit_seconds": 0.12695059995166957
+            },
+            "io_delta": {
+              "read_operations": 13,
+              "write_operations": 23,
+              "other_operations": 6,
+              "read_bytes": 52237,
+              "write_bytes": 45352,
+              "other_bytes": 104
+            },
+            "rss_bytes": 22978560,
+            "peak_rss_bytes": 22978560,
+            "repeat": 0,
+            "restoring": false,
+            "vm_steps_lower_bound": 0,
+            "vm_steps_upper_bound": 99
+          },
+          {
+            "label": "restore_0",
+            "seconds": 0.04056190000846982,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 0.00011470005847513676,
+              "commit_seconds": 0.040442599914968014
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 22,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 45320,
+              "other_bytes": 0
+            },
+            "rss_bytes": 22986752,
+            "peak_rss_bytes": 22986752,
+            "repeat": 0,
+            "restoring": true,
+            "vm_steps_lower_bound": 100,
+            "vm_steps_upper_bound": 199
+          },
+          {
+            "label": "update_1",
+            "seconds": 0.05472939996980131,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 5.810009315609932e-05,
+              "commit_seconds": 0.05466670007444918
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 22,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 45320,
+              "other_bytes": 0
+            },
+            "rss_bytes": 23003136,
+            "peak_rss_bytes": 23003136,
+            "repeat": 1,
+            "restoring": false,
+            "vm_steps_lower_bound": 100,
+            "vm_steps_upper_bound": 199
+          },
+          {
+            "label": "restore_1",
+            "seconds": 0.03944520000368357,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 8.450006134808064e-05,
+              "commit_seconds": 0.039355200016871095
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 22,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 45320,
+              "other_bytes": 0
+            },
+            "rss_bytes": 23003136,
+            "peak_rss_bytes": 23003136,
+            "repeat": 1,
+            "restoring": true,
+            "vm_steps_lower_bound": 100,
+            "vm_steps_upper_bound": 199
+          },
+          {
+            "label": "update_2",
+            "seconds": 0.030660900054499507,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 6.509991362690926e-05,
+              "commit_seconds": 0.030591600108891726
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 22,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 45320,
+              "other_bytes": 0
+            },
+            "rss_bytes": 23019520,
+            "peak_rss_bytes": 23019520,
+            "repeat": 2,
+            "restoring": false,
+            "vm_steps_lower_bound": 0,
+            "vm_steps_upper_bound": 99
+          },
+          {
+            "label": "restore_2",
+            "seconds": 0.05977550009265542,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 0.00014800019562244415,
+              "commit_seconds": 0.059621699852868915
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 22,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 45320,
+              "other_bytes": 0
+            },
+            "rss_bytes": 23031808,
+            "peak_rss_bytes": 23031808,
+            "repeat": 2,
+            "restoring": true,
+            "vm_steps_lower_bound": 200,
+            "vm_steps_upper_bound": 299
+          }
+        ],
+        "restored": true,
+        "checkpoint": {
+          "label": "checkpoint",
+          "seconds": 0.15197649993933737,
+          "cpu_seconds": 0.015625,
+          "error": null,
+          "value": [
+            0,
+            0,
+            0
+          ],
+          "io_delta": {
+            "read_operations": 12,
+            "write_operations": 12,
+            "other_operations": 6,
+            "read_bytes": 49152,
+            "write_bytes": 49152,
+            "other_bytes": 16
+          },
+          "rss_bytes": 23052288,
+          "peak_rss_bytes": 23052288
+        }
+      },
+      "log": "16-update-baseline.jsonl"
+    },
+    {
+      "stage": "update",
+      "arm": "works_only",
+      "pid": 32736,
+      "exit_code": 0,
+      "supervisor_seconds": 1.1392259998247027,
+      "failure": null,
+      "result": {
+        "original": [
+          1,
+          "257b6bdbea1b4cadb1ab9c28429ba1ce",
+          "illust",
+          1,
+          "illust",
+          1
+        ],
+        "rows": [
+          {
+            "label": "update_0",
+            "seconds": 0.1864328000228852,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 0.05161720002070069,
+              "commit_seconds": 0.13481099996715784
+            },
+            "io_delta": {
+              "read_operations": 20,
+              "write_operations": 41,
+              "other_operations": 6,
+              "read_bytes": 80909,
+              "write_bytes": 82432,
+              "other_bytes": 104
+            },
+            "rss_bytes": 23035904,
+            "peak_rss_bytes": 23035904,
+            "repeat": 0,
+            "restoring": false,
+            "vm_steps_lower_bound": 0,
+            "vm_steps_upper_bound": 99
+          },
+          {
+            "label": "restore_0",
+            "seconds": 0.3634293000213802,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 8.679996244609356e-05,
+              "commit_seconds": 0.36333779990673065
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 26,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 53560,
+              "other_bytes": 0
+            },
+            "rss_bytes": 23044096,
+            "peak_rss_bytes": 23044096,
+            "repeat": 0,
+            "restoring": true,
+            "vm_steps_lower_bound": 100,
+            "vm_steps_upper_bound": 199
+          },
+          {
+            "label": "update_1",
+            "seconds": 0.12075609993189573,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 8.310005068778992e-05,
+              "commit_seconds": 0.12066980008967221
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 26,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 53560,
+              "other_bytes": 0
+            },
+            "rss_bytes": 23130112,
+            "peak_rss_bytes": 23130112,
+            "repeat": 1,
+            "restoring": false,
+            "vm_steps_lower_bound": 200,
+            "vm_steps_upper_bound": 299
+          },
+          {
+            "label": "restore_1",
+            "seconds": 0.029901899863034487,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 5.91999851167202e-05,
+              "commit_seconds": 0.0298378998413682
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 26,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 53560,
+              "other_bytes": 0
+            },
+            "rss_bytes": 23130112,
+            "peak_rss_bytes": 23130112,
+            "repeat": 1,
+            "restoring": true,
+            "vm_steps_lower_bound": 0,
+            "vm_steps_upper_bound": 99
+          },
+          {
+            "label": "update_2",
+            "seconds": 0.03750929981470108,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 7.890001870691776e-05,
+              "commit_seconds": 0.03742720000445843
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 26,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 53560,
+              "other_bytes": 0
+            },
+            "rss_bytes": 23146496,
+            "peak_rss_bytes": 23146496,
+            "repeat": 2,
+            "restoring": false,
+            "vm_steps_lower_bound": 100,
+            "vm_steps_upper_bound": 199
+          },
+          {
+            "label": "restore_2",
+            "seconds": 0.04457849985919893,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 5.959998816251755e-05,
+              "commit_seconds": 0.044515500077977777
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 26,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 53560,
+              "other_bytes": 0
+            },
+            "rss_bytes": 23158784,
+            "peak_rss_bytes": 23158784,
+            "repeat": 2,
+            "restoring": true,
+            "vm_steps_lower_bound": 200,
+            "vm_steps_upper_bound": 299
+          }
+        ],
+        "restored": true,
+        "checkpoint": {
+          "label": "checkpoint",
+          "seconds": 0.16043499996885657,
+          "cpu_seconds": 0.015625,
+          "error": null,
+          "value": [
+            0,
+            0,
+            0
+          ],
+          "io_delta": {
+            "read_operations": 21,
+            "write_operations": 21,
+            "other_operations": 6,
+            "read_bytes": 86016,
+            "write_bytes": 86016,
+            "other_bytes": 16
+          },
+          "rss_bytes": 23179264,
+          "peak_rss_bytes": 23179264
+        }
+      },
+      "log": "17-update-works_only.jsonl"
+    },
+    {
+      "stage": "update",
+      "arm": "revisions_only",
+      "pid": 18044,
+      "exit_code": 0,
+      "supervisor_seconds": 1.1337665000464767,
+      "failure": null,
+      "result": {
+        "original": [
+          1,
+          "257b6bdbea1b4cadb1ab9c28429ba1ce",
+          "illust",
+          1,
+          "illust",
+          1
+        ],
+        "rows": [
+          {
+            "label": "update_0",
+            "seconds": 0.14715490001253784,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 0.00017779995687305927,
+              "commit_seconds": 0.1469729000236839
+            },
+            "io_delta": {
+              "read_operations": 15,
+              "write_operations": 25,
+              "other_operations": 6,
+              "read_bytes": 60429,
+              "write_bytes": 49472,
+              "other_bytes": 104
+            },
+            "rss_bytes": 22867968,
+            "peak_rss_bytes": 22867968,
+            "repeat": 0,
+            "restoring": false,
+            "vm_steps_lower_bound": 0,
+            "vm_steps_upper_bound": 99
+          },
+          {
+            "label": "restore_0",
+            "seconds": 0.09110619989223778,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 7.620011456310749e-05,
+              "commit_seconds": 0.09102509985677898
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 24,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 49440,
+              "other_bytes": 0
+            },
+            "rss_bytes": 22888448,
+            "peak_rss_bytes": 22888448,
+            "repeat": 0,
+            "restoring": true,
+            "vm_steps_lower_bound": 100,
+            "vm_steps_upper_bound": 199
+          },
+          {
+            "label": "update_1",
+            "seconds": 0.0549798000138253,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 7.750000804662704e-05,
+              "commit_seconds": 0.054708699928596616
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 24,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 49440,
+              "other_bytes": 0
+            },
+            "rss_bytes": 22904832,
+            "peak_rss_bytes": 22904832,
+            "repeat": 1,
+            "restoring": false,
+            "vm_steps_lower_bound": 100,
+            "vm_steps_upper_bound": 199
+          },
+          {
+            "label": "restore_1",
+            "seconds": 0.0651159998960793,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 7.459986954927444e-05,
+              "commit_seconds": 0.06503730011172593
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 24,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 49440,
+              "other_bytes": 0
+            },
+            "rss_bytes": 22904832,
+            "peak_rss_bytes": 22904832,
+            "repeat": 1,
+            "restoring": true,
+            "vm_steps_lower_bound": 100,
+            "vm_steps_upper_bound": 199
+          },
+          {
+            "label": "update_2",
+            "seconds": 0.10979370004497468,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 0.00013030017726123333,
+              "commit_seconds": 0.10965879983268678
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 24,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 49440,
+              "other_bytes": 0
+            },
+            "rss_bytes": 22921216,
+            "peak_rss_bytes": 22921216,
+            "repeat": 2,
+            "restoring": false,
+            "vm_steps_lower_bound": 100,
+            "vm_steps_upper_bound": 199
+          },
+          {
+            "label": "restore_2",
+            "seconds": 0.12002180004492402,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 8.450006134808064e-05,
+              "commit_seconds": 0.1199325998313725
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 24,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 49440,
+              "other_bytes": 0
+            },
+            "rss_bytes": 22933504,
+            "peak_rss_bytes": 22933504,
+            "repeat": 2,
+            "restoring": true,
+            "vm_steps_lower_bound": 100,
+            "vm_steps_upper_bound": 199
+          }
+        ],
+        "restored": true,
+        "checkpoint": {
+          "label": "checkpoint",
+          "seconds": 0.37559020007029176,
+          "cpu_seconds": 0.015625,
+          "error": null,
+          "value": [
+            0,
+            0,
+            0
+          ],
+          "io_delta": {
+            "read_operations": 13,
+            "write_operations": 13,
+            "other_operations": 6,
+            "read_bytes": 53248,
+            "write_bytes": 53248,
+            "other_bytes": 16
+          },
+          "rss_bytes": 22953984,
+          "peak_rss_bytes": 22953984
+        }
+      },
+      "log": "18-update-revisions_only.jsonl"
+    },
+    {
+      "stage": "update",
+      "arm": "both",
+      "pid": 64724,
+      "exit_code": 0,
+      "supervisor_seconds": 0.6774807998444885,
+      "failure": null,
+      "result": {
+        "original": [
+          1,
+          "257b6bdbea1b4cadb1ab9c28429ba1ce",
+          "illust",
+          1,
+          "illust",
+          1
+        ],
+        "rows": [
+          {
+            "label": "update_0",
+            "seconds": 0.13205130002461374,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 0.000215600011870265,
+              "commit_seconds": 0.1318320999853313
+            },
+            "io_delta": {
+              "read_operations": 23,
+              "write_operations": 43,
+              "other_operations": 6,
+              "read_bytes": 93197,
+              "write_bytes": 86552,
+              "other_bytes": 104
+            },
+            "rss_bytes": 22913024,
+            "peak_rss_bytes": 22913024,
+            "repeat": 0,
+            "restoring": false,
+            "vm_steps_lower_bound": 0,
+            "vm_steps_upper_bound": 99
+          },
+          {
+            "label": "restore_0",
+            "seconds": 0.0389653998427093,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 6.529991514980793e-05,
+              "commit_seconds": 0.038891399977728724
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 28,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 57680,
+              "other_bytes": 0
+            },
+            "rss_bytes": 22921216,
+            "peak_rss_bytes": 22921216,
+            "repeat": 0,
+            "restoring": true,
+            "vm_steps_lower_bound": 100,
+            "vm_steps_upper_bound": 199
+          },
+          {
+            "label": "update_1",
+            "seconds": 0.030778800137341022,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 0.00010109995491802692,
+              "commit_seconds": 0.03067369991913438
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 28,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 57680,
+              "other_bytes": 0
+            },
+            "rss_bytes": 23003136,
+            "peak_rss_bytes": 23003136,
+            "repeat": 1,
+            "restoring": false,
+            "vm_steps_lower_bound": 200,
+            "vm_steps_upper_bound": 299
+          },
+          {
+            "label": "restore_1",
+            "seconds": 0.04202709998935461,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 7.140007801353931e-05,
+              "commit_seconds": 0.04195010010153055
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 28,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 57680,
+              "other_bytes": 0
+            },
+            "rss_bytes": 23007232,
+            "peak_rss_bytes": 23007232,
+            "repeat": 1,
+            "restoring": true,
+            "vm_steps_lower_bound": 0,
+            "vm_steps_upper_bound": 99
+          },
+          {
+            "label": "update_2",
+            "seconds": 0.03945530019700527,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 7.830001413822174e-05,
+              "commit_seconds": 0.039360699942335486
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 28,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 57680,
+              "other_bytes": 0
+            },
+            "rss_bytes": 23023616,
+            "peak_rss_bytes": 23023616,
+            "repeat": 2,
+            "restoring": false,
+            "vm_steps_lower_bound": 200,
+            "vm_steps_upper_bound": 299
+          },
+          {
+            "label": "restore_2",
+            "seconds": 0.038716800045222044,
+            "cpu_seconds": 0.0,
+            "error": null,
+            "value": {
+              "dml_and_begin_seconds": 8.899997919797897e-05,
+              "commit_seconds": 0.038623400032520294
+            },
+            "io_delta": {
+              "read_operations": 0,
+              "write_operations": 28,
+              "other_operations": 1,
+              "read_bytes": 0,
+              "write_bytes": 57680,
+              "other_bytes": 0
+            },
+            "rss_bytes": 23035904,
+            "peak_rss_bytes": 23035904,
+            "repeat": 2,
+            "restoring": true,
+            "vm_steps_lower_bound": 100,
+            "vm_steps_upper_bound": 199
+          }
+        ],
+        "restored": true,
+        "checkpoint": {
+          "label": "checkpoint",
+          "seconds": 0.16061349981464446,
+          "cpu_seconds": 0.0,
+          "error": null,
+          "value": [
+            0,
+            0,
+            0
+          ],
+          "io_delta": {
+            "read_operations": 22,
+            "write_operations": 22,
+            "other_operations": 6,
+            "read_bytes": 90112,
+            "write_bytes": 90112,
+            "other_bytes": 16
+          },
+          "rss_bytes": 23060480,
+          "peak_rss_bytes": 23060480
+        }
+      },
+      "log": "19-update-both.jsonl"
+    }
+  ],
+  "all_24_queries_equal": false,
+  "all_updates_restored": true
+}

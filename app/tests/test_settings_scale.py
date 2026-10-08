@@ -82,7 +82,9 @@ def test_settings_large_catalogue_latency_and_current_revision_semantics(tmp_pat
         starts.append(time.perf_counter())
     def after(connection, cursor, statement, parameters, context, many):
         elapsed = time.perf_counter() - starts.pop()
-        if statement.lstrip().upper().startswith("SELECT"):
+        # The real settings aggregate starts with WITH; include CTE reads in
+        # evidence without changing the query or its existing latency gate.
+        if statement.lstrip().upper().startswith(("SELECT", "WITH")):
             with db.engine.connect() as inspect:
                 plan = inspect.exec_driver_sql("EXPLAIN QUERY PLAN " + statement, parameters).fetchall()
             queries.append({"sql": statement, "seconds": elapsed, "plan": [list(row) for row in plan]})
@@ -112,4 +114,6 @@ def test_settings_large_catalogue_latency_and_current_revision_semantics(tmp_pat
         db.close()
     # Keep the complete GET below one second on this fixed large input,
     # including query-plan instrumentation; timings are retained for comparison.
+    assert any(query['sql'].lstrip().upper().startswith('WITH') and 'downloaded_pages' in query['sql']
+               for query in queries), queries
     assert max(latencies) < 1.0, latencies

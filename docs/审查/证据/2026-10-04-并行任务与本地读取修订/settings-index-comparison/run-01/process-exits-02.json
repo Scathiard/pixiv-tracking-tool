@@ -1,0 +1,188 @@
+{
+  "checker_pid": 43388,
+  "all_20_children_waited_exit_zero": true,
+  "original_children_still_active": [],
+  "prior_pid_only_snapshot_may_show_pid_reuse": true,
+  "rows": [
+    {
+      "pid": 23544,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421410.454219,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 12564,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421422.9518232,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 30320,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421437.3706799,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 36048,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421451.3136435,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 67996,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421452.3162963,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 21436,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421466.2234943,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 63560,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421467.0832908,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 56868,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421469.6634457,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 58592,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421483.7664087,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 45372,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421498.088398,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 17016,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421499.6893733,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 65208,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421501.1432009,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 47804,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421502.311702,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 36428,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421503.8374305,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 62932,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421518.4160604,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 62816,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421532.1904798,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 68188,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421533.0990887,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 32736,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421534.2512405,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 18044,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421535.3979094,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 64724,
+      "waited_exit_code": 0,
+      "active_pid_now": false,
+      "creation_unix_if_present": null,
+      "record_after_wait_unix": 1791421536.0906093,
+      "pid_reused_after_record": false,
+      "open_error_if_absent": 87
+    }
+  ]
+}

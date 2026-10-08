@@ -54,14 +54,18 @@ def create_settings_router(get_runtime):
         with current.database.read() as session:
             artists = session.scalar(select(func.count()).select_from(Artist)) or 0
             works = session.scalar(select(func.count()).select_from(Work)) or 0
-            # Resolve the effective shape once per work, then reuse only these
-            # narrow rows. Each page must not seek the wide Work and revision
-            # records again merely to read their type and page count.
+            # Scan only the version shape columns once. Joining the wide table
+            # directly can prefer its unique ID index over the covering index,
+            # seeking a caption/metadata-heavy record for every current work.
+            revision_shapes = select(WorkRevision.id, WorkRevision.type,
+                WorkRevision.page_count).cte("revision_shapes").prefix_with("MATERIALIZED")
+            # Both projections are statement-local and keep the original NULL,
+            # dangling-reference and cross-work selection semantics.
             current_works = select(Work.id.label("work_id"), Work.pixiv_illust_id.label("pixiv_id"),
                 Work.default_revision_id.label("revision_id"),
-                func.coalesce(WorkRevision.type, Work.type).label("type"),
-                func.coalesce(WorkRevision.page_count, Work.page_count).label("page_count")).outerjoin(
-                    WorkRevision, WorkRevision.id == Work.default_revision_id).cte("current_works").prefix_with("MATERIALIZED")
+                func.coalesce(revision_shapes.c.type, Work.type).label("type"),
+                func.coalesce(revision_shapes.c.page_count, Work.page_count).label("page_count")).outerjoin(
+                    revision_shapes, revision_shapes.c.id == Work.default_revision_id).cte("current_works").prefix_with("MATERIALIZED")
             # UNION retains the former IN-membership semantics: a reused asset is
             # counted once even if several default revisions reference its ID.
             # Separate the legacy branch instead of repeating a MULTI-INDEX OR

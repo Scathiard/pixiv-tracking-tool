@@ -74,8 +74,8 @@ def test_runtime_prepares_before_queue_and_backup_includes_wal(tmp_path, monkeyp
         actual_queue = runtime_module.TaskQueue
 
         def checked_queue(*args, **kwargs):
-            assert messages == ['正在备份本地图库，准备任务查询索引',
-                                '正在准备本地任务查询索引，原图片与任务保留']
+            assert messages == ['正在备份本地图库，准备本地查询索引',
+                                '正在准备本地查询索引，原图片与任务保留']
             assert set(task_indexes.TASK_INDEX_SQL) <= inspect_source(database.path)['indexes'].keys()
             with pytest.raises(LibraryInUse):
                 LibraryLease(tmp_path/'images').acquire()

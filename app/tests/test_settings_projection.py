@@ -3,15 +3,18 @@ from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
+import time
 from types import SimpleNamespace
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
+import psutil
+from sqlalchemy import create_engine, event, insert, update
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from src.core.models import ArchiveIntent, Artist, Asset, Base, LocalPreference, RevisionAsset, Work, WorkRevision
+from src.core.database import ArchiveDatabase
 from src.routes.settings_api import create_settings_router
 
 
@@ -84,10 +87,126 @@ def test_settings_materializes_shape_once_without_losing_cross_work_reuse(monkey
         if artifact:
             Path(artifact).mkdir(parents=True,exist_ok=True)
             Path(artifact,"settings-projection-plan.json").write_text(json.dumps(evidence,indent=2),encoding="utf-8")
-        assert "WITH current_works AS MATERIALIZED" in sql, plan
-        assert sum("SEARCH work_revisions " in row[3] for row in plan)==1, plan
+        assert "current_works AS MATERIALIZED" in sql, plan
+        assert "revision_shapes AS MATERIALIZED" in sql, plan
+        assert sum("SCAN work_revisions USING COVERING INDEX ix_revisions_settings_shape" in row[3]
+                   for row in plan) == 1, plan
+        assert not any("SEARCH work_revisions " in row[3] for row in plan), plan
         assert not any("SEARCH works USING INTEGER PRIMARY KEY" in row[3] for row in plan), plan
     finally:
         if event.contains(engine,"before_cursor_execute",capture):
             event.remove(engine,"before_cursor_execute",capture)
         engine.dispose()
+
+
+def test_settings_dense_history_stays_bounded_and_default_switch_is_immediate(tmp_path, monkeypatch):
+    import src.routes.settings_api as settings
+    monkeypatch.setattr(settings, 'lan_addresses', lambda port: [])
+    monkeypatch.setattr(settings, 'get_pending_login_url', lambda: None)
+    monkeypatch.setattr(settings, 'interval_snapshot', lambda db: {'minutes': 60, 'next_check_at': None})
+    process = psutil.Process()
+    def memory():
+        info = process.memory_info()
+        return {'rss_bytes': info.rss, 'vms_bytes': info.vms,
+                'process_lifetime_peak_working_set_bytes': getattr(info, 'peak_wset', info.rss)}
+    history_count, batch_size = 20_000, 500
+    evidence = {'history_revisions': history_count, 'insert_batch_size': batch_size,
+                'memory_before_fixture': memory(), 'requests': [], 'queries': []}
+    database = ArchiveDatabase.create(tmp_path/'dense-history.db')
+    try:
+        with database.write() as session:
+            session.execute(insert(Artist), [{'id': 1, 'pixiv_user_id': '1', 'name': 'synthetic'}])
+            # The fallback work and old versions differ from the selected
+            # manga shape. Statistics must use the default version's shape.
+            session.execute(insert(Work), [{'id': 1, 'artist_id': 1, 'pixiv_illust_id': '101',
+                'title': 'synthetic', 'type': 'illust', 'page_count': 97,
+                'default_revision_id': 'current-manga', 'latest_revision_id': 'current-animation'}])
+            for start in range(0, history_count, batch_size):
+                session.execute(insert(WorkRevision), [{'id': f'{ident:032x}', 'work_id': 1,
+                    'ordinal': ident + 1, 'title': 'synthetic history', 'type': 'ugoira', 'page_count': 1,
+                    'source_signature': f'history-{ident}', 'caption': 'c'*512,
+                    'source_metadata': {'synthetic': 'm'*512}}
+                    for ident in range(start, min(start + batch_size, history_count))])
+            session.execute(insert(WorkRevision), [
+                {'id': 'current-manga', 'work_id': 1, 'ordinal': history_count + 1,
+                 'title': 'current manga', 'type': 'manga', 'page_count': 3, 'source_signature': 'manga'},
+                {'id': 'current-animation', 'work_id': 1, 'ordinal': history_count + 2,
+                 'title': 'current animation', 'type': 'ugoira', 'page_count': 8, 'source_signature': 'animation'},
+            ])
+            # Original ownership is historical, but only selected revisions
+            # bind the reused files; an unbound historical file is excluded.
+            session.execute(insert(Asset), [
+                {'id': 'shared-image', 'work_id': 1, 'revision_id': f'{0:032x}', 'role': 'image',
+                 'page_index': 0, 'state': 'verified', 'relative_path': 'synthetic/shared.png'},
+                {'id': 'shared-unknown', 'work_id': 1, 'revision_id': f'{0:032x}', 'role': 'image',
+                 'page_index': 1, 'state': 'unknown', 'relative_path': 'synthetic/unknown.png'},
+                {'id': 'shared-zip', 'work_id': 1, 'revision_id': f'{0:032x}', 'role': 'ugoira_zip',
+                 'page_index': 0, 'state': 'verified', 'relative_path': 'synthetic/animation.zip'},
+                {'id': 'unbound-history', 'work_id': 1, 'revision_id': f'{1:032x}', 'role': 'image',
+                 'page_index': 0, 'state': 'verified', 'relative_path': 'synthetic/history.png'},
+            ])
+            session.execute(insert(RevisionAsset), [
+                {'revision_id': 'current-manga', 'role': 'image', 'page_index': 0, 'asset_id': 'shared-image'},
+                {'revision_id': 'current-manga', 'role': 'image', 'page_index': 1, 'asset_id': 'shared-unknown'},
+                {'revision_id': 'current-animation', 'role': 'image', 'page_index': 0, 'asset_id': 'shared-image'},
+                {'revision_id': 'current-animation', 'role': 'ugoira_zip', 'page_index': 0, 'asset_id': 'shared-zip'},
+            ])
+        evidence['memory_after_fixture'] = memory()
+        evidence['fixture_bytes'] = sum(path.stat().st_size for path in tmp_path.glob('dense-history.db*'))
+        assert evidence['fixture_bytes'] < 100 * 1024 * 1024, evidence['fixture_bytes']
+        runtime = SimpleNamespace(database=database, client=None,
+                                  queue=SimpleNamespace(automatic_paused=lambda: False))
+        app = FastAPI()
+        app.include_router(create_settings_router(lambda: runtime))
+        captured, starts = [], {}
+        def before(conn, cursor, sql, params, context, many):
+            if sql.lstrip().upper().startswith('WITH') and 'downloaded_pages' in sql:
+                starts[id(context)] = time.perf_counter()
+        def after(conn, cursor, sql, params, context, many):
+            began = starts.pop(id(context), None)
+            if began is not None:
+                captured.append((sql, params, time.perf_counter() - began))
+        event.listen(database.engine, 'before_cursor_execute', before)
+        event.listen(database.engine, 'after_cursor_execute', after)
+        manga = {'artists': 1, 'works': 1, 'downloaded_pages': 1, 'registered_originals': 2,
+                 'verified_originals': 1, 'unverified_originals': 1, 'missing_originals': 1}
+        animation = {'artists': 1, 'works': 1, 'downloaded_pages': 0, 'registered_originals': 1,
+                     'verified_originals': 1, 'unverified_originals': 0, 'missing_originals': 0}
+        try:
+            with TestClient(app) as client:
+                for revision, expected in [('current-manga', manga), ('current-manga', manga),
+                                           ('current-animation', animation), ('current-manga', manga)]:
+                    with database.write() as session:
+                        session.execute(update(Work).where(Work.id == 1).values(default_revision_id=revision))
+                    memory_before = memory()
+                    began = time.perf_counter()
+                    response = client.get('/api/settings')
+                    elapsed = time.perf_counter() - began
+                    evidence['requests'].append({'revision': revision, 'seconds': elapsed,
+                        'status': response.status_code, 'memory_before': memory_before, 'memory_after': memory()})
+                    assert response.status_code == 200, response.text
+                    assert response.json()['stats'] == expected
+                    evidence['requests'][-1]['stats'] = response.json()['stats']
+        finally:
+            event.remove(database.engine, 'before_cursor_execute', before)
+            event.remove(database.engine, 'after_cursor_execute', after)
+            with database.engine.connect() as connection:
+                for sql, params, seconds in captured:
+                    plan = [list(row) for row in connection.exec_driver_sql('EXPLAIN QUERY PLAN ' + sql, params)]
+                    evidence['queries'].append({'sql': sql, 'seconds': seconds, 'plan': plan})
+        assert len(captured) == 4, evidence
+        for query in evidence['queries']:
+            plan = query['plan']
+            assert sum('SCAN work_revisions USING COVERING INDEX ix_revisions_settings_shape' in row[3]
+                       for row in plan) == 1, plan
+            assert not any('SEARCH work_revisions ' in row[3] for row in plan), plan
+            assert query['seconds'] < 4.5, evidence['queries']
+        assert max(request['seconds'] for request in evidence['requests']) < 5.0, evidence['requests']
+    finally:
+        evidence['memory_at_finish'] = memory()
+        (tmp_path/'dense-history-metrics.json').write_text(json.dumps(evidence, indent=2), encoding='utf-8')
+        artifact = os.environ.get('SETTINGS_PROJECTION_ARTIFACTS')
+        if artifact:
+            Path(artifact).mkdir(parents=True, exist_ok=True)
+            (Path(artifact)/'dense-history-metrics.json').write_text(json.dumps(evidence, indent=2), encoding='utf-8')
+        database.close()

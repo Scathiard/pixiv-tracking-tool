@@ -1,6 +1,6 @@
 # 本轮验证证据
 
-对应[修订记录](../../2026-10-04-并行任务与本地读取修订.md)，候选源码 `cc92f9aa03c55643dee399ef9090237349239952`。本目录不保存真实图库、配置或令牌，不自动清理。
+对应[修订记录](../../2026-10-04-并行任务与本地读取修订.md)，不同源码基线及验证边界分别记录。本目录不保存真实图库、配置或令牌，不自动清理。
 
 | 文件 | 来源与边界 |
 | --- | --- |
@@ -16,10 +16,8 @@
 | `snapshot-sharing-related.xml`、`snapshot-sharing-final.xml`、`snapshot-sharing-final-result.json` | `b20261008-read-sharing-03`／`05`；44 项相关回归、最终 23 项专项；GET 在途共享与写后／账号／取消边界，无真实账号或图库 |
 | `settings-isolated-20261008.json`、`resource-peaks-selfcheck-20261008.json` | `reliability-settings-isolated-20261008-07`／`resource-freeze-20261008-10`；完整静止读取及真实资源峰值封装自检，不等于维护中的响应时间 |
 | `reliability-shared-pilot-20261008.json`、`operation-window-red-20261008.json` | `reliability-20261008-04`／`window-fairness-01`；共享读取后 120/120 HTTP 成功但一次小任务受理仍超标，以及第 65 个操作饥饿／暂停父图平方复制的独立红证据 |
-
 | `operation-window-fix-20261008.json`、`operation-window-validation-20261008.md` | `b20261008-operation-fairness-fix-01`；最终 21 项专项及受影响回归、此前 29 项相关回归，红反例另保留 |
 | `commit-wait-attribution-20261008.json`、`checkpoint-ab-20261008.json`、`checkpoint-reverse-20261008.json` | 诊断 run 11／12／14；真实等待分段及固定合成 SQL 的检查点对照，逆序组先同步副本；保留吞吐代价和边界，不等于正式任务通过 |
-
 | `checkpoint-regression-red.xml`、`checkpoint-regression-green.xml` | `b20261004.3-checkpoint-regression-01`；小周期复用先红后绿，41 项数据库／恢复／读取相关回归通过；256 页候选随后撤回，属于实验结果 |
 | `checkpoint-default-regression.xml` | `b20261004.3-checkpoint-regression-02`；撤回参数候选后，默认策略下的旧快照、WAL 复用、回滚和重开等 6 项数据库专项通过 |
 | `byte-progress-http-red.xml`、`byte-progress-http-green.xml` | `b20261008-byte-progress-http-01`；实际任务在两次 GET 之间仅更新内存字节数，旧入口误共享旧值的反例先红；加入字节世代后全 24 项在途共享专项通过 |
@@ -40,12 +38,18 @@
 | `checkpoint-runtime-pilot.json`、`checkpoint-runtime-pilot-http.jsonl`、`checkpoint-runtime-pilot-samples.jsonl` | `b20261004.3-reliability-20261008-07`；固定 `05e3c30`、规范规模独占 120 秒短测，120 个 HTTP 全成功，小操作受理均 < 0.3 秒；实际 owner/FULL 策略、压力探测及正常退出已记录。维护全轮和八小时未完成，媒体为微型合成输入 |
 | `full-04-result.json`、`full-04.xml` | `b20261008-full-04`；固定 `05e3c30` 完整执行 803 项，802 通过、1 失败，1071.76 秒；运行中／后生产散列均与前项短测相同。设置失败后的后继 GET 未到读取入口；下项记录测试边界修正，原失败不覆盖；正式 XML 副本仅去行尾空白，原始日志／XML 原位保留 |
 | `discovery-observation-validation.md`、`discovery-observation-result.json`、`discovery-observation-red.xml`、`discovery-observation-related.xml`、`discovery-observation-final.xml`、`discovery-observation-*-metrics.jsonl` | `b20261008-discovery-observation-01`；真实发现作品处理器的事实事务从 3 到 1，先红后绿；新增 21 项及既有 54 项最终全部通过。主会话按 XML 身份核对原两项新夹具失败的复验，非一次全套通过；账号／版本／删除、派生、回滚与提交后缓存保持，仅合成输入 |
-
 | `storage-analysis.json`、`storage-comparison.json`、`storage-manifest.json` | `reliability-storage-20261008-15`；同合成数据库与 SQL 在 C: SSD／D: HDD 的定向对照及临时副本保留位置，不代表完整 APP 或真实库迁移验收 |
-
 | `storage-inventory.json` | 用户要求核对后仅枚举真实图片目录的文件长度及数据库文件长度；没有读取图片／数据库内容，94.48 GB 图片与 0.823 GB 数据库分开统计 |
-
-全套首次完成结果及五项失败的定向修订复验分开记录；大型对照、实际 8 小时持续运行及最终 EXE 证据尚待补入。本目录存在不代表已交付。中断的 `full-01` 和源码曾变化的 `reliability-01` 原位保留，仅作过程诊断。
 | `sharing-fixture-resolution.md`、`sharing-fixture-red.txt`、`sharing-fixture-green.txt`、`sharing-fixture-regression.xml`、`sharing-fixture-close-probe.py`、`sharing-fixture-baseline.py` | `b20261008-sharing-failure-01`；真实 HTTP 关闭时序反例确认失败 PATCH 连接干扰后继 GET；只隔离注入失败请求后同探针通过，相关 24 项全部通过。原全套未捕获 Future 异常，不将反例当作逐字证明；生产代码及原时限／断言未变。正式文本副本仅去行尾空白，原件保留 |
 | `checkpoint-runtime-soak-failed.json`、`checkpoint-runtime-soak-failure-context.json` | `b20261004.3-reliability-20261008-08`；固定 `9eb03bc` 实际 9191.125 秒后失败，8200 个 HTTP 中 7 个设置 504，后继驱动简单统计也超时；正常收尾、源文件未变。原始 16MB 事件轨迹及 SQL 留在原目录；未完成整轮维护/八小时，不构建交付 |
 | `settings-query-readonly/` | `b20261008-settings-query-review-01` 的冻结只读对照：保留脚本、24次测量、实际索引和审查。13次有结果且一致、11次预算取消；不支持改写SQL/扩大缓存。目录只存本次证据、不自动清理；未执行索引DDL |
+| `settings-index-tests/` | 获批两条设置索引的源码专项；按 `01`～`03` 保留原始日志、XML、复验入口和摘要，不复制临时合成数据库、不自动清理。`01` 为 28 项通过；`02` 为 3 项 XML 通过但出现导入层异常且缺独立退出码；`03` 原样复验 3 项、真实退出码 0 且输出干净，保留 `02` 未归因边界 |
+| `settings-index-comparison/` | 获批两索引的首次四臂受控对照；保留脚本、协议、报告、结果及进程退出复核，合成副本与全部逐臂日志仍留原 test-runs，不自动清理。24 次读取中 12 次完成且一致、12 次预算取消；作品索引被采用、版本索引未采用，不能据此交付 |
+
+以下新增目录按批次保存原始文本、脚本、测量与散列清单；不复制合成数据库，不自动清理：
+
+- `settings-shape-query/`：`b20261008-settings-shape-query-01` 的只读窄版本投影对照；12 次中 4 次完成且一致、8 次取消，结构读取量改善不等于整体通过。
+- `settings-projection-tests/`：`b20261008-settings-projection-tests-01` 的 62 项相关回归与两万条历史／一万五千件作品指标；保留真实退出码和导入异常 stderr，不隐藏异常。
+- `import-diagnosis/`：`b20261008-import-diagnosis-01` 的三个纯导入进程及有界后续收集诊断；只用于解释测试环境异常边界，不代替程序验证。
+
+全套首次完成结果及五项失败的定向修订复验分开记录；大型对照、实际 8 小时持续运行及最终 EXE 证据尚待补入。本目录存在不代表已交付。中断的 `full-01` 和源码曾变化的 `reliability-01` 原位保留，仅作过程诊断。

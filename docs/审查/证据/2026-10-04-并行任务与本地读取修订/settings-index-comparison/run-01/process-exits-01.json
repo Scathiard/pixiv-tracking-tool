@@ -1,0 +1,148 @@
+{
+  "all_recorded_exit_zero": true,
+  "currently_active_pids": [
+    56868
+  ],
+  "processes": [
+    {
+      "pid": 23544,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 12564,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 30320,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 36048,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 67996,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 21436,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 63560,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 56868,
+      "recorded_exit_code": 0,
+      "currently_present": true,
+      "currently_active": true,
+      "open_error_if_absent": null
+    },
+    {
+      "pid": 58592,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 45372,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 17016,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 65208,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 47804,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 36428,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 62932,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 62816,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 68188,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 32736,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 18044,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    },
+    {
+      "pid": 64724,
+      "recorded_exit_code": 0,
+      "currently_present": false,
+      "currently_active": false,
+      "open_error_if_absent": 87
+    }
+  ]
+}

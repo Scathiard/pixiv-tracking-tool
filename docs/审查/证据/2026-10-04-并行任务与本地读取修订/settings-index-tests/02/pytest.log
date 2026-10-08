@@ -1,0 +1,210 @@
+Windows fatal exception: access violation
+
+Thread 0x00006764 (most recent call first):
+  File "<frozen importlib._bootstrap_external>", line 1191 in get_data
+  File "<frozen importlib._bootstrap_external>", line 1091 in get_code
+  File "<frozen importlib._bootstrap_external>", line 995 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1415 in _handle_fromlist
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\zoneinfo\__init__.py", line 10 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\alembic\script\base.py", line 37 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\alembic\script\__init__.py", line 1 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1310 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\alembic\runtime\environment.py", line 24 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\alembic\context.py", line 1 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1415 in _handle_fromlist
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\alembic\__init__.py", line 1 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1310 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\database.py", line 8 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\index_preparation.py", line 11 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1415 in _handle_fromlist
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\test_settings_index_preparation.py", line 10 in <module>
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\assertion\rewrite.py", line 188 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1387 in _gcd_import
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\importlib\__init__.py", line 90 in import_module
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\pathlib.py", line 596 in import_path
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\python.py", line 508 in importtestmodule
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\python.py", line 561 in _getobj
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\python.py", line 290 in obj
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\python.py", line 577 in _register_setup_module_fixture
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\python.py", line 564 in collect
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 406 in collect
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 361 in from_call
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 408 in pytest_make_collect_report
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 589 in collect_one_node
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\main.py", line 895 in _collect_one_node
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\main.py", line 973 in collect
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 406 in collect
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 361 in from_call
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 408 in pytest_make_collect_report
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 589 in collect_one_node
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\main.py", line 849 in perform_collect
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\main.py", line 394 in pytest_collection
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  ...
+Windows fatal exception: access violation
+
+Thread 0x00006764 (most recent call first):
+  File "<frozen importlib._bootstrap_external>", line 1191 in get_data
+  File "<frozen importlib._bootstrap_external>", line 1091 in get_code
+  File "<frozen importlib._bootstrap_external>", line 995 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1415 in _handle_fromlist
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\zoneinfo\__init__.py", line 10 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\alembic\script\base.py", line 37 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\alembic\script\__init__.py", line 1 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1310 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\alembic\runtime\environment.py", line 24 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\alembic\context.py", line 1 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1415 in _handle_fromlist
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\alembic\__init__.py", line 1 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1310 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\database.py", line 8 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\index_preparation.py", line 11 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1415 in _handle_fromlist
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\test_settings_index_preparation.py", line 10 in <module>
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\assertion\rewrite.py", line 188 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1387 in _gcd_import
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\importlib\__init__.py", line 90 in import_module
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\pathlib.py", line 596 in import_path
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\python.py", line 508 in importtestmodule
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\python.py", line 561 in _getobj
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\python.py", line 290 in obj
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\python.py", line 577 in _register_setup_module_fixture
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\python.py", line 564 in collect
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 406 in collect
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 361 in from_call
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 408 in pytest_make_collect_report
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 589 in collect_one_node
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\main.py", line 895 in _collect_one_node
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\main.py", line 973 in collect
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 406 in collect
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 361 in from_call
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 408 in pytest_make_collect_report
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\runner.py", line 589 in collect_one_node
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\main.py", line 849 in perform_collect
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\_pytest\main.py", line 394 in pytest_collection
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_callers.py", line 121 in _multicall
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_manager.py", line 120 in _hookexec
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\pluggy\_hooks.py", line 512 in __call__
+  ...
+...                                                                      [100%]
+3 passed in 6.49s
