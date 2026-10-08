@@ -1,0 +1,1 @@
+Instrument integration self-check only: formal run_case, synthetic 1000 works / 1024 historical steps / 4096-byte JSON, 12-second pilot. Numeric localhost only, no real account/config/token/data, no scale acceptance. Preserve all files and failures; no automatic deletion. Parent subprocess records true exit/stdout/stderr with faulthandler enabled.

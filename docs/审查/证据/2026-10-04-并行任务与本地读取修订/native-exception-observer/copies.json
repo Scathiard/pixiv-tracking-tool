@@ -1,0 +1,188 @@
+[
+  {
+    "file": "README.md",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\README.md",
+    "bytes": 4507,
+    "sha256": "AC99EBCDF94E469F9EF56000AFF6D363B6692036B576941A690CF953A47981AB"
+  },
+  {
+    "file": "analysis.md",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\analysis.md",
+    "bytes": 3316,
+    "sha256": "8A192EF9D20D54D8D7D9DF6159BFCF52D8CAF655667CAEA4CFB9275599D794E9"
+  },
+  {
+    "file": "observer.py",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\observer.py",
+    "bytes": 18666,
+    "sha256": "0E47521015060C4AF67C488291E509895D501150792357DA467D40878F8FDAE4"
+  },
+  {
+    "file": "observer.original.py",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\observer.original.py",
+    "bytes": 17790,
+    "sha256": "74130E91602866DEFE40263360A22F5EAD6B05FF9880BB30EA6907D7FBB93C30"
+  },
+  {
+    "file": "observer.original.sha256.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\observer.original.sha256.json",
+    "bytes": 222,
+    "sha256": "5B45FBE876D730F31641545549006AFFB8FB989B14D33642CEAA8275F51DB3BA"
+  },
+  {
+    "file": "final-source.sha256.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\final-source.sha256.json",
+    "bytes": 455,
+    "sha256": "877270598CC9163F195E59F87A8DA163B805EE7F951E23A57B91F06BF6791E53"
+  },
+  {
+    "file": "stdlib_target.py",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\stdlib_target.py",
+    "bytes": 332,
+    "sha256": "1CCD2C31BED0D462B62665F739CABED747CCEB006F545CA70B86FF0038CE34DD"
+  },
+  {
+    "file": "collect_target.py",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\collect_target.py",
+    "bytes": 1290,
+    "sha256": "7D6F24CCCD3015669D4AA9490E238B6E4402ADD0891C3BECF759492C234600B9"
+  },
+  {
+    "file": "stdlib-review.md",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\stdlib-review.md",
+    "bytes": 1739,
+    "sha256": "3477E4E3B7D75FDA0F633858C82A17CFC805A51EDC2D6B506B3DE880D56F8809"
+  },
+  {
+    "file": "self-test.result.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\self-test.result.json",
+    "bytes": 92,
+    "sha256": "BDB1629737C46C584DF056896C50723B44C52DE02FA222BD0A18AAC7C8D36E20"
+  },
+  {
+    "file": "self-test.stdout.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\self-test.stdout.log",
+    "bytes": 269,
+    "sha256": "E60CC07D900F0529A13485CBBDAF38EB71737596ECC7CA1424C0E1889F977612"
+  },
+  {
+    "file": "self-test.stderr.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\self-test.stderr.log",
+    "bytes": 0,
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "file": "self-test-02.result.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\self-test-02.result.json",
+    "bytes": 92,
+    "sha256": "BDB1629737C46C584DF056896C50723B44C52DE02FA222BD0A18AAC7C8D36E20"
+  },
+  {
+    "file": "self-test-02.stdout.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\self-test-02.stdout.log",
+    "bytes": 269,
+    "sha256": "E60CC07D900F0529A13485CBBDAF38EB71737596ECC7CA1424C0E1889F977612"
+  },
+  {
+    "file": "self-test-02.stderr.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\self-test-02.stderr.log",
+    "bytes": 0,
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "file": "stdlib\\events.jsonl",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\stdlib\\events.jsonl",
+    "bytes": 17307,
+    "sha256": "D5BDBD40B5F2F8D58599C17F737445FFFA093A9DE170CB5CB896509C2358ADCB"
+  },
+  {
+    "file": "stdlib\\result.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\stdlib\\result.json",
+    "bytes": 1195,
+    "sha256": "484CE30ABC4F2490C4B1741627EFDC25EB25238DFCC849A37B88ED3CF35803FB"
+  },
+  {
+    "file": "stdlib\\stdout.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\stdlib\\stdout.log",
+    "bytes": 62,
+    "sha256": "29EEA658241D3837DA61E257A15674F4779F0B38C2E8A4A013C6946B362146E5"
+  },
+  {
+    "file": "stdlib\\stderr.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\stdlib\\stderr.log",
+    "bytes": 0,
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "file": "stdlib-02\\events.jsonl",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\stdlib-02\\events.jsonl",
+    "bytes": 17668,
+    "sha256": "C7B42D234677496497D4F226510E93717CFDD127620609F0FEE5A10926FD54CA"
+  },
+  {
+    "file": "stdlib-02\\result.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\stdlib-02\\result.json",
+    "bytes": 1843,
+    "sha256": "1F53D56412791498534C24CFF399985387FC9889345A9B37A6ADAF2A4D15AB2E"
+  },
+  {
+    "file": "stdlib-02\\stdout.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\stdlib-02\\stdout.log",
+    "bytes": 62,
+    "sha256": "29EEA658241D3837DA61E257A15674F4779F0B38C2E8A4A013C6946B362146E5"
+  },
+  {
+    "file": "stdlib-02\\stderr.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\stdlib-02\\stderr.log",
+    "bytes": 0,
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "file": "collect-01\\events.jsonl",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\collect-01\\events.jsonl",
+    "bytes": 44831,
+    "sha256": "5BC49FEC0DCC135BC66B36167363F9956F287EE4FC40E0EF9DBE439B08DDBA10"
+  },
+  {
+    "file": "collect-01\\result.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\collect-01\\result.json",
+    "bytes": 1932,
+    "sha256": "85B3A0CF31C6DC3E4886C2C688C7AA9907BB4724998125598B85F8B21215E6C6"
+  },
+  {
+    "file": "collect-01\\stdout.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\collect-01\\stdout.log",
+    "bytes": 98905,
+    "sha256": "FFC9243EB7D9C3EFF736752901FB2405BC1942A8469E8744DD5610169E5BA134"
+  },
+  {
+    "file": "collect-01\\stderr.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\collect-01\\stderr.log",
+    "bytes": 0,
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "file": "collect-02\\events.jsonl",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\collect-02\\events.jsonl",
+    "bytes": 44106,
+    "sha256": "D18B5991904D867201B9480B1B0C6DDD24A78C5C7A0620B8EC5941F23BA5AA3B"
+  },
+  {
+    "file": "collect-02\\result.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\collect-02\\result.json",
+    "bytes": 1932,
+    "sha256": "FC4F63D9E08BA69CE7C3EFD3B759C56E1F77317E0AA5D4F83F5BABCA4A9C3AF3"
+  },
+  {
+    "file": "collect-02\\stdout.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\collect-02\\stdout.log",
+    "bytes": 98904,
+    "sha256": "24635EB8E451ECDDA4FA2E9218EF77B09B8D5FE59D37ECB3FA1BB06C09D1D1A8"
+  },
+  {
+    "file": "collect-02\\stderr.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-native-exception-observer-01\\collect-02\\stderr.log",
+    "bytes": 0,
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  }
+]

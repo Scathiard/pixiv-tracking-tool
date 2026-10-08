@@ -1,0 +1,58 @@
+[
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-file-import-probe-01\\README.md",
+    "file": "README.md",
+    "bytes": 1463,
+    "sha256": "5489a5478534d9d031d1cb6bdb7ea34a9148e1e3d6b2a396fb730fd9f472fb95",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-file-import-probe-01\\analysis.md",
+    "file": "analysis.md",
+    "bytes": 1436,
+    "sha256": "1dce33e46eb7b6bdc7d86c556808dbcb91e1b0be9909146a31059a72e0d3b94a",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-file-import-probe-01\\file_probe.py",
+    "file": "file_probe.py",
+    "bytes": 2719,
+    "sha256": "0c1e0a65c87986230840bfb1e124da10a6dee3d1b73a2e3a534cb5d9b8f965a0",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-file-import-probe-01\\run_file_probe.ps1",
+    "file": "run_file_probe.ps1",
+    "bytes": 2786,
+    "sha256": "8c5ed57355cad73291976066713a15cf0c02d23d3faa74cbb523c500c8c56b88",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-file-import-probe-01\\started.json",
+    "file": "started.json",
+    "bytes": 459,
+    "sha256": "1167dedf07e19c25d50ae1b6add2b190362cb53b62859162afd63fa7631d38cd",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-file-import-probe-01\\result.json",
+    "file": "result.json",
+    "bytes": 732,
+    "sha256": "7ce9f35dabc68d0fb19656047f272def1b3dc8c0ed1cc015e419b0c04186b834",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-file-import-probe-01\\probe.stdout.log",
+    "file": "probe.stdout.log",
+    "bytes": 13600,
+    "sha256": "0d009440c4eadc46bd171c6ebcfda01d869dbb4c7cc8c20cc6a4169070a22cb5",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-file-import-probe-01\\probe.stderr.log",
+    "file": "probe.stderr.log",
+    "bytes": 12055,
+    "sha256": "fb23a3dbf660f7999cee8ddc1e672ecd49ee8dfe67272023df6098b966bfde8d",
+    "exact_copy": true
+  }
+]

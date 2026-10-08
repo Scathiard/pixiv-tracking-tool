@@ -1,0 +1,88 @@
+{
+  "batch_wholewall_seconds": 7.218075300101191,
+  "source_metadata_unchanged": true,
+  "runs": [
+    {
+      "name": "completed_operation_items",
+      "runs": [
+        {
+          "phase": "first",
+          "budget_seconds": 4.5,
+          "result": 19461,
+          "status": "complete",
+          "wall_seconds": 3.324213600018993,
+          "cpu_seconds": 0.03125,
+          "logical_read_bytes": 1351680,
+          "logical_read_calls": 330,
+          "vm_steps_sampled": 77000,
+          "within_original_4_5s": true
+        },
+        {
+          "phase": "warm-1",
+          "budget_seconds": 4.5,
+          "result": 19461,
+          "status": "complete",
+          "wall_seconds": 0.00150969997048378,
+          "cpu_seconds": 0.0,
+          "logical_read_bytes": 0,
+          "logical_read_calls": 0,
+          "vm_steps_sampled": 78000,
+          "within_original_4_5s": true
+        },
+        {
+          "phase": "warm-2",
+          "budget_seconds": 4.5,
+          "result": 19461,
+          "status": "complete",
+          "wall_seconds": 0.0011506997980177402,
+          "cpu_seconds": 0.0,
+          "logical_read_bytes": 0,
+          "logical_read_calls": 0,
+          "vm_steps_sampled": 78000,
+          "within_original_4_5s": true
+        }
+      ]
+    },
+    {
+      "name": "verified_assets",
+      "runs": [
+        {
+          "phase": "first",
+          "budget_seconds": 4.5,
+          "result": 3133,
+          "status": "complete",
+          "wall_seconds": 3.785561600001529,
+          "cpu_seconds": 0.03125,
+          "logical_read_bytes": 2834432,
+          "logical_read_calls": 692,
+          "vm_steps_sampled": 48000,
+          "within_original_4_5s": true
+        },
+        {
+          "phase": "warm-1",
+          "budget_seconds": 4.5,
+          "result": 3133,
+          "status": "complete",
+          "wall_seconds": 0.004644300090149045,
+          "cpu_seconds": 0.0,
+          "logical_read_bytes": 2822144,
+          "logical_read_calls": 689,
+          "vm_steps_sampled": 48000,
+          "within_original_4_5s": true
+        },
+        {
+          "phase": "warm-2",
+          "budget_seconds": 4.5,
+          "result": 3133,
+          "status": "complete",
+          "wall_seconds": 0.0026263000909239054,
+          "cpu_seconds": 0.0,
+          "logical_read_bytes": 2822144,
+          "logical_read_calls": 689,
+          "vm_steps_sampled": 48000,
+          "within_original_4_5s": true
+        }
+      ]
+    }
+  ]
+}

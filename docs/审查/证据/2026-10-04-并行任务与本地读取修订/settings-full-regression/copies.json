@@ -1,0 +1,51 @@
+[
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-full-05\\README.md",
+    "file": "README.md",
+    "bytes": 467,
+    "sha256": "1dc06d63df06cddf9d56eb2735cbd6e051b9a9182dbf41eab8602042c165a0a0",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-full-05\\run_full.py",
+    "file": "run_full.py",
+    "bytes": 2883,
+    "sha256": "e31a43a0b3fcdf77940f1b2e4a8d2e91b97b08dcb34e4e0ee35141ede6658963",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-full-05\\source-reference.json",
+    "file": "source-reference.json",
+    "bytes": 767,
+    "sha256": "4894c13da3c3726427d2fc4197dd0d15f893c40eb9b768888155372246013587",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-full-05\\process.json",
+    "file": "process.json",
+    "bytes": 1114,
+    "sha256": "51537e663f30fad6b3dd20720fafd2f7d3a80b73dd0c44fbaa377bf33c8a1d27",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-full-05\\stdout.log",
+    "file": "stdout.log",
+    "bytes": 3883,
+    "sha256": "ac449475eda3abe6524dc8f99fa2e3555663cc3e40fc28d1578f6a499a37e76b",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-full-05\\stderr.log",
+    "file": "stderr.log",
+    "bytes": 9434,
+    "sha256": "d17eae60fb79defc2d6fe265ead9efc35503f056203257f164f8dc72f6a77e30",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-full-05\\result.xml",
+    "file": "result.xml",
+    "bytes": 130410,
+    "sha256": "fb55d75f5afd7a4d57407d1b648834e0f2753213c779aefe92de8b740132c367",
+    "exact_copy": true
+  }
+]

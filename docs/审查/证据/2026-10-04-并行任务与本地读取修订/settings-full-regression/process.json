@@ -1,0 +1,30 @@
+{
+  "before": {
+    "commit": "ef797cbe7b093b6cdec81feea3f4b568c8490b1b",
+    "source_tree_sha256": "f5401afcc839470959608a354e30a1b77e2914224a890b6bdeac084d33efefaa"
+  },
+  "started_utc": "2026-10-08T01:37:28.053369+00:00",
+  "command": [
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Scripts\\python.exe",
+    "-X",
+    "faulthandler",
+    "-u",
+    "-m",
+    "pytest",
+    "-q",
+    "tests",
+    "--basetemp=D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-full-05\\pytest",
+    "--junitxml=D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-full-05\\result.xml"
+  ],
+  "cwd": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261004.3\\app",
+  "pid": 17088,
+  "returncode": 0,
+  "seconds": 1139.9967322999146,
+  "after": {
+    "commit": "ef797cbe7b093b6cdec81feea3f4b568c8490b1b",
+    "source_tree_sha256": "f5401afcc839470959608a354e30a1b77e2914224a890b6bdeac084d33efefaa"
+  },
+  "ended_utc": "2026-10-08T01:56:30.001686+00:00",
+  "source_unchanged": true,
+  "access_violation_in_output": true
+}

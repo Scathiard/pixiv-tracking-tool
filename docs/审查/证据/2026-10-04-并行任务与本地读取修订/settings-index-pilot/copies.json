@@ -1,0 +1,62 @@
+[
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-09\\check-workers-1\\result.json",
+    "file": "result.json",
+    "sha256": "7650d852376d25318d7099dd84bd2f52d40af88b1fd9b291f186c042f770af5d",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-09\\check-workers-1\\http.jsonl",
+    "file": "http.jsonl",
+    "sha256": "6f2ca96d24cbe0c0ac1ac47670894618e9ac0f1c6f4277ccc76d788f5d9e51dd",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-09\\check-workers-1\\samples.jsonl",
+    "file": "samples.jsonl",
+    "sha256": "a040666fc23afe91e0eb5c3c0fd33b7f79ca4397b71c1fefbac913e85c20c055",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-09\\comparison.json",
+    "file": "comparison.json",
+    "sha256": "4db10ec65a9068db261726b3a29d25427e58358d9c629d7c932b66b831c2acd6",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-index-load-driver-01\\README.md",
+    "file": "driver-README.md",
+    "sha256": "12ae4f6f798f6063fe89dc441dda78858e823fa2d09823fa66b235f571688a6f",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-index-load-driver-01\\run_probe.py",
+    "file": "run_probe.py",
+    "sha256": "130f22e61db6e37e89a275893e64854aa9f365962fc357d5bc8ea4ed94946af2",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-index-load-driver-01\\pilot.started.json",
+    "file": "started.json",
+    "sha256": "bc9c55b822ca29d8213e2ccdd323b05a29ce21f1fbf7b37f35420feb097fbe96",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-index-load-driver-01\\pilot.result.json",
+    "file": "process.json",
+    "sha256": "6dfde65badc82cc1ab8f9e0150e959cfd6ca253dd738d80f90b6671ead9aa643",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-index-load-driver-01\\pilot.stdout.log",
+    "file": "stdout.log",
+    "sha256": "127876c412e04b981a9355ed008b645f451d902aae4f162569e5a83f1aa503ff",
+    "exact_copy": true
+  },
+  {
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-index-load-driver-01\\pilot.stderr.log",
+    "file": "stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "exact_copy": true
+  }
+]

@@ -34,6 +34,10 @@ import time
 from urllib.parse import parse_qs, urlsplit
 from uuid import NAMESPACE_URL, uuid5
 import zipfile
+from parallel_reliability_observation import (
+    AuditFailure, MaintenanceReports, PeriodicObserver, audit_persistence,
+    completed_in_window, enforce_soak_gates, observe_maintenance, resource_sample,
+)
 
 
 APP = Path(__file__).resolve().parents[1]
@@ -758,16 +762,18 @@ class ActivityCoverage:
     """Bounded measurements: elapsed time alone cannot prove continuous use."""
     def __init__(self, began, wall_started):
         self.began = began
-        self.last = {name: began for name in ("heartbeat", "sample", "burst")}
+        self.lock = threading.RLock()
+        self.last = {name: began for name in ("heartbeat", "sample", "maintenance", "burst")}
         self.counts = Counter()
         self.gaps = Counter()
         self.wall_last = wall_started
         self.wall_gap = 0.0
 
     def observe(self, name, stamp):
-        self.gaps[name] = max(self.gaps[name], stamp-self.last[name])
-        self.last[name] = stamp
-        self.counts[name] += 1
+        with self.lock:
+            self.gaps[name] = max(self.gaps[name], stamp-self.last[name])
+            self.last[name] = stamp
+            self.counts[name] += 1
 
     def heartbeat(self, stamp, wall_stamp):
         self.observe("heartbeat", stamp)
@@ -782,17 +788,18 @@ class ActivityCoverage:
         # satisfy their existing exact content/status/deadline assertions.
         required_bursts = max(1, math.ceil(duration/args.burst_seconds)-1)
         required_samples = max(1, math.floor(duration/10))
-        limits = {"heartbeat": 30.0, "sample": 30.0, "burst": args.burst_seconds+30.0}
+        limits = {"heartbeat": 30.0, "sample": 30.0, "maintenance": 30.0, "burst": args.burst_seconds+30.0}
         violations = [f"{name} gap {gaps[name]:.3f}s > {limit:.3f}s"
                       for name, limit in limits.items() if gaps[name] > limit]
         if wall_gap > 30:
             violations.append(f"wall-clock heartbeat gap {wall_gap:.3f}s > 30s")
-        for name, minimum in (("burst", required_bursts), ("sample", required_samples)):
+        for name, minimum in (("burst", required_bursts), ("sample", required_samples), ("maintenance", required_samples)):
             if self.counts[name] < minimum:
                 violations.append(f"{name} coverage {self.counts[name]} < {minimum}")
         return {"observations": dict(self.counts), "max_gap_seconds": gaps,
             "max_wall_heartbeat_gap_seconds": wall_gap, "gap_limits_seconds": limits,
             "minimum_bursts": required_bursts, "minimum_successful_resource_samples": required_samples,
+            "minimum_successful_maintenance_http_observations": required_samples,
             "minimum_mixed_http_requests": required_bursts*40, "violations": violations,
             "enforced_for_soak": args.pilot_seconds is None}
 
@@ -800,12 +807,11 @@ class ActivityCoverage:
 def run_case(out, args, check_workers):
     import psutil
     import requests
-    from sqlalchemy import func, select
     import uvicorn
     from src import auth, client as client_module
     from src.core.database import ArchiveDatabase
     from src.core.download import AssetDownloader
-    from src.core.models import Asset, Derivative, Operation, OperationItem, RemoteBookmark, PublicationJournal, utcnow
+    from src.core.models import utcnow
     from src.core.runtime import Runtime
     from src.web import create_app
 
@@ -852,6 +858,12 @@ def run_case(out, args, check_workers):
     server = None
     serving = None
     restore_instrument = lambda: None
+    began = deadline = started_wall = coverage = maintenance_id = None
+    burst = 0
+    small = []
+    observers = []
+    reports = MaintenanceReports()
+    window_end = window_wall_end = None
     seed_start = time.monotonic()
     try:
         db = ArchiveDatabase.create(out / "archive.db")
@@ -905,14 +917,42 @@ def run_case(out, args, check_workers):
         maintenance_id = response.json()["operation_id"]
         result["maintenance_operation_id"] = maintenance_id
         next_burst = next_small = began
-        next_sample = began
         burst = serial = 0
         small = []
-        completed = False
-        last_settled = None
-        progress_samples = []
         process = psutil.Process()
         process.cpu_percent(interval=None)
+        def sample_resources():
+            sample = resource_sample(runtime, process, began)
+            sampled_at = began+sample["elapsed_seconds"]
+            if sampled_at > deadline:
+                return
+            coverage.observe("sample", sampled_at)
+            with telemetry.lock:
+                telemetry.samples.write(json.dumps(sample)+"\n")
+                for key in ("rss_bytes", "wal_bytes", "read_connections", "write_connections"):
+                    telemetry.sampled_peak[key] = max(telemetry.sampled_peak[key], sample[key])
+                for category in ("read_active", "read_pending"):
+                    for lane, value in sample[category].items():
+                        name = category+"_"+lane
+                        telemetry.sampled_peak[name] = max(telemetry.sampled_peak[name], value)
+                for key in ("log_frames", "pending_frames"):
+                    value = sample["checkpoint"][key]
+                    if value is not None:
+                        name = "checkpoint_"+key
+                        telemetry.sampled_peak[name] = max(telemetry.sampled_peak[name], value)
+            if not sample["checkpoint"]["running"] or sample["checkpoint"]["error_count"]:
+                telemetry.fail("production checkpoint owner stopped or encountered an I/O/policy error")
+            if sample["worker_error"]:
+                telemetry.fail("production worker error: "+sample["worker_error"])
+        wall_deadline = started_wall+timedelta(seconds=deadline-began)
+        observers.append(PeriodicObserver(sample_resources,
+            lambda error: telemetry.fail("resource sample: "+type(error).__name__),
+            began=began, deadline=deadline).start())
+        observers.append(PeriodicObserver(lambda: observe_maintenance(requests.get, origin, maintenance_id,
+            began=began, deadline=deadline, wall_deadline=wall_deadline, reports=reports,
+            telemetry=telemetry, coverage=coverage),
+            lambda error: telemetry.fail("maintenance observer: "+type(error).__name__),
+            began=began, deadline=deadline).start())
         while time.monotonic() < deadline:
             now = time.monotonic()
             coverage.heartbeat(now, time.time())
@@ -928,52 +968,6 @@ def run_case(out, args, check_workers):
                 coverage.observe("burst", time.monotonic())
                 burst += 1
                 next_burst = now + args.burst_seconds
-            if now >= next_sample:
-                try:
-                    with runtime.database.read() as session:
-                        operation = session.get(Operation, maintenance_id)
-                        settled = session.scalar(select(func.count()).select_from(OperationItem).where(
-                            OperationItem.operation_id == maintenance_id, OperationItem.state.in_(("succeeded", "failed", "skipped", "not_executed")))) or 0
-                        state, outcome = operation.state, operation.result.get("outcome")
-                    completed = completed or (state == "finished" and outcome == "succeeded")
-                    if state == "finished" and outcome != "succeeded":
-                        telemetry.fail(f"full maintenance finished with {outcome}")
-                    wal = Path(str(runtime.database.path) + "-wal")
-                    sampled_at = time.monotonic()
-                    coverage.observe("sample", sampled_at)
-                    cpu = process.cpu_times()
-                    sample = {"elapsed_seconds": sampled_at - began, "rss_bytes": process.memory_info().rss,
-                        "cpu_user_seconds": cpu.user, "cpu_system_seconds": cpu.system,
-                        "cpu_percent_since_last_sample": process.cpu_percent(interval=None),
-                        "wal_bytes": wal.stat().st_size if wal.exists() else 0,
-                        "read_active": dict(runtime.database.reads.active), "read_pending": dict(runtime.database.reads.pending),
-                        "read_connections": runtime.database.engine.pool.checkedout(),
-                        "write_connections": runtime.database.writer_engine.pool.checkedout(),
-                        "worker_error": runtime.queue.worker_error, "maintenance_state": state,
-                        "maintenance_settled": settled, "maintenance_outcome": outcome,
-                        "checkpoint": runtime.wal_maintenance.snapshot()}
-                    telemetry.samples.write(json.dumps(sample) + "\n")
-                    for key in ("rss_bytes", "wal_bytes", "read_connections", "write_connections"):
-                        telemetry.sampled_peak[key] = max(telemetry.sampled_peak[key], sample[key])
-                    for lane, value in sample["read_active"].items():
-                        telemetry.sampled_peak["read_active_" + lane] = max(telemetry.sampled_peak["read_active_" + lane], value)
-                    for lane, value in sample["read_pending"].items():
-                        telemetry.sampled_peak["read_pending_" + lane] = max(telemetry.sampled_peak["read_pending_" + lane], value)
-                    for key in ("log_frames", "pending_frames"):
-                        value = sample["checkpoint"][key]
-                        if value is not None:
-                            name = "checkpoint_" + key
-                            telemetry.sampled_peak[name] = max(telemetry.sampled_peak[name], value)
-                    if not sample["checkpoint"]["running"] or sample["checkpoint"]["error_count"]:
-                        telemetry.fail("production checkpoint owner stopped or encountered an I/O/policy error")
-                    if runtime.queue.worker_error:
-                        telemetry.fail("production worker error: " + runtime.queue.worker_error)
-                    if settled != last_settled:
-                        progress_samples.append({"elapsed_seconds": now - began, "settled": settled, "state": state})
-                        last_settled = settled
-                except Exception as exc:
-                    telemetry.fail(f"progress/resource sample: {type(exc).__name__}")
-                next_sample = now + 5
             if args.pilot_seconds is None and telemetry.has_failures():
                 # A failed soak cannot become a pass by waiting eight hours.
                 # Preserve the evidence and use the normal finally cleanup;
@@ -981,72 +975,132 @@ def run_case(out, args, check_workers):
                 result["stopped_early_after_failure"] = True
                 break
             time.sleep(.05)
-        result.update(elapsed_seconds=time.monotonic() - began, bursts=burst, maintenance_completed=completed,
-                      maintenance_progress=progress_samples)
-        result["activity_coverage"] = coverage.finish(time.monotonic(), time.time(), args)
-        for operation in small:
-            first = telemetry.first_remote_request.get(operation["operation_id"])
-            until = first if first is not None else time.monotonic()-telemetry.started
-            conflicts = [(start, end) for start, end, owner in telemetry.work_intervals[operation["work_id"]]
-                         if owner != operation["operation_id"] and max(start, operation["submitted"]) < min(end, until)]
-            slots = [stamp for stamp, ident in telemetry.remote_slots if operation["submitted"] <= stamp < until
-                     and not any(start <= stamp <= end for start, end in conflicts)]
-            operation.update(first_item_started_seconds=telemetry.first_execution.get(operation["operation_id"]),
-                             first_remote_request_seconds=first, allowed_remote_slots_before_execution=len(slots),
-                             same_work_conflict_intervals=conflicts,
-                             execution_wait_seconds=None if first is None else first-operation["submitted"])
-            if first is None or len(slots) > 2:
-                telemetry.fail("small operation did not execute within two available remote slots")
-        result["small_operations"] = small
-        with runtime.database.read() as session:
-            result["production_persistence"] = {
-                "verified_assets": session.scalar(select(func.count()).select_from(Asset).where(Asset.state == "verified")),
-                "verified_previews": session.scalar(select(func.count()).select_from(Derivative).where(Derivative.state == "verified")),
-                "bookmark_observations": session.scalar(select(func.count()).select_from(RemoteBookmark).where(RemoteBookmark.confirmed_at >= started_wall)),
-                "publication_journals": session.scalar(select(func.count()).select_from(PublicationJournal)),
-            }
-        result["overlap"] = {
-            "checking_download": intervals_overlap(telemetry.intervals["phase_checking"], telemetry.intervals["phase_downloading"]),
-            "checking_preview": intervals_overlap(telemetry.intervals["phase_checking"], telemetry.intervals["phase_converting"] + telemetry.intervals["phase_thumbnails"]),
-            "two_checks": telemetry.peak["phase_checking"] >= 2,
-        }
-        if args.pilot_seconds is None:
-            for violation in result["activity_coverage"]["violations"]:
-                telemetry.fail("continuous soak coverage: " + violation)
-            if result["elapsed_seconds"] < max(8 * 3600, args.duration_hours * 3600):
-                telemetry.fail("soak duration shorter than eight actual hours")
-            if not completed:
-                telemetry.fail("full 15000-work maintenance cycle did not complete successfully")
-            for key in ("checking_download", "checking_preview"):
-                if not result["overlap"][key]:
-                    telemetry.fail("production overlap not witnessed: " + key)
     except Exception as exc:
         telemetry.fail(f"probe failed: {type(exc).__name__}: {str(exc)[:160]}")
     finally:
+        # Freeze the workload boundary before observers/HTTP/workers close.
+        window_end, window_wall_end = time.monotonic(), time.time()
+        clean_close = True
+        for observer in observers:
+            try:
+                stopped = observer.stop(10)
+            except Exception as error:
+                stopped = False
+                telemetry.fail("periodic observer close failed: "+type(error).__name__)
+            if not stopped:
+                clean_close = False
+                telemetry.fail("periodic observer did not stop within 10 seconds")
+        observations, completed = reports.snapshot()
+        # An early failure closes the actual window before its planned deadline.
+        completed = completed_in_window(observations, began, window_end,
+                                        datetime.fromtimestamp(window_wall_end, timezone.utc))
+        result.update(maintenance_completed=completed is not None,
+            maintenance_progress=observations, maintenance_last_completed_http=completed,
+            bursts=burst, elapsed_seconds=0 if began is None else window_end-began)
+        if coverage is not None:
+            try:
+                result["activity_coverage"] = coverage.finish(window_end, window_wall_end, args)
+            except Exception as error:
+                telemetry.fail("coverage evaluation failed: "+type(error).__name__)
+        # Each gate is independent of SQL audit and cleanup failures.
+        try:
+            for operation in small:
+                first = telemetry.first_remote_request.get(operation["operation_id"])
+                if first is not None and first > window_end-telemetry.started:
+                    first = None
+                until = first if first is not None else window_end-telemetry.started
+                conflicts = [(start, end) for start, end, owner in telemetry.work_intervals[operation["work_id"]]
+                             if owner != operation["operation_id"] and max(start, operation["submitted"]) < min(end, until)]
+                slots = [stamp for stamp, ident in telemetry.remote_slots if operation["submitted"] <= stamp < until
+                         and not any(start <= stamp <= end for start, end in conflicts)]
+                operation.update(first_item_started_seconds=telemetry.first_execution.get(operation["operation_id"]),
+                                 first_remote_request_seconds=first, allowed_remote_slots_before_execution=len(slots),
+                                 same_work_conflict_intervals=conflicts,
+                                 execution_wait_seconds=None if first is None else first-operation["submitted"])
+                if first is None or len(slots) > 2:
+                    telemetry.fail("small operation did not execute within two available remote slots")
+            result["small_operations"] = small
+        except Exception as error:
+            telemetry.fail("small-operation fairness evaluation failed: "+type(error).__name__)
+        try:
+            def clipped(category):
+                low = 0 if began is None else began-telemetry.started
+                high = window_end-telemetry.started
+                return [(max(a, low), min(b, high)) for a, b in telemetry.intervals[category]
+                        if max(a, low) < min(b, high)]
+            result["overlap"] = {
+                "checking_download": intervals_overlap(clipped("phase_checking"), clipped("phase_downloading")),
+                "checking_preview": intervals_overlap(clipped("phase_checking"), clipped("phase_converting")+clipped("phase_thumbnails")),
+                "two_checks": telemetry.peak["phase_checking"] >= 2,
+            }
+        except Exception as error:
+            telemetry.fail("overlap evaluation failed: "+type(error).__name__)
+        enforce_soak_gates(result, args, telemetry.fail)
         if server is not None:
             server.should_exit = True
-        if serving is not None:
-            serving.join(30)
-            result["http_server_stopped"] = not serving.is_alive()
-            if serving.is_alive():
-                telemetry.fail("HTTP server did not stop within 30 seconds")
-        if runtime is not None:
-            result["checkpoint_before_close"] = runtime.wal_maintenance.snapshot()
-            result["runtime_closed"] = runtime.close(30)
-            result["checkpoint_after_close"] = runtime.wal_maintenance.snapshot()
-            if not result["runtime_closed"]:
-                telemetry.fail("runtime workers did not close cleanly")
-            if result["checkpoint_after_close"]["running"]:
-                telemetry.fail("checkpoint owner remains active after shutdown")
-            result["cleanup"] = {"active_reads": dict(runtime.database.reads.active),
-                "pending_reads": dict(runtime.database.reads.pending),
-                "worker_error": runtime.queue.worker_error}
-            if any(result["cleanup"]["active_reads"].values()) or any(result["cleanup"]["pending_reads"].values()):
-                telemetry.fail("read resources remain active after shutdown")
-        restore_instrument()
-        remote_server.shutdown()
-        remote_server.server_close()
-        remote_thread.join(5)
+        try:
+            if serving is not None:
+                serving.join(30)
+                result["http_server_stopped"] = not serving.is_alive()
+                if serving.is_alive():
+                    clean_close = False
+                    telemetry.fail("HTTP server did not stop within 30 seconds")
+        except Exception as error:
+            clean_close = False
+            telemetry.fail("HTTP close failed: "+type(error).__name__)
+        try:
+            if runtime is not None:
+                result["checkpoint_before_close"] = runtime.wal_maintenance.snapshot()
+                result["runtime_closed"] = runtime.close(30)
+                result["checkpoint_after_close"] = runtime.wal_maintenance.snapshot()
+                cleanup = result["cleanup"] = {"active_reads": dict(runtime.database.reads.active),
+                    "pending_reads": dict(runtime.database.reads.pending), "worker_error": runtime.queue.worker_error,
+                    "read_connections": runtime.database.engine.pool.checkedout(),
+                    "write_connections": runtime.database.writer_engine.pool.checkedout(),
+                    "owner_lease_closed": runtime._closed}
+                if not result["runtime_closed"] or result["checkpoint_after_close"]["running"] or not cleanup["owner_lease_closed"]:
+                    clean_close = False
+                    telemetry.fail("runtime workers/checkpoint/owner did not close cleanly")
+                if any(cleanup["active_reads"].values()) or any(cleanup["pending_reads"].values()) or cleanup["read_connections"] or cleanup["write_connections"]:
+                    clean_close = False
+                    telemetry.fail("read/write resources remain active after shutdown")
+                if cleanup["worker_error"]:
+                    telemetry.fail("production worker error: "+cleanup["worker_error"])
+        except Exception as error:
+            clean_close = False
+            telemetry.fail("runtime close failed: "+type(error).__name__)
+        try:
+            restore_instrument()
+        except Exception as error:
+            clean_close = False
+            telemetry.fail("instrument restore failed: "+type(error).__name__)
+        try:
+            remote_server.shutdown()
+            remote_server.server_close()
+            remote_thread.join(5)
+            result["remote_server_stopped"] = not remote_thread.is_alive()
+            if remote_thread.is_alive():
+                clean_close = False
+                telemetry.fail("synthetic remote server did not close")
+        except Exception as error:
+            clean_close = False
+            telemetry.fail("synthetic remote close failed: "+type(error).__name__)
+        result["closed_audit_eligible"] = clean_close and runtime is not None and maintenance_id is not None
+        if result["closed_audit_eligible"]:
+            try:
+                audit = audit_persistence(out/"archive.db", maintenance_id, started_wall, completed,
+                    require_complete=args.pilot_seconds is None, fixture_works=args.works,
+                    fixture_history=args.history_steps)
+                result["closed_persistence_audit"] = audit
+                result["production_persistence"] = audit["production_persistence"]
+            except AuditFailure as error:
+                result["closed_persistence_audit"] = error.evidence
+                telemetry.fail("closed persistence audit: "+str(error))
+            except Exception as error:
+                result["closed_persistence_audit"] = {"status": "failed", "error_type": type(error).__name__}
+                telemetry.fail("closed persistence audit failed: "+type(error).__name__)
+        else:
+            telemetry.fail("closed persistence audit could not run after clean shutdown")
         auth._load_token, auth.credential_snapshot, client_module.API_HOST, client_module._MIN_INTERVAL = originals
         auth._token_file, client_module._token_file = token_paths
         requests.sessions.Session.request = original_request

@@ -1,0 +1,496 @@
+Windows fatal exception: access violation
+
+Thread 0x0000e8ec (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 355 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\queue.py", line 171 in get
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\anyio\_backends\_asyncio.py", line 1089 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000b02c (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 355 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\queue.py", line 171 in get
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\anyio\_backends\_asyncio.py", line 1089 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000002b8 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 355 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\queue.py", line 171 in get
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\anyio\_backends\_asyncio.py", line 1089 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00010cdc (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 355 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\queue.py", line 171 in get
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\anyio\_backends\_asyncio.py", line 1089 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000f8bc (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000106c8 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000f170 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00009ce4 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000102ec (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000ff00 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00010c0c (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000e4ac (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000d7c4 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000045dc (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socket.py", line 720 in readinto
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\http\server.py", line 408 in handle_one_request
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\http\server.py", line 442 in handle
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socketserver.py", line 766 in __init__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socketserver.py", line 362 in finish_request
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socketserver.py", line 697 in process_request_thread
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000cf98 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00010640 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000b9d4 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socket.py", line 720 in readinto
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\http\server.py", line 408 in handle_one_request
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\http\server.py", line 442 in handle
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socketserver.py", line 766 in __init__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socketserver.py", line 362 in finish_request
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socketserver.py", line 697 in process_request_thread
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000088e4 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00010b64 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000113d4 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000adfc (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000113e4 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00009cdc (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 355 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\queue.py", line 171 in get
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\progress.py", line 106 in _run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000092e0 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\database.py", line 165 in write
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\contextlib.py", line 137 in __enter__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\parallel_reliability_probe.py", line 571 in write
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\contextlib.py", line 137 in __enter__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 1259 in _execute_item_attempt
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 1194 in _execute_item
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 964 in _step_candidate
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 710 in _step
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 630 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000e9f0 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 359 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 655 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 632 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000bc84 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 359 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 655 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 632 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000097fc (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\engine\default.py", line 715 in do_commit
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\parallel_reliability_probe.py", line 551 in sqlite_commit
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\engine\base.py", line 1145 in _commit_impl
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\engine\base.py", line 2716 in _connection_commit_impl
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\engine\base.py", line 2745 in _do_commit
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\engine\base.py", line 2640 in commit
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\orm\session.py", line 1318 in commit
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137 in _go
+  File "<string>", line 2 in commit
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\orm\session.py", line 2030 in commit
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\database.py", line 172 in write
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\contextlib.py", line 144 in __exit__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\parallel_reliability_probe.py", line 571 in write
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\contextlib.py", line 144 in __exit__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 1027 in _plan
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 955 in _step_candidate
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 710 in _step
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 630 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00003cd4 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 359 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 655 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\wal_maintenance.py", line 225 in _run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00010ebc (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00004e48 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\selectors.py", line 314 in _select
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\selectors.py", line 323 in select
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 1961 in _run_once
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 645 in run_forever
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 678 in run_until_complete
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py", line 118 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py", line 195 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\uvicorn\server.py", line 75 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000c3a0 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\selectors.py", line 314 in _select
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\selectors.py", line 323 in select
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socketserver.py", line 235 in serve_forever
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00009b24 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\parallel_reliability_probe.py", line 983 in run_case
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\parallel_reliability_probe.py", line 1123 in main
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\parallel_reliability_probe.py", line 1135 in <module>
+Windows fatal exception: access violation
+
+Thread 0x0000e8ec (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 355 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\queue.py", line 171 in get
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\anyio\_backends\_asyncio.py", line 1089 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000b02c (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 355 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\queue.py", line 171 in get
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\anyio\_backends\_asyncio.py", line 1089 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000002b8 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 355 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\queue.py", line 171 in get
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\anyio\_backends\_asyncio.py", line 1089 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00010cdc (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 355 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\queue.py", line 171 in get
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\anyio\_backends\_asyncio.py", line 1089 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000f8bc (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000106c8 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000f170 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00009ce4 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000102ec (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000ff00 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00010c0c (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000e4ac (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000d7c4 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000045dc (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socket.py", line 720 in readinto
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\http\server.py", line 408 in handle_one_request
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\http\server.py", line 442 in handle
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socketserver.py", line 766 in __init__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socketserver.py", line 362 in finish_request
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socketserver.py", line 697 in process_request_thread
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000cf98 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00010640 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000b9d4 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socket.py", line 720 in readinto
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\http\server.py", line 408 in handle_one_request
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\http\server.py", line 442 in handle
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socketserver.py", line 766 in __init__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socketserver.py", line 362 in finish_request
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socketserver.py", line 697 in process_request_thread
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000088e4 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00010b64 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000113d4 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000adfc (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000113e4 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00009cdc (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 355 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\queue.py", line 171 in get
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\progress.py", line 106 in _run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000092e0 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\database.py", line 165 in write
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\contextlib.py", line 137 in __enter__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\parallel_reliability_probe.py", line 571 in write
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\contextlib.py", line 137 in __enter__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 1259 in _execute_item_attempt
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 1194 in _execute_item
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 964 in _step_candidate
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 710 in _step
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 630 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000e9f0 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 359 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 655 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 632 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000bc84 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 359 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 655 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 632 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x000097fc (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\engine\default.py", line 715 in do_commit
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\parallel_reliability_probe.py", line 551 in sqlite_commit
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\engine\base.py", line 1145 in _commit_impl
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\engine\base.py", line 2716 in _connection_commit_impl
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\engine\base.py", line 2745 in _do_commit
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\engine\base.py", line 2640 in commit
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\orm\session.py", line 1318 in commit
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\orm\state_changes.py", line 137 in _go
+  File "<string>", line 2 in commit
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\sqlalchemy\orm\session.py", line 2030 in commit
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\database.py", line 172 in write
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\contextlib.py", line 144 in __exit__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\parallel_reliability_probe.py", line 571 in write
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\contextlib.py", line 144 in __exit__
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 1027 in _plan
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 955 in _step_candidate
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 710 in _step
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\tasks.py", line 630 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00003cd4 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 359 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 655 in wait
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\src\core\wal_maintenance.py", line 225 in _run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00010ebc (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\concurrent\futures\thread.py", line 90 in _worker
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00004e48 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\selectors.py", line 314 in _select
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\selectors.py", line 323 in select
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 1961 in _run_once
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 645 in run_forever
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 678 in run_until_complete
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py", line 118 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py", line 195 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\uvicorn\server.py", line 75 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x0000c3a0 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\selectors.py", line 314 in _select
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\selectors.py", line 323 in select
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\socketserver.py", line 235 in serve_forever
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1012 in run
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1075 in _bootstrap_inner
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\threading.py", line 1032 in _bootstrap
+
+Thread 0x00009b24 (most recent call first):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\parallel_reliability_probe.py", line 983 in run_case
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\parallel_reliability_probe.py", line 1123 in main
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261004.3\app\tests\parallel_reliability_probe.py", line 1135 in <module>

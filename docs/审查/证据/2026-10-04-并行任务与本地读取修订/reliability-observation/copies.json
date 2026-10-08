@@ -1,0 +1,176 @@
+[
+  {
+    "file": "README.md",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\README.md",
+    "bytes": 1941,
+    "sha256": "328CA3A203A6A8FF74EC002C336FB9D365DE0F167970C172895D3EB68C54AB96"
+  },
+  {
+    "file": "implementation-review-receipt.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\implementation-review-receipt.json",
+    "bytes": 3233,
+    "sha256": "2632D259CA03B97F4099A583EBB236F5578C221EDB12BB6776D2FAF9FE19F2F6"
+  },
+  {
+    "file": "integration_runner.py",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\integration_runner.py",
+    "bytes": 895,
+    "sha256": "FE9EFBDA597B8CE199182AC1E36E720C7E01603A5DCC3BB20638859660257B0B"
+  },
+  {
+    "file": "run_integration.py",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\run_integration.py",
+    "bytes": 867,
+    "sha256": "A7930D66EE136CCAA46B35335A205A29FEDB616FC08F223A2BC34E732284C76F"
+  },
+  {
+    "file": "old_coupling_red.py",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\old_coupling_red.py",
+    "bytes": 1755,
+    "sha256": "88B373BF59AC30103CA7923C44389B962A85965B0661DA06390FC18E463E0A3E"
+  },
+  {
+    "file": "reproduce_old_coupling_red.py",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\reproduce_old_coupling_red.py",
+    "bytes": 1726,
+    "sha256": "16028C94BC4FB7380F9713B5605E51A47E1997C04E6B7B297A9D4A6D0D10C767"
+  },
+  {
+    "file": "old-coupling-red.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\old-coupling-red.json",
+    "bytes": 430,
+    "sha256": "0909AC688BDA9791012518D16200B4BFFB38EE52885B71332165FA068B50E3B5"
+  },
+  {
+    "file": "old-probe-base.py",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\old-probe-base.py",
+    "bytes": 68045,
+    "sha256": "C626D88FA160333A62936D923D995BBE9452F4886B3D92B4782AD542BA0DA349"
+  },
+  {
+    "file": "run_targeted.py",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\run_targeted.py",
+    "bytes": 961,
+    "sha256": "75E8E47C289A4B3698281296F1941B188A04B6BF5F83C79282038B561ABC1348"
+  },
+  {
+    "file": "run_targeted_02.py",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\run_targeted_02.py",
+    "bytes": 972,
+    "sha256": "E8F5DA883C3FD0CF77E77464CA5828E08F9381C9665C6F733BDDA1F7F2352AF5"
+  },
+  {
+    "file": "run_targeted_03.py",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\run_targeted_03.py",
+    "bytes": 972,
+    "sha256": "2B70C7284A59FC8336F77D6E4E95DA69870783C835100EE492E667090D820CF8"
+  },
+  {
+    "file": "pytest-01.receipt.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\pytest-01.receipt.json",
+    "bytes": 438,
+    "sha256": "6E81879E1051F04A1C545780AE3411A147EC82A6275A73A2B9575E11593A5C8A"
+  },
+  {
+    "file": "pytest-01.stdout.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\pytest-01.stdout.log",
+    "bytes": 102,
+    "sha256": "48B1DF246043E840E5F48FB3951C2DA57C88E8744852EC4889DAEBDBADE9F92F"
+  },
+  {
+    "file": "pytest-01.stderr.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\pytest-01.stderr.log",
+    "bytes": 0,
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "file": "pytest-02.receipt.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\pytest-02.receipt.json",
+    "bytes": 438,
+    "sha256": "787979FB3EC3BBC7FC5F1C9DF0E542110C667552D377AD597EF7C965F1012851"
+  },
+  {
+    "file": "pytest-02.stdout.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\pytest-02.stdout.log",
+    "bytes": 102,
+    "sha256": "ACB14834AC75E909F09CDE2BD46C875B95E2A7C33986671562315CEB1590252D"
+  },
+  {
+    "file": "pytest-02.stderr.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\pytest-02.stderr.log",
+    "bytes": 0,
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "file": "pytest-03.receipt.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\pytest-03.receipt.json",
+    "bytes": 438,
+    "sha256": "AFE47E61CD75D9D9A2569FB3ABA0B093BE94509CE54EFF8E148FA7D4B25BBF5A"
+  },
+  {
+    "file": "pytest-03.stdout.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\pytest-03.stdout.log",
+    "bytes": 102,
+    "sha256": "2C0D00939B333DB95CF61C818D3A06A931CCA9ABD3E238753C3F00F86C10E633"
+  },
+  {
+    "file": "pytest-03.stderr.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\pytest-03.stderr.log",
+    "bytes": 0,
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "file": "integration-01\\README.md",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\integration-01\\README.md",
+    "bytes": 351,
+    "sha256": "218AE958C6857760EEC868D9912925E193038DD9DC475DBFEA2CA5FEA544A588"
+  },
+  {
+    "file": "integration-01\\receipt.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\integration-01\\receipt.json",
+    "bytes": 327,
+    "sha256": "46BAC2F446663DC27D973F9395C45383116433C9958ADCED68C8A8C6BAD2AC96"
+  },
+  {
+    "file": "integration-01\\stdout.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\integration-01\\stdout.log",
+    "bytes": 23398,
+    "sha256": "160A58C9AF4F152B9C913B3CB82FE8A9ECC80321DD954C1A3B42C10D40290617"
+  },
+  {
+    "file": "integration-01\\stderr.log",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\integration-01\\stderr.log",
+    "bytes": 0,
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "file": "integration-01\\check-workers-1\\result.json",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\integration-01\\check-workers-1\\result.json",
+    "bytes": 23396,
+    "sha256": "7774553114DCDB5E7C0B2750494DCC5DF8109D358C58A32A02DA587F5E70842E"
+  },
+  {
+    "file": "integration-01\\check-workers-1\\http.jsonl",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\integration-01\\check-workers-1\\http.jsonl",
+    "bytes": 7798,
+    "sha256": "6C5BE1B868B01751808E629D2CA655D96AC7ABD85BBF685D78034A2259E78548"
+  },
+  {
+    "file": "integration-01\\check-workers-1\\samples.jsonl",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\integration-01\\check-workers-1\\samples.jsonl",
+    "bytes": 2492,
+    "sha256": "FCAC047A71FE4BDBFBBB16E2CE3751F3442B71D53FE42DBD14458F2770401499"
+  },
+  {
+    "file": "integration-01\\check-workers-1\\slow-sql.jsonl",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\integration-01\\check-workers-1\\slow-sql.jsonl",
+    "bytes": 4495,
+    "sha256": "9E578F20A53DB61EE49A91561901DBD9DC5785AB235A800DAE20A42B1776BE70"
+  },
+  {
+    "file": "integration-01\\check-workers-1\\timeline.jsonl",
+    "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-reliability-observation-01\\integration-01\\check-workers-1\\timeline.jsonl",
+    "bytes": 54508,
+    "sha256": "739A42343FAE0436A60746B55C6B5ADA251111A206D4ABF4D48FF706F1D4E047"
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "command": [
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Scripts\\python.exe",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008-soak-count-diagnosis-01\\count_diagnosis.py",
+    "--probe"
+  ],
+  "returncode": 0,
+  "access_violation_in_output": false
+}

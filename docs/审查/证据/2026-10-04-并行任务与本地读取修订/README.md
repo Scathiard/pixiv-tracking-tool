@@ -50,6 +50,12 @@
 
 - `settings-shape-query/`：`b20261008-settings-shape-query-01` 的只读窄版本投影对照；12 次中 4 次完成且一致、8 次取消，结构读取量改善不等于整体通过。
 - `settings-projection-tests/`：`b20261008-settings-projection-tests-01` 的 62 项相关回归与两万条历史／一万五千件作品指标；保留真实退出码和导入异常 stderr，不隐藏异常。
-- `import-diagnosis/`：`b20261008-import-diagnosis-01` 的三个纯导入进程及有界后续收集诊断；只用于解释测试环境异常边界，不代替程序验证。
+- `import-diagnosis/`：`b20261008-import-diagnosis-01` 的三个纯导入进程、有界后续收集及单次纯文件探针（`collection/`、`file-probe/`）；均未复现，原异常未归属，只用于解释测试环境异常边界，不代替程序验证。
+- `settings-full-regression/`：`b20261008-full-05` 的完整后端回归、源码前后身份、真实退出码与分离日志；816 项全部通过，保留收集阶段两段访问异常，不能称为无异常输出。
+- `settings-index-pilot/`：`b20261004.3-reliability-20261008-09` 固定 `ef797cb` 的原规模 120 秒短测及外层退出记录；120 次 HTTP 全成功，小操作最慢 0.415 秒，Runtime／HTTP 正常退出。全部原始轨迹仍留 test-runs；这里只存结果、HTTP／样本与驱动日志，不是八小时或完整维护验收。
+- `settings-index-soak-failed/`：同一源码的 `10` 长测于 5942.375 秒失败；5280 个 HTTP 全成功，两条直接诊断计数超时、stderr 两段未归属原生异常，正常收尾。保存结果、外层退出、HTTP／样本、异常原文和原始路径散列清单；完整 SQL／时间线留在原 test-runs，不复制合成库。
+- `soak-count-diagnosis/`：`b20261008-soak-count-diagnosis-01` 的有界同 SQL 只读对照，六次均在 4.5 秒内，首次 3.324／3.786 秒、暖读毫秒；没有复现超时，不当作修复证明。不复制源库、不自动清理。
+- `native-exception-observer/`：`b20261008-native-exception-observer-01` 的有界新建进程树诊断；保存观察器、原规则、修订、四轮事件／退出记录与散列清单，不复制缓存或合成数据，不自动清理。两次实际收集各 816 项均未出现 Python AV；捕获到的控制台 RPC 异常不能解释旧 Python 转储，原异常仍未归属。
+- `reliability-observation/`：验收工具的观测修订证据，保存旧耦合反例、定向测试、独立复审、小型实际 Runtime 自检及源码散列，不复制临时库或缓存，不自动清理。小型自检仅验证仪器接线，不能替代 15,000 件和八小时验收；具体运行状态以目录内记录为准。
 
 全套首次完成结果及五项失败的定向修订复验分开记录；大型对照、实际 8 小时持续运行及最终 EXE 证据尚待补入。本目录存在不代表已交付。中断的 `full-01` 和源码曾变化的 `reliability-01` 原位保留，仅作过程诊断。
