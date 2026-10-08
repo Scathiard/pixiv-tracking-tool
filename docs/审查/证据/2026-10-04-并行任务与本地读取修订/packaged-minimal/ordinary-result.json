@@ -1,0 +1,75 @@
+{
+  "approved_exe": "D:\\claude_sandbox\\pixiv-tracking-tool\\release\\v0.2.0\\build-20261008.1\\PixivTracker_v0.2.0_build20261008.1.exe",
+  "exe_sha256": "65db0d144c6d39c5d8766d40fbd79d8277f3fd204ee21ba98eb1ed866856a9bc",
+  "source_commit": "4ad375e4a1f25ef2c629750f66f50980ec917b66",
+  "source_sha256": "5d7bea9b7d167d892e929ca436c7d87e56153cb3c87291f6130449e68125fcc1",
+  "real_library_used": false,
+  "real_account_used": false,
+  "real_device_tested": false,
+  "checks": [
+    "retained actual packaged SMOKE_OK report; prior observation confirmed no live owned EXE; OS exit code not captured",
+    "synthetic old-0003 clone retains all records; exactly two settings indexes omitted",
+    "isolated ordinary offline startup identity; settings/library/log read once",
+    "ordinary EXE tray exit completed normally; no retained owned EXE process",
+    "consistent complete startup backup and exactly two additive indexes; all original records unchanged"
+  ],
+  "errors": [],
+  "scope": "smoke; one old-0003 offline start; library/settings/log each once; normal stop",
+  "smoke_exit_code": null,
+  "smoke_exit_code_observation": "Original process observer raced the exited root; original failed result retained. SMOKE_OK report and complete output retained; no smoke rerun.",
+  "server_ownership": {
+    "instance_directory": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008.1-packaged-lifecycle-minimal-01\\PixivTracker-d93b958782dbe96f",
+    "pids": [
+      6056,
+      10444
+    ],
+    "port": 54645,
+    "rendezvous_port": 54652
+  },
+  "reads": [
+    {
+      "path": "/api/settings",
+      "seconds": 0.030999999959021807,
+      "bytes": 561
+    },
+    {
+      "path": "/api/library?compact=1&limit=20",
+      "seconds": 0.0940000000409782,
+      "bytes": 3748
+    },
+    {
+      "path": "/api/logs",
+      "seconds": 0.0,
+      "bytes": 1202
+    }
+  ],
+  "settings_identity": {
+    "version": "0.2.0",
+    "build": "20261008.1",
+    "data_root": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261008.1-packaged-lifecycle-minimal-01\\legacy-0003-fixture"
+  },
+  "library_total": 3,
+  "log_line_count": 11,
+  "normal_stop_windows": [
+    {
+      "hwnd": 68492524,
+      "pid": 10444,
+      "class": "pixiv_tracker3089556696736SystemTrayIcon"
+    },
+    {
+      "hwnd": 18350806,
+      "pid": 10444,
+      "class": "pixiv_tracker3089556696736SystemTrayIcon"
+    }
+  ],
+  "ordinary_exit_code": 0,
+  "backup_manifest": {
+    "20261008-8232b9327f444942af898ce201c0ff9e\\backup.db": "7b3e3b42b70a6200913a0878f1d4df4a9cbdaf006505505ea1c8cf3f94b78919",
+    "20261008-8232b9327f444942af898ce201c0ff9e\\receipt.json": "6a87872a31485d2a4e720edb1958382d96431d07ed6028588b0dca5f6d0ea9e0"
+  },
+  "legacy_settings_indexes_verified": true,
+  "retained_live_owned_pids": [],
+  "owned_exe_stopped": true,
+  "elapsed_seconds": 8.375,
+  "passed": true
+}

@@ -1,0 +1,227 @@
+{
+  "started_utc": "2026-10-08T06:39:49.529409+00:00",
+  "status": "prepared",
+  "library": "D:\\PixivTracker\\data\\pixiv_tracker.db",
+  "exe_sha256": "65db0d144c6d39c5d8766d40fbd79d8277f3fd204ee21ba98eb1ed866856a9bc",
+  "real_account_test": false,
+  "before": {
+    "counts": {
+      "works": 15296,
+      "work_revisions": 20596,
+      "assets": 48657,
+      "operations": 2185,
+      "operation_items": 279544,
+      "artists": 83
+    },
+    "operation_states": [
+      [
+        "artist_source",
+        "finished",
+        3
+      ],
+      [
+        "backfill",
+        "finished",
+        34
+      ],
+      [
+        "check",
+        "finished",
+        19
+      ],
+      [
+        "metadata",
+        "finished",
+        264
+      ],
+      [
+        "reconcile",
+        "finished",
+        1
+      ],
+      [
+        "repair",
+        "finished",
+        1707
+      ],
+      [
+        "thumbnails",
+        "finished",
+        157
+      ]
+    ],
+    "indexes": {
+      "sqlite_autoindex_artists_1": null,
+      "sqlite_autoindex_application_state_1": null,
+      "sqlite_autoindex_archive_intents_1": null,
+      "sqlite_autoindex_task_rounds_1": null,
+      "ix_task_rounds_state": "CREATE INDEX ix_task_rounds_state ON task_rounds (state)",
+      "sqlite_autoindex_works_1": null,
+      "ix_works_latest_revision_id": "CREATE INDEX ix_works_latest_revision_id ON works (latest_revision_id)",
+      "ix_works_type_order": "CREATE INDEX ix_works_type_order ON works (type, posted_at, id)",
+      "ix_works_order": "CREATE INDEX ix_works_order ON works (posted_at, id)",
+      "ix_works_default_revision_id": "CREATE INDEX ix_works_default_revision_id ON works (default_revision_id)",
+      "ix_works_artist_order": "CREATE INDEX ix_works_artist_order ON works (artist_id, posted_at, id)",
+      "sqlite_autoindex_operations_1": null,
+      "ix_operations_state": "CREATE INDEX ix_operations_state ON operations (state)",
+      "ix_operations_round_id": "CREATE INDEX ix_operations_round_id ON operations (round_id)",
+      "ix_operations_fair": "CREATE INDEX ix_operations_fair ON operations (state, last_claim_seq, created_at)",
+      "ix_operations_dedupe_key": "CREATE INDEX ix_operations_dedupe_key ON operations (dedupe_key)",
+      "sqlite_autoindex_work_tags_1": null,
+      "ix_work_tags_tag": "CREATE INDEX ix_work_tags_tag ON work_tags (tag)",
+      "sqlite_autoindex_work_revisions_1": null,
+      "sqlite_autoindex_work_revisions_2": null,
+      "ix_revision_work_order": "CREATE INDEX ix_revision_work_order ON work_revisions (work_id, ordinal)",
+      "ix_work_revisions_work_id": "CREATE INDEX ix_work_revisions_work_id ON work_revisions (work_id)",
+      "sqlite_autoindex_bookmark_operations_1": null,
+      "sqlite_autoindex_bookmark_operations_2": null,
+      "ix_bookmark_operations_work_id": "CREATE INDEX ix_bookmark_operations_work_id ON bookmark_operations (work_id)",
+      "sqlite_autoindex_operation_items_1": null,
+      "sqlite_autoindex_operation_items_2": null,
+      "ix_operation_items_operation_id": "CREATE INDEX ix_operation_items_operation_id ON operation_items (operation_id)",
+      "ix_items_candidate": "CREATE INDEX ix_items_candidate ON operation_items (operation_id, state, lane, position)",
+      "ix_items_progress": "CREATE INDEX ix_items_progress ON operation_items (operation_id, state, phase, unit)",
+      "sqlite_autoindex_assets_1": null,
+      "sqlite_autoindex_assets_2": null,
+      "ix_assets_revision_id": "CREATE INDEX ix_assets_revision_id ON assets (revision_id)",
+      "ix_asset_legacy_slot": "CREATE UNIQUE INDEX ix_asset_legacy_slot ON assets (work_id, role, page_index) WHERE revision_id IS NULL",
+      "ix_assets_work_id": "CREATE INDEX ix_assets_work_id ON assets (work_id)",
+      "sqlite_autoindex_derivatives_1": null,
+      "sqlite_autoindex_derivatives_2": null,
+      "ix_derivatives_revision_id": "CREATE INDEX ix_derivatives_revision_id ON derivatives (revision_id)",
+      "ix_derivative_legacy_slot": "CREATE UNIQUE INDEX ix_derivative_legacy_slot ON derivatives (work_id, kind, page_index, spec_key) WHERE revision_id IS NULL",
+      "ix_derivatives_work_id": "CREATE INDEX ix_derivatives_work_id ON derivatives (work_id)",
+      "sqlite_autoindex_revision_assets_1": null,
+      "ix_revision_assets_asset_id": "CREATE INDEX ix_revision_assets_asset_id ON revision_assets (asset_id)",
+      "sqlite_autoindex_revision_derivatives_1": null,
+      "ix_revision_derivatives_derivative_id": "CREATE INDEX ix_revision_derivatives_derivative_id ON revision_derivatives (derivative_id)",
+      "sqlite_autoindex_publication_journal_1": null,
+      "ix_publication_journal_step": "CREATE INDEX ix_publication_journal_step ON publication_journal (step)",
+      "ix_publication_journal_pixiv_illust_id": "CREATE INDEX ix_publication_journal_pixiv_illust_id ON publication_journal (pixiv_illust_id)",
+      "sqlite_autoindex_alembic_version_1": null,
+      "ix_items_target_work_asset": "CREATE INDEX ix_items_target_work_asset ON operation_items (json_extract(target, '$.work_id'), CAST(json_extract(target, '$.asset_id') AS TEXT))",
+      "ix_items_target_work_record": "CREATE INDEX ix_items_target_work_record ON operation_items (json_extract(target, '$.work_id'), CAST(json_extract(target, '$.record_id') AS TEXT))",
+      "ix_items_target_scope": "CREATE INDEX ix_items_target_scope ON operation_items (operation_id, json_extract(target, '$.work_id'), CAST(json_extract(target, '$.asset_id') AS TEXT), CAST(json_extract(target, '$.record_id') AS TEXT), state, position, id) WHERE json_extract(target, '$.work_id') IS NULL AND CAST(json_extract(target, '$.asset_id') AS TEXT) IS NULL AND CAST(json_extract(target, '$.record_id') AS TEXT) IS NULL"
+    },
+    "revision": "0003_revisions"
+  },
+  "receipt": {
+    "kind": "task_indexes",
+    "schema_revision": "0003_revisions",
+    "created_at": "2026-10-08T06:40:10.116288+00:00",
+    "source": "D:\\PixivTracker\\data\\pixiv_tracker.db",
+    "backup": "D:\\PixivTracker\\data\\upgrade\\20261008-f135b3c0704247268661aff6a147dc6c\\backup.db",
+    "missing_indexes": [
+      "ix_works_settings_shape",
+      "ix_revisions_settings_shape"
+    ],
+    "state": "complete",
+    "backup_bytes": 822964224
+  },
+  "after": {
+    "counts": {
+      "works": 15296,
+      "work_revisions": 20596,
+      "assets": 48657,
+      "operations": 2185,
+      "operation_items": 279544,
+      "artists": 83
+    },
+    "operation_states": [
+      [
+        "artist_source",
+        "finished",
+        3
+      ],
+      [
+        "backfill",
+        "finished",
+        34
+      ],
+      [
+        "check",
+        "finished",
+        19
+      ],
+      [
+        "metadata",
+        "finished",
+        264
+      ],
+      [
+        "reconcile",
+        "finished",
+        1
+      ],
+      [
+        "repair",
+        "finished",
+        1707
+      ],
+      [
+        "thumbnails",
+        "finished",
+        157
+      ]
+    ],
+    "indexes": {
+      "sqlite_autoindex_artists_1": null,
+      "sqlite_autoindex_application_state_1": null,
+      "sqlite_autoindex_archive_intents_1": null,
+      "sqlite_autoindex_task_rounds_1": null,
+      "ix_task_rounds_state": "CREATE INDEX ix_task_rounds_state ON task_rounds (state)",
+      "sqlite_autoindex_works_1": null,
+      "ix_works_latest_revision_id": "CREATE INDEX ix_works_latest_revision_id ON works (latest_revision_id)",
+      "ix_works_type_order": "CREATE INDEX ix_works_type_order ON works (type, posted_at, id)",
+      "ix_works_order": "CREATE INDEX ix_works_order ON works (posted_at, id)",
+      "ix_works_default_revision_id": "CREATE INDEX ix_works_default_revision_id ON works (default_revision_id)",
+      "ix_works_artist_order": "CREATE INDEX ix_works_artist_order ON works (artist_id, posted_at, id)",
+      "sqlite_autoindex_operations_1": null,
+      "ix_operations_state": "CREATE INDEX ix_operations_state ON operations (state)",
+      "ix_operations_round_id": "CREATE INDEX ix_operations_round_id ON operations (round_id)",
+      "ix_operations_fair": "CREATE INDEX ix_operations_fair ON operations (state, last_claim_seq, created_at)",
+      "ix_operations_dedupe_key": "CREATE INDEX ix_operations_dedupe_key ON operations (dedupe_key)",
+      "sqlite_autoindex_work_tags_1": null,
+      "ix_work_tags_tag": "CREATE INDEX ix_work_tags_tag ON work_tags (tag)",
+      "sqlite_autoindex_work_revisions_1": null,
+      "sqlite_autoindex_work_revisions_2": null,
+      "ix_revision_work_order": "CREATE INDEX ix_revision_work_order ON work_revisions (work_id, ordinal)",
+      "ix_work_revisions_work_id": "CREATE INDEX ix_work_revisions_work_id ON work_revisions (work_id)",
+      "sqlite_autoindex_bookmark_operations_1": null,
+      "sqlite_autoindex_bookmark_operations_2": null,
+      "ix_bookmark_operations_work_id": "CREATE INDEX ix_bookmark_operations_work_id ON bookmark_operations (work_id)",
+      "sqlite_autoindex_operation_items_1": null,
+      "sqlite_autoindex_operation_items_2": null,
+      "ix_operation_items_operation_id": "CREATE INDEX ix_operation_items_operation_id ON operation_items (operation_id)",
+      "ix_items_candidate": "CREATE INDEX ix_items_candidate ON operation_items (operation_id, state, lane, position)",
+      "ix_items_progress": "CREATE INDEX ix_items_progress ON operation_items (operation_id, state, phase, unit)",
+      "sqlite_autoindex_assets_1": null,
+      "sqlite_autoindex_assets_2": null,
+      "ix_assets_revision_id": "CREATE INDEX ix_assets_revision_id ON assets (revision_id)",
+      "ix_asset_legacy_slot": "CREATE UNIQUE INDEX ix_asset_legacy_slot ON assets (work_id, role, page_index) WHERE revision_id IS NULL",
+      "ix_assets_work_id": "CREATE INDEX ix_assets_work_id ON assets (work_id)",
+      "sqlite_autoindex_derivatives_1": null,
+      "sqlite_autoindex_derivatives_2": null,
+      "ix_derivatives_revision_id": "CREATE INDEX ix_derivatives_revision_id ON derivatives (revision_id)",
+      "ix_derivative_legacy_slot": "CREATE UNIQUE INDEX ix_derivative_legacy_slot ON derivatives (work_id, kind, page_index, spec_key) WHERE revision_id IS NULL",
+      "ix_derivatives_work_id": "CREATE INDEX ix_derivatives_work_id ON derivatives (work_id)",
+      "sqlite_autoindex_revision_assets_1": null,
+      "ix_revision_assets_asset_id": "CREATE INDEX ix_revision_assets_asset_id ON revision_assets (asset_id)",
+      "sqlite_autoindex_revision_derivatives_1": null,
+      "ix_revision_derivatives_derivative_id": "CREATE INDEX ix_revision_derivatives_derivative_id ON revision_derivatives (derivative_id)",
+      "sqlite_autoindex_publication_journal_1": null,
+      "ix_publication_journal_step": "CREATE INDEX ix_publication_journal_step ON publication_journal (step)",
+      "ix_publication_journal_pixiv_illust_id": "CREATE INDEX ix_publication_journal_pixiv_illust_id ON publication_journal (pixiv_illust_id)",
+      "sqlite_autoindex_alembic_version_1": null,
+      "ix_items_target_work_asset": "CREATE INDEX ix_items_target_work_asset ON operation_items (json_extract(target, '$.work_id'), CAST(json_extract(target, '$.asset_id') AS TEXT))",
+      "ix_items_target_work_record": "CREATE INDEX ix_items_target_work_record ON operation_items (json_extract(target, '$.work_id'), CAST(json_extract(target, '$.record_id') AS TEXT))",
+      "ix_items_target_scope": "CREATE INDEX ix_items_target_scope ON operation_items (operation_id, json_extract(target, '$.work_id'), CAST(json_extract(target, '$.asset_id') AS TEXT), CAST(json_extract(target, '$.record_id') AS TEXT), state, position, id) WHERE json_extract(target, '$.work_id') IS NULL AND CAST(json_extract(target, '$.asset_id') AS TEXT) IS NULL AND CAST(json_extract(target, '$.record_id') AS TEXT) IS NULL",
+      "ix_works_settings_shape": "CREATE INDEX ix_works_settings_shape ON works (default_revision_id, pixiv_illust_id, type, page_count)",
+      "ix_revisions_settings_shape": "CREATE INDEX ix_revisions_settings_shape ON work_revisions (id, type, page_count)"
+    },
+    "revision": "0003_revisions"
+  },
+  "backup_sha256": "8d77f2d845695931631e14388d13cbc4571ca619b5a2324be4470cf4dae2c59f",
+  "executable": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261008.1.exe",
+  "finished_utc": "2026-10-08T06:41:14.912906+00:00"
+}

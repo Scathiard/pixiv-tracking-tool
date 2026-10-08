@@ -1,0 +1,28 @@
+{
+  "processes": [
+    {
+      "ProcessId": 62832,
+      "ParentProcessId": 39848,
+      "ExecutablePath": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261008.1.exe",
+      "CommandLine": "\"D:\\PixivTracker\\PixivTracker_v0.2.0_build20261008.1.exe\""
+    },
+    {
+      "ProcessId": 67324,
+      "ParentProcessId": 62832,
+      "ExecutablePath": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261008.1.exe",
+      "CommandLine": "\"D:\\PixivTracker\\PixivTracker_v0.2.0_build20261008.1.exe\""
+    }
+  ],
+  "listeners": [
+    {
+      "LocalAddress": "::",
+      "LocalPort": 1919,
+      "OwningProcess": 67324
+    },
+    {
+      "LocalAddress": "0.0.0.0",
+      "LocalPort": 1919,
+      "OwningProcess": 67324
+    }
+  ]
+}
