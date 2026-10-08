@@ -1,0 +1,8 @@
+baseline default [(4.5521, None, 'interrupted'), (4.6872, None, 'interrupted'), (4.5563, None, 'interrupted')]
+baseline 32m [(4.7274, None, 'interrupted'), (4.6266, None, 'interrupted'), (4.6175, None, 'interrupted')]
+candidate 32m [(5.1498, None, 'interrupted'), (4.5086, None, 'interrupted'), (4.5004, None, 'interrupted')]
+candidate default [(4.537, None, 'interrupted'), (4.5215, None, 'interrupted'), (1.0142, [5137, 15002, 5160, 9833, 9], None)]
+candidate default [(0.1588, [5137, 15002, 5160, 9833, 9], None), (0.1578, [5137, 15002, 5160, 9833, 9], None), (0.1525, [5137, 15002, 5160, 9833, 9], None)]
+candidate 32m [(0.1579, [5137, 15002, 5160, 9833, 9], None), (0.1533, [5137, 15002, 5160, 9833, 9], None), (0.1504, [5137, 15002, 5160, 9833, 9], None)]
+baseline 32m [(0.64, [5137, 15002, 5160, 9833, 9], None), (0.1603, [5137, 15002, 5160, 9833, 9], None), (0.1563, [5137, 15002, 5160, 9833, 9], None)]
+baseline default [(0.1592, [5137, 15002, 5160, 9833, 9], None), (0.1574, [5137, 15002, 5160, 9833, 9], None), (0.1607, [5137, 15002, 5160, 9833, 9], None)]

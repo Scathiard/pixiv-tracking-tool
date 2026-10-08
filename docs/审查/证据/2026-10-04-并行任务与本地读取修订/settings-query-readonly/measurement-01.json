@@ -1,0 +1,1765 @@
+{
+  "database": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-08\\check-workers-1\\archive.db",
+  "source_commit": "9eb03bc",
+  "no_background_workers": true,
+  "no_os_cache_flush": true,
+  "process_io_is_not_physical_io": true,
+  "columns": [
+    "downloaded_pages",
+    "registered_originals",
+    "verified_originals",
+    "unverified_originals",
+    "missing_originals"
+  ],
+  "all_complete_results_equal": true,
+  "sql": {
+    "baseline": "WITH current_works AS MATERIALIZED \n(SELECT works.id AS work_id, works.pixiv_illust_id AS pixiv_id, works.default_revision_id AS revision_id, coalesce(work_revisions.type, works.type) AS type, coalesce(work_revisions.page_count, works.page_count) AS page_count \nFROM works LEFT OUTER JOIN work_revisions ON work_revisions.id = works.default_revision_id)\n SELECT coalesce(sum(anon_1.downloaded_pages), ?) AS coalesce_1, coalesce(sum(anon_1.registered_originals), ?) AS coalesce_3, coalesce(sum(anon_1.verified_originals), ?) AS coalesce_5, coalesce(sum(anon_1.unverified_originals), ?) AS coalesce_7, coalesce(sum(CASE WHEN (CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) > ?) THEN CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) ELSE ? END), ?) AS coalesce_9 \nFROM current_works LEFT OUTER JOIN (SELECT assets.work_id AS work_id, sum(CASE WHEN (assets.role = ? AND assets.state = ?) THEN ? ELSE ? END) AS downloaded_pages, sum(CASE WHEN (length(assets.relative_path) > ?) THEN ? ELSE ? END) AS registered_originals, sum(CASE WHEN (assets.state = ?) THEN ? ELSE ? END) AS verified_originals, sum(CASE WHEN (assets.state = ? AND length(assets.relative_path) > ?) THEN ? ELSE ? END) AS unverified_originals, sum(CASE WHEN (length(assets.relative_path) > ? AND (assets.state NOT IN (?, ?, ?, ?, ?))) THEN ? ELSE ? END) AS usable \nFROM assets JOIN (SELECT revision_assets.asset_id AS asset_id \nFROM revision_assets JOIN current_works ON current_works.revision_id = revision_assets.revision_id UNION SELECT assets.id AS asset_id \nFROM assets JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.revision_id IS NULL AND assets.revision_id IS NULL) AS anon_2 ON anon_2.asset_id = assets.id JOIN current_works ON current_works.work_id = assets.work_id \nWHERE current_works.type = ? AND assets.role = ? OR current_works.type != ? AND assets.role = ? AND assets.page_index < current_works.page_count GROUP BY assets.work_id) AS anon_1 ON anon_1.work_id = current_works.work_id \nWHERE (current_works.pixiv_id NOT IN (SELECT archive_intents.pixiv_illust_id \nFROM archive_intents \nWHERE archive_intents.mode = ?))",
+    "candidate": "WITH current_works AS MATERIALIZED \n(SELECT works.id AS work_id, works.pixiv_illust_id AS pixiv_id, works.default_revision_id AS revision_id, coalesce(work_revisions.type, works.type) AS type, coalesce(work_revisions.page_count, works.page_count) AS page_count \nFROM works LEFT OUTER JOIN work_revisions ON work_revisions.id = works.default_revision_id)\n SELECT coalesce(sum(anon_1.downloaded_pages), ?) AS coalesce_1, coalesce(sum(anon_1.registered_originals), ?) AS coalesce_3, coalesce(sum(anon_1.verified_originals), ?) AS coalesce_5, coalesce(sum(anon_1.unverified_originals), ?) AS coalesce_7, coalesce(sum(CASE WHEN (CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) > ?) THEN CASE WHEN (current_works.type = ?) THEN ? ELSE current_works.page_count END - coalesce(anon_1.usable, ?) ELSE ? END), ?) AS coalesce_9 \nFROM current_works LEFT OUTER JOIN (SELECT assets.work_id AS work_id, sum(CASE WHEN (assets.role = ? AND assets.state = ?) THEN ? ELSE ? END) AS downloaded_pages, sum(CASE WHEN (length(assets.relative_path) > ?) THEN ? ELSE ? END) AS registered_originals, sum(CASE WHEN (assets.state = ?) THEN ? ELSE ? END) AS verified_originals, sum(CASE WHEN (assets.state = ? AND length(assets.relative_path) > ?) THEN ? ELSE ? END) AS unverified_originals, sum(CASE WHEN (length(assets.relative_path) > ? AND (assets.state NOT IN (?, ?, ?, ?, ?))) THEN ? ELSE ? END) AS usable \nFROM assets JOIN current_works ON current_works.work_id = assets.work_id\nWHERE ((current_works.revision_id IS NULL AND assets.revision_id IS NULL)\n    OR EXISTS (SELECT 1 FROM revision_assets\n        WHERE revision_assets.asset_id = assets.id\n          AND revision_assets.revision_id IN (SELECT revision_id FROM current_works)))\n  AND (current_works.type = ? AND assets.role = ? OR current_works.type != ? AND assets.role = ? AND assets.page_index < current_works.page_count) GROUP BY assets.work_id) AS anon_1 ON anon_1.work_id = current_works.work_id \nWHERE (current_works.pixiv_id NOT IN (SELECT archive_intents.pixiv_illust_id \nFROM archive_intents \nWHERE archive_intents.mode = ?))"
+  },
+  "parameters": [
+    0,
+    0,
+    0,
+    0,
+    "ugoira",
+    1,
+    0,
+    0,
+    "ugoira",
+    1,
+    0,
+    0,
+    0,
+    "image",
+    "verified",
+    1,
+    0,
+    0,
+    1,
+    0,
+    "verified",
+    1,
+    0,
+    "unknown",
+    0,
+    1,
+    0,
+    0,
+    "missing",
+    "failed",
+    "invalid",
+    "mismatch",
+    "corrupt",
+    1,
+    0,
+    "ugoira",
+    "ugoira_zip",
+    "ugoira",
+    "image",
+    "suppressed"
+  ],
+  "results": [
+    {
+      "query": "baseline",
+      "cache": "default",
+      "original_cache_size": -2000,
+      "cache_size": -2000,
+      "query_only": true,
+      "uri_mode": "ro&immutable=1",
+      "file_unchanged": true,
+      "plan": [
+        [
+          3,
+          0,
+          0,
+          "MATERIALIZE current_works"
+        ],
+        [
+          8,
+          3,
+          216,
+          "SCAN works"
+        ],
+        [
+          10,
+          3,
+          46,
+          "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+        ],
+        [
+          38,
+          0,
+          0,
+          "MATERIALIZE anon_1"
+        ],
+        [
+          40,
+          38,
+          0,
+          "CO-ROUTINE anon_2"
+        ],
+        [
+          42,
+          40,
+          0,
+          "MERGE (UNION)"
+        ],
+        [
+          44,
+          42,
+          0,
+          "LEFT"
+        ],
+        [
+          50,
+          44,
+          224,
+          "SCAN revision_assets USING INDEX ix_revision_assets_asset_id"
+        ],
+        [
+          61,
+          44,
+          53,
+          "SEARCH current_works USING AUTOMATIC COVERING INDEX (revision_id=?)"
+        ],
+        [
+          71,
+          42,
+          0,
+          "RIGHT"
+        ],
+        [
+          77,
+          71,
+          68,
+          "SEARCH assets USING INDEX ix_assets_revision_id (revision_id=?)"
+        ],
+        [
+          85,
+          71,
+          0,
+          "BLOOM FILTER ON current_works (work_id=?)"
+        ],
+        [
+          97,
+          71,
+          53,
+          "SEARCH current_works USING AUTOMATIC PARTIAL COVERING INDEX (work_id=?)"
+        ],
+        [
+          110,
+          71,
+          0,
+          "USE TEMP B-TREE FOR ORDER BY"
+        ],
+        [
+          160,
+          38,
+          222,
+          "SCAN assets USING INDEX ix_assets_work_id"
+        ],
+        [
+          173,
+          38,
+          55,
+          "SEARCH anon_2 USING AUTOMATIC COVERING INDEX (asset_id=?)"
+        ],
+        [
+          179,
+          38,
+          0,
+          "BLOOM FILTER ON current_works (work_id=?)"
+        ],
+        [
+          190,
+          38,
+          53,
+          "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+        ],
+        [
+          318,
+          0,
+          216,
+          "SCAN current_works"
+        ],
+        [
+          323,
+          0,
+          0,
+          "LIST SUBQUERY 5"
+        ],
+        [
+          326,
+          323,
+          216,
+          "SCAN archive_intents"
+        ],
+        [
+          334,
+          323,
+          0,
+          "CREATE BLOOM FILTER"
+        ],
+        [
+          351,
+          0,
+          0,
+          "BLOOM FILTER ON anon_1 (work_id=?)"
+        ],
+        [
+          365,
+          0,
+          47,
+          "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+        ]
+      ],
+      "rows": [
+        {
+          "repeat": 0,
+          "temperature": "first",
+          "seconds": 4.552117600105703,
+          "cpu_seconds": 0.1875,
+          "result": null,
+          "error": "interrupted",
+          "vm_steps_lower_bound": 32000,
+          "vm_steps_upper_bound": 32999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 7173,
+            "write_operations": 0,
+            "other_operations": 4,
+            "read_bytes": 29380608,
+            "write_bytes": 0,
+            "other_bytes": 104
+          },
+          "working_set_bytes": 23113728,
+          "peak_working_set_bytes": 23113728
+        },
+        {
+          "repeat": 1,
+          "temperature": "same_connection_warm",
+          "seconds": 4.68717799987644,
+          "cpu_seconds": 0.15625,
+          "result": null,
+          "error": "interrupted",
+          "vm_steps_lower_bound": 54000,
+          "vm_steps_upper_bound": 54999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 12060,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 49397760,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 23162880,
+          "peak_working_set_bytes": 23162880
+        },
+        {
+          "repeat": 2,
+          "temperature": "same_connection_warm",
+          "seconds": 4.556306099984795,
+          "cpu_seconds": 0.15625,
+          "result": null,
+          "error": "interrupted",
+          "vm_steps_lower_bound": 70000,
+          "vm_steps_upper_bound": 70999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 15677,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 64212992,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 23412736,
+          "peak_working_set_bytes": 23412736
+        }
+      ],
+      "order_index": 0
+    },
+    {
+      "query": "baseline",
+      "cache": "32m",
+      "original_cache_size": -2000,
+      "cache_size": -32768,
+      "query_only": true,
+      "uri_mode": "ro&immutable=1",
+      "file_unchanged": true,
+      "plan": [
+        [
+          3,
+          0,
+          0,
+          "MATERIALIZE current_works"
+        ],
+        [
+          8,
+          3,
+          216,
+          "SCAN works"
+        ],
+        [
+          10,
+          3,
+          46,
+          "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+        ],
+        [
+          38,
+          0,
+          0,
+          "MATERIALIZE anon_1"
+        ],
+        [
+          40,
+          38,
+          0,
+          "CO-ROUTINE anon_2"
+        ],
+        [
+          42,
+          40,
+          0,
+          "MERGE (UNION)"
+        ],
+        [
+          44,
+          42,
+          0,
+          "LEFT"
+        ],
+        [
+          50,
+          44,
+          224,
+          "SCAN revision_assets USING INDEX ix_revision_assets_asset_id"
+        ],
+        [
+          61,
+          44,
+          53,
+          "SEARCH current_works USING AUTOMATIC COVERING INDEX (revision_id=?)"
+        ],
+        [
+          71,
+          42,
+          0,
+          "RIGHT"
+        ],
+        [
+          77,
+          71,
+          68,
+          "SEARCH assets USING INDEX ix_assets_revision_id (revision_id=?)"
+        ],
+        [
+          85,
+          71,
+          0,
+          "BLOOM FILTER ON current_works (work_id=?)"
+        ],
+        [
+          97,
+          71,
+          53,
+          "SEARCH current_works USING AUTOMATIC PARTIAL COVERING INDEX (work_id=?)"
+        ],
+        [
+          110,
+          71,
+          0,
+          "USE TEMP B-TREE FOR ORDER BY"
+        ],
+        [
+          160,
+          38,
+          222,
+          "SCAN assets USING INDEX ix_assets_work_id"
+        ],
+        [
+          173,
+          38,
+          55,
+          "SEARCH anon_2 USING AUTOMATIC COVERING INDEX (asset_id=?)"
+        ],
+        [
+          179,
+          38,
+          0,
+          "BLOOM FILTER ON current_works (work_id=?)"
+        ],
+        [
+          190,
+          38,
+          53,
+          "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+        ],
+        [
+          318,
+          0,
+          216,
+          "SCAN current_works"
+        ],
+        [
+          323,
+          0,
+          0,
+          "LIST SUBQUERY 5"
+        ],
+        [
+          326,
+          323,
+          216,
+          "SCAN archive_intents"
+        ],
+        [
+          334,
+          323,
+          0,
+          "CREATE BLOOM FILTER"
+        ],
+        [
+          351,
+          0,
+          0,
+          "BLOOM FILTER ON anon_1 (work_id=?)"
+        ],
+        [
+          365,
+          0,
+          47,
+          "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+        ]
+      ],
+      "rows": [
+        {
+          "repeat": 0,
+          "temperature": "first",
+          "seconds": 4.727351700188592,
+          "cpu_seconds": 0.078125,
+          "result": null,
+          "error": "interrupted",
+          "vm_steps_lower_bound": 86000,
+          "vm_steps_upper_bound": 86999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 17025,
+            "write_operations": 0,
+            "other_operations": 4,
+            "read_bytes": 69734400,
+            "write_bytes": 0,
+            "other_bytes": 104
+          },
+          "working_set_bytes": 58511360,
+          "peak_working_set_bytes": 58511360
+        },
+        {
+          "repeat": 1,
+          "temperature": "same_connection_warm",
+          "seconds": 4.626594000030309,
+          "cpu_seconds": 0.109375,
+          "result": null,
+          "error": "interrupted",
+          "vm_steps_lower_bound": 106000,
+          "vm_steps_upper_bound": 106999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 20780,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 85114880,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 58593280,
+          "peak_working_set_bytes": 58593280
+        },
+        {
+          "repeat": 2,
+          "temperature": "same_connection_warm",
+          "seconds": 4.617492799879983,
+          "cpu_seconds": 0.390625,
+          "result": null,
+          "error": "interrupted",
+          "vm_steps_lower_bound": 147000,
+          "vm_steps_upper_bound": 147999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 28554,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 116957184,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 58847232,
+          "peak_working_set_bytes": 58847232
+        }
+      ],
+      "order_index": 1
+    },
+    {
+      "query": "candidate",
+      "cache": "32m",
+      "original_cache_size": -2000,
+      "cache_size": -32768,
+      "query_only": true,
+      "uri_mode": "ro&immutable=1",
+      "file_unchanged": true,
+      "plan": [
+        [
+          3,
+          0,
+          0,
+          "MATERIALIZE current_works"
+        ],
+        [
+          8,
+          3,
+          216,
+          "SCAN works"
+        ],
+        [
+          10,
+          3,
+          46,
+          "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+        ],
+        [
+          38,
+          0,
+          0,
+          "MATERIALIZE anon_1"
+        ],
+        [
+          48,
+          38,
+          211,
+          "SCAN assets USING INDEX sqlite_autoindex_assets_2"
+        ],
+        [
+          53,
+          38,
+          0,
+          "BLOOM FILTER ON current_works (work_id=?)"
+        ],
+        [
+          65,
+          38,
+          53,
+          "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+        ],
+        [
+          87,
+          38,
+          0,
+          "CORRELATED SCALAR SUBQUERY 3"
+        ],
+        [
+          92,
+          87,
+          62,
+          "SEARCH revision_assets USING INDEX ix_revision_assets_asset_id (asset_id=?)"
+        ],
+        [
+          100,
+          87,
+          0,
+          "LIST SUBQUERY 2"
+        ],
+        [
+          104,
+          100,
+          216,
+          "SCAN current_works"
+        ],
+        [
+          110,
+          100,
+          0,
+          "CREATE BLOOM FILTER"
+        ],
+        [
+          233,
+          0,
+          216,
+          "SCAN current_works"
+        ],
+        [
+          238,
+          0,
+          0,
+          "LIST SUBQUERY 5"
+        ],
+        [
+          241,
+          238,
+          216,
+          "SCAN archive_intents"
+        ],
+        [
+          249,
+          238,
+          0,
+          "CREATE BLOOM FILTER"
+        ],
+        [
+          266,
+          0,
+          0,
+          "BLOOM FILTER ON anon_1 (work_id=?)"
+        ],
+        [
+          280,
+          0,
+          47,
+          "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+        ]
+      ],
+      "rows": [
+        {
+          "repeat": 0,
+          "temperature": "first",
+          "seconds": 5.149800800019875,
+          "cpu_seconds": 0.140625,
+          "result": null,
+          "error": "interrupted",
+          "vm_steps_lower_bound": 158000,
+          "vm_steps_upper_bound": 158999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 30795,
+            "write_operations": 0,
+            "other_operations": 4,
+            "read_bytes": 126136320,
+            "write_bytes": 0,
+            "other_bytes": 104
+          },
+          "working_set_bytes": 58646528,
+          "peak_working_set_bytes": 58646528
+        },
+        {
+          "repeat": 1,
+          "temperature": "same_connection_warm",
+          "seconds": 4.508640400134027,
+          "cpu_seconds": 0.171875,
+          "result": null,
+          "error": "interrupted",
+          "vm_steps_lower_bound": 188000,
+          "vm_steps_upper_bound": 188999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 36268,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 148553728,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 59015168,
+          "peak_working_set_bytes": 59015168
+        },
+        {
+          "repeat": 2,
+          "temperature": "same_connection_warm",
+          "seconds": 4.5004273999948055,
+          "cpu_seconds": 0.15625,
+          "result": null,
+          "error": "interrupted",
+          "vm_steps_lower_bound": 228000,
+          "vm_steps_upper_bound": 228999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 43803,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 179417088,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 59043840,
+          "peak_working_set_bytes": 59043840
+        }
+      ],
+      "order_index": 2
+    },
+    {
+      "query": "candidate",
+      "cache": "default",
+      "original_cache_size": -2000,
+      "cache_size": -2000,
+      "query_only": true,
+      "uri_mode": "ro&immutable=1",
+      "file_unchanged": true,
+      "plan": [
+        [
+          3,
+          0,
+          0,
+          "MATERIALIZE current_works"
+        ],
+        [
+          8,
+          3,
+          216,
+          "SCAN works"
+        ],
+        [
+          10,
+          3,
+          46,
+          "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+        ],
+        [
+          38,
+          0,
+          0,
+          "MATERIALIZE anon_1"
+        ],
+        [
+          48,
+          38,
+          211,
+          "SCAN assets USING INDEX sqlite_autoindex_assets_2"
+        ],
+        [
+          53,
+          38,
+          0,
+          "BLOOM FILTER ON current_works (work_id=?)"
+        ],
+        [
+          65,
+          38,
+          53,
+          "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+        ],
+        [
+          87,
+          38,
+          0,
+          "CORRELATED SCALAR SUBQUERY 3"
+        ],
+        [
+          92,
+          87,
+          62,
+          "SEARCH revision_assets USING INDEX ix_revision_assets_asset_id (asset_id=?)"
+        ],
+        [
+          100,
+          87,
+          0,
+          "LIST SUBQUERY 2"
+        ],
+        [
+          104,
+          100,
+          216,
+          "SCAN current_works"
+        ],
+        [
+          110,
+          100,
+          0,
+          "CREATE BLOOM FILTER"
+        ],
+        [
+          233,
+          0,
+          216,
+          "SCAN current_works"
+        ],
+        [
+          238,
+          0,
+          0,
+          "LIST SUBQUERY 5"
+        ],
+        [
+          241,
+          238,
+          216,
+          "SCAN archive_intents"
+        ],
+        [
+          249,
+          238,
+          0,
+          "CREATE BLOOM FILTER"
+        ],
+        [
+          266,
+          0,
+          0,
+          "BLOOM FILTER ON anon_1 (work_id=?)"
+        ],
+        [
+          280,
+          0,
+          47,
+          "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+        ]
+      ],
+      "rows": [
+        {
+          "repeat": 0,
+          "temperature": "first",
+          "seconds": 4.537037400063127,
+          "cpu_seconds": 0.3125,
+          "result": null,
+          "error": "interrupted",
+          "vm_steps_lower_bound": 268000,
+          "vm_steps_upper_bound": 268999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 58784,
+            "write_operations": 0,
+            "other_operations": 4,
+            "read_bytes": 240779264,
+            "write_bytes": 0,
+            "other_bytes": 104
+          },
+          "working_set_bytes": 23040000,
+          "peak_working_set_bytes": 24096768
+        },
+        {
+          "repeat": 1,
+          "temperature": "same_connection_warm",
+          "seconds": 4.521473500179127,
+          "cpu_seconds": 0.265625,
+          "result": null,
+          "error": "interrupted",
+          "vm_steps_lower_bound": 1791000,
+          "vm_steps_upper_bound": 1791999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 60561,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 248057856,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 23429120,
+          "peak_working_set_bytes": 26365952
+        },
+        {
+          "repeat": 2,
+          "temperature": "same_connection_warm",
+          "seconds": 1.0142089000437409,
+          "cpu_seconds": 0.1875,
+          "result": [
+            5137,
+            15002,
+            5160,
+            9833,
+            9
+          ],
+          "error": null,
+          "vm_steps_lower_bound": 2915000,
+          "vm_steps_upper_bound": 2915999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 60835,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 249180160,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 23785472,
+          "peak_working_set_bytes": 26722304
+        }
+      ],
+      "order_index": 3
+    },
+    {
+      "query": "candidate",
+      "cache": "default",
+      "original_cache_size": -2000,
+      "cache_size": -2000,
+      "query_only": true,
+      "uri_mode": "ro&immutable=1",
+      "file_unchanged": true,
+      "plan": [
+        [
+          3,
+          0,
+          0,
+          "MATERIALIZE current_works"
+        ],
+        [
+          8,
+          3,
+          216,
+          "SCAN works"
+        ],
+        [
+          10,
+          3,
+          46,
+          "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+        ],
+        [
+          38,
+          0,
+          0,
+          "MATERIALIZE anon_1"
+        ],
+        [
+          48,
+          38,
+          211,
+          "SCAN assets USING INDEX sqlite_autoindex_assets_2"
+        ],
+        [
+          53,
+          38,
+          0,
+          "BLOOM FILTER ON current_works (work_id=?)"
+        ],
+        [
+          65,
+          38,
+          53,
+          "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+        ],
+        [
+          87,
+          38,
+          0,
+          "CORRELATED SCALAR SUBQUERY 3"
+        ],
+        [
+          92,
+          87,
+          62,
+          "SEARCH revision_assets USING INDEX ix_revision_assets_asset_id (asset_id=?)"
+        ],
+        [
+          100,
+          87,
+          0,
+          "LIST SUBQUERY 2"
+        ],
+        [
+          104,
+          100,
+          216,
+          "SCAN current_works"
+        ],
+        [
+          110,
+          100,
+          0,
+          "CREATE BLOOM FILTER"
+        ],
+        [
+          233,
+          0,
+          216,
+          "SCAN current_works"
+        ],
+        [
+          238,
+          0,
+          0,
+          "LIST SUBQUERY 5"
+        ],
+        [
+          241,
+          238,
+          216,
+          "SCAN archive_intents"
+        ],
+        [
+          249,
+          238,
+          0,
+          "CREATE BLOOM FILTER"
+        ],
+        [
+          266,
+          0,
+          0,
+          "BLOOM FILTER ON anon_1 (work_id=?)"
+        ],
+        [
+          280,
+          0,
+          47,
+          "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+        ]
+      ],
+      "rows": [
+        {
+          "repeat": 0,
+          "temperature": "first",
+          "seconds": 0.15878960001282394,
+          "cpu_seconds": 0.15625,
+          "result": [
+            5137,
+            15002,
+            5160,
+            9833,
+            9
+          ],
+          "error": null,
+          "vm_steps_lower_bound": 2915000,
+          "vm_steps_upper_bound": 2915999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 60840,
+            "write_operations": 0,
+            "other_operations": 4,
+            "read_bytes": 249200640,
+            "write_bytes": 0,
+            "other_bytes": 104
+          },
+          "working_set_bytes": 23416832,
+          "peak_working_set_bytes": 26632192
+        },
+        {
+          "repeat": 1,
+          "temperature": "same_connection_warm",
+          "seconds": 0.15782560012303293,
+          "cpu_seconds": 0.171875,
+          "result": [
+            5137,
+            15002,
+            5160,
+            9833,
+            9
+          ],
+          "error": null,
+          "vm_steps_lower_bound": 2915000,
+          "vm_steps_upper_bound": 2915999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 60835,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 249180160,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 23613440,
+          "peak_working_set_bytes": 26882048
+        },
+        {
+          "repeat": 2,
+          "temperature": "same_connection_warm",
+          "seconds": 0.1525338999927044,
+          "cpu_seconds": 0.140625,
+          "result": [
+            5137,
+            15002,
+            5160,
+            9833,
+            9
+          ],
+          "error": null,
+          "vm_steps_lower_bound": 2916000,
+          "vm_steps_upper_bound": 2916999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 60835,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 249180160,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 23220224,
+          "peak_working_set_bytes": 26882048
+        }
+      ],
+      "order_index": 4
+    },
+    {
+      "query": "candidate",
+      "cache": "32m",
+      "original_cache_size": -2000,
+      "cache_size": -32768,
+      "query_only": true,
+      "uri_mode": "ro&immutable=1",
+      "file_unchanged": true,
+      "plan": [
+        [
+          3,
+          0,
+          0,
+          "MATERIALIZE current_works"
+        ],
+        [
+          8,
+          3,
+          216,
+          "SCAN works"
+        ],
+        [
+          10,
+          3,
+          46,
+          "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+        ],
+        [
+          38,
+          0,
+          0,
+          "MATERIALIZE anon_1"
+        ],
+        [
+          48,
+          38,
+          211,
+          "SCAN assets USING INDEX sqlite_autoindex_assets_2"
+        ],
+        [
+          53,
+          38,
+          0,
+          "BLOOM FILTER ON current_works (work_id=?)"
+        ],
+        [
+          65,
+          38,
+          53,
+          "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+        ],
+        [
+          87,
+          38,
+          0,
+          "CORRELATED SCALAR SUBQUERY 3"
+        ],
+        [
+          92,
+          87,
+          62,
+          "SEARCH revision_assets USING INDEX ix_revision_assets_asset_id (asset_id=?)"
+        ],
+        [
+          100,
+          87,
+          0,
+          "LIST SUBQUERY 2"
+        ],
+        [
+          104,
+          100,
+          216,
+          "SCAN current_works"
+        ],
+        [
+          110,
+          100,
+          0,
+          "CREATE BLOOM FILTER"
+        ],
+        [
+          233,
+          0,
+          216,
+          "SCAN current_works"
+        ],
+        [
+          238,
+          0,
+          0,
+          "LIST SUBQUERY 5"
+        ],
+        [
+          241,
+          238,
+          216,
+          "SCAN archive_intents"
+        ],
+        [
+          249,
+          238,
+          0,
+          "CREATE BLOOM FILTER"
+        ],
+        [
+          266,
+          0,
+          0,
+          "BLOOM FILTER ON anon_1 (work_id=?)"
+        ],
+        [
+          280,
+          0,
+          47,
+          "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+        ]
+      ],
+      "rows": [
+        {
+          "repeat": 0,
+          "temperature": "first",
+          "seconds": 0.15794009994715452,
+          "cpu_seconds": 0.15625,
+          "result": [
+            5137,
+            15002,
+            5160,
+            9833,
+            9
+          ],
+          "error": null,
+          "vm_steps_lower_bound": 2915000,
+          "vm_steps_upper_bound": 2915999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 53501,
+            "write_operations": 0,
+            "other_operations": 4,
+            "read_bytes": 219140096,
+            "write_bytes": 0,
+            "other_bytes": 104
+          },
+          "working_set_bytes": 59469824,
+          "peak_working_set_bytes": 61767680
+        },
+        {
+          "repeat": 1,
+          "temperature": "same_connection_warm",
+          "seconds": 0.1533234000671655,
+          "cpu_seconds": 0.15625,
+          "result": [
+            5137,
+            15002,
+            5160,
+            9833,
+            9
+          ],
+          "error": null,
+          "vm_steps_lower_bound": 2915000,
+          "vm_steps_upper_bound": 2915999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 53333,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 218451968,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 59908096,
+          "peak_working_set_bytes": 61784064
+        },
+        {
+          "repeat": 2,
+          "temperature": "same_connection_warm",
+          "seconds": 0.1503934001084417,
+          "cpu_seconds": 0.15625,
+          "result": [
+            5137,
+            15002,
+            5160,
+            9833,
+            9
+          ],
+          "error": null,
+          "vm_steps_lower_bound": 2916000,
+          "vm_steps_upper_bound": 2916999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 53333,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 218451968,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 60362752,
+          "peak_working_set_bytes": 61796352
+        }
+      ],
+      "order_index": 5
+    },
+    {
+      "query": "baseline",
+      "cache": "32m",
+      "original_cache_size": -2000,
+      "cache_size": -32768,
+      "query_only": true,
+      "uri_mode": "ro&immutable=1",
+      "file_unchanged": true,
+      "plan": [
+        [
+          3,
+          0,
+          0,
+          "MATERIALIZE current_works"
+        ],
+        [
+          8,
+          3,
+          216,
+          "SCAN works"
+        ],
+        [
+          10,
+          3,
+          46,
+          "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+        ],
+        [
+          38,
+          0,
+          0,
+          "MATERIALIZE anon_1"
+        ],
+        [
+          40,
+          38,
+          0,
+          "CO-ROUTINE anon_2"
+        ],
+        [
+          42,
+          40,
+          0,
+          "MERGE (UNION)"
+        ],
+        [
+          44,
+          42,
+          0,
+          "LEFT"
+        ],
+        [
+          50,
+          44,
+          224,
+          "SCAN revision_assets USING INDEX ix_revision_assets_asset_id"
+        ],
+        [
+          61,
+          44,
+          53,
+          "SEARCH current_works USING AUTOMATIC COVERING INDEX (revision_id=?)"
+        ],
+        [
+          71,
+          42,
+          0,
+          "RIGHT"
+        ],
+        [
+          77,
+          71,
+          68,
+          "SEARCH assets USING INDEX ix_assets_revision_id (revision_id=?)"
+        ],
+        [
+          85,
+          71,
+          0,
+          "BLOOM FILTER ON current_works (work_id=?)"
+        ],
+        [
+          97,
+          71,
+          53,
+          "SEARCH current_works USING AUTOMATIC PARTIAL COVERING INDEX (work_id=?)"
+        ],
+        [
+          110,
+          71,
+          0,
+          "USE TEMP B-TREE FOR ORDER BY"
+        ],
+        [
+          160,
+          38,
+          222,
+          "SCAN assets USING INDEX ix_assets_work_id"
+        ],
+        [
+          173,
+          38,
+          55,
+          "SEARCH anon_2 USING AUTOMATIC COVERING INDEX (asset_id=?)"
+        ],
+        [
+          179,
+          38,
+          0,
+          "BLOOM FILTER ON current_works (work_id=?)"
+        ],
+        [
+          190,
+          38,
+          53,
+          "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+        ],
+        [
+          318,
+          0,
+          216,
+          "SCAN current_works"
+        ],
+        [
+          323,
+          0,
+          0,
+          "LIST SUBQUERY 5"
+        ],
+        [
+          326,
+          323,
+          216,
+          "SCAN archive_intents"
+        ],
+        [
+          334,
+          323,
+          0,
+          "CREATE BLOOM FILTER"
+        ],
+        [
+          351,
+          0,
+          0,
+          "BLOOM FILTER ON anon_1 (work_id=?)"
+        ],
+        [
+          365,
+          0,
+          47,
+          "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+        ]
+      ],
+      "rows": [
+        {
+          "repeat": 0,
+          "temperature": "first",
+          "seconds": 0.6400121999904513,
+          "cpu_seconds": 0.15625,
+          "result": [
+            5137,
+            15002,
+            5160,
+            9833,
+            9
+          ],
+          "error": null,
+          "vm_steps_lower_bound": 3081000,
+          "vm_steps_upper_bound": 3081999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 53347,
+            "write_operations": 0,
+            "other_operations": 4,
+            "read_bytes": 218509312,
+            "write_bytes": 0,
+            "other_bytes": 104
+          },
+          "working_set_bytes": 59715584,
+          "peak_working_set_bytes": 62005248
+        },
+        {
+          "repeat": 1,
+          "temperature": "same_connection_warm",
+          "seconds": 0.16031000018119812,
+          "cpu_seconds": 0.15625,
+          "result": [
+            5137,
+            15002,
+            5160,
+            9833,
+            9
+          ],
+          "error": null,
+          "vm_steps_lower_bound": 3081000,
+          "vm_steps_upper_bound": 3081999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 53179,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 217821184,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 60338176,
+          "peak_working_set_bytes": 62365696
+        },
+        {
+          "repeat": 2,
+          "temperature": "same_connection_warm",
+          "seconds": 0.15625270013697445,
+          "cpu_seconds": 0.15625,
+          "result": [
+            5137,
+            15002,
+            5160,
+            9833,
+            9
+          ],
+          "error": null,
+          "vm_steps_lower_bound": 3081000,
+          "vm_steps_upper_bound": 3081999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 53179,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 217821184,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 61317120,
+          "peak_working_set_bytes": 62377984
+        }
+      ],
+      "order_index": 6
+    },
+    {
+      "query": "baseline",
+      "cache": "default",
+      "original_cache_size": -2000,
+      "cache_size": -2000,
+      "query_only": true,
+      "uri_mode": "ro&immutable=1",
+      "file_unchanged": true,
+      "plan": [
+        [
+          3,
+          0,
+          0,
+          "MATERIALIZE current_works"
+        ],
+        [
+          8,
+          3,
+          216,
+          "SCAN works"
+        ],
+        [
+          10,
+          3,
+          46,
+          "SEARCH work_revisions USING INDEX sqlite_autoindex_work_revisions_1 (id=?) LEFT-JOIN"
+        ],
+        [
+          38,
+          0,
+          0,
+          "MATERIALIZE anon_1"
+        ],
+        [
+          40,
+          38,
+          0,
+          "CO-ROUTINE anon_2"
+        ],
+        [
+          42,
+          40,
+          0,
+          "MERGE (UNION)"
+        ],
+        [
+          44,
+          42,
+          0,
+          "LEFT"
+        ],
+        [
+          50,
+          44,
+          224,
+          "SCAN revision_assets USING INDEX ix_revision_assets_asset_id"
+        ],
+        [
+          61,
+          44,
+          53,
+          "SEARCH current_works USING AUTOMATIC COVERING INDEX (revision_id=?)"
+        ],
+        [
+          71,
+          42,
+          0,
+          "RIGHT"
+        ],
+        [
+          77,
+          71,
+          68,
+          "SEARCH assets USING INDEX ix_assets_revision_id (revision_id=?)"
+        ],
+        [
+          85,
+          71,
+          0,
+          "BLOOM FILTER ON current_works (work_id=?)"
+        ],
+        [
+          97,
+          71,
+          53,
+          "SEARCH current_works USING AUTOMATIC PARTIAL COVERING INDEX (work_id=?)"
+        ],
+        [
+          110,
+          71,
+          0,
+          "USE TEMP B-TREE FOR ORDER BY"
+        ],
+        [
+          160,
+          38,
+          222,
+          "SCAN assets USING INDEX ix_assets_work_id"
+        ],
+        [
+          173,
+          38,
+          55,
+          "SEARCH anon_2 USING AUTOMATIC COVERING INDEX (asset_id=?)"
+        ],
+        [
+          179,
+          38,
+          0,
+          "BLOOM FILTER ON current_works (work_id=?)"
+        ],
+        [
+          190,
+          38,
+          53,
+          "SEARCH current_works USING AUTOMATIC COVERING INDEX (work_id=?)"
+        ],
+        [
+          318,
+          0,
+          216,
+          "SCAN current_works"
+        ],
+        [
+          323,
+          0,
+          0,
+          "LIST SUBQUERY 5"
+        ],
+        [
+          326,
+          323,
+          216,
+          "SCAN archive_intents"
+        ],
+        [
+          334,
+          323,
+          0,
+          "CREATE BLOOM FILTER"
+        ],
+        [
+          351,
+          0,
+          0,
+          "BLOOM FILTER ON anon_1 (work_id=?)"
+        ],
+        [
+          365,
+          0,
+          47,
+          "SEARCH anon_1 USING AUTOMATIC COVERING INDEX (work_id=?) LEFT-JOIN"
+        ]
+      ],
+      "rows": [
+        {
+          "repeat": 0,
+          "temperature": "first",
+          "seconds": 0.1591519999783486,
+          "cpu_seconds": 0.171875,
+          "result": [
+            5137,
+            15002,
+            5160,
+            9833,
+            9
+          ],
+          "error": null,
+          "vm_steps_lower_bound": 3081000,
+          "vm_steps_upper_bound": 3081999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 60686,
+            "write_operations": 0,
+            "other_operations": 4,
+            "read_bytes": 248569856,
+            "write_bytes": 0,
+            "other_bytes": 104
+          },
+          "working_set_bytes": 23613440,
+          "peak_working_set_bytes": 27037696
+        },
+        {
+          "repeat": 1,
+          "temperature": "same_connection_warm",
+          "seconds": 0.15735900006256998,
+          "cpu_seconds": 0.15625,
+          "result": [
+            5137,
+            15002,
+            5160,
+            9833,
+            9
+          ],
+          "error": null,
+          "vm_steps_lower_bound": 3081000,
+          "vm_steps_upper_bound": 3081999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 60681,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 248549376,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 23584768,
+          "peak_working_set_bytes": 27058176
+        },
+        {
+          "repeat": 2,
+          "temperature": "same_connection_warm",
+          "seconds": 0.1606517001055181,
+          "cpu_seconds": 0.15625,
+          "result": [
+            5137,
+            15002,
+            5160,
+            9833,
+            9
+          ],
+          "error": null,
+          "vm_steps_lower_bound": 3081000,
+          "vm_steps_upper_bound": 3081999,
+          "progress_quantum": 1000,
+          "io_delta": {
+            "read_operations": 60681,
+            "write_operations": 0,
+            "other_operations": 0,
+            "read_bytes": 248549376,
+            "write_bytes": 0,
+            "other_bytes": 0
+          },
+          "working_set_bytes": 23400448,
+          "peak_working_set_bytes": 27185152
+        }
+      ],
+      "order_index": 7
+    }
+  ]
+}
