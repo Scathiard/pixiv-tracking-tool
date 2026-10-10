@@ -5,13 +5,14 @@ import { api, url } from './api'
 import { LatestIntent } from './interaction'
 import { observeCatalogueData } from './state/catalogue'
 import { singleArtistScope } from './state/filterSelection'
+import { matchingGallerySeed, type GallerySeed } from './state/libraryEntry'
 import { cardSourceLabel, cardSourceReason, isOlderCatalogue, needsCardRefresh, type Artist, type GalleryBatch, type WorkCard } from './types'
 import Icon from './components/Icon.vue'
 import GalleryCardImage from './GalleryCardImage.vue'
 import BookmarkButton from './components/BookmarkButton.vue'
 import RestrictionBadge from './components/RestrictionBadge.vue'
-const props = defineProps<{query: string; startIndex: number; pageSize: number; continuous: boolean; resetKey?: number}>()
-const emit = defineEmits<{open: [index: number]; artist: [id: number]; message: [text: string]; anchor: [index: number, workId: number]; total: [count: number]; page: [index: number]}>()
+const props = defineProps<{query: string; startIndex: number; pageSize: number; continuous: boolean; resetKey?: number; initialBatch?: GallerySeed | null}>()
+const emit = defineEmits<{open: [index: number]; artist: [id: number]; message: [text: string]; anchor: [index: number, workId: number]; total: [count: number]; page: [index: number]; seedConsumed: []}>()
 const viewportRevision = ref(0)
 const viewport = ref<HTMLDivElement | null>(null), windowElement = ref<HTMLDivElement | null>(null), works = ref<WorkCard[]>([]), total = ref(0)
 const page = ref(0), start = ref(0), columns = ref(5), width = ref(1000), loading = ref(false), error = ref('')
@@ -27,6 +28,7 @@ let failedExtension: number | null = null, entryPending = false
 const REFRESH_MS = 12000
 const ANIMATION_RESUME_MS = 220
 let catalogueRevision: number | undefined
+let consumedSeed: GallerySeed | null | undefined
 const rowHeight = computed(() => ((width.value - 16 * (columns.value - 1)) / columns.value) * 1.225 + 84)
 const virtual = useVirtualizer(computed(() => ({count: Math.ceil(works.value.length / columns.value),
   getScrollElement: () => viewport.value, estimateSize: () => rowHeight.value, overscan: 2, scrollMargin: profileHeight.value})))
@@ -87,7 +89,7 @@ function queueRefresh() {
   }
   if (!refreshTimer) refreshTimer = window.setTimeout(() => { refreshTimer = 0; backgroundRefresh() }, REFRESH_MS)
 }
-async function fetchRange(offset: number, limit: number, anchor: number, background = false, quiet = false) {
+async function fetchRange(offset: number, limit: number, anchor: number, background = false, quiet = false, prepared?: GalleryBatch) {
   if (!background) {
     failedExtension = null; error.value = ''; entryPending = true
     restoration.cancel(); restoring = false
@@ -95,7 +97,7 @@ async function fetchRange(offset: number, limit: number, anchor: number, backgro
   }
   const ticket = request.begin(); loading.value = true
   try {
-    const data = await api<GalleryBatch>(url('/api/library', props.query, {offset, limit, compact: 1}), {signal: ticket.signal})
+    const data = prepared || await api<GalleryBatch>(url('/api/library', props.query, {offset, limit, compact: 1}), {signal: ticket.signal})
     if (!ticket.current() || isOlderCatalogue(data.catalogue_revision, catalogueRevision)) return
     catalogueRevision = data.catalogue_revision ?? catalogueRevision
     if (!background) {
@@ -104,6 +106,7 @@ async function fetchRange(offset: number, limit: number, anchor: number, backgro
       viewportRevision.value++
     }
     start.value = offset; total.value = data.total; works.value = data.items; emit('total', data.total)
+    if (!background && !props.continuous) page.value = Math.floor(offset / props.pageSize)
     observeCatalogueData(data.catalogue_revision)
     if (!background) { restoreIndex = anchor; await restore(anchor, 0, true, ticket.current); if (!ticket.current()) return; if (!props.continuous) emit('page', page.value) }
     await nextTick()
@@ -117,7 +120,6 @@ async function fetchRange(offset: number, limit: number, anchor: number, backgro
   finally { if (ticket.current()) { entryPending = false; loading.value = false; queueRefresh() } }
 }
 function load(index: number, anchor = index * props.pageSize) {
-  page.value = index
   return fetchRange(index * props.pageSize, props.pageSize, anchor)
 }
 function restart() {
@@ -125,6 +127,14 @@ function restart() {
   cancelAnimationFrame(scrollFrame); scrollFrame = 0
   catalogueRevision = undefined
   clearTimeout(refreshTimer); refreshTimer = 0
+  const seed = props.initialBatch
+  const prepared = seed !== consumedSeed ? matchingGallerySeed(seed, props.query, props.startIndex, props.pageSize, props.continuous) : undefined
+  if (prepared) {
+    consumedSeed = seed
+    emit('seedConsumed')
+    void fetchRange(prepared.offset, prepared.items.length, props.startIndex, false, false, prepared)
+    return
+  }
   if (props.continuous) {
     const offset = Math.floor(Math.max(0, props.startIndex - columns.value * 12) / columns.value) * columns.value
     void fetchRange(offset, Math.min(480, columns.value * 48), props.startIndex)

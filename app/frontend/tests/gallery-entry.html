@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Isolated gallery entry fixture</title></head>
+<body data-theme="dark"><main id="app"></main>
+<script id="synthetic-api">
+// Small metadata replays only: no database, real account, credentials or filesystem media.
+const fixture = window.galleryEntryFixture = {requests: [], cancelled: [], pending: new Map(), fail: false}
+const image = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="24" height="24"%3E%3Crect width="24" height="24" fill="teal"/%3E%3C/svg%3E'
+const bookmark = id => ({work_id:id, operation_id:null, status:'confirmed', desired:null, value:false, confirmed_at:'2026-10-10', error:null, version:1, cached:false, verified:true, fact_account_id:'synthetic', current_account_id:'synthetic', account_epoch:1})
+const cards = Array.from({length: 120}, (_, i) => ({id:i+1, pixiv_id:String(i+1), title:`合成作品 ${i+1}`, artist_id:1, artist_name:'合成画师', type:'illust', page_count:1, x_restrict:0, thumbnail:image, preview:image, preview_status:'ready', is_hidden:false, posted_at:null, bookmark:bookmark(i+1), archive:{state:'complete',total:1,verified:1,missing:0,unknown:0}}))
+function hold(key, options, response) {
+  return new Promise((resolve, reject) => {
+    const abort = () => { fixture.cancelled.push(key); fixture.pending.delete(key); reject(options.signal.reason) }
+    options.signal?.addEventListener('abort', abort, {once:true})
+    fixture.pending.set(key, () => { options.signal?.removeEventListener('abort', abort); fixture.pending.delete(key); resolve(response) })
+    if (options.signal?.aborted) abort()
+  })
+}
+const nativeFetch = window.fetch
+window.fetch = (target, options = {}) => {
+  const request = new URL(String(target), location.href), path = request.pathname, params = request.searchParams
+  if (!path.startsWith('/api/')) return nativeFetch(target, options)
+  fixture.requests.push(path + request.search)
+  const json = value => Promise.resolve(Response.json(value))
+  if (path === '/api/startup') return json({state:'ready'})
+  if (path === '/api/status') return json({page_size:100, pagination_mode:'pages'})
+  if (path === '/api/progress') return json({round:null, operations:[]})
+  if (path === '/api/library/counts') return hold('counts', options, Response.json({all:120,recent:0,favorites:0}))
+  if (path === '/api/library') {
+    if (fixture.fail) return Promise.resolve(Response.json({detail:{code:'read_timeout',message:'合成读取超时'}}, {status:504}))
+    const offset = Number(params.get('offset') || 0), limit = Number(params.get('limit') || 100), q = params.get('q')
+    const response = Response.json({items:cards.slice(offset, offset+limit).map(card => ({...card, title:q ? `${q} ${card.id}` : card.title})), total:120, offset, ceiling:120, as_of:'2026-10-10T00:00:00Z', catalogue_revision:1})
+    return q === 'slow' ? hold('slow', options, response) : Promise.resolve(response)
+  }
+  if (path === '/api/library/locate') return json({work_id:1, work_index:0,page:0,index:0,offset:0})
+  if (path === '/api/reading-sessions') return json({session_id:'synthetic', total:120, page_total:120})
+  if (path.endsWith('/entry')) return json({work_id:1,revision_id:null,work_index:0,page_count:1,total:120})
+  if (path.endsWith('/feed')) return json({items:[{index:0,work_id:1,work_index:0,page:0,page_count:1,title:'合成作品 1',artist_name:'合成画师',artist_id:1,pixiv_id:'1',type:'illust',x_restrict:0,next_work_index:1,src:image,width:24,height:24,state:'verified',bookmark:bookmark(1)}],offset:0,total:120,catalogue_revision:1})
+  if (path === '/api/works/1') return json({...cards[0],caption:'',caption_state:'empty',tags:[],rating:0,bookmark_count:0,view_count:0,display_page_count:1,pages:[{index:0,src:image,width:24,height:24,state:'verified'}],assets:[],legacy_variants:[],catalogue_revision:1})
+  if (path.includes('/bookmark')) return json(bookmark(1))
+  return json({items:[], total:0})
+}
+history.replaceState(null, '', '/' + location.search)
+</script>
+<script type="module">
+import {createApp} from 'vue'
+import {createRouter, createWebHistory} from 'vue-router'
+import App from '../src/App.vue'
+import '../src/style.css'
+const fixture = window.galleryEntryFixture
+const router = fixture.router = createRouter({history:createWebHistory(), routes:[{path:'/:pathMatch(.*)*',component:App}]})
+fixture.app = createApp(App).use(router)
+fixture.app.mount('#app')
+</script></body></html>

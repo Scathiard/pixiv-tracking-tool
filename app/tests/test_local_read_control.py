@@ -2,6 +2,7 @@
 import asyncio
 from contextlib import contextmanager
 import socket
+import re
 from threading import Event, Thread
 from time import monotonic, sleep
 
@@ -59,6 +60,40 @@ def test_writer_succeeds_while_every_read_connection_is_borrowed(database):
     finally:
         for connection in connections:
             connection.close()
+
+
+def test_failed_read_records_stage_cost_without_query_or_exception_text(database, caplog):
+    def fail():
+        with database.read() as session:
+            driver = session.connection().connection.driver_connection
+            driver.create_function("isolated_delay", 1, lambda _: (sleep(.01), 42)[1])
+            assert session.scalar(text("SELECT isolated_delay('private-query-value')")) == 42
+        raise ValueError("private-token-and-query")
+    async def scenario():
+        with pytest.raises(ValueError):
+            await database.reads.run(None, fail, label="library")
+    asyncio.run(scenario())
+    record = next(item.message for item in caplog.records if "outcome=read_error" in item.message)
+    assert "endpoint=library" in record and "lane=frontend" in record
+    timings = dict(re.findall(r"(\w+_ms)=([\d.]+)", record))
+    assert set(timings) == {"total_ms", "queue_ms", "pool_ms", "database_ms", "execute_ms"}
+    assert float(timings["database_ms"]) > 0 and float(timings["execute_ms"]) > 0
+    assert "isolated_delay" not in record and str(database.path) not in record
+    assert "private-query-value" not in record and "private-token-and-query" not in record
+
+
+def test_queued_timeout_is_logged_as_queue_cost(database, caplog):
+    async def scenario():
+        # No thread or SQL starts when admission never becomes available.
+        database.reads.capacities["frontend"] = 0
+        with pytest.raises(ReadDeadline):
+            await database.reads.run(None, lambda: pytest.fail("queued work must not run"),
+                                     timeout=.03, label="library")
+    asyncio.run(scenario())
+    record = next(item.message for item in caplog.records if "outcome=read_timeout" in item.message)
+    assert "database_ms=0.0" in record and "execute_ms=0.0" in record and "statements=0" in record
+    timings = dict(re.findall(r"(\w+_ms)=([\d.]+)", record))
+    assert float(timings["queue_ms"]) > 0
 
 
 def test_nested_writer_must_pass_existing_session(database):

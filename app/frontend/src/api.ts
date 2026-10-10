@@ -19,6 +19,7 @@ async function request<T>(path: string, options: RequestInit): Promise<T> {
   const signal = options.signal
     ? AbortSignal.any([options.signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000)
   const canRetry = (options.method || 'GET').toUpperCase() === 'GET'
+  let busyRetried = false
   try {
     for (let attempt = 0; ; attempt++) {
       signal.throwIfAborted()
@@ -36,14 +37,20 @@ async function request<T>(path: string, options: RequestInit): Promise<T> {
       signal.throwIfAborted()
       let value
       let parsed = false
-      // Local read budgets are final outcomes, whereas proxy failures may be
-      // transient. Read the structured outcome before deciding to retry.
+      // A rejected capacity admission can recover once; an exhausted SQL budget cannot.
       if (!response.ok && response.headers.get('Content-Type')?.includes('application/json')) {
         try { value = await untilAborted(response.json(), signal); parsed = true }
         catch { signal.throwIfAborted() }
         const detail = value?.detail
         if (detail && typeof detail === 'object' && ['read_timeout', 'read_busy', 'read_cancelled'].includes(detail.code)) {
           if (detail.code === 'read_cancelled') throw new DOMException('读取已取消', 'AbortError')
+          if (detail.code === 'read_busy' && canRetry && !busyRetried && attempt < 2) {
+            busyRetried = true
+            const header = response.headers.get('Retry-After')
+            const delay = Math.min(3000, (header?.trim() ? retryDelay(header, 0) : 250) + Math.floor(Math.random() * 201))
+            await waitForRetry(delay, signal)
+            continue
+          }
           throw new ApiReadError(typeof detail.message === 'string' && detail.message ? detail.message : httpError(response.status), detail.code)
         }
       }
@@ -120,14 +127,22 @@ export function prepareImage(src: string | null, signal: AbortSignal): Promise<v
   if (!src) return Promise.resolve()
   return new Promise((resolve, reject) => {
     const image = new Image()
-    const cleanup = () => { image.onload = null; image.onerror = null; signal.removeEventListener('abort', abort) }
-    const abort = () => { cleanup(); image.removeAttribute('src'); reject(new DOMException('Aborted', 'AbortError')) }
+    let settled = false
+    const cleanup = () => { clearTimeout(timer); image.onload = null; image.onerror = null; signal.removeEventListener('abort', abort) }
+    const finish = (failure?: Error) => {
+      if (settled) return
+      settled = true; cleanup()
+      if (failure) { image.removeAttribute('src'); reject(failure) }
+      else resolve()
+    }
+    const abort = () => finish(new DOMException('Aborted', 'AbortError'))
+    const timer = setTimeout(() => finish(new DOMException('目标图片等待超时，当前画面已保留，请重试', 'TimeoutError')), 10000)
     image.onload = async () => {
       try { await image.decode() } catch { /* onload already confirms a renderable image */ }
       if (signal.aborted) { abort(); return }
-      cleanup(); resolve()
+      finish()
     }
-    image.onerror = () => { cleanup(); reject(new Error('目标图片未能载入，当前画面已保留')) }
+    image.onerror = () => finish(new Error('目标图片未能载入，当前画面已保留，请重试'))
     signal.addEventListener('abort', abort, {once: true})
     if (signal.aborted) abort()
     else image.src = src

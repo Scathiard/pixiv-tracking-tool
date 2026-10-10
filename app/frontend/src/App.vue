@@ -3,7 +3,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, prepareImage, url, write } from './api'
 import { LatestIntent } from './interaction'
-import { galleryEntryIndex, freshLibraryQuery } from './positions'
+import { freshLibraryQuery } from './positions'
+import { readLibraryEntry, type GallerySeed } from './state/libraryEntry'
 import { archiveNotice, archiveStatus, localAssetReason, hasNewWorks, isOlderCatalogue, type Anchor, type GalleryBatch, type Mode, type PageData, type PageLoader, type WorkDetail } from './types'
 import { observeCatalogueData, queueCatalogueUpdate } from './state/catalogue'
 import { writeTagValues } from './state/filterSelection'
@@ -42,6 +43,7 @@ const mobileMenuButton = ref<HTMLButtonElement | null>(null)
 const removePrompt = ref(false)
 const galleryAnchor = ref(0), galleryReset = ref(0), readerReset = ref(0), pageSize = ref(100), ordinaryIndex = ref(0), desiredIndex = ref(0)
 const continuous = ref(false)
+const gallerySeed = ref<GallerySeed | null>(null)
 const readingVisit = ref<ReadingVisit | null>(null), readingOrder = ref<ReadingOrder>('sequential')
 const readingEnded = ref(false)
 const galleryView = ref<InstanceType<typeof GalleryView> | null>(null), checkingNewContent = ref(false)
@@ -112,8 +114,10 @@ function route(push: boolean) {
   internalRoute = target.fullPath
   void router[push ? 'push' : 'replace'](target).catch(() => { internalRoute = '' })
 }
-async function initialize(query: string, path = '/', push = false) {
+async function initialize(query: string, path = '/', push = false, saveHome = false) {
+  clearTimeout(searchTimer)
   newContentRequest.cancel(); checkingNewContent.value = false; newContentAgain = false; revealNewContent = false
+  railRequest.cancel()
   if (path === '/settings' || path === '/artists' || /^\/artist\/\d+$/.test(path)) {
     navigation.cancel(); infoRequest.cancel()
     void updateRailCounts(homeScope.value)
@@ -124,37 +128,62 @@ async function initialize(query: string, path = '/', push = false) {
     return
   }
   const ticket = navigation.begin(); infoRequest.cancel(); pending.value = true; error.value = ''
-  failedNavigation = () => { void initialize(query, path, push) }
+  failedNavigation = () => { void initialize(query, path, push, saveHome) }
+  let preparedVisit: ReadingVisit | null = null
   try {
-    const params = new URLSearchParams(freshLibraryQuery(query))
-    if (/^\/illust\/\d+$/.test(path)) {
-      const origin = new URLSearchParams(query)
-      detailOrigin.value = origin.get('origin') === 'artists' ? 'artists' : origin.get('origin') === 'feed' ? 'feed' : 'gallery'
-      originArtistId.value = Number(origin.get('origin_artist')) || null
+    const seed = await readLibraryEntry(query, path, pageSize.value, continuous.value, ticket.signal)
+    const batch = seed.data, params = new URLSearchParams(seed.query)
+    const match = path.match(/^\/illust\/(\d+)$/)
+    let openingDetail: WorkDetail | null = null, openingAnchor: Anchor | null = null
+    if (match || path === '/flow' && batch.total) {
+      preparedVisit = await startVisit(seed.query, ticket.signal)
+      if (match) {
+        const position = await api<Anchor>(url('/api/library/locate', seed.query, {work_id: Number(match[1])}), {signal: ticket.signal})
+        const work = await visitEntry(preparedVisit, position.work_index, ticket.signal)
+        if (!work) throw new Error('目标作品已不在这个范围内，请刷新图库')
+        openingDetail = await workDetail(work.work_id, new URLSearchParams(query).get('revision_id') || work.revision_id, ticket.signal)
+        await prepareImage(openingDetail.pages[0]?.src || null, ticket.signal)
+        openingAnchor = {work_id: work.work_id, work_index: position.work_index, page: 0, index: 0, offset: 0}
+      } else {
+        const first = (await visitPages(preparedVisit, readingOrder.value, 0, 1, ticket.signal)).items[0]
+        if (!first) throw new Error('当前范围已变化，请刷新图库')
+        openingAnchor = {work_id: first.work_id, work_index: first.work_index, page: first.page, index: first.index, offset: 0}
+      }
     }
-    for (const name of ['page', 'offset', 'limit', 'page_offset', 'mode', 'origin', 'origin_artist', 'revision_id']) params.delete(name)
-    const batch = await api<GalleryBatch>(url('/api/library/counts', params.toString()), {signal: ticket.signal})
     if (!ticket.current()) return
-    params.set('ceiling', String(batch.ceiling)); params.set('as_of', batch.as_of)
-    releaseVisit(readingVisit.value); readingVisit.value = null
-    scope.value = params.toString(); total.value = batch.total
+    releaseVisit(readingVisit.value); readingVisit.value = preparedVisit; preparedVisit = null
+    scope.value = seed.query; total.value = batch.total
+    if (saveHome) setHomeScope(query)
     void updateRailCounts(scope.value)
     section.value = 'library'
     searchText.value = params.get('q') || ''; sortChoice.value = params.get('sort') || 'newest'
-    galleryAnchor.value = path === '/' ? galleryEntryIndex(query, pageSize.value, batch.total) : 0
+    galleryAnchor.value = seed.anchor; gallerySeed.value = path === '/' ? seed : null
     galleryReset.value++
     mode.value = 'gallery'; ready.value = true; pending.value = false; newContent.value = false
     filterOpen.value = false; infoOpen.value = false; activePage.value = null; currentAnchor.value = null; zoomPage.value = null
-    const match = path.match(/^\/illust\/(\d+)$/)
-    if (match) {
-      const id = Number(match[1])
-      const position = await api<Anchor>(url('/api/library/locate', scope.value, {work_id: id}), {signal: ticket.signal})
-      if (ticket.current()) await openWork(position.work_index, false, new URLSearchParams(query).get('revision_id'))
-    } else if (path === '/flow') { if (total.value) await enterFeed(push); else route(push) }
-    else route(push)
+    if (openingAnchor) {
+      initialAnchor.value = currentAnchor.value = openingAnchor
+      readingEnded.value = false; readerReset.value++
+      if (openingDetail) {
+        const origin = new URLSearchParams(query)
+        detailOrigin.value = origin.get('origin') === 'artists' ? 'artists' : origin.get('origin') === 'feed' ? 'feed' : 'gallery'
+        originArtistId.value = Number(origin.get('origin_artist')) || null
+        currentWork.value = infoWork.value = openingDetail
+        ordinaryIndex.value = desiredIndex.value = openingAnchor.work_index
+        galleryAnchor.value = openingAnchor.work_index
+        ingestBookmark(openingDetail.id, openingDetail.bookmark); refreshBookmark(openingDetail.id)
+        observeCatalogueData(openingDetail.catalogue_revision)
+        mode.value = 'reader'
+      } else { mode.value = 'feed'; infoWork.value = null }
+    }
+    route(push)
   } catch (failure) {
-    if (ticket.current()) { error.value = failure instanceof Error ? failure.message : '图库未能载入'; pending.value = false; ready.value = true }
-  }
+    if (ticket.current()) {
+      error.value = failure instanceof Error ? failure.message : '图库未能载入'; pending.value = false
+      const previous = new URLSearchParams(scope.value)
+      searchText.value = previous.get('q') || ''; sortChoice.value = previous.get('sort') || 'newest'
+    }
+  } finally { releaseVisit(preparedVisit) }
 }
 async function ensureVisit(signal: AbortSignal) {
   if (readingVisit.value) return readingVisit.value
@@ -167,6 +196,7 @@ async function openWork(index: number, push = true, selectedRevision?: string | 
   if (!total.value) return
   index = Math.max(0, Math.min(total.value - 1, index))
   desiredIndex.value = index
+  clearTimeout(searchTimer); railRequest.cancel()
   const ticket = navigation.begin(); pending.value = true; error.value = ''
   failedNavigation = () => { void openWork(index, push) }
   try {
@@ -201,6 +231,7 @@ function navigate(delta: number) {
 }
 async function enterFeed(push = true) {
   if (!total.value) return
+  clearTimeout(searchTimer); railRequest.cancel()
   const ticket = navigation.begin(); pending.value = true; error.value = ''
   failedNavigation = () => { void enterFeed(push) }
   try {
@@ -352,20 +383,20 @@ function setHomeScope(query: string) {
   try { localStorage.setItem('pixiv-local-home-scope', homeScope.value) } catch { /* optional */ }
 }
 function galleryFocused(index: number) { galleryAnchor.value = index }
-function filter(query: string) { setHomeScope(query); void initialize(query, '/', true) }
+function filter(query: string) { void initialize(query, '/', true, true) }
 function refresh() { const params = new URLSearchParams(scope.value); params.delete('ceiling'); params.delete('as_of'); void initialize(params.toString()) }
 function retryNavigation() { if (failedNavigation) failedNavigation(); else refresh() }
 function changeRail(rail: 'all' | 'recent' | 'favorites') {
   const params = new URLSearchParams(scope.value)
   for (const name of ['ceiling', 'as_of', 'page', 'favorites', 'recent']) params.delete(name)
   if (rail !== 'all') params.set(rail, '1')
-  setHomeScope(params.toString()); void initialize(homeScope.value, '/', true)
+  void initialize(params.toString(), '/', true, true)
 }
 function openFromGallery(index: number) { detailOrigin.value = 'gallery'; void openWork(index) }
 function tagFilter(tag: string) {
   const params = new URLSearchParams(homeScope.value)
   params.delete('ceiling'); params.delete('as_of'); params.delete('favorites'); params.delete('recent'); params.delete('tags_exclude'); writeTagValues(params, [tag])
-  setHomeScope(params.toString()); void initialize(homeScope.value, '/', true)
+  void initialize(params.toString(), '/', true, true)
 }
 async function openFolder(id: number) {
   try { await api(`/illust/${id}/open-folder`, {method: 'POST'}) }
@@ -384,16 +415,16 @@ function search() {
     const params = new URLSearchParams(scope.value)
     for (const name of ['ceiling', 'as_of', 'page']) params.delete(name)
     if (searchText.value.trim()) params.set('q', searchText.value.trim()); else params.delete('q')
-    setHomeScope(params.toString()); void initialize(homeScope.value, '/', false)
+    void initialize(params.toString(), '/', false, true)
   }, 280)
 }
 function sort() {
   const params = new URLSearchParams(scope.value)
   for (const name of ['ceiling', 'as_of', 'page']) params.delete(name)
-  params.set('sort', sortChoice.value); setHomeScope(params.toString()); void initialize(homeScope.value, '/', true)
+  params.set('sort', sortChoice.value); void initialize(params.toString(), '/', true, true)
 }
-function showArtists(id: number | null = null) { navigation.cancel(); infoRequest.cancel(); pending.value = false; section.value = 'artists'; artistId.value = id; filterOpen.value = false; infoOpen.value = false; route(true) }
-function showSettings() { navigation.cancel(); infoRequest.cancel(); pending.value = false; section.value = 'settings'; filterOpen.value = false; infoOpen.value = false; route(true) }
+function showArtists(id: number | null = null) { clearTimeout(searchTimer); navigation.cancel(); railRequest.cancel(); infoRequest.cancel(); pending.value = false; section.value = 'artists'; artistId.value = id; filterOpen.value = false; infoOpen.value = false; route(true) }
+function showSettings() { clearTimeout(searchTimer); navigation.cancel(); railRequest.cancel(); infoRequest.cancel(); pending.value = false; section.value = 'settings'; filterOpen.value = false; infoOpen.value = false; route(true) }
 function openArtistGallery(id: number) {
   detailOrigin.value = 'gallery'; originArtistId.value = null
   const params = new URLSearchParams({artist_ids: String(id), sort: sortChoice.value})
@@ -535,7 +566,7 @@ function updated() { queueCatalogueUpdate() }
           <main class="gallery-main"><div class="gallery-controls"><div class="gallery-heading"><h1>{{ heading }}</h1><span>{{ total }} 件</span><button v-if="newContent" class="text-link new-work-entry" :disabled="checkingNewContent" @click="checkForNewWorks(true)">有新作品，查看</button></div><div class="gallery-control-actions"><select v-model="sortChoice" aria-label="图库排序" @change="sort"><option value="newest">最新投稿</option><option value="oldest">最早投稿</option><option value="added">最近存入</option><option value="title">作品名称</option></select><button class="softbtn" :aria-expanded="filterOpen" :title="filterSummary" @click="filterOpen = true"><Icon name="filter" />筛选</button><button class="check-button" aria-label="检查新作品" @click="task('check')"><Icon name="refresh" /><span>检查新作品</span></button></div></div>
             <div v-if="filterSummary !== '全部画师 · 全部类型'" class="active-filters"><span>{{ filterSummary }}</span><button class="text-link" @click="filterOpen = true">调整</button></div>
             <div v-if="error" class="notice error" role="alert">{{ error }} <button @click="retryNavigation">重试</button></div>
-            <GalleryView v-if="ready" ref="galleryView" :query="scope" :start-index="galleryAnchor" :reset-key="galleryReset" :page-size="pageSize" :continuous="continuous" @open="openFromGallery" @artist="showArtists" @message="message($event, true)" @anchor="galleryFocused" @total="total = $event" @page="galleryAnchor = $event * pageSize; route(false)" /><div v-else class="empty">正在打开本地图库…</div>
+            <GalleryView v-if="ready" ref="galleryView" :query="scope" :start-index="galleryAnchor" :reset-key="galleryReset" :page-size="pageSize" :continuous="continuous" :initial-batch="gallerySeed" @seed-consumed="gallerySeed = null" @open="openFromGallery" @artist="showArtists" @message="message($event, true)" @anchor="galleryFocused" @total="total = $event" @page="galleryAnchor = $event * pageSize; route(false)" /><div v-else class="empty">{{ error ? '图库尚未载入，请重试' : '正在打开本地图库…' }}</div>
           </main></div>
       </template>
       <template v-else><main class="reader-layout" :inert="mobileMenuOpen ? true : undefined">

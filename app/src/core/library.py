@@ -309,11 +309,11 @@ class Library:
             related = select(Work).where(Work.id.in_(window_ids))
             related = related.options(load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title,
                 Work.type, Work.page_count, Work.posted_at, Work.x_restrict, Work.source_metadata,
-                Work.default_revision_id, Work.latest_revision_id), selectinload(Work.artist).load_only(Artist.name),
+                Work.default_revision_id, Work.latest_revision_id, raiseload=True), selectinload(Work.artist).load_only(Artist.name),
                 selectinload(Work.preference), selectinload(Work.bookmark)) if compact else self._related(related)
             by_id = {work.id: work for work in session.scalars(related)} if window_ids else {}
             works = [by_id[work_id] for work_id in window_ids]
-            snapshots = selected_snapshots(session, works)
+            snapshots = selected_snapshots(session, works, compact=compact)
             operations = self._bookmark_operations(session, [work.id for work in works])
             views = [{"id": work.id, "pixiv_id": work.pixiv_illust_id, "artist_id": work.artist_id,
                       "artist_name": work.artist.name, "title": work.title, "type": work.type,
@@ -326,12 +326,9 @@ class Library:
                 for view in views:
                     view["is_bookmarked"] = bool(view["bookmark"]["value"])
             for work, view in zip(works, views):
-                apply_snapshot(view, work, snapshots.get(work.id))
-                if compact:
-                    for name in ("caption", "caption_state", "tags", "tag_details"):
-                        view.pop(name, None)
+                apply_snapshot(view, work, snapshots.get(work.id), compact=compact)
             ids = [work.id for work in works]
-            animation_ids = [work.id for work in works if work.type == "ugoira"]
+            animation_ids = [view["id"] for view in views if view["type"] == "ugoira"]
             states, revision = work_states(session, works)
             assets, derived = media_maps(session, works, snapshots, ranges={work.id: (0, 1) for work in works})
             thumbnails = {work.id: derived.get((work.id, "thumbnail", 0, "v1")) for work in works}
@@ -372,13 +369,20 @@ class Library:
         """Counts do not hydrate any artwork, assets, or processing history."""
         with self.database.read() as session:
             ceiling = ceiling if ceiling is not None else session.scalar(select(func.max(Work.id))) or 0
-            result = {"ceiling": ceiling, "as_of": (filters.as_of or utcnow()).isoformat(),
+            filters = replace(filters, as_of=filters.as_of or utcnow())
+            result = {"ceiling": ceiling, "as_of": filters.as_of.isoformat(),
                       "catalogue_revision": catalogue_revision(session)}
             base = replace(filters, favorites=False, recent=False)
+            counts_by_filter = {}
             for name, selected in (("all", base), ("recent", replace(base, recent=True)),
                     ("favorites", replace(base, favorites=True)), ("total", filters)):
-                statement = self._statement(selected, ceiling, for_count=True).with_only_columns(Work.id)
-                result[name] = session.scalar(select(func.count()).select_from(statement.subquery())) or 0
+                # Every other filter, ceiling, and reference time is shared
+                # within this request; these are the only varying predicates.
+                scope = (selected.favorites, selected.recent)
+                if scope not in counts_by_filter:
+                    statement = self._statement(selected, ceiling, for_count=True).with_only_columns(Work.id)
+                    counts_by_filter[scope] = session.scalar(select(func.count()).select_from(statement.subquery())) or 0
+                result[name] = counts_by_filter[scope]
             return result
 
     def reading_manifest(self, filters=LibraryFilter(), *, ceiling=None):

@@ -61,9 +61,9 @@ def test_default_query_and_count_endpoints_use_covering_work_index(library):
     plans = []
     with library.test_engine.connect() as connection:
         work_root = connection.exec_driver_sql("SELECT rootpage FROM sqlite_master WHERE type='table' AND name='works'").scalar()
-        # First query total, then counts all/recent/favorites/total. Only default
+        # First query total, then counts all/recent/favorites (total reuses all). Only default
         # totals can be covered without another filter's columns or relations.
-        for position in (0, 1, 4):
+        for position in (0, 1):
             sql, params = statements[position]
             plan = connection.exec_driver_sql("EXPLAIN QUERY PLAN " + sql, params).all()
             vm = connection.exec_driver_sql("EXPLAIN " + sql, params).all()
@@ -72,9 +72,41 @@ def test_default_query_and_count_endpoints_use_covering_work_index(library):
     if artifact:
         Path(artifact).mkdir(parents=True, exist_ok=True)
         Path(artifact, "memory-count-plan.json").write_text(json.dumps(plans, indent=2), encoding="utf-8")
-    assert len(statements) == 5
+    assert len(statements) == 4
     assert all(any("works USING COVERING INDEX" in row[3] for row in item["plan"]) for item in plans), plans
     assert all(not item["opens_work_table"] for item in plans), plans
+
+
+@pytest.mark.parametrize("favorites,recent,expected_queries", [
+    (False, False, 3), (True, False, 3), (False, True, 3), (True, True, 4),
+])
+def test_counts_reuse_identical_scope_with_one_reference_time(library, monkeypatch,
+        favorites, recent, expected_queries):
+    import src.core.library as library_module
+    calls, statements = [], []
+    def clock():
+        calls.append(None)
+        return REFERENCE + timedelta(seconds=len(calls) - 1)
+    monkeypatch.setattr(library_module, "utcnow", clock)
+    def capture(conn, cursor, sql, params, context, many):
+        if sql.startswith("SELECT count(*)"):
+            statements.append((sql, params))
+    event.listen(library.test_engine, "before_cursor_execute", capture)
+    try:
+        filters = LibraryFilter(favorites=favorites, recent=recent,
+            tags=("A",), posted_before=REFERENCE, tz_offset_minutes=-480)
+        result = library.counts(filters, ceiling=15)
+    finally:
+        event.remove(library.test_engine, "before_cursor_execute", capture)
+    assert len(calls) == 1
+    assert result["as_of"] == REFERENCE.isoformat()
+    assert len(statements) == expected_queries
+    if favorites and not recent:
+        assert result["total"] == result["favorites"]
+    elif recent and not favorites:
+        assert result["total"] == result["recent"]
+    elif not favorites and not recent:
+        assert result["total"] == result["all"]
 
 
 @pytest.mark.parametrize("filters", [

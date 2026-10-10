@@ -4,6 +4,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from pathlib import Path
 from threading import RLock, local
+from time import monotonic
 
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
@@ -77,6 +78,29 @@ class ArchiveDatabase:
                 connection.execute("PRAGMA synchronous=FULL")
                 connection.execute(f"PRAGMA wal_autocheckpoint={writer_policy() if writer_policy else 1000}")
 
+        if not writer:
+            @event.listens_for(engine, "before_cursor_execute")
+            def begin_statement(connection, cursor, statement, parameters, context, executemany):
+                budget = current_read.get()
+                if budget is not None:
+                    context._read_timing = (budget, monotonic())
+                    budget.statement_count += 1
+
+            def finish_statement(context):
+                timing = getattr(context, "_read_timing", None)
+                if timing is not None:
+                    budget, began = timing
+                    budget.sql_seconds += monotonic() - began
+                    context._read_timing = None
+
+            @event.listens_for(engine, "after_cursor_execute")
+            def end_statement(connection, cursor, statement, parameters, context, executemany):
+                finish_statement(context)
+
+            @event.listens_for(engine, "handle_error")
+            def failed_statement(context):
+                finish_statement(context.execution_context)
+
         return engine
 
     @classmethod
@@ -124,11 +148,17 @@ class ArchiveDatabase:
             token = current_read.set(budget)
         connection = None
         driver = None
+        database_started = None
         try:
             budget.checkpoint()
             if self._closed:
                 raise RuntimeError("数据库已关闭")
-            connection = self.engine.connect()
+            pool_started = monotonic()
+            try:
+                connection = self.engine.connect()
+            finally:
+                budget.pool_seconds += monotonic() - pool_started
+            database_started = monotonic()
             driver = connection.connection.driver_connection
             budget.attach(driver)
             # SQLite lock waiting does not call the progress handler. Keep each
@@ -154,6 +184,8 @@ class ArchiveDatabase:
                     if driver is not None:
                         budget.detach(driver)
                     connection.close()
+            if database_started is not None:
+                budget.database_seconds += monotonic() - database_started
             if owned:
                 current_read.reset(token)
                 self.reads.release(budget.lane)

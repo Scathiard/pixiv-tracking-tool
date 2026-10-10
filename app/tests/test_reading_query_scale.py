@@ -5,11 +5,62 @@ from pathlib import Path
 import time
 import pytest
 
-from sqlalchemy import event, select
+from sqlalchemy import create_engine, event, select
+from sqlalchemy.orm import Session
 
 from src.core.archive_state import _operation_window
-from src.core.models import ArchiveIntent, Artist, Asset, Derivative, LocalPreference, Operation, OperationItem, Work, WorkRevision
+from src.core.models import Base, ArchiveIntent, Artist, Asset, Derivative, LocalPreference, Operation, OperationItem, Work, WorkRevision
 from src.core.runtime import Runtime
+from src.core.task_indexes import create_task_indexes
+
+
+def test_unrelated_modern_history_does_not_expand_persisted_work_scope():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    measurements = []
+    try:
+        with engine.begin() as connection:
+            create_task_indexes(connection)
+        for previous, size in ((0, 0), (0, 100), (100, 500)):
+            with Session(engine) as session:
+                for index in range(previous, size):
+                    operation = Operation(id=f"modern-{index}", kind="verify", dedupe_key=f"modern-{index}",
+                        label="synthetic", state="finished", parameters={"work_ids": list(range(1, 1001))})
+                    operation.items = [OperationItem(id=f"modern-item-{index}", item_key="one", kind="verify",
+                        target={"work_id": 10000}, phase="verifying", state="succeeded")]
+                    session.add(operation)
+                session.commit()
+            with Session(engine) as session:
+                window = _operation_window(list(range(1, 101)))
+                connection = session.connection().connection.driver_connection
+                steps = [0]
+                def progress():
+                    steps[0] += 1
+                    return 0
+                connection.set_progress_handler(progress, 1)
+                try:
+                    assert session.execute(select(window)).all() == []
+                finally:
+                    connection.set_progress_handler(None, 0)
+                measurements.append(steps[0])
+        # The gate may locate each historical operation with a narrow index
+        # lookup, but must not expand each 1,000-member JSON scope.
+        assert max(measurements) < 20000, measurements
+        with Session(engine) as session:
+            for operation in session.scalars(select(Operation)):
+                operation.parameters = {"work_ids": [1]}
+            session.commit()
+            window = _operation_window(list(range(1, 101)))
+            connection = session.connection().connection.driver_connection
+            steps = [0]
+            connection.set_progress_handler(progress, 1)
+            try:
+                assert session.execute(select(window)).all() == []
+            finally:
+                connection.set_progress_handler(None, 0)
+            assert abs(steps[0] - measurements[-1]) < 100, (steps[0], measurements)
+    finally:
+        engine.dispose()
 
 
 def test_reading_queries_do_not_expand_unrelated_history(tmp_path):

@@ -16,7 +16,21 @@ def _operation_window(ids):
     # Fixed identity expressions match the additive indexes. Two composite
     # indexes also provide the work-only left prefix; no extra work index.
     scope = func.json_each(Operation.parameters, "$.work_ids").table_valued("value").alias("scope")
-    scoped_operation = select(Operation.id).join(scope, true()).where(
+    # Only identity-free items and active, entirely unplanned operations can
+    # contribute the scope fallback below. Use the existing partial target
+    # index before expanding JSON; modern unrelated history needs no expansion.
+    # Bound the partial index's leading operation key, otherwise SQLite may
+    # prefer a broader work/record NULL lookup before filtering the asset key.
+    identity_free = select(OperationItem.operation_id).where(
+        OperationItem.operation_id.in_(select(Operation.id)),
+        task_target(OperationItem.target, "work_id").is_(None),
+        task_target(OperationItem.target, "asset_id").is_(None),
+        task_target(OperationItem.target, "record_id").is_(None)).distinct()
+    any_item = select(OperationItem.id).where(OperationItem.operation_id == Operation.id).correlate(Operation).exists()
+    scope_eligible = union(identity_free, select(Operation.id).where(
+        Operation.state.in_(ACTIVE), ~any_item)).cte("scope_eligible").prefix_with("MATERIALIZED")
+    scoped_operation = select(Operation.id).join(scope_eligible,
+        scope_eligible.c.operation_id == Operation.id).join(scope, true()).where(
         cast(scope.c.value, Integer).in_(ids), Operation.kind.in_(LOCAL_KINDS)).distinct().cte("scoped_operations").prefix_with("MATERIALIZED")
     explicit_work = task_target(OperationItem.target, "work_id")
     asset_id = task_target(OperationItem.target, "asset_id")
@@ -64,7 +78,6 @@ def _operation_window(ids):
         legacy_item.position).limit(1).correlate(Operation).scalar_subquery()
     chosen = select(Operation.id.label("id"), best_item.label("item_id")).where(
         Operation.id.in_(select(scoped_operation.c.id))).cte("scoped_items").prefix_with("MATERIALIZED")
-    any_item = select(OperationItem.id).where(OperationItem.operation_id == Operation.id).correlate(Operation).exists()
     scoped = select(cast(scope.c.value, Integer).label("work_id"), Operation.id.label("operation_id"),
         Operation.state.label("operation_state"), Operation.created_at.label("created_at"),
         Operation.updated_at.label("updated_at"), func.coalesce(OperationItem.state, "pending").label("item_state"),

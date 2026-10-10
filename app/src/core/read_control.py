@@ -5,10 +5,15 @@ import asyncio
 from contextvars import ContextVar
 from functools import wraps
 import inspect
+import logging
 from threading import Condition, Event, Lock
 from time import monotonic
+from uuid import uuid4
 
 from fastapi import HTTPException, Request
+
+
+log = logging.getLogger(__name__)
 
 
 class LocalReadError(RuntimeError):
@@ -28,12 +33,33 @@ class ReadCancelled(LocalReadError):
 
 
 class ReadBudget:
-    def __init__(self, timeout=4.5, lane="background"):
-        self.deadline = monotonic() + timeout
+    def __init__(self, timeout=4.5, lane="background", label="local_read"):
+        self.started = monotonic()
+        self.deadline = self.started + timeout
         self.lane = lane
+        self.label = label
+        self.request_id = uuid4().hex[:12]
+        self.admitted = None
+        self.pool_seconds = 0.0
+        self.database_seconds = 0.0
+        self.sql_seconds = 0.0
+        self.statement_count = 0
         self.cancelled = Event()
         self._lock = Lock()
         self._connections = set()
+
+    def report(self, outcome):
+        elapsed = monotonic() - self.started
+        if (outcome == "ok" and elapsed < 1.0) or outcome == "read_cancelled":
+            return
+        wait = (self.admitted - self.started) if self.admitted is not None else elapsed
+        # Only fixed endpoint names and timings: no URL, filters, SQL, paths or
+        # exception text can leak artwork metadata or credentials into the log.
+        log.warning("local_read id=%s endpoint=%s outcome=%s lane=%s total_ms=%.1f "
+                    "queue_ms=%.1f pool_ms=%.1f database_ms=%.1f execute_ms=%.1f statements=%d",
+                    self.request_id, self.label, outcome, self.lane, elapsed * 1000,
+                    wait * 1000, self.pool_seconds * 1000, self.database_seconds * 1000,
+                    self.sql_seconds * 1000, self.statement_count)
 
     def checkpoint(self):
         if self.cancelled.is_set():
@@ -116,6 +142,7 @@ class ReadController:
             while True:
                 budget.checkpoint()
                 if self._try_acquire(lane):
+                    budget.admitted = monotonic()
                     return
                 with self._condition:
                     self._condition.wait(min(.02, max(0, budget.deadline - monotonic())))
@@ -123,12 +150,35 @@ class ReadController:
             self._dequeue(lane)
 
     async def _execute(self, budget, function):
+        outcome = "ok"
+        try:
+            return await self._execute_admitted(budget, function)
+        except ReadDeadline:
+            outcome = "read_timeout"
+            raise
+        except LocalReadBusy:
+            outcome = "read_busy"
+            raise
+        except (ReadCancelled, asyncio.CancelledError):
+            outcome = "read_cancelled"
+            raise
+        except HTTPException as exc:
+            outcome = "ok" if exc.status_code < 500 else f"http_{exc.status_code}"
+            raise
+        except Exception:
+            outcome = "read_error"
+            raise
+        finally:
+            budget.report(outcome)
+
+    async def _execute_admitted(self, budget, function):
         lane = budget.lane
         self._enqueue(lane)
         try:
             while True:
                 budget.checkpoint()
                 if self._try_acquire(lane):
+                    budget.admitted = monotonic()
                     break
                 await asyncio.sleep(.01)
         finally:
@@ -149,12 +199,12 @@ class ReadController:
         # disk syscall that cannot be interrupted must not open another slot.
         return await asyncio.to_thread(worker)
 
-    async def run(self, request, function, *, lane="frontend", key=None, timeout=4.5):
+    async def run(self, request, function, *, lane="frontend", key=None, timeout=4.5, label="local_read"):
         loop = asyncio.get_running_loop()
         shared_key = (loop, lane, key) if key is not None else None
         job = self._shared.get(shared_key) if shared_key is not None else None
         if job is None or job[0].done() or job[1].stopped():
-            budget = ReadBudget(timeout, lane)
+            budget = ReadBudget(timeout, lane, label)
             task = asyncio.create_task(self._execute(budget, function))
             job = [task, budget, 0]
             # Always observe exceptions after a disconnected last consumer.
@@ -187,9 +237,9 @@ class ReadController:
                         pass
 
 
-async def run_read(request, database, function, *, lane="frontend", key=None, timeout=4.5):
+async def run_read(request, database, function, *, lane="frontend", key=None, timeout=4.5, label="local_read"):
     try:
-        return await database.reads.run(request, function, lane=lane, key=key, timeout=timeout)
+        return await database.reads.run(request, function, lane=lane, key=key, timeout=timeout, label=label)
     except ReadCancelled as exc:
         raise HTTPException(499, {"code": "read_cancelled", "message": str(exc)}) from exc
     except ReadDeadline as exc:
@@ -228,7 +278,7 @@ def local_read(get_runtime, *, lane="frontend", coalesce=False, coalesce_context
                 key = (str(request.url), runtime.database.reads.generation,
                        id(runtime), id(client), generation, account,
                        coalesce_context(runtime) if coalesce_context is not None else None)
-            return await run_read(request, runtime.database, lambda: function(*args, **kwargs), lane=lane, key=key)
+            return await run_read(request, runtime.database, lambda: function(*args, **kwargs), lane=lane, key=key, label=function.__name__)
         endpoint.__signature__ = signature
         return endpoint
     return decorate

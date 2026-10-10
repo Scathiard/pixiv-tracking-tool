@@ -2,17 +2,23 @@
 from types import SimpleNamespace
 
 from sqlalchemy import and_, case, false, literal, or_, select
+from sqlalchemy.orm import load_only
 
 from .models import Asset, Derivative, RevisionAsset, RevisionDerivative, WorkRevision
 
 
-def selected_snapshots(session, works, explicit=None):
+def selected_snapshots(session, works, explicit=None, *, compact=False):
     explicit = explicit or {}
     ids = {work.id: explicit.get(work.id, work.default_revision_id) for work in works}
     if not any(ids.values()):
         return {}
-    snapshots = {revision.id: revision for revision in session.scalars(select(WorkRevision).where(
-        WorkRevision.id.in_([value for value in ids.values() if value])))}
+    statement = select(WorkRevision).where(WorkRevision.id.in_([value for value in ids.values() if value]))
+    if compact:
+        # Cards need the pinned shape and title, never discarded detail JSON or
+        # captions. Fail on accidental access instead of issuing per-card SQL.
+        statement = statement.options(load_only(WorkRevision.id, WorkRevision.work_id,
+            WorkRevision.title, WorkRevision.type, WorkRevision.page_count, raiseload=True))
+    snapshots = {revision.id: revision for revision in session.scalars(statement)}
     return {work_id: snapshots[value] for work_id, value in ids.items()
             if value in snapshots and snapshots[value].work_id == work_id}
 
@@ -64,13 +70,14 @@ def revision_work(work, revision):
                            source_metadata=work.source_metadata)
 
 
-def apply_snapshot(view, work, revision):
-    from ..security import sanitize_caption
-    from .tag_translations import tag_details
+def apply_snapshot(view, work, revision, *, compact=False):
     view["revision_id"] = revision.id if revision else None
     view["latest_revision_id"] = work.latest_revision_id
     if revision is not None:
-        view.update(title=revision.title, type=revision.type, page_count=revision.page_count,
-            caption=sanitize_caption(revision.caption), caption_state=revision.caption_state,
-            tags=revision.tags, tag_details=tag_details(revision.tags, revision.source_metadata))
+        view.update(title=revision.title, type=revision.type, page_count=revision.page_count)
+        if not compact:
+            from ..security import sanitize_caption
+            from .tag_translations import tag_details
+            view.update(caption=sanitize_caption(revision.caption), caption_state=revision.caption_state,
+                tags=revision.tags, tag_details=tag_details(revision.tags, revision.source_metadata))
     return view
