@@ -45,6 +45,7 @@ class ReadBudget:
         self.sql_seconds = 0.0
         self.statement_count = 0
         self.cancelled = Event()
+        self.cancelled_by_deadline = False
         self._lock = Lock()
         self._connections = set()
 
@@ -63,6 +64,8 @@ class ReadBudget:
 
     def checkpoint(self):
         if self.cancelled.is_set():
+            if self.cancelled_by_deadline:
+                raise ReadDeadline("本地读取超时，请重试")
             raise ReadCancelled("本地读取已取消")
         if monotonic() >= self.deadline:
             raise ReadDeadline("本地读取超时，请重试")
@@ -70,10 +73,11 @@ class ReadBudget:
     def stopped(self):
         return self.cancelled.is_set() or monotonic() >= self.deadline
 
-    def cancel(self):
+    def cancel(self, *, timed_out=False):
         # Clearing hooks and removing the connection use this same lock. An old
         # consumer can never interrupt a connection returned to a later borrower.
         with self._lock:
+            self.cancelled_by_deadline |= timed_out
             self.cancelled.set()
             for connection in self._connections:
                 connection.interrupt()
@@ -214,6 +218,7 @@ class ReadController:
         task, budget, _ = job
         job[2] += 1
         consumer_deadline = monotonic() + timeout
+        consumer_timed_out = False
         try:
             while not task.done():
                 if request is not None and await request.is_disconnected():
@@ -222,13 +227,16 @@ class ReadController:
                     raise ReadDeadline("本地读取超时，请重试")
                 await asyncio.wait({task}, timeout=min(.02, max(0, consumer_deadline - monotonic())))
             return task.result()
+        except ReadDeadline:
+            consumer_timed_out = True
+            raise
         finally:
             job[2] -= 1
             if job[2] == 0:
                 if self._shared.get(shared_key) is job:
                     self._shared.pop(shared_key)
                 if not task.done():
-                    budget.cancel()
+                    budget.cancel(timed_out=consumer_timed_out)
                     # Await interruptible SQL cleanup, but do not pretend that
                     # an arbitrary disk wait has finished after this bound.
                     try:

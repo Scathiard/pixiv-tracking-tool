@@ -1,7 +1,7 @@
 """Bounded, database-only work state shared by gallery, detail, and feed."""
 from datetime import datetime, timezone
 
-from sqlalchemy import Integer, String, and_, case, cast, func, literal, or_, select, true, union, union_all
+from sqlalchemy import Integer, String, and_, case, cast, func, literal, literal_column, or_, select, true, union, union_all
 from sqlalchemy.orm import aliased
 
 from .catalogue_revision import catalogue_revision
@@ -21,32 +21,43 @@ def _operation_window(ids):
     # index before expanding JSON; modern unrelated history needs no expansion.
     # Bound the partial index's leading operation key, otherwise SQLite may
     # prefer a broader work/record NULL lookup before filtering the asset key.
+    # Missing work_ids yields no json_each rows. Keep every present JSON type
+    # (including legacy scalars), and leave direct identity matches independent.
+    has_scope = and_(Operation.kind.in_(LOCAL_KINDS),
+        func.json_type(Operation.parameters, "$.work_ids").is_not(None))
     identity_free = select(OperationItem.operation_id).where(
-        OperationItem.operation_id.in_(select(Operation.id)),
+        OperationItem.operation_id.in_(select(Operation.id).where(has_scope)),
         task_target(OperationItem.target, "work_id").is_(None),
         task_target(OperationItem.target, "asset_id").is_(None),
         task_target(OperationItem.target, "record_id").is_(None)).distinct()
     any_item = select(OperationItem.id).where(OperationItem.operation_id == Operation.id).correlate(Operation).exists()
     scope_eligible = union(identity_free, select(Operation.id).where(
-        Operation.state.in_(ACTIVE), ~any_item)).cte("scope_eligible").prefix_with("MATERIALIZED")
+        has_scope, Operation.state.in_(ACTIVE), ~any_item)).cte("scope_eligible").prefix_with("MATERIALIZED")
     scoped_operation = select(Operation.id).join(scope_eligible,
         scope_eligible.c.operation_id == Operation.id).join(scope, true()).where(
         cast(scope.c.value, Integer).in_(ids), Operation.kind.in_(LOCAL_KINDS)).distinct().cte("scoped_operations").prefix_with("MATERIALIZED")
     explicit_work = task_target(OperationItem.target, "work_id")
     asset_id = task_target(OperationItem.target, "asset_id")
     record_id = task_target(OperationItem.target, "record_id")
+    # Target indexes carry SQLite rowid. Keep the temporary selection in that
+    # physical identity to avoid loading the UUID and locating its row again.
+    # UUIDs remain the public identity; rowid never leaves this read snapshot.
+    item_row_id = literal_column("operation_items.rowid")
     selected_ids = union(
-        select(OperationItem.id).where(explicit_work.in_(ids)),
-        select(OperationItem.id).where(explicit_work.is_(None),
+        select(item_row_id.label("row_id")).select_from(OperationItem).where(explicit_work.in_(ids)),
+        select(item_row_id.label("row_id")).select_from(OperationItem).where(explicit_work.is_(None),
             asset_id.in_(select(Asset.id).where(Asset.work_id.in_(ids)))),
-        select(OperationItem.id).where(explicit_work.is_(None),
+        select(item_row_id.label("row_id")).select_from(OperationItem).where(explicit_work.is_(None),
             record_id.in_(select(Derivative.id).where(Derivative.work_id.in_(ids)))),
     ).cte("selected_item_ids").prefix_with("MATERIALIZED")
+    # The old UUID union emitted UUID order. Retain it after physical lookup
+    # so legacy equal-position candidates keep their existing winning item.
     items = select(OperationItem.id, OperationItem.operation_id, OperationItem.kind,
         OperationItem.state, OperationItem.position, explicit_work.label("work_id"),
         asset_id.label("asset_id"), record_id.label("record_id"),
         OperationItem.result["message"].as_string().label("reason")).join(
-            selected_ids, selected_ids.c.id == OperationItem.id).cte("selected_items").prefix_with("MATERIALIZED")
+            selected_ids, selected_ids.c.row_id == item_row_id).order_by(
+                OperationItem.id).cte("selected_items").prefix_with("MATERIALIZED")
     asset, derivative = aliased(Asset), aliased(Derivative)
     target_work = func.coalesce(items.c.work_id, asset.work_id, derivative.work_id)
     # INTEGER affinity lets SQLite build the (work_id, rank) lookup used by the

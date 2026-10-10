@@ -66,7 +66,8 @@ def test_failed_read_records_stage_cost_without_query_or_exception_text(database
     def fail():
         with database.read() as session:
             driver = session.connection().connection.driver_connection
-            driver.create_function("isolated_delay", 1, lambda _: (sleep(.01), 42)[1])
+            # Python 3.12 monotonic on Windows may advance in ~16 ms ticks.
+            driver.create_function("isolated_delay", 1, lambda _: (sleep(.04), 42)[1])
             assert session.scalar(text("SELECT isolated_delay('private-query-value')")) == 42
         raise ValueError("private-token-and-query")
     async def scenario():
@@ -94,6 +95,23 @@ def test_queued_timeout_is_logged_as_queue_cost(database, caplog):
     assert "database_ms=0.0" in record and "execute_ms=0.0" in record and "statements=0" in record
     timings = dict(re.findall(r"(\w+_ms)=([\d.]+)", record))
     assert float(timings["queue_ms"]) > 0
+
+
+def test_consumer_deadline_interrupt_is_not_silenced_as_navigation_cancel(database, caplog):
+    entered = Event()
+    def wait_for_interrupt():
+        budget = current_read.get()
+        entered.set()
+        assert budget.cancelled.wait(2)
+        budget.checkpoint()
+    async def scenario():
+        with pytest.raises(ReadDeadline):
+            await database.reads.run(None, wait_for_interrupt, timeout=.5, label="library")
+    asyncio.run(scenario())
+    assert entered.is_set()
+    messages = [item.message for item in caplog.records if "endpoint=library" in item.message]
+    assert len(messages) == 1 and "outcome=read_timeout" in messages[0]
+    assert database.reads.active["frontend"] == 0
 
 
 def test_nested_writer_must_pass_existing_session(database):

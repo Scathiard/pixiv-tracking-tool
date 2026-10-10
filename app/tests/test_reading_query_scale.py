@@ -14,6 +14,73 @@ from src.core.runtime import Runtime
 from src.core.task_indexes import create_task_indexes
 
 
+@pytest.mark.parametrize("parameters,state,kind,target,item_state,expected", [
+    ({}, "finished", "verify", {}, "failed", None),
+    ({"artist_ids": [1]}, "finished", "verify", {}, "failed", None),
+    ({"work_ids": []}, "finished", "verify", {}, "failed", None),
+    ({"work_ids": None}, "finished", "verify", {}, "failed", None),
+    ({"work_ids": [1]}, "finished", "verify", {}, "failed", "failed"),
+    ({"work_ids": ["01"]}, "finished", "verify", {}, "succeeded", "succeeded"),
+    ({"work_ids": 1}, "finished", "verify", {}, "failed", "failed"),
+    ({"work_ids": "01"}, "finished", "verify", {}, "failed", "failed"),
+    ({"work_ids": {"legacy": 1}}, "finished", "verify", {}, "failed", "failed"),
+    ({"work_ids": True}, "finished", "verify", {}, "failed", "failed"),
+    ({}, "running", "verify", None, None, None),
+    ({"work_ids": [1]}, "running", "verify", None, None, "pending"),
+    ({"work_ids": [1]}, "finished", "verify", None, None, None),
+    ({"work_ids": [1]}, "running", "verify", {}, "running", "running"),
+    ({"work_ids": [1]}, "running", "bookmarks", {}, "running", None),
+    ({}, "running", "verify", {"work_id": 1}, "running", "running"),
+])
+def test_scope_gate_preserves_present_json_types_and_direct_identity(parameters, state, kind, target, item_state, expected):
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    try:
+        with engine.begin() as connection:
+            create_task_indexes(connection)
+        with Session(engine) as session:
+            operation = Operation(id="scope", kind=kind, dedupe_key="scope", label="synthetic",
+                state=state, parameters=parameters)
+            if target is not None:
+                operation.items = [OperationItem(id="scope-item", item_key="one", kind="inventory-failed",
+                    target=target, phase="checking", state=item_state)]
+            session.add(operation)
+            session.commit()
+            window = _operation_window([1])
+            rows = session.execute(select(window)).all()
+            assert [row.item_state for row in rows] == ([] if expected is None else [expected])
+    finally:
+        engine.dispose()
+
+
+def test_identity_free_history_without_work_scope_is_not_scanned():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    try:
+        with engine.begin() as connection:
+            create_task_indexes(connection)
+        with Session(engine) as session:
+            operation = Operation(id="artist-history", kind="check", dedupe_key="artist-history", label="synthetic",
+                state="finished", parameters={"artist_ids": [1]})
+            operation.items = [OperationItem(id=f"artist-item-{index}", item_key=str(index), kind="checked",
+                target={"artist_id": 1}, phase="checking", state="succeeded") for index in range(500)]
+            session.add(operation)
+            session.commit()
+            connection = session.connection().connection.driver_connection
+            steps = [0]
+            def progress():
+                steps[0] += 1
+                return 0
+            connection.set_progress_handler(progress, 1)
+            try:
+                assert session.execute(select(_operation_window([1]))).all() == []
+            finally:
+                connection.set_progress_handler(None, 0)
+            assert steps[0] < 2000, steps[0]
+    finally:
+        engine.dispose()
+
+
 def test_unrelated_modern_history_does_not_expand_persisted_work_scope():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)

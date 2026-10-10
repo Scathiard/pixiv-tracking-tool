@@ -116,6 +116,33 @@ def winners(rows):
         for row in rows if row["rank"] == 1}
 
 
+def test_direct_task_window_uses_rowid_lookup_with_identical_public_rows(engine):
+    seed(engine)
+    with Session(engine) as session:
+        # A legacy collision can have the same operation/state/position but a
+        # UUID that sorts before rows inserted earlier in physical order.
+        session.add(OperationItem(id="aaa-tie", operation_id="active", item_key="aaa-tie", kind="checked",
+            target={"work_id": 1}, phase="verifying", state="pending", position=0,
+            result={"message": "tie first by old UUID selection"}))
+        session.commit()
+    with engine.begin() as connection:
+        create_task_indexes(connection)
+    window = _operation_window([1, 2, 3, 4, 5, 6])
+    statement = select(window).order_by(window.c.work_id, window.c.rank)
+    sql = str(statement.compile(engine, compile_kwargs={"literal_binds": True}))
+    # Compare the same selection, union, fallback and ranking with the previous
+    # UUID lookup. Only this transient lookup identity changes.
+    uuid_sql = sql.replace("operation_items.rowid", "operation_items.id")
+    assert uuid_sql != sql
+    with engine.connect() as connection:
+        expected = connection.exec_driver_sql(uuid_sql).all()
+        actual = connection.exec_driver_sql(sql).all()
+        assert actual == expected
+        plan = [row[-1] for row in connection.exec_driver_sql("EXPLAIN QUERY PLAN " + sql)]
+    assert "SEARCH operation_items USING INTEGER PRIMARY KEY (rowid=?)" in plan
+    assert all(isinstance(row.operation_id, str) for row in actual)
+
+
 def test_indexed_task_window_bounds_null_prefix_and_legacy_scope(engine, tmp_path):
     seed(engine, 150000)
     before, baseline = measured_window(engine, list(range(1, 7)))

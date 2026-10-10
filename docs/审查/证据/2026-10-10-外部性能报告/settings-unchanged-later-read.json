@@ -1,0 +1,9 @@
+{
+  "endpoint": "/api/settings",
+  "build": "20261010.1",
+  "comparison": "original query after diagnostic reads",
+  "http": 200,
+  "readable": true,
+  "version": "0.2.0",
+  "elapsed_ms": 404.8
+}
