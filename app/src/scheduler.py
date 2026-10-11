@@ -39,7 +39,9 @@ def save_interval(tracker, minutes):
         record.value = {"minutes": minutes, "next_check_at": next_run.isoformat()}
     with _scheduler_lock:
         if _scheduler is not None:
-            _scheduler.reschedule_job("check_updates", trigger="interval", minutes=minutes, next_run_time=next_run)
+            # reschedule_job forwards extra arguments to IntervalTrigger;
+            # start_date sets its first firing, while next_run_time is a Job option.
+            _scheduler.reschedule_job("check_updates", trigger="interval", minutes=minutes, start_date=next_run)
         else:
             # A zero legacy interval may have left the scheduler unstarted.
             # Saving a valid interval activates it without starting a batch now.

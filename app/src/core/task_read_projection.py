@@ -13,6 +13,7 @@ from sqlalchemy.orm import defer
 
 from .models import Operation
 from .read_projection import ProjectionUnavailable
+from .read_control import track_read_stage
 
 PRIORITY_SQL = "CASE WHEN source='manual' THEN 0 WHEN source='maintenance' THEN 2 ELSE 1 END"
 RUNNING_STATES_SQL = "state IN ('planning','running')"
@@ -224,10 +225,14 @@ def operation_statement(*, status=False):
         defer(Operation.parameters), defer(Operation.result)).outerjoin(view, view.c.operation_id == Operation.id)
 
 
-def _operation_rows(session, ids, *, status):
+def _operation_rows(session, ids, *, status, read_stage=None):
     if not ids:
         return []
-    rows = session.execute(operation_statement(status=status).where(Operation.id.in_(ids))).all()
+    statement = operation_statement(status=status).where(Operation.id.in_(ids))
+    if read_stage is not None:
+        statement = statement.execution_options(read_stage=read_stage)
+    with track_read_stage(read_stage):
+        rows = session.execute(statement).all()
     by_id = {operation.id: (operation, result) for operation, result in rows}
     if set(by_id) != set(ids):
         raise ProjectionUnavailable("task operation head membership mismatch")
@@ -240,7 +245,7 @@ def active_head(session, *, running, limit):
     index = "ix_task_status_running" if running else "ix_task_status_waiting"
     predicate = RUNNING_STATES_SQL if running else WAITING_STATES_SQL
     ids = _connection(session).exec_driver_sql(f"SELECT id FROM operations INDEXED BY {index} WHERE {predicate} ORDER BY {PRIORITY_SQL},created_at LIMIT ?", (limit,)).scalars().all()
-    return _operation_rows(session, ids, status=True)
+    return _operation_rows(session, ids, status=True, read_stage="progress_active_hydrate")
 
 
 def history_head(session, *, limit, before=None, attention_only=False, status=False):
@@ -259,7 +264,8 @@ def history_head(session, *, limit, before=None, attention_only=False, status=Fa
         args.extend((date, ident))
     args.append(limit)
     ids = _connection(session).exec_driver_sql(f"SELECT id FROM operations INDEXED BY {index} WHERE " + " AND ".join(predicates) + " ORDER BY finished_at DESC,id DESC LIMIT ?", tuple(args)).scalars().all()
-    return _operation_rows(session, ids, status=status)
+    return _operation_rows(session, ids, status=status,
+        read_stage="progress_history_hydrate" if status else None)
 
 
 def item_window(session, operation_id, *, offset, limit, problems_only):

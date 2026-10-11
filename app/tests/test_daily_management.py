@@ -76,27 +76,34 @@ def test_check_status_reports_matching_artist_only(daily):
 
 def test_interval_persists_without_changing_pause_or_active_operations(daily, monkeypatch):
     import src.scheduler as scheduler
-    class Scheduler:
-        calls = []
-        def reschedule_job(self, *args, **kwargs): self.calls.append((args, kwargs))
-    live = Scheduler(); monkeypatch.setattr(scheduler, "_scheduler", live)
+    from datetime import datetime, timedelta
+    from apscheduler.schedulers.background import BackgroundScheduler
+    live = BackgroundScheduler()
+    live.add_job(lambda: None, "interval", minutes=60, id="check_updates")
+    live.start(paused=True)  # Exercise real trigger arguments without running a check.
+    monkeypatch.setattr(scheduler, "_scheduler", live)
     tracker = SimpleNamespace(database=daily)
-    with daily.write() as session:
-        session.add(ApplicationState(key="automatic_paused",value=True))
-        session.add(Operation(id="active-auto",kind="check",source="automatic",state="running",dedupe_key="active-auto",label="current batch",parameters={"round":"keep"}))
-    first = save_interval(tracker, 75)
-    result = interval_snapshot(daily)
-    assert result["minutes"] == 75 and result["next_check_at"] == first.isoformat()
-    assert live.calls[0][1]["minutes"] == 75
-    assert live.calls[0][1]["next_run_time"] == first
-    second = save_interval(tracker, 120)
-    assert second > first and interval_snapshot(daily)["minutes"] == 120
-    with pytest.raises(ValueError): save_interval(tracker, 0)
-    assert interval_snapshot(daily)["minutes"] == 120
-    with daily.read() as session:
-        assert session.get(ApplicationState,"automatic_paused").value is True
-        operation=session.get(Operation,"active-auto")
-        assert operation.state=="running" and operation.parameters=={"round":"keep"}
+    try:
+        with daily.write() as session:
+            session.add(ApplicationState(key="automatic_paused",value=True))
+            session.add(Operation(id="active-auto",kind="check",source="automatic",state="running",dedupe_key="active-auto",label="current batch",parameters={"round":"keep"}))
+        first = save_interval(tracker, 75)
+        result = interval_snapshot(daily)
+        assert result["minutes"] == 75 and datetime.fromisoformat(result["next_check_at"]) == first
+        assert live.get_job("check_updates").trigger.interval == timedelta(minutes=75)
+        assert live.get_job("check_updates").next_run_time == first
+        second = save_interval(tracker, 120)
+        assert second > first and interval_snapshot(daily)["minutes"] == 120
+        assert live.get_job("check_updates").trigger.interval == timedelta(minutes=120)
+        assert live.get_job("check_updates").next_run_time == second
+        with pytest.raises(ValueError): save_interval(tracker, 0)
+        assert interval_snapshot(daily)["minutes"] == 120
+        with daily.read() as session:
+            assert session.get(ApplicationState,"automatic_paused").value is True
+            operation=session.get(Operation,"active-auto")
+            assert operation.state=="running" and operation.parameters=={"round":"keep"}
+    finally:
+        live.shutdown(wait=True)
 
 
 def test_settings_distinguish_registration_verification_gaps_and_history(daily, monkeypatch):

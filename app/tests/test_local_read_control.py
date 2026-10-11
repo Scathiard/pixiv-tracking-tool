@@ -9,11 +9,13 @@ from time import monotonic, sleep
 import httpx
 import pytest
 from fastapi import FastAPI, Request
-from sqlalchemy import text
+from sqlalchemy import event, text
 import uvicorn
 
 from src.core.database import ArchiveDatabase
+from src.core.models import Operation, utcnow
 from src.core.read_control import ReadBudget, ReadCancelled, ReadDeadline, current_read, run_read
+from src.core.tasks import TaskQueue
 
 
 LONG_SQL = text("WITH RECURSIVE n(x) AS (VALUES(0) UNION ALL SELECT x+1 FROM n WHERE x<1000000000) SELECT sum(x) FROM n")
@@ -81,6 +83,50 @@ def test_failed_read_records_stage_cost_without_query_or_exception_text(database
     assert float(timings["database_ms"]) > 0 and float(timings["execute_ms"]) > 0
     assert "isolated_delay" not in record and str(database.path) not in record
     assert "private-query-value" not in record and "private-token-and-query" not in record
+
+
+def test_progress_log_distinguishes_active_and_history_hydration_without_private_values(database, caplog):
+    with database.write() as session:
+        for state in ("ready", "finished"):
+            session.add(Operation(id="private-operation-" + state, kind="reconcile",
+                label="private-artwork-label", dedupe_key=state, state=state,
+                finished_at=utcnow() if state == "finished" else None,
+                parameters={"token": "private-bound-value"}, result={"planning_complete": True}))
+    queue = TaskQueue(database, {})
+    delayed_stage = None
+    seen = set()
+
+    def delay_hydration(connection, cursor, statement, parameters, context, executemany):
+        stage = context.execution_options.get("read_stage")
+        if stage:
+            seen.add(stage)
+        if stage == delayed_stage:
+            sleep(.04)
+
+    def fail():
+        assert len(queue.snapshot()["operations"]) == 2
+        raise ValueError("private-exception-token")
+
+    async def scenario():
+        with pytest.raises(ValueError, match="private-exception-token"):
+            await database.reads.run(None, fail, label="progress")
+
+    event.listen(database.engine, "before_cursor_execute", delay_hydration)
+    try:
+        for delayed_stage in ("progress_active_hydrate", "progress_history_hydrate"):
+            caplog.clear()
+            asyncio.run(scenario())
+            record = next(item.message for item in caplog.records if "outcome=read_error" in item.message)
+            assert "endpoint=progress" in record
+            assert f"slowest_read_stage={delayed_stage}" in record
+            assert float(re.search(r"slowest_stage_ms=([\d.]+)", record).group(1)) >= 30
+            assert "last_read_stage=progress_history_hydrate" in record
+            assert not any(private in record for private in (
+                "SELECT", "operations", "private-operation", "private-artwork-label",
+                "private-bound-value", "private-exception-token", str(database.path)))
+        assert seen == {"progress_active_hydrate", "progress_history_hydrate"}
+    finally:
+        event.remove(database.engine, "before_cursor_execute", delay_hydration)
 
 
 def test_queued_timeout_is_logged_as_queue_cost(database, caplog):

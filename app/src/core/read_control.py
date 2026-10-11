@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import contextmanager
 from contextvars import ContextVar
 from functools import wraps
 import inspect
@@ -14,6 +15,7 @@ from fastapi import HTTPException, Request
 
 
 log = logging.getLogger(__name__)
+_READ_STAGES = frozenset(("progress_active_hydrate", "progress_history_hydrate"))
 
 
 class LocalReadError(RuntimeError):
@@ -44,6 +46,10 @@ class ReadBudget:
         self.database_seconds = 0.0
         self.sql_seconds = 0.0
         self.statement_count = 0
+        self.last_read_stage = None
+        self.last_stage_seconds = 0.0
+        self.slowest_read_stage = None
+        self.slowest_stage_seconds = 0.0
         self.cancelled = Event()
         self.cancelled_by_deadline = False
         self._lock = Lock()
@@ -54,13 +60,19 @@ class ReadBudget:
         if (outcome == "ok" and elapsed < 1.0) or outcome == "read_cancelled":
             return
         wait = (self.admitted - self.started) if self.admitted is not None else elapsed
+        stage_detail = ""
+        if self.last_read_stage is not None:
+            stage_detail = (f" last_read_stage={self.last_read_stage}"
+                f" last_stage_ms={self.last_stage_seconds * 1000:.1f}"
+                f" slowest_read_stage={self.slowest_read_stage}"
+                f" slowest_stage_ms={self.slowest_stage_seconds * 1000:.1f}")
         # Only fixed endpoint names and timings: no URL, filters, SQL, paths or
         # exception text can leak artwork metadata or credentials into the log.
         log.warning("local_read id=%s endpoint=%s outcome=%s lane=%s total_ms=%.1f "
-                    "queue_ms=%.1f pool_ms=%.1f database_ms=%.1f execute_ms=%.1f statements=%d",
+                    "queue_ms=%.1f pool_ms=%.1f database_ms=%.1f execute_ms=%.1f statements=%d%s",
                     self.request_id, self.label, outcome, self.lane, elapsed * 1000,
                     wait * 1000, self.pool_seconds * 1000, self.database_seconds * 1000,
-                    self.sql_seconds * 1000, self.statement_count)
+                    self.sql_seconds * 1000, self.statement_count, stage_detail)
 
     def checkpoint(self):
         if self.cancelled.is_set():
@@ -95,6 +107,23 @@ class ReadBudget:
 
 
 current_read: ContextVar[ReadBudget | None] = ContextVar("archive_read_budget", default=None)
+
+
+@contextmanager
+def track_read_stage(stage):
+    """Time only fixed progress hydration scopes, including fetch and decoding."""
+    budget = current_read.get()
+    if budget is None or stage not in _READ_STAGES:
+        yield
+        return
+    began = monotonic()
+    try:
+        yield
+    finally:
+        elapsed = monotonic() - began
+        budget.last_read_stage, budget.last_stage_seconds = stage, elapsed
+        if budget.slowest_read_stage is None or elapsed > budget.slowest_stage_seconds:
+            budget.slowest_read_stage, budget.slowest_stage_seconds = stage, elapsed
 
 
 class ReadController:
