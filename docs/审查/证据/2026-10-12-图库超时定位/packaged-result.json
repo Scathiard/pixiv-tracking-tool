@@ -1,0 +1,20 @@
+{
+  "startup_ready": true,
+  "process_ids": [
+    38644,
+    4580
+  ],
+  "normal_exit_ms": 1653,
+  "real_library_used": false,
+  "served_js_sha256": "bac9a095b70d372eeb74162d3b19dfeb141b224e4c36962e9f532ab30b8f51de",
+  "recorded_at": "2026-10-12T04:37:15.0757522+08:00",
+  "gallery_ms": 13,
+  "remaining": [],
+  "build": "20261012.2",
+  "gallery_count": 0,
+  "launch_pid": 38644,
+  "tray_stop_sent": 2,
+  "mode": "isolated-offline",
+  "logged_in": false,
+  "success": true
+}

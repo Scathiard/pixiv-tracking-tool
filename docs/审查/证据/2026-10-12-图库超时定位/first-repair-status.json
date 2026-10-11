@@ -1,0 +1,28 @@
+{
+  "recorded_at": "2026-10-12T04:43:17.5430719+08:00",
+  "progress": {
+    "automatic_paused": false,
+    "active_operation_count": 1
+  },
+  "processes": [
+    {
+      "ProcessId": 35364,
+      "ParentProcessId": 19748,
+      "ExecutablePath": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261012.2.exe"
+    },
+    {
+      "ProcessId": 44056,
+      "ParentProcessId": 35364,
+      "ExecutablePath": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261012.2.exe"
+    }
+  ],
+  "status": {
+    "listening_port": 1919,
+    "upgrade_required": false,
+    "logged_in": true
+  },
+  "log": {
+    "bytes": 3161605,
+    "name": "diagnostic-20261012-043835-44056-c8e1cbb6c8c9-part0001.jsonl"
+  }
+}

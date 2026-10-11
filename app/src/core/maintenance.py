@@ -231,27 +231,40 @@ class MissingMediaMaintenance:
                     select(RevisionDerivative.derivative_id).where(RevisionDerivative.revision_id == Work.latest_revision_id,
                         RevisionDerivative.derivative_id == record.id).exists())
             windows = {}
+            identity_windows = {}
             def page(statement, name):
                 cursor = self._cursors[name]
-                rows = list(session.execute(statement.where(Work.id < cursor).order_by(Work.id.desc()).limit(SCAN_WINDOW))) if cursor else []
-                if not rows:
-                    rows = list(session.execute(statement.order_by(Work.id.desc()).limit(SCAN_WINDOW)))
-                windows[name] = [row.id for row in rows]
+                if cursor not in identity_windows:
+                    identities = select(Work.id).order_by(Work.id.desc()).limit(SCAN_WINDOW)
+                    ids = list(session.scalars(identities.where(Work.id < cursor))) if cursor else []
+                    start = cursor
+                    if not ids:
+                        ids = list(session.scalars(identities))
+                        start = 0
+                    identity_windows[cursor] = start, ids
+                start, ids = identity_windows[cursor]
+                # Bound the work identities before applying gap predicates. A
+                # LIMIT on matching rows still walks the whole healthy catalogue.
+                rows = list(session.execute(statement.where(Work.id.in_(ids)).order_by(Work.id.desc()))) if ids else []
+                windows[name] = {"start": start, "inspected": ids, "matched": {row.id for row in rows}}
                 return rows
 
-            missing_assets = page(select(Work.id, current_type.label("type"), Work.source_metadata).outerjoin(current_revision, current_revision.id == Work.latest_revision_id).join(
+            selection_required = Work.source_metadata["original_backfill_requires_selection"].as_boolean().label("original_backfill_requires_selection")
+            missing_assets = page(select(Work.id, current_type.label("type"), selection_required).outerjoin(current_revision, current_revision.id == Work.latest_revision_id).join(
                 Asset, and_(Asset.work_id == Work.id, assets_bound(Asset))).join(ArchiveIntent, remote_eligible).where(
                     Asset.state.in_(("missing", "failed", "invalid", "mismatch", "source_changed"))).distinct(), "remote")
             # Imported catalogues may omit required page rows entirely.
             asset_count = select(func.count()).select_from(Asset).where(Asset.work_id == Work.id, assets_bound(Asset)).correlate(Work).scalar_subquery()
-            incomplete = page(select(Work.id, current_type.label("type"), Work.source_metadata).outerjoin(current_revision, current_revision.id == Work.latest_revision_id).join(ArchiveIntent, remote_eligible).where(
+            incomplete = page(select(Work.id, current_type.label("type"), selection_required).outerjoin(current_revision, current_revision.id == Work.latest_revision_id).join(ArchiveIntent, remote_eligible).where(
                 asset_count < case((current_type == "ugoira", 2), else_=current_pages)), "incomplete")
-            pending_sources = page(select(Work.id, current_type.label("type"), Work.source_metadata).outerjoin(current_revision, current_revision.id == Work.latest_revision_id).join(ArchiveIntent, remote_eligible).where(
+            pending_sources = page(select(Work.id, current_type.label("type"), selection_required).outerjoin(current_revision, current_revision.id == Work.latest_revision_id).join(ArchiveIntent, remote_eligible).where(
                 func.json_extract(Work.source_metadata, "$.source_updates").is_not(None),
                 func.json_extract(Work.source_metadata, "$.source_updates") != "{}"), "source")
             missing_assets = list({row.id: row for row in missing_assets + incomplete + pending_sources}.values())
             remote = [row.id for row in missing_assets if not (
-                row.type == "ugoira" and (row.source_metadata or {}).get("original_backfill_requires_selection"))]
+                row.type == "ugoira" and row.original_backfill_requires_selection)]
+            for name in ("remote", "incomplete", "source"):
+                windows[name]["matched"].intersection_update(remote)
 
             thumbnail = aliased(Derivative)
             first = aliased(Asset)
@@ -353,7 +366,6 @@ class MissingMediaMaintenance:
                 if due(work_id, "remote"):
                     submitted.append((work_id, "repair", "remote"))
                     selected.add(work_id)
-                    self._next_remote = clock + SCAN_SECONDS
                     break
         local_count = 0
         for work_id in local:
@@ -366,25 +378,20 @@ class MissingMediaMaintenance:
         if len(local) > local_count:
             self._next_scan = clock + BACKLOG_SECONDS
 
-        # Advance only past submitted entries or a window with no due entry.
-        # Busy work and remote cooldown leave the windows untouched.
-        selected_remote = [work_id for work_id, _, name in submitted if name == "remote"]
-        selected_local = [work_id for work_id, _, name in submitted if name == "local"]
-        if remote_open:
-            for name in ("remote", "incomplete", "source"):
-                window = windows[name]
-                chosen = [work_id for work_id in selected_remote if work_id in window]
-                if chosen:
-                    self._cursors[name] = min(chosen)
-                elif window and not any(due(work_id, "remote") for work_id in window):
-                    self._cursors[name] = min(window)
-        for name in ("image", "gif", "pair"):
-            window = windows[name]
-            chosen = [work_id for work_id in selected_local if work_id in window]
-            if chosen:
-                self._cursors[name] = min(chosen)
-            elif window and not any(due(work_id, "local") for work_id in window):
-                self._cursors[name] = min(window)
+        # Traverse the inspected prefix, including healthy and temporarily
+        # waiting entries, but retain every due candidate not submitted yet.
+        # Wraparound revisits waiting/attention entries on subsequent cycles.
+        next_cursors = {}
+        selected_tracks = {(work_id, name) for work_id, _, name in submitted}
+        for name, window in windows.items():
+            track = "remote" if name in ("remote", "incomplete", "source") else "local"
+            cursor = window["start"]
+            for work_id in window["inspected"]:
+                if (work_id in window["matched"] and due(work_id, track)
+                        and (work_id, track) not in selected_tracks):
+                    break
+                cursor = work_id
+            next_cursors[name] = cursor
 
         results = []
         for work_id, kind, name in submitted:
@@ -396,7 +403,7 @@ class MissingMediaMaintenance:
                 tracks = {name: dict(value) for name, value in old.get("tracks", {}).items()}
                 track = tracks.get(name, {})
                 tracks[name] = {**track, "status": "queued", "kind": kind, "operation_id": result["operation_id"],
-                                "attempts": int(track.get("attempts", 0)) + 1,
+                                "attempts": int(track.get("attempts") or 0) + 1,
                                 "last_attempt_at": now.isoformat(), "next_retry_at": None}
                 value = _project({**old, "tracks": tracks})
                 if setting is None:
@@ -404,4 +411,9 @@ class MissingMediaMaintenance:
                 else:
                     setting.value = value
             results.append(result)
+        # Submission and ledger failures leave all traversal positions intact;
+        # already committed queued ledgers prevent duplicates on the retry.
+        self._cursors.update(next_cursors)
+        if any(name == "remote" for _, _, name in submitted):
+            self._next_remote = clock + SCAN_SECONDS
         return results

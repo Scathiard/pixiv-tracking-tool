@@ -9,3 +9,10 @@
 - `ledger-red.xml`、`ledger-checks.xml`、`ledger-checks-02.xml`：无界账本复现、中间旧格式缺次数失败及最终两项通过；中间 XML 另外两项限流回归通过。
 - `integration-checks-02.xml`：最终 3 项集成小回归通过。`read-regression-stack.txt` 是普通沙箱在本地 socketpair 初始化阻塞的现场，不是应用后端堆栈。
 - `old-exit.json`、`frontend-reuse.json`：旧实例正常退出与原样复用前端的核对。
+- `packaged-result.json`：第一轮 `.2` 隔离 EXE 的基础核对通过；不能替代实际图库结果。
+- `actual-activation.json`、`first-repair-failure.json`：第一轮 `.2` 正常启用后首页仍 504，以及资料／版本阶段和同期后台候选查询的现场；前者 `active_tasks` 取错字段，以后者状态补录为准。
+- `first-repair-status.json`：随后真实状态补录，已有登录正常、自动暂停为否、活动操作数 1。
+- `candidate-query-plans.json`：真实库只读 EXPLAIN，不实际执行全库缺项查询；比较匹配后限量与限定身份后的主键定位。
+- `candidate-green-checks.xml`、`candidate-commit-green-checks.xml`：5 项及后续单项提交失败回滚通过；分次来源见 `candidate-query-checks.json`。`candidate-window-injection-checks.xml` 保留错误引擎注入的中间失败，不作为产品缺陷。
+- `candidate-query-checks.json`：仅合成库的六类检查计划及分次验证结果，未运行全量或长测。
+- `first-repair-exit.json`：第一轮 `.2` 正常退出，无剩余实例，无强制结束。
