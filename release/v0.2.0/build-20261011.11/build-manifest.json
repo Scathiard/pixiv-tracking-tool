@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "build": "20261011.11",
+  "exe_file": "PixivTracker_v0.2.0_build20261011.11.exe",
+  "exe_size_bytes": 106419648,
+  "exe_sha256": "ce41bb21e88da14e719a055ce2c0b6e758ef5fe7cbe86cdf732156039dc27c07",
+  "source_commit": "145a373a51be58e7d459bd0a906f1e99e3453ccc",
+  "source_branch": "codex/v0.2.0-build20261011.8",
+  "source_dirty": false,
+  "frontend_dist": "C:\\Users\\princ\\AppData\\Local\\Temp\\PixivTracker-structural-20261011-4ac9f17e\\windows-frontend\\dist",
+  "database_schema": "0004_read_projections",
+  "database_upgrade_required": false,
+  "database_compatible_from": "0004_read_projections",
+  "older_database_upgrade_required": true,
+  "database_upgrade_entry": "startup-confirmed backup / validate / activate",
+  "build_environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.10",
+    "pyinstaller": "6.20.0"
+  },
+  "published": false,
+  "user_acceptance": false,
+  "validation": "diagnostic source checks and synthetic package checks passed; normal capture verified; exited normally; source-location successor available",
+  "diagnostic_build": true
+}
