@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "build": "20261012.1",
+  "exe_file": "PixivTracker_v0.2.0_build20261012.1.exe",
+  "exe_size_bytes": 75198878,
+  "exe_sha256": "e610d3b74b10f6664d07c648ff0a7367587aa4a0eadf00c073579affcb709816",
+  "source_commit": "3710b0027065d9ce7f0dfee2d8e35b0e3b12d1c1",
+  "source_branch": "codex/v0.2.0-build20261012.1",
+  "source_dirty": false,
+  "frontend_dist": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.1\\work\\tmp\\continuous-logs\\frontend-dist",
+  "database_schema": "0004_read_projections",
+  "database_upgrade_required": false,
+  "database_compatible_from": "0004_read_projections",
+  "older_database_upgrade_required": true,
+  "database_upgrade_entry": "startup-confirmed backup / validate / activate",
+  "build_environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "pyinstaller": "6.20.0"
+  },
+  "published": false,
+  "user_acceptance": false,
+  "validation": "9 focused logging tests passed; packaged synthetic startup, local read, resources, timestamps and graceful exit verified; normal daily instance enabled and real rotation observed. Existing library read_timeout recorded, not fixed.",
+  "activation": {
+    "directory": "D:\\PixivTracker",
+    "startup_ready": true,
+    "diagnostic_second_part_observed": true,
+    "whole_backend_timeout_resolved": false,
+    "normal_mode": true
+  },
+  "frontend_reuse": {
+    "source_build": "20261011.13",
+    "source": "Existing packaged frontend extracted without rebuild",
+    "js_sha256": "bac9a095b70d372eeb74162d3b19dfeb141b224e4c36962e9f532ab30b8f51de"
+  }
+}
