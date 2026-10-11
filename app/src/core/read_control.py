@@ -16,7 +16,9 @@ from . import diagnostics
 
 
 log = logging.getLogger(__name__)
-_READ_STAGES = frozenset(("progress_active_hydrate", "progress_history_hydrate"))
+_READ_STAGES = frozenset(("progress_active_hydrate", "progress_history_hydrate",
+    "library_works", "library_metadata", "library_revisions", "library_bookmarks",
+    "library_states", "library_media"))
 
 
 def _read_fields(budget):
@@ -144,7 +146,7 @@ current_read: ContextVar[ReadBudget | None] = ContextVar("archive_read_budget", 
 
 @contextmanager
 def track_read_stage(stage):
-    """Time only fixed progress hydration scopes, including fetch and decoding."""
+    """Time fixed hydration scopes, including result fetching and decoding."""
     budget = current_read.get()
     if budget is None or stage not in _READ_STAGES:
         yield

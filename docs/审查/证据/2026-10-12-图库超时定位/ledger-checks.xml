@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="4" time="16.920" timestamp="2026-10-12T04:23:50.550267+08:00" hostname="Baseline"><testcase classname="tests.test_maintenance_ledger_window" name="test_ledger_pages_advance_and_wrap_without_starving_later_keys" time="1.765"><failure message="TypeError: int() argument must be a string, a bytes-like object or a real number, not 'NoneType'">tmp_path = WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/ledger-checks/test_ledger_pages_advance_and_0')
+
+    def test_ledger_pages_advance_and_wrap_without_starving_later_keys(tmp_path):
+        database, maintenance = create_maintenance(tmp_path, SCAN_WINDOW + 1)
+        statements = []
+        def capture(connection, cursor, statement, *args):
+            if statement.lstrip().upper().startswith("SELECT") and "application_state" in statement:
+                statements.append(statement)
+        event.listen(database.writer_engine, "before_cursor_execute", capture)
+        try:
+            maintenance._reconcile(utcnow())
+            snapshot = values(database)
+            assert sum(value == "ready" for value in snapshot.values()) == SCAN_WINDOW
+            assert snapshot[f"{LEDGER_PREFIX}{SCAN_WINDOW + 1:04}"] == "queued"
+            assert "LIKE" not in statements[0].upper()
+            assert "LIMIT" in statements[0].upper()
+            maintenance._reconcile(utcnow())
+            assert set(values(database).values()) == {"ready"}
+            # A previously visited key changing again is found after reaching the end.
+            with database.write() as session:
+                setting = session.get(ApplicationState, f"{LEDGER_PREFIX}0001")
+                setting.value = {"status": "queued", "kind": "repair", "operation_id": "done"}
+&gt;           maintenance._reconcile(utcnow())
+
+tests\test_maintenance_ledger_window.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;src.core.maintenance.MissingMediaMaintenance object at 0x000001E71CCAA6F0&gt;
+now = datetime.datetime(2026, 10, 11, 20, 23, 58, 366986)
+
+    def _reconcile(self, now):
+        with self.database.write() as session:
+            # Bound examined identities before testing JSON status. LIMIT after
+            # a JSON predicate still scans the whole ledger when nothing is due.
+            prefix_end = LEDGER_PREFIX[:-1] + chr(ord(LEDGER_PREFIX[-1]) + 1)
+            window = select(ApplicationState.key).where(
+                ApplicationState.key &gt;= LEDGER_PREFIX, ApplicationState.key &lt; prefix_end)
+            if self._ledger_cursor is not None:
+                window = window.where(ApplicationState.key &gt; self._ledger_cursor)
+            keys = list(session.scalars(window.order_by(ApplicationState.key).limit(SCAN_WINDOW)))
+            if not keys and self._ledger_cursor is not None:
+                keys = list(session.scalars(select(ApplicationState.key).where(
+                    ApplicationState.key &gt;= LEDGER_PREFIX, ApplicationState.key &lt; prefix_end
+                ).order_by(ApplicationState.key).limit(SCAN_WINDOW)))
+            pending = list(session.scalars(select(ApplicationState).where(
+                ApplicationState.key.in_(keys),
+                ApplicationState.value["status"].as_string().in_(("queued", "waiting")))))
+            for setting in pending:
+                ledger = dict(setting.value) if isinstance(setting.value, dict) else {}
+                tracks = {name: dict(value) for name, value in ledger.get("tracks", {}).items()}
+                if not tracks and ledger.get("kind"):
+                    name = "local" if ledger["kind"] == "thumbnails" else "remote"
+                    tracks[name] = {key: ledger.get(key) for key in (
+                        "status", "kind", "operation_id", "attempts", "last_attempt_at",
+                        "next_retry_at", "reason", "failure_code", "http_status")}
+                changed = False
+                for name, track in tracks.items():
+                    if name == "remote" and track.get("status") == "waiting":
+                        prior = None
+                        if track.get("operation_id"):
+                            prior = session.scalar(select(OperationItem.result).where(
+                                OperationItem.operation_id == track["operation_id"],
+                                OperationItem.state == "failed").order_by(OperationItem.position).limit(1))
+                        try:
+                            work_id = int(setting.key.removeprefix(LEDGER_PREFIX))
+                        except ValueError:
+                            work_id = None
+                        work_type = session.scalar(select(Work.type).where(Work.id == work_id)) if work_id is not None else None
+                        code, reason = _legacy_attention(track, prior,
+                            work_type=work_type)
+                        if code:
+                            track.update(status="attention", next_retry_at=None,
+                                         failure_code=code, reason=reason)
+                            changed = True
+                            continue
+                    if track.get("status") != "queued" or not track.get("operation_id"):
+                        continue
+                    operation = session.execute(select(Operation.id, Operation.state,
+                        Operation.result["outcome"].as_string().label("outcome")
+                    ).where(Operation.id == track["operation_id"])).first()
+                    if operation is None:
+                        continue
+                    if operation.state != "finished":
+                        retry = session.execute(select(OperationItem.id, OperationItem.attempts,
+                            OperationItem.not_before, OperationItem.result).where(
+                            OperationItem.operation_id == operation.id, OperationItem.state == "pending",
+                            OperationItem.not_before.is_not(None)).order_by(OperationItem.position).limit(1)).first()
+                        failure = retry.result if retry and isinstance(retry.result, dict) else {}
+                        status, code = failure.get("status"), failure.get("failure_code")
+                        if name == "remote" and (status == 429 or code in ("api_rate_limit", "image_rate_limit")):
+                            marker = f"{retry.id}:{retry.attempts}"
+                            if track.get("retry_marker") != marker:
+                                delay = max(900, failure.get("retry_after") or 0)
+                                next_retry = now + timedelta(seconds=delay)
+                                track.update(next_retry_at=next_retry.isoformat(), retry_marker=marker,
+                                    reason=failure.get("message") or "请求受到限制，稍后继续补齐",
+                                    failure_code=code, http_status=status)
+                                session.execute(update(OperationItem).where(OperationItem.id == retry.id).values(
+                                    not_before=max(retry.not_before, utcnow() + timedelta(seconds=delay))))
+                                hold = session.get(ApplicationState, REMOTE_HOLD_KEY)
+                                value = {"until": next_retry.isoformat(), "reason": track["reason"], "status": status}
+                                if hold is None:
+                                    session.add(ApplicationState(key=REMOTE_HOLD_KEY, value=value))
+                                elif (_parse_time(hold.value.get("until")) or now) &lt; next_retry:
+                                    hold.value = value
+                                changed = True
+                        continue
+                    failure = session.scalar(select(OperationItem.result).where(
+                        OperationItem.operation_id == operation.id,
+                        OperationItem.state.in_(("failed", "not_executed"))).order_by(OperationItem.position).limit(1))
+                    failed = operation.outcome in ("failed", "partial_failure")
+&gt;                   attempts = int(track.get("attempts", 0))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E                   TypeError: int() argument must be a string, a bytes-like object or a real number, not 'NoneType'
+
+src\core\maintenance.py:167: TypeError</failure></testcase><testcase classname="tests.test_maintenance_ledger_window" name="test_failed_ledger_transaction_keeps_cursor_and_retryable_records" time="1.608" /><testcase classname="tests.test_missing_media_maintenance" name="test_rate_limit_sets_remote_hold[ApiRateLimit-200]" time="3.382" /><testcase classname="tests.test_missing_media_maintenance" name="test_rate_limit_sets_remote_hold[ImageRateLimit-None]" time="2.939" /></testsuite></testsuites>

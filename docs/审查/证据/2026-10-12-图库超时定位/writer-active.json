@@ -1,0 +1,130 @@
+[
+  {
+    "event": "watch.active",
+    "utc": "2026-10-11T20:25:10.072+00:00",
+    "elapsed_ms": 6881875.0,
+    "thread": 39480,
+    "trace": "",
+    "parent": "",
+    "spans": [
+      {
+        "span": "da7723d8fa24",
+        "event": "application.run",
+        "trace": "da7723d8fa24",
+        "parent": "",
+        "thread": 35492,
+        "offline": false,
+        "age_ms": 6881859.0
+      },
+      {
+        "span": "9ad1e582456c",
+        "event": "task.scheduler_step",
+        "trace": "9ad1e582456c",
+        "parent": "",
+        "thread": 34292,
+        "operation_ref": "",
+        "item_ref": null,
+        "lane": "check",
+        "age_ms": 687343.0
+      },
+      {
+        "span": "90b5adc0b24a",
+        "event": "task.item_execute",
+        "trace": "9ad1e582456c",
+        "parent": "9ad1e582456c",
+        "thread": 34292,
+        "operation_ref": "e3965e91356d7db3",
+        "item_ref": "33c2ae497ebe4d01",
+        "lane": "check",
+        "phase": "checking",
+        "item_kind": "discover_page",
+        "attempts": 1,
+        "dependency_failed": false,
+        "age_ms": 687015.0
+      },
+      {
+        "span": "9b9ded1f8707",
+        "event": "db.write.transaction",
+        "trace": "9ad1e582456c",
+        "parent": "90b5adc0b24a",
+        "thread": 34292,
+        "age_ms": 687015.0
+      },
+      {
+        "span": "b50cd2eb1e2e",
+        "event": "db.write.projections",
+        "trace": "9ad1e582456c",
+        "parent": "9b9ded1f8707",
+        "thread": 34292,
+        "age_ms": 687015.0
+      },
+      {
+        "span": "aaf1e9b5ac04",
+        "event": "projection.works",
+        "trace": "9ad1e582456c",
+        "parent": "b50cd2eb1e2e",
+        "thread": 34292,
+        "count": 16578,
+        "resource_count": 0,
+        "display_count": 0,
+        "age_ms": 125515.0
+      },
+      {
+        "span": "9958fe973eba",
+        "event": "projection.work.batch",
+        "trace": "9ad1e582456c",
+        "parent": "aaf1e9b5ac04",
+        "thread": 34292,
+        "age_ms": 125515.0
+      },
+      {
+        "span": "a4d6e1f6bdca",
+        "event": "projection.work.batch",
+        "trace": "9ad1e582456c",
+        "parent": "9958fe973eba",
+        "thread": 34292,
+        "age_ms": 1078.0
+      },
+      {
+        "span": "e82ee7856a4d",
+        "event": "sql",
+        "sql_id": "4c9e61de62020efc",
+        "connection": "361293ff3f9a203b",
+        "thread": 34292,
+        "trace": "9ad1e582456c",
+        "parent": "a4d6e1f6bdca",
+        "age_ms": 78.0
+      },
+      {
+        "span": "3343cafef37b",
+        "event": "wal.wait",
+        "trace": "3343cafef37b",
+        "parent": "",
+        "thread": 9260,
+        "delay_seconds": 0.25,
+        "age_ms": 31.0
+      }
+    ],
+    "total": 10,
+    "seq": 5923199
+  },
+  {
+    "event": "process.sample",
+    "utc": "2026-10-11T20:25:10.085+00:00",
+    "elapsed_ms": 6881891.0,
+    "thread": 39480,
+    "trace": "",
+    "parent": "",
+    "active_spans": 10,
+    "queue_size": 463,
+    "dropped_records": 0,
+    "event_loop_gap_ms": 31.0,
+    "rss_bytes": 139755520,
+    "read_bytes": 103959357313,
+    "write_bytes": 28782496027,
+    "cpu_user": 622.03125,
+    "cpu_system": 207.953125,
+    "threads": 17,
+    "seq": 5923662
+  }
+]

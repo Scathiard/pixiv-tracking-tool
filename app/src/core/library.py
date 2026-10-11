@@ -16,6 +16,7 @@ from ..security import sanitize_caption
 
 from .archive_state import work_states
 from .read_projection import CursorExpired
+from .read_control import track_read_stage
 from .media import CARD_MOTION_SPEC
 from .tag_translations import tag_details
 from .source_status import ARTIST_PREFIX, availability_snapshot
@@ -316,11 +317,15 @@ class Library:
             Work.type, Work.page_count, Work.posted_at, Work.x_restrict,
             Work.default_revision_id, Work.latest_revision_id, raiseload=True), selectinload(Work.artist).load_only(Artist.name),
             selectinload(Work.preference), selectinload(Work.bookmark)) if compact else self._related(related)
-        by_id = {work.id: work for work in session.scalars(related)} if window_ids else {}
+        with track_read_stage("library_works"):
+            by_id = {work.id: work for work in session.scalars(related)} if window_ids else {}
         works = [by_id[work_id] for work_id in window_ids]
-        self._load_display_metadata(session, works, detail=not compact)
-        snapshots = selected_snapshots(session, works, compact=compact, display=True)
-        operations = self._bookmark_operations(session, [work.id for work in works])
+        with track_read_stage("library_metadata"):
+            self._load_display_metadata(session, works, detail=not compact)
+        with track_read_stage("library_revisions"):
+            snapshots = selected_snapshots(session, works, compact=compact, display=True)
+        with track_read_stage("library_bookmarks"):
+            operations = self._bookmark_operations(session, [work.id for work in works])
         views = [{"id": work.id, "pixiv_id": work.pixiv_illust_id, "artist_id": work.artist_id,
                   "artist_name": work.artist.name, "title": work.title, "type": work.type,
                   "page_count": work.page_count, "x_restrict": work.x_restrict,
@@ -335,8 +340,10 @@ class Library:
             apply_snapshot(view, work, snapshots.get(work.id), compact=compact)
         ids = [work.id for work in works]
         animation_ids = [view["id"] for view in views if view["type"] == "ugoira"]
-        states, revision = work_states(session, works)
-        assets, derived = media_maps(session, works, snapshots, ranges={work.id: (0, 1) for work in works})
+        with track_read_stage("library_states"):
+            states, revision = work_states(session, works)
+        with track_read_stage("library_media"):
+            assets, derived = media_maps(session, works, snapshots, ranges={work.id: (0, 1) for work in works})
         thumbnails = {work.id: derived.get((work.id, "thumbnail", 0, "v1")) for work in works}
         first_pages = {work.id: assets.get((work.id, "image", 0)) for work in works}
         animations = {work_id: derived.get((work_id, "gif", 0, "v1")) for work_id in animation_ids}

@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 from datetime import datetime, timedelta
 
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.orm import aliased
 
 from .models import ApplicationState, ArchiveIntent, Asset, Derivative, Operation, OperationItem, Work, WorkRevision, RevisionAsset, RevisionDerivative, utcnow
@@ -81,11 +81,24 @@ class MissingMediaMaintenance:
         self._next_scan = 0.0
         self._next_remote = 0.0
         self._cursors = {"remote": 0, "incomplete": 0, "source": 0, "image": 0, "gif": 0, "pair": 0}
+        self._ledger_cursor = None
 
     def _reconcile(self, now):
         with self.database.write() as session:
+            # Bound examined identities before testing JSON status. LIMIT after
+            # a JSON predicate still scans the whole ledger when nothing is due.
+            prefix_end = LEDGER_PREFIX[:-1] + chr(ord(LEDGER_PREFIX[-1]) + 1)
+            window = select(ApplicationState.key).where(
+                ApplicationState.key >= LEDGER_PREFIX, ApplicationState.key < prefix_end)
+            if self._ledger_cursor is not None:
+                window = window.where(ApplicationState.key > self._ledger_cursor)
+            keys = list(session.scalars(window.order_by(ApplicationState.key).limit(SCAN_WINDOW)))
+            if not keys and self._ledger_cursor is not None:
+                keys = list(session.scalars(select(ApplicationState.key).where(
+                    ApplicationState.key >= LEDGER_PREFIX, ApplicationState.key < prefix_end
+                ).order_by(ApplicationState.key).limit(SCAN_WINDOW)))
             pending = list(session.scalars(select(ApplicationState).where(
-                ApplicationState.key.like(LEDGER_PREFIX + "%"),
+                ApplicationState.key.in_(keys),
                 ApplicationState.value["status"].as_string().in_(("queued", "waiting")))))
             for setting in pending:
                 ledger = dict(setting.value) if isinstance(setting.value, dict) else {}
@@ -107,9 +120,9 @@ class MissingMediaMaintenance:
                             work_id = int(setting.key.removeprefix(LEDGER_PREFIX))
                         except ValueError:
                             work_id = None
-                        work = session.get(Work, work_id) if work_id is not None else None
+                        work_type = session.scalar(select(Work.type).where(Work.id == work_id)) if work_id is not None else None
                         code, reason = _legacy_attention(track, prior,
-                            work_type=work.type if work else None)
+                            work_type=work_type)
                         if code:
                             track.update(status="attention", next_retry_at=None,
                                          failure_code=code, reason=reason)
@@ -117,13 +130,16 @@ class MissingMediaMaintenance:
                             continue
                     if track.get("status") != "queued" or not track.get("operation_id"):
                         continue
-                    operation = session.get(Operation, track["operation_id"])
+                    operation = session.execute(select(Operation.id, Operation.state,
+                        Operation.result["outcome"].as_string().label("outcome")
+                    ).where(Operation.id == track["operation_id"])).first()
                     if operation is None:
                         continue
                     if operation.state != "finished":
-                        retry = session.scalar(select(OperationItem).where(
+                        retry = session.execute(select(OperationItem.id, OperationItem.attempts,
+                            OperationItem.not_before, OperationItem.result).where(
                             OperationItem.operation_id == operation.id, OperationItem.state == "pending",
-                            OperationItem.not_before.is_not(None)).order_by(OperationItem.position).limit(1))
+                            OperationItem.not_before.is_not(None)).order_by(OperationItem.position).limit(1)).first()
                         failure = retry.result if retry and isinstance(retry.result, dict) else {}
                         status, code = failure.get("status"), failure.get("failure_code")
                         if name == "remote" and (status == 429 or code in ("api_rate_limit", "image_rate_limit")):
@@ -134,7 +150,8 @@ class MissingMediaMaintenance:
                                 track.update(next_retry_at=next_retry.isoformat(), retry_marker=marker,
                                     reason=failure.get("message") or "请求受到限制，稍后继续补齐",
                                     failure_code=code, http_status=status)
-                                retry.not_before = max(retry.not_before, utcnow() + timedelta(seconds=delay))
+                                session.execute(update(OperationItem).where(OperationItem.id == retry.id).values(
+                                    not_before=max(retry.not_before, utcnow() + timedelta(seconds=delay))))
                                 hold = session.get(ApplicationState, REMOTE_HOLD_KEY)
                                 value = {"until": next_retry.isoformat(), "reason": track["reason"], "status": status}
                                 if hold is None:
@@ -146,8 +163,8 @@ class MissingMediaMaintenance:
                     failure = session.scalar(select(OperationItem.result).where(
                         OperationItem.operation_id == operation.id,
                         OperationItem.state.in_(("failed", "not_executed"))).order_by(OperationItem.position).limit(1))
-                    failed = operation.result.get("outcome") in ("failed", "partial_failure")
-                    attempts = int(track.get("attempts", 0))
+                    failed = operation.outcome in ("failed", "partial_failure")
+                    attempts = int(track.get("attempts") or 0)
                     if failed:
                         failure = failure if isinstance(failure, dict) else {}
                         status = failure.get("status")
@@ -187,6 +204,8 @@ class MissingMediaMaintenance:
                     changed = True
                 if changed:
                     setting.value = _project({**ledger, "tracks": tracks})
+        # A failed transaction must leave the previous traversal position intact.
+        self._ledger_cursor = keys[-1] if keys else None
 
     def _candidates(self):
         with self.database.read() as session:

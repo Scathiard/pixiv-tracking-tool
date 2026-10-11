@@ -1,0 +1,54 @@
+{
+  "scope": "Synthetic parent-task projection deltas; no production library, account, service, schema or trigger changes",
+  "source_baseline": "c0c7f78",
+  "modified_files": [
+    "app/src/core/projection_maintenance.py",
+    "app/tests/test_task_projection_deltas.py"
+  ],
+  "runtime": "Existing .devtools/v012-env Python 3.12 environment",
+  "red": {
+    "run": "projection-tests/red-03",
+    "result": "2 failed in 5.49s",
+    "failures": [
+      "Original parent lifecycle update deletes every operation candidate",
+      "Unchanged reconcile_operation returns all 6 affected works instead of no changes"
+    ],
+    "cost_probe_run": "projection-tests/red-04",
+    "cost_probe_result": "1 failed in 3.58s",
+    "synthetic_work_count": 6,
+    "batch_candidate_deletes": 1,
+    "source_work_reads": 2,
+    "work_order_writes": 6
+  },
+  "green": {
+    "run": "projection-tests/green-02",
+    "result": "8 passed in 10.42s",
+    "focused_tests": 5,
+    "existing_tests": [
+      "test_playable_gif_does_not_replace_required_zip_and_timing",
+      "test_finished_failure_wins_stale_queued_ledger_and_new_success_clears_it",
+      "test_original_and_derivative_retry_schedules_are_independent"
+    ],
+    "final_focused_run": "projection-tests/green-03",
+    "final_focused_result": "5 passed in 6.67s",
+    "batch_candidate_deletes": 0,
+    "source_work_reads": 0,
+    "work_order_writes": 0,
+    "settled_work_state_rewrites": 0,
+    "unchanged_candidate_rewrites": 0,
+    "task_cache_plan": "Uses ix_read_task_winner; no SCAN or temporary sort in captured query plan",
+    "semantic_checks": [
+      "Ready to running and actual running item state",
+      "Finished parent with success and failure items",
+      "Persisted scope reduction and operation deletion",
+      "Mixed source metadata and physical asset changes in the same transaction",
+      "Existing work missing task cache fails and rolls back parent state",
+      "Nonexistent historical task work identity retains existing behavior",
+      "Explicit verify_projections independently checks source candidates and work states"
+    ],
+    "diff_check": "Passed"
+  },
+  "limits": "Small synthetic semantic and SQL-work regression only; no real HDD timing, EXE validation, build or commit performed by this subagent. Parent lifecycle changes still update all candidate facts whose actual ordering or payload changed.",
+  "temporary_root": "D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/projection-tests",
+  "temporary_policy": "Only this subagent's new synthetic pytest runs; removed after saving this evidence"
+}
