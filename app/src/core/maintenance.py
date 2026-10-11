@@ -225,11 +225,11 @@ class MissingMediaMaintenance:
             def assets_bound(record):
                 return or_(and_(Work.latest_revision_id.is_(None), record.revision_id.is_(None)),
                     select(RevisionAsset.asset_id).where(RevisionAsset.revision_id == Work.latest_revision_id,
-                        RevisionAsset.asset_id == record.id).exists())
+                        RevisionAsset.asset_id == record.id).correlate(Work, record).exists())
             def derivatives_bound(record):
                 return or_(and_(Work.latest_revision_id.is_(None), record.revision_id.is_(None)),
                     select(RevisionDerivative.derivative_id).where(RevisionDerivative.revision_id == Work.latest_revision_id,
-                        RevisionDerivative.derivative_id == record.id).exists())
+                        RevisionDerivative.derivative_id == record.id).correlate(Work, record).exists())
             windows = {}
             identity_windows = {}
             def page(statement, name):

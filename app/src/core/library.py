@@ -260,7 +260,8 @@ class Library:
             Work.default_revision_id, Work.latest_revision_id)).where(Work.id.in_(work_ids)))) if work_ids else []
         by_id = {work.id: work for work in preview_works}
         snapshots = selected_snapshots(session, preview_works, compact=True)
-        originals, derived = media_maps(session, preview_works, snapshots, ranges={work.id: (0, 1) for work in preview_works})
+        originals, derived = media_maps(session, preview_works, snapshots,
+            ranges={work.id: (0, 1) for work in preview_works}, compact=True)
         recent = {artist_id: [] for artist_id in ids}
         for artist_id in ids:
             for work_id in windows[artist_id]:
@@ -343,7 +344,8 @@ class Library:
         with track_read_stage("library_states"):
             states, revision = work_states(session, works)
         with track_read_stage("library_media"):
-            assets, derived = media_maps(session, works, snapshots, ranges={work.id: (0, 1) for work in works})
+            assets, derived = media_maps(session, works, snapshots,
+                ranges={work.id: (0, 1) for work in works}, compact=compact)
         thumbnails = {work.id: derived.get((work.id, "thumbnail", 0, "v1")) for work in works}
         first_pages = {work.id: assets.get((work.id, "image", 0)) for work in works}
         animations = {work_id: derived.get((work_id, "gif", 0, "v1")) for work_id in animation_ids}

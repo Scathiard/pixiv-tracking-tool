@@ -16,3 +16,6 @@
 - `candidate-green-checks.xml`、`candidate-commit-green-checks.xml`：5 项及后续单项提交失败回滚通过；分次来源见 `candidate-query-checks.json`。`candidate-window-injection-checks.xml` 保留错误引擎注入的中间失败，不作为产品缺陷。
 - `candidate-query-checks.json`：仅合成库的六类检查计划及分次验证结果，未运行全量或长测。
 - `first-repair-exit.json`：第一轮 `.2` 正常退出，无剩余实例，无强制结束。
+- `packaged-result-03.json`、`actual-activation-03.json`、`second-repair-failure.json`：第二轮 `.3` 隔离基础核对通过、真实首屏仍 504，以及媒体阶段和同期线程现场；包含首屏前八秒，不是整份日常日志。
+- `correlation-check.xml`：内层计数必须关联当前作品的微型合成回归，不能让其他作品的版本补上本作品缺页。
+- `card-media-checks.json`、`card-media-checks.xml`、`card-media-existing-checks.xml`：3 项卡片新回归和 1 项原完整读取回归通过；涵盖默认／显式版本、槽与归属、窄字段、首图回退、动图 SHA、有限 SQL 和 241 动图分支上限，仅合成数据。

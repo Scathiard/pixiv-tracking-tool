@@ -1,0 +1,37 @@
+{
+  "active_operation_count": 1,
+  "launch_pid": 37452,
+  "automatic_paused": false,
+  "startup_ms": 4170,
+  "recorded_at": "2026-10-12T04:53:10.2650925+08:00",
+  "library_probe": {
+    "repeat_probe": false,
+    "http_status": 504,
+    "elapsed_ms": 4688,
+    "error_type": "HttpResponseException"
+  },
+  "processes": [
+    {
+      "ProcessId": 37452,
+      "ParentProcessId": 45248,
+      "ExecutablePath": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261012.3.exe",
+      "CommandLine": "\"D:\\PixivTracker\\PixivTracker_v0.2.0_build20261012.3.exe\" "
+    },
+    {
+      "ProcessId": 34432,
+      "ParentProcessId": 37452,
+      "ExecutablePath": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261012.3.exe",
+      "CommandLine": "\"D:\\PixivTracker\\PixivTracker_v0.2.0_build20261012.3.exe\" "
+    }
+  ],
+  "startup_ready": true,
+  "normal_mode": true,
+  "manual_remote_tasks_submitted": 0,
+  "status": {
+    "listening_port": 1919,
+    "saved_port": 1919,
+    "logged_in": false,
+    "upgrade_required": false
+  },
+  "build": "20261012.3"
+}

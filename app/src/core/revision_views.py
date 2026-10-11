@@ -35,13 +35,15 @@ def selected_snapshots(session, works, explicit=None, *, compact=False, display=
             if value in snapshots and snapshots[value].work_id == work_id}
 
 
-def media_maps(session, works, snapshots, *, ranges=None):
+def media_maps(session, works, snapshots, *, ranges=None, compact=False):
     """Read requested indexed slots, independent of unrelated page/history rows.
 
     Separate UNION branches retain equality prefixes on the binding/legacy slot
     indexes. A broad `role != image OR page BETWEEN ...` predicate would force a
     scan of all pages of a long work before returning this fixed-size window.
     """
+    if compact:
+        return card_media_maps(session, works, snapshots)
     from .media import CARD_MOTION_SPEC
     works = list(works)
     assets, derivatives = {}, {}
@@ -95,6 +97,73 @@ def media_maps(session, works, snapshots, *, ranges=None):
         for record, kind, page, spec in session.execute(statement):
             key = (record.work_id, kind, page, spec)
             derivatives[key] = record
+    return assets, derivatives
+
+
+def card_media_maps(session, works, snapshots):
+    """Read page-zero card slots, then hydrate narrow entities in physical order.
+
+    Bindings own the logical slot even when a physical file has another slot.
+    Resolve bound UUIDs through their covering identity indexes without reading
+    the file row until the final ordered, bounded hydration query.
+    """
+    from .media import CARD_MOTION_SPEC
+    asset_queries, derivative_queries = [], []
+    for work in works:
+        snapshot = snapshots.get(work.id)
+        animation = (snapshot.type if snapshot is not None else work.type) == "ugoira"
+        if snapshot is None:
+            asset_base = select(literal_column("assets.rowid").label("physical_row"),
+                literal(work.id).label("owner"), literal("image").label("slot_role"),
+                literal(0).label("slot_page")).select_from(Asset).where(
+                    Asset.work_id == work.id, Asset.revision_id.is_(None))
+            asset_role, asset_page = Asset.role, Asset.page_index
+            derivative_base = select(literal_column("derivatives.rowid").label("physical_row"),
+                literal(work.id).label("owner"), Derivative.kind.label("slot_kind"),
+                Derivative.page_index.label("slot_page"), Derivative.spec_key.label("slot_spec")).where(
+                    Derivative.work_id == work.id, Derivative.revision_id.is_(None))
+            kind, page, spec = Derivative.kind, Derivative.page_index, Derivative.spec_key
+        else:
+            asset_row = select(literal_column("assets.rowid")).select_from(Asset).where(
+                Asset.id == RevisionAsset.asset_id).correlate(RevisionAsset).scalar_subquery()
+            asset_base = select(asset_row.label("physical_row"), literal(work.id).label("owner"),
+                RevisionAsset.role.label("slot_role"), RevisionAsset.page_index.label("slot_page")).where(
+                    RevisionAsset.revision_id == snapshot.id)
+            asset_role, asset_page = RevisionAsset.role, RevisionAsset.page_index
+            derivative_row = select(literal_column("derivatives.rowid")).select_from(Derivative).where(
+                Derivative.id == RevisionDerivative.derivative_id).correlate(RevisionDerivative).scalar_subquery()
+            derivative_base = select(derivative_row.label("physical_row"), literal(work.id).label("owner"),
+                RevisionDerivative.kind.label("slot_kind"), RevisionDerivative.page_index.label("slot_page"),
+                RevisionDerivative.spec_key.label("slot_spec")).where(RevisionDerivative.revision_id == snapshot.id)
+            kind, page, spec = RevisionDerivative.kind, RevisionDerivative.page_index, RevisionDerivative.spec_key
+        asset_queries.append(asset_base.where(asset_role == "image", asset_page == 0))
+        derivative_queries.append(derivative_base.where(kind == "thumbnail", page == 0,
+            spec.in_(("v1", CARD_MOTION_SPEC)) if animation else spec == "v1"))
+        if animation:
+            derivative_queries.append(derivative_base.where(kind == "gif", page == 0, spec == "v1"))
+
+    def hydrate(model, queries, columns):
+        slots = []
+        for begin in range(0, len(queries), 480):
+            slots.extend(session.execute(union_all(*queries[begin:begin + 480])))
+        physical = sorted({row[0] for row in slots if row[0] is not None})
+        row_id = literal_column(f"{model.__tablename__}.rowid")
+        records = {}
+        # At most 480 row IDs plus 480 owner IDs per query, including SQLite
+        # builds with the older 999-variable limit. No per-work hydration.
+        for begin in range(0, len(physical), 480):
+            chunk = physical[begin:begin + 480]
+            chunk_set = set(chunk)
+            chunk_owners = {row[1] for row in slots if row[0] in chunk_set}
+            statement = select(model, row_id).where(row_id.in_(chunk), model.work_id.in_(chunk_owners)).order_by(row_id)
+            statement = statement.options(load_only(*columns, raiseload=True))
+            records.update({row: record for record, row in session.execute(statement)})
+        return {tuple(slot[1:]): records[slot[0]] for slot in slots
+                if slot[0] in records and records[slot[0]].work_id == slot[1]}
+
+    assets = hydrate(Asset, asset_queries, (Asset.id, Asset.work_id, Asset.relative_path, Asset.state))
+    derivatives = hydrate(Derivative, derivative_queries, (Derivative.id, Derivative.work_id,
+        Derivative.relative_path, Derivative.state, Derivative.sha256, Derivative.source_version))
     return assets, derivatives
 
 
