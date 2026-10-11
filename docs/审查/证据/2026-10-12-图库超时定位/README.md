@@ -25,3 +25,7 @@
 - `normalized-task-checks.xml`、`normalized-task-results.json`：共享父状态3项合成验证，960项父变化不读项目／成员、不写作品状态；400份无关父历史增长不增加所选作品读取指令。
 - `gallery-card-checks.xml`：3项窄卡片对照、归属／SHA、事务与读取边界验证，仅合成数据。
 - `cards-tasks-upgrade-checks.xml`、`card-integration-checks.xml`：0004升级／激活／回退、失败源保留、0003兼容及正式卡片与收藏即时更新共4项通过（8.88／1.81秒），不等同真实图库已升级。
+- `packaged-result-05.json`：`.5`隔离最终EXE通过，空图库7ms、正常退出1.647秒；不是实际图库首屏证据。
+- `actual-activation-05.json`、`read-structure-check-exit.json`、`read-structure-check-exit-followup.json`：`.5`获批升级停在备份前只读核验，正常退出等待后仅结束本轮进程；未产生备份/候选文件、未转换原库。
+- `cards-tasks-upgrade-checks-02.xml`：`.6`仅0004新增读取结构路径采用快速检查，外键、源事实、结构和映射核验仍保留；3项通过（12.81秒），不等同全索引审计。
+- `third-repair-exit.json`：`.4`正常退出，保存结果时旧PowerShell编码失败；耗时只记录工具返回的上界，不伪造精确退出计时。

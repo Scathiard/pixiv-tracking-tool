@@ -48,11 +48,18 @@ def fingerprint(path):
 def test_0004_candidate_keeps_sources_and_can_activate_then_rollback(tmp_path):
     source = source_0004(tmp_path / "source.db")
     before = fingerprint(source)
+    traced = []
+    with upgrade._readonly(source) as connection:
+        connection.set_trace_callback(traced.append)
+        upgrade._inspect_old(connection)
+    assert "PRAGMA quick_check" in traced and "PRAGMA integrity_check" not in traced
+    assert "PRAGMA foreign_key_check" in traced
     with pytest.raises(UpgradeRequired):
         ArchiveDatabase(source)
     result = upgrade.upgrade_0005(source, tmp_path / "candidate.db", tmp_path / "backup.db")
     assert fingerprint(source) == fingerprint(result["backup"]) == before
     assert result["validation"]["schema_revision"] == SCHEMA_REVISION == "0005_read_cards_tasks"
+    assert result["validation"]["database_check"] == "quick_check"
     assert result["validation"]["projection"]["cards"] == {"cards": 1}
     candidate = ArchiveDatabase(result["candidate"])
     card = Library(candidate).query(compact=True)["items"][0]

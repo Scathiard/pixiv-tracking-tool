@@ -1,0 +1,12 @@
+{
+  "expected_exe": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261012.5.exe",
+  "stopped": [
+    48932,
+    43572
+  ],
+  "force_used": true,
+  "stage": "source integrity_check before backup",
+  "source_activated": false,
+  "upgrade_files_before_stop": [],
+  "recorded_at": "2026-10-12T06:05:28.2972499+08:00"
+}

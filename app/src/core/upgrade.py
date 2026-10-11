@@ -182,8 +182,6 @@ def _identifier(name):
 
 
 def _inspect_old(connection, expected=None):
-    if connection.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
-        raise UpgradeRequired("源数据库完整性检查失败")
     tables = _tables(connection)
     if "alembic_version" not in tables:
         raise UpgradeRequired("源数据库没有结构版本")
@@ -192,6 +190,13 @@ def _inspect_old(connection, expected=None):
     if len(versions) != 1 or versions[0][0] not in allowed:
         raise UpgradeRequired("源数据库不是支持的旧结构版本")
     version = versions[0][0]
+    # 0004 upgrades copy source data/indexes unchanged and only add read tables.
+    # Index-to-row integrity walks cause random HDD reads for every old index;
+    # the copied source fingerprint and new projection mapping provide the
+    # relevant invariants here. Keep full checks for actual domain conversions.
+    check = "quick_check" if version == READ_PROJECTIONS_REVISION else "integrity_check"
+    if connection.execute("PRAGMA " + check).fetchone()[0] != "ok":
+        raise UpgradeRequired("源数据库完整性检查失败")
     for table in Base.metadata.sorted_tables:
         if version not in (REVISIONS_REVISION, READ_PROJECTIONS_REVISION) and table.name in _REVISION_TABLES or version == OLD_REVISION and table.name in _NEW_TABLES:
             continue
@@ -329,8 +334,12 @@ def _verify_preserved_revisions(check, old):
 def validate_candidate(candidate, backup=None):
     """Read-only verification. Validation never installs or repairs a projection."""
     source_version = None
+    if backup:
+        with _readonly(backup) as old:
+            source_version = old.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+    check_kind = "quick_check" if source_version == READ_PROJECTIONS_REVISION else "integrity_check"
     with _readonly(candidate) as check:
-        if check.execute("PRAGMA integrity_check").fetchone()[0] != "ok" or check.execute("PRAGMA foreign_key_check").fetchone():
+        if check.execute("PRAGMA " + check_kind).fetchone()[0] != "ok" or check.execute("PRAGMA foreign_key_check").fetchone():
             raise UpgradeRequired("候选库完整性或外键检查失败")
         versions = check.execute("SELECT version_num FROM alembic_version").fetchall()
         if versions != [(SCHEMA_REVISION,)]:
@@ -396,7 +405,8 @@ def validate_candidate(candidate, backup=None):
                     raise UpgradeRequired("候选库读取投影核验失败，未启用") from error
     finally:
         engine.dispose()
-    return {"schema_revision": SCHEMA_REVISION, "totals": totals, "projection": projection, "warnings": warnings}
+    return {"schema_revision": SCHEMA_REVISION, "totals": totals, "projection": projection,
+        "warnings": warnings, "database_check": check_kind}
 
 
 def _finish_projection_candidate(candidate, *, install=False, convert_legacy=False):
