@@ -88,10 +88,10 @@ def test_settings_materializes_shape_once_without_losing_cross_work_reuse(monkey
             Path(artifact).mkdir(parents=True,exist_ok=True)
             Path(artifact,"settings-projection-plan.json").write_text(json.dumps(evidence,indent=2),encoding="utf-8")
         assert "current_works AS MATERIALIZED" in sql, plan
-        assert "revision_shapes AS MATERIALIZED" in sql, plan
-        assert sum("SCAN work_revisions USING COVERING INDEX ix_revisions_settings_shape" in row[3]
-                   for row in plan) == 1, plan
-        assert not any("SEARCH work_revisions " in row[3] for row in plan), plan
+        assert "revision_shapes AS MATERIALIZED" not in sql, plan
+        assert any("SEARCH r USING COVERING INDEX ix_revisions_settings_shape" in row[3]
+                   for row in plan), plan
+        assert not any("SCAN work_revisions" in row[3] or "SCAN r " in row[3] for row in plan), plan
         assert not any("SEARCH works USING INTEGER PRIMARY KEY" in row[3] for row in plan), plan
     finally:
         if event.contains(engine,"before_cursor_execute",capture):
@@ -197,9 +197,9 @@ def test_settings_dense_history_stays_bounded_and_default_switch_is_immediate(tm
         assert len(captured) == 4, evidence
         for query in evidence['queries']:
             plan = query['plan']
-            assert sum('SCAN work_revisions USING COVERING INDEX ix_revisions_settings_shape' in row[3]
-                       for row in plan) == 1, plan
-            assert not any('SEARCH work_revisions ' in row[3] for row in plan), plan
+            assert any('SEARCH r USING COVERING INDEX ix_revisions_settings_shape' in row[3]
+                       for row in plan), plan
+            assert not any('SCAN work_revisions' in row[3] or 'SCAN r ' in row[3] for row in plan), plan
             assert query['seconds'] < 4.5, evidence['queries']
         assert max(request['seconds'] for request in evidence['requests']) < 5.0, evidence['requests']
     finally:

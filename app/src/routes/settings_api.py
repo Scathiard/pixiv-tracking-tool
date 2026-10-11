@@ -3,13 +3,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import and_, case, func, or_, select, union
+from sqlalchemy import Integer, String, and_, case, func, or_, select, text, union
 import socket
 import ipaddress
 
 from .. import config
 from ..auth import get_pending_login_url
-from ..core.models import ArchiveIntent, Artist, Asset, RevisionAsset, Work, WorkRevision
+from ..core.models import ArchiveIntent, Artist, Asset, RevisionAsset, Work
 from ..core.activity_log import processing_log
 from ..core.read_control import local_read
 from ..version import __version__, __build__
@@ -54,18 +54,17 @@ def create_settings_router(get_runtime):
         with current.database.read() as session:
             artists = session.scalar(select(func.count()).select_from(Artist)) or 0
             works = session.scalar(select(func.count()).select_from(Work)) or 0
-            # Scan only the version shape columns once. Joining the wide table
-            # directly can prefer its unique ID index over the covering index,
-            # seeking a caption/metadata-heavy record for every current work.
-            revision_shapes = select(WorkRevision.id, WorkRevision.type,
-                WorkRevision.page_count).cte("revision_shapes").prefix_with("MATERIALIZED")
-            # Both projections are statement-local and keep the original NULL,
-            # dangling-reference and cross-work selection semantics.
-            current_works = select(Work.id.label("work_id"), Work.pixiv_illust_id.label("pixiv_id"),
-                Work.default_revision_id.label("revision_id"),
-                func.coalesce(revision_shapes.c.type, Work.type).label("type"),
-                func.coalesce(revision_shapes.c.page_count, Work.page_count).label("page_count")).outerjoin(
-                    revision_shapes, revision_shapes.c.id == Work.default_revision_id).cte("current_works").prefix_with("MATERIALIZED")
+            # Seek only selected version shapes in existing covering indexes.
+            # Explicit index selection avoids both historical shape scans and
+            # SQLite choosing wide caption/metadata rows through the unique ID.
+            # Keep NULL, dangling-reference and cross-work selection semantics.
+            current_works = text("""SELECT w.id AS work_id,w.pixiv_illust_id AS pixiv_id,
+                w.default_revision_id AS revision_id,coalesce(r.type,w.type) AS type,
+                coalesce(r.page_count,w.page_count) AS page_count
+                FROM works w INDEXED BY ix_works_settings_shape
+                LEFT JOIN work_revisions r INDEXED BY ix_revisions_settings_shape
+                ON r.id=w.default_revision_id""").columns(work_id=Integer, pixiv_id=String,
+                    revision_id=String, type=String, page_count=Integer).cte("current_works").prefix_with("MATERIALIZED")
             # UNION retains the former IN-membership semantics: a reused asset is
             # counted once even if several default revisions reference its ID.
             # Separate the legacy branch instead of repeating a MULTI-INDEX OR

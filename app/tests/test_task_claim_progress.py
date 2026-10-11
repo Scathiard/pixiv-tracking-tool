@@ -2,6 +2,7 @@
 import io
 import zipfile
 from contextlib import contextmanager
+from datetime import datetime, timedelta
 
 import pytest
 from PIL import Image
@@ -13,6 +14,77 @@ from src.core.models import ArchiveIntent, Artist, Asset, Operation, OperationIt
 from src.core.reconcile import ReconcileHandler
 from src.core.revisions import ensure_legacy_revision
 from src.core.tasks import ItemResult, ItemSpec, TaskContext, TaskQueue
+from src.core import projection_maintenance as maintenance
+from src.core.activity_log import processing_log
+
+
+def test_item_progress_keeps_parent_event_time_and_survives_reopen(case, monkeypatch):
+    db, queue = case
+    from src.core import tasks
+    started = datetime(2026, 10, 11, 12)
+    now = [started + timedelta(hours=1)]
+    monkeypatch.setattr(tasks, "utcnow", lambda: now[0])
+
+    class ReportingHandler:
+        def execute(self, item, context):
+            context.report("verifying", int(item.key), 2, "assets", "synthetic progress")
+            context.report_step("verifying", "assets")
+            context.detail("synthetic detail")
+            return ItemResult()
+
+    queue.handlers["verify"] = ReportingHandler()
+    with db.write() as session:
+        session.add(Artist(id=1, pixiv_user_id="1", name="synthetic"))
+        session.add_all([Work(id=i, pixiv_illust_id=str(i), artist_id=1,
+                             title="synthetic", type="illust", page_count=1) for i in (1, 2)])
+    ident = enqueue(db, queue, [ItemSpec(str(i - 1), "checked", {"work_id": i},
+                                       "verifying", "assets") for i in (1, 2)])
+    with db.write() as session:
+        parent = session.get(Operation, ident)
+        parent.state, parent.started_at, parent.updated_at = "running", started, started
+        session.add(Operation(id="other-finished", kind="verify", label="older finished",
+                              dedupe_key="other-finished", state="finished",
+                              updated_at=started + timedelta(minutes=30),
+                              finished_at=started + timedelta(minutes=30)))
+    parent_rebuilds = []
+    for name in ("reconcile_operation",):
+        original = getattr(maintenance, name)
+        def observe(*args, _name=name, _original=original, **kwargs):
+            parent_rebuilds.append(_name)
+            return _original(*args, **kwargs)
+        monkeypatch.setattr(maintenance, name, observe)
+    with db.read() as session:
+        untouched = session.connection().exec_driver_sql(
+            "SELECT * FROM read_task_candidates WHERE work_id=2").all()
+    assert queue._step("local")
+    with db.read() as session:
+        parent = session.get(Operation, ident)
+        assert parent.updated_at == started
+        assert (parent.phase_done, parent.phase_total, parent.detail) == (1, 2, "synthetic detail")
+        assert parent.result["phase_snapshots"]["verifying:assets"]["done"] == 1
+        assert session.connection().exec_driver_sql(
+            "SELECT * FROM read_task_candidates WHERE work_id=2").all() == untouched
+        assert session.connection().exec_driver_sql("SELECT count(*) FROM read_model_dirty").scalar() == 0
+    assert parent_rebuilds == []
+    queue.stop()
+    db.close()
+    reopened = ArchiveDatabase(db.path)
+    resumed = TaskQueue(reopened, {"verify": ReportingHandler()})
+    try:
+        detail = resumed.details(ident)
+        assert detail["phase"]["done"] == 1 and detail["phase"]["total"] == 2
+        assert detail["counts"] == {"pending": 1, "succeeded": 1}
+        now[0] += timedelta(hours=1)
+        assert resumed._step("local")
+        with reopened.read() as session:
+            parent = session.get(Operation, ident)
+            assert parent.state == "finished" and parent.phase_done == 2
+            assert parent.updated_at == parent.finished_at == now[0]
+        assert processing_log(reopened, limit=1)["lines"][0].startswith(
+            now[0].isoformat(timespec="seconds") + "Z [" + ident[:8] + "]")
+    finally:
+        resumed.stop()
+        reopened.close()
 
 
 class Handler:

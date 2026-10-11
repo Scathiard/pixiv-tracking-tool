@@ -250,19 +250,16 @@ class ArchiveDatabase:
         with self._write_lock, self.writer_session() as session:
             if self._closed:
                 raise RuntimeError("数据库已关闭")
-            progress_hook = False
             try:
                 self._writer_state.active = True
                 session.connection().exec_driver_sql("BEGIN IMMEDIATE")
                 from .read_projection import require_ready
-                from .projection_maintenance import capture_operation_progress, maintain_projections
+                from .projection_maintenance import maintain_projections
                 self._check_schema(session.connection())
                 # Pre-existing dirty records came from an external writer. Do
                 # not turn an ordinary transaction into an implicit repair.
                 require_ready(session.connection())
                 session.info['read_projection_writer'] = True
-                event.listen(session, 'before_flush', capture_operation_progress)
-                progress_hook = True
                 yield session
                 session.flush()
                 maintain_projections(session)
@@ -276,9 +273,6 @@ class ArchiveDatabase:
                 session.rollback()
                 raise
             finally:
-                if progress_hook:
-                    event.remove(session, 'before_flush', capture_operation_progress)
-                session.info.pop('read_operation_progress', None)
                 session.info.pop('read_projection_writer', None)
                 self._writer_state.active = False
 

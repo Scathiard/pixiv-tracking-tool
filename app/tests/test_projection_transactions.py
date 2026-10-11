@@ -1,7 +1,7 @@
 """Synthetic old/new identity capture, atomic maintenance, and fail-closed reads."""
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytest
-from sqlalchemy import event, select
+from sqlalchemy import select
 
 from src.core.database import ArchiveDatabase
 from src.core import projection_maintenance as maintenance
@@ -194,128 +194,6 @@ def test_resource_rebinding_and_delete_moves_task_membership(database):
         session.connection().exec_driver_sql("DELETE FROM assets WHERE id='a'")
     assert state(database, 2)['processing']['state'] == 'idle'
     assert state(database, 3)['processing']['state'] == 'running'
-    assert_verified(database)
-
-
-def test_parent_progress_preserves_candidates_and_competing_winners_without_manifest_rebuild(database, monkeypatch):
-    created = datetime(2026, 1, 1)
-    with database.write() as session:
-        session.add(operation(parameters={'work_ids': [1, 2, 3]}, created_at=created, updated_at=created))
-        session.flush()
-        session.add_all([OperationItem(id=f'item-{i}', operation_id='operation', item_key=str(i),
-            kind='verify', target={'work_id': 1 + i % 3}, phase='checking', state='pending',
-            position=i) for i in range(30)])
-        session.add(OperationItem(id='fallback', operation_id='operation', item_key='fallback',
-            kind='error', target={}, phase='checking', state='pending', position=30))
-    queries = []
-    plans = []
-    def capture(connection, cursor, statement, parameters, context, executemany):
-        queries.append(statement.lower())
-        if statement.startswith('WITH members AS MATERIALIZED'):
-            plans.append([row[3] for row in connection.connection.driver_connection.execute(
-                'EXPLAIN QUERY PLAN ' + statement, parameters)])
-    event.listen(database.writer_engine, 'before_cursor_execute', capture)
-    try:
-        with database.write() as session:
-            driver = session.connection().connection.driver_connection
-            before_changes = driver.total_changes
-            parent = session.get(Operation, 'operation')
-            parent.phase, parent.updated_at = 'checking', created + timedelta(seconds=1)
-        new_changes, new_statements = driver.total_changes - before_changes, len(queries)
-        assert not any('delete from read_task_candidates' in sql or
-            'insert into read_task_candidates' in sql or 'from operation_items' in sql for sql in queries)
-        assert not any('delete from read_operation_scope' in sql or
-            'insert into read_operation_scope' in sql or 'insert into read_work_state' in sql for sql in queries)
-        assert len(plans) == 2
-        assert all(any('ix_read_task_operation' in part for part in plan) and
-            any('ix_read_task_winner' in part for part in plan) and
-            not any('SCAN read_task_candidates' in part or 'SCAN c' in part for part in plan)
-            for plan in plans)
-        with database.read() as session:
-            rows = session.connection().exec_driver_sql('SELECT updated_at FROM read_task_candidates').scalars().all()
-            assert len(rows) == 33 and set(rows) == {'2026-01-01 00:00:01.000000'}
-        assert_verified(database)
-
-        # Reproduce the former parent + scope rebuild on the same small fixture.
-        def former_scope(connection, operation_id, **kwargs):
-            affected = maintenance._remove_candidates(connection, operation_id=operation_id, scope_only=True)
-            connection.exec_driver_sql('DELETE FROM read_operation_scope WHERE operation_id=?', (operation_id,))
-            members, values = maintenance._scope_values(connection, operation_id)
-            if members:
-                connection.exec_driver_sql('INSERT INTO read_operation_scope VALUES(?,?)',
-                    [(operation_id, value) for value in sorted(members)])
-            if values is not None:
-                for work_id in members:
-                    projection.task_fact(connection, work_id, 'scope:' + operation_id, **values)
-                affected.update(members)
-            return affected
-        queries.clear()
-        with monkeypatch.context() as patch:
-            patch.setattr(maintenance, 'reconcile_operation_progress', lambda *args: None)
-            patch.setattr(maintenance, 'reconcile_scope', former_scope)
-            with database.write() as session:
-                driver = session.connection().connection.driver_connection
-                before_changes = driver.total_changes
-                parent = session.get(Operation, 'operation')
-                parent.phase_done, parent.updated_at = 1, created + timedelta(seconds=2)
-        old_changes, old_statements = driver.total_changes - before_changes, len(queries)
-        assert new_changes < old_changes and new_statements < old_statements
-        print(f'parent_progress rows=31 works=3 candidates=33 old_changes={old_changes} new_changes={new_changes}'
-            f' old_statements={old_statements} new_statements={new_statements}')
-        assert_verified(database)
-
-        with database.write() as session:
-            session.add(operation('competitor', created_at=created, updated_at=created + timedelta(seconds=3)))
-            session.flush()
-            session.add(OperationItem(id='competing', operation_id='competitor', item_key='competing',
-                kind='verify', target={'work_id': 1}, phase='checking', state='pending'))
-        with database.read() as session:
-            assert projection.task_winner(session.connection(), 1)['payload']['operation_id'] == 'competitor'
-        queries.clear()
-        with database.write() as session:
-            parent = session.get(Operation, 'operation')
-            parent.phase_done, parent.updated_at = 2, created + timedelta(seconds=4)
-            session.flush()
-            parent.detail, parent.updated_at = 'still checking', created + timedelta(seconds=5)
-        assert not any('delete from read_task_candidates' in sql or 'from operation_items' in sql for sql in queries)
-        with database.read() as session:
-            assert projection.task_winner(session.connection(), 1)['payload']['operation_id'] == 'operation'
-        assert_verified(database)
-
-        # One direct item change must not rewrite the parent's unchanged scope.
-        queries.clear()
-        with database.write() as session:
-            session.get(OperationItem, 'item-0').state = 'running'
-        assert not any('delete from read_operation_scope' in sql or
-            'insert into read_operation_scope' in sql for sql in queries)
-        assert sum('insert into read_task_candidates' in sql for sql in queries) == 1
-        assert sum('insert into read_work_state' in sql for sql in queries) == 1
-        assert_verified(database)
-    finally:
-        event.remove(database.writer_engine, 'before_cursor_execute', capture)
-
-
-def test_parent_progress_hint_falls_back_for_raw_sql_and_structural_flushes(database):
-    with database.write() as session:
-        session.add(operation(parameters={'work_ids': [1, 2]}))
-        session.flush()
-        session.add(OperationItem(id='item', operation_id='operation', item_key='item',
-            kind='verify', target={'work_id': 1}, phase='checking', state='pending'))
-    for raw_first in (False, True):
-        with database.write() as session:
-            parent = session.get(Operation, 'operation')
-            if raw_first:
-                session.connection().exec_driver_sql("UPDATE operations SET kind='repair' WHERE id='operation'")
-            parent.updated_at += timedelta(seconds=1)
-            session.flush()
-            if not raw_first:
-                session.connection().exec_driver_sql("UPDATE operations SET kind='thumbnails' WHERE id='operation'")
-        assert_verified(database)
-    with database.write() as session:
-        parent = session.get(Operation, 'operation')
-        parent.state = 'finished'
-        session.flush()
-        parent.updated_at += timedelta(seconds=1)
     assert_verified(database)
 
 

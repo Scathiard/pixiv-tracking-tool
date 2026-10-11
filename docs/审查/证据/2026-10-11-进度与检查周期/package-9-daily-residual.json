@@ -1,0 +1,49 @@
+[
+  {
+    "path": "/api/progress",
+    "status": 200,
+    "keys": [
+      "active_operation_count",
+      "queued_operation_count",
+      "catalogue_revision",
+      "round",
+      "next_round_count",
+      "needs_attention_count",
+      "automatic_paused",
+      "worker_error",
+      "operations",
+      "recovery_issues"
+    ],
+    "current": [
+      {
+        "kind": "check",
+        "state": "running",
+        "phase": {
+          "name": "checking",
+          "unit": "works",
+          "done": 27,
+          "total": null,
+          "detail": "正在处理"
+        },
+        "phase_done": null,
+        "phase_total": null,
+        "manifest_total": null,
+        "finished_items": null,
+        "updated_at": null
+      }
+    ],
+    "wal": null,
+    "milliseconds": 9.1
+  },
+  {
+    "path": "/api/settings",
+    "status": 504,
+    "error": "{\"detail\":{\"code\":\"read_timeout\",\"message\":\"本地读取超时，请重试\"}}",
+    "milliseconds": 4675.2
+  },
+  {
+    "path": "/api/logs",
+    "status": 200,
+    "milliseconds": 3157.1
+  }
+]

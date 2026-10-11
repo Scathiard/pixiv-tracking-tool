@@ -56,11 +56,18 @@ def test_manual_pause_persists_and_continues_only_unfinished(db):
     assert queue._step("check")
     assert queue.details(op)["state"] == "paused"
     assert queue.details(op)["counts"] == {"pending": 2, "succeeded": 1}
+    with db.read() as session:
+        paused_at = session.get(Operation, op).updated_at
+    queue.set_manual_paused(op, True)
+    with db.read() as session:
+        assert session.get(Operation, op).updated_at == paused_at
     restored = TaskQueue(db, {"reconcile": handler})
     restored.recover()
     assert restored.details(op)["pause_requested"] is True
     assert not restored._step("check")
     restored.set_manual_paused(op, False)
+    with db.read() as session:
+        assert session.get(Operation, op).updated_at > paused_at
     assert restored.run_round()
     assert [key for _, key in handler.executed] == ["0", "1", "1", "2"]
     assert restored.details(op)["counts"] == {"succeeded": 3}

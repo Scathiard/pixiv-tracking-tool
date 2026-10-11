@@ -111,7 +111,7 @@ class TaskContext:
         with self.queue.database.write() as session:
             operation = session.get(Operation, self.operation_id)
             operation.phase, operation.phase_done, operation.phase_total = phase, done, total
-            operation.phase_unit, operation.detail, operation.updated_at = unit, detail, utcnow()
+            operation.phase_unit, operation.detail = unit, detail
             snapshots = dict(operation.result.get("phase_snapshots", {}))
             snapshots[phase + ":" + unit] = {"phase": phase, "unit": unit, "done": done, "total": total}
             operation.result = {**operation.result, "phase_snapshots": snapshots}
@@ -143,7 +143,7 @@ class TaskContext:
         self.checkpoint()
         with self.queue.database.write() as session:
             operation = session.get(Operation, self.operation_id)
-            operation.detail, operation.updated_at = text, utcnow()
+            operation.detail = text
 
     def checkpoint(self):
         if self.queue._stop.is_set():
@@ -449,6 +449,17 @@ class TaskQueue:
                 return True
         return False
 
+    @staticmethod
+    def _set_operation_state(operation, state, *, start=False):
+        # Parent time records lifecycle events, never per-item display progress.
+        # Repeated claims of an already-running parent must not fan out recency.
+        first_start = start and operation.started_at is None
+        if operation.state != state or first_start:
+            operation.updated_at = utcnow()
+            if first_start:
+                operation.started_at = operation.updated_at
+        operation.state = state
+
     def set_manual_paused(self, operation_id, paused):
         if type(paused) is not bool:
             raise ValueError("暂停设置必须是布尔值")
@@ -458,10 +469,12 @@ class TaskQueue:
                 raise KeyError(operation_id)
             if operation.kind != "reconcile" or operation.source != "manual" or operation.state == "finished":
                 raise ValueError("只能暂停或继续尚未结束的手动检查并补齐")
+            changed = operation.pause_requested != paused
             operation.pause_requested = paused
             if not paused and operation.state == "interrupted":
-                operation.state = "planning" if operation.result.get("planning_complete") is False else "ready"
-            operation.updated_at = utcnow()
+                self._set_operation_state(operation, "planning" if operation.result.get("planning_complete") is False else "ready")
+            if changed:
+                operation.updated_at = utcnow()
             operation.detail = "已请求暂停，当前步骤安全结束后停下" if paused else "已继续，等待处理未完成部分"
             result = {"operation_id": operation_id, "pause_requested": paused, "state": operation.state}
             self._publish_controls_after_commit(session, paused=(operation_id, paused))
@@ -494,11 +507,13 @@ class TaskQueue:
             session.add(operation)
             session.flush()
             if specs is not None:
-                operation.state = "ready"
+                self._set_operation_state(operation, "ready")
                 operation.result = {"inventory_complete": True}
                 self.materialize_in_transaction(session, operation.id, specs)
         elif source == "manual":
             operation.source = "manual"
+            if promoted:
+                operation.updated_at = utcnow()
         inherited_round = False
         if parent_id is not None:
             parent = session.get(Operation, parent_id)
@@ -603,7 +618,7 @@ class TaskQueue:
                 item.state = "pending"
             for operation in session.scalars(self._allowed_query(select(Operation).where(Operation.state.in_(("planning", "running", "interrupted"))))):
                 round_record = session.get(TaskRound, operation.round_id) if operation.round_id else None
-                operation.state = "planning" if operation.result.get("planning_complete") is False else "ready" if round_record and round_record.frozen_at else "planning"
+                self._set_operation_state(operation, "planning" if operation.result.get("planning_complete") is False else "ready" if round_record and round_record.frozen_at else "planning")
                 operation.detail = "上次运行中断，正在核对并继续"
         self.worker_error = None
 
@@ -909,8 +924,7 @@ class TaskQueue:
                                 background_tokens.append(token)
                             self._planning.add(operation.id)
                             self._check_turns[operation.id] = "item"
-                        operation.state = "planning"
-                        operation.started_at = operation.started_at or utcnow()
+                        self._set_operation_state(operation, "planning", start=True)
                         claim = candidate
                     else:
                         item = session.get(OperationItem, candidate[2])
@@ -938,7 +952,7 @@ class TaskQueue:
                             self._candidate_after.pop((operation.id, lane), None)
                             self._candidate_epochs[operation.id, lane] = self._candidate_epochs.get((operation.id, lane), 0) + 1
                         item.state, item.attempts = "running", item.attempts + 1
-                        operation.state, operation.started_at = "running", operation.started_at or utcnow()
+                        self._set_operation_state(operation, "running", start=True)
                         operation.result = {**operation.result, "lane": lane}
                         claim = ("item", operation.id, item, resource, any(states.get(key) != "succeeded" for key in item.depends_on))
                         self._report_step_in_transaction(session, operation, item.phase, item.unit)
@@ -1057,9 +1071,9 @@ class TaskQueue:
                 # A pause may arrive after round selection but before this batch starts.
                 operation.round_id = None
                 return False
-            operation.state, operation.phase = "planning", "checking"
+            self._set_operation_state(operation, "planning", start=True)
+            operation.phase = "checking"
             operation.result = {**operation.result, "planning_complete": False}
-            operation.started_at = operation.started_at or utcnow()
             kind, parameters = operation.kind, operation.parameters
         context = TaskContext(self, operation_id, kind=kind)
         failure = None
@@ -1086,7 +1100,8 @@ class TaskQueue:
         except (ShutdownRequested, ManualPauseRequested, ConnectionRequired):
             with self.database.write() as session:
                 operation = session.get(Operation, operation_id)
-                operation.state, operation.detail = ("interrupted", "退出前已保存进度，下次启动继续") if self._stop.is_set() else ("planning", "已暂停，清单进度已保存" if self.kind_allowed(kind) else "等待连接 Pixiv，任务进度已保留")
+                self._set_operation_state(operation, "interrupted" if self._stop.is_set() else "planning")
+                operation.detail = "退出前已保存进度，下次启动继续" if self._stop.is_set() else "已暂停，清单进度已保存" if self.kind_allowed(kind) else "等待连接 Pixiv，任务进度已保留"
             return False
         except (Exception, TaskRemoteRetry) as exc:
             if not self.kind_allowed(kind):
@@ -1116,7 +1131,7 @@ class TaskQueue:
                 for stored in session.scalars(select(OperationItem).where(OperationItem.operation_id == operation_id, OperationItem.item_key == "inventory-failed")):
                     stored.state, stored.result = "failed", failure
             running_item = session.scalar(select(OperationItem.id).where(OperationItem.operation_id == operation_id, OperationItem.state == "running").limit(1))
-            operation.state = "planning" if not complete else "running" if running_item else "ready"
+            self._set_operation_state(operation, "planning" if not complete else "running" if running_item else "ready")
             if not complete:
                 with self._scheduler_lock:
                     operation.last_claim_seq = self._claim_sequence
@@ -1190,7 +1205,7 @@ class TaskQueue:
         progress = self._step_progress(session, operation, phase, unit, initialize=True)
         operation.phase, operation.phase_unit = phase, unit
         operation.phase_done, operation.phase_total = progress["done"], progress["total"]
-        operation.detail, operation.updated_at = "正在处理", utcnow()
+        operation.detail = "正在处理"
         snapshots = dict(operation.result.get("phase_snapshots", {}))
         snapshots[phase + ":" + unit] = {"phase": phase, "unit": unit, **progress}
         operation.result = {**{key: value for key, value in operation.result.items()
@@ -1289,7 +1304,6 @@ class TaskQueue:
             done, total = progress["done"], progress["total"]
             if (operation.phase, operation.phase_unit) == (item.phase, item.unit):
                 operation.phase_done, operation.phase_total = done, total
-            operation.updated_at = utcnow()
             snapshots = dict(operation.result.get("phase_snapshots", {}))
             snapshots[phase_key] = {"phase": item.phase, "unit": item.unit, "done": done, "total": total}
             current_items = dict(operation.result.get("current_items", {}))
@@ -1301,7 +1315,8 @@ class TaskQueue:
     def _defer_plan(self, operation_id, seconds, message, *, retry_attempts=None):
         with self.database.write() as session:
             operation = session.get(Operation, operation_id)
-            operation.state, operation.detail = "planning", message
+            self._set_operation_state(operation, "planning")
+            operation.detail = message
             result = {**operation.result, "planning_not_before": (utcnow() + timedelta(seconds=seconds)).isoformat()}
             if retry_attempts is not None:
                 result["planning_retry_attempts"] = retry_attempts
@@ -1320,7 +1335,8 @@ class TaskQueue:
             if refund_attempt:
                 item.attempts = max(0, item.attempts - 1)
             operation = session.get(Operation, operation_id)
-            operation.state, operation.detail = ("interrupted", "退出前已保存进度，下次启动继续") if self._stop.is_set() else ("ready" if operation.result.get("planning_complete") is not False else "planning", "已保存进度，等待继续")
+            self._set_operation_state(operation, "interrupted" if self._stop.is_set() else "ready" if operation.result.get("planning_complete") is not False else "planning")
+            operation.detail = "退出前已保存进度，下次启动继续" if self._stop.is_set() else "已保存进度，等待继续"
             if message:
                 operation.detail = message
             current_items = dict(operation.result.get("current_items", {}))
@@ -1358,7 +1374,7 @@ class TaskQueue:
                 unfinished_child = session.scalar(child_query.where(or_(Operation.id.is_(None), Operation.state != "finished")).limit(1))
                 if unfinished_child:
                     operation.detail = "发现已完成，等待保存与本地处理结案"
-                    operation.state = "ready"
+                    self._set_operation_state(operation, "ready")
                     operation.result = {**operation.result, "lane": None}
                     continue
                 # Aggregate persisted child results once, after the SQL completion gate.
@@ -1370,7 +1386,8 @@ class TaskQueue:
             result = outcome(combined)
             operation.result = {**operation.result, **combined, "counts": combined, "outcome": result, "lane": None}
             operation.needs_attention = result in ("partial_failure", "failed")
-            operation.state, operation.finished_at = "finished", utcnow()
+            self._set_operation_state(operation, "finished")
+            operation.finished_at = operation.updated_at
             phase_keys = tuple(operation.result.get("step_progress", {}))
             with self._scheduler_lock:
                 self._check_turns.pop(operation_id, None)
@@ -1407,6 +1424,8 @@ class TaskQueue:
             operation = session.get(Operation, operation_id)
             if operation is None:
                 raise KeyError(operation_id)
+            if operation.needs_attention:
+                operation.updated_at = utcnow()
             operation.needs_attention = False
 
     def snapshot(self, *, history_limit=20):
