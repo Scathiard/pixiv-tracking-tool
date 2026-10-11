@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Isolated task feedback fixture</title></head>
+<body data-theme="dark"><div id="app"></div>
+<script type="module">
+import {createApp, h, ref} from 'vue'
+import TaskPanel from '../src/TaskPanel.vue'
+import BrandMark from '../src/components/BrandMark.vue'
+import '../src/style.css'
+const panel = ref(null)
+window.taskFixture = {showTask: id => panel.value?.showTask(id)}
+createApp({render: () => h('main', {class: 'app-shell'}, [
+  h('header', {class: 'app-header'}, h('div', {class: 'mobile-head'}, [
+    h('button', {class: 'menu-toggle', 'aria-label': '打开菜单'}, '☰'),
+    h('button', {class: 'brand', 'aria-label': '返回我的图库'}, [h(BrandMark), h('span', 'PixivTracker')]),
+    h('span', {class: 'mobile-head-spacer'})])),
+  h('section', {class: 'subpage', id: 'artwork', style: 'background:#668899;height:100%;padding:16px'}, '这里是图片区域'),
+  h(TaskPanel, {ref: panel})])}).mount('#app')
+</script></body></html>

@@ -4,7 +4,10 @@ export interface Operation {
   lane?: 'check' | 'download' | 'local' | null
   parameters?: {parent_operation_id?: string; kind?: string}
   phase: {name: string; done: number; total: number | null; unit: string; detail: string}
-  result: {outcome?: string}
+  created_at?: string
+  finished_at?: string | null
+  result: {outcome?: string; planning_complete?: boolean; counts?: Record<string, number>;
+    step_progress?: Record<string, {done: number; total: number}>}
 }
 
 export const activeStates = new Set(['queued', 'planning', 'ready', 'running', 'interrupted', 'paused', 'pausing'])
@@ -59,5 +62,81 @@ export function phaseStatus(op: Operation, automaticPaused = false, workerError 
   const phase = checkingArtists ? '核对画师' : phases[op.phase.name] || op.phase.name || '处理'
   const unit = units[op.phase.unit] || op.phase.unit || '项'
   const done = Number.isFinite(op.phase.done) ? op.phase.done : 0
+  const known = op.result.step_progress?.[`${op.phase.name}:${op.phase.unit}`]?.total
+  if (op.phase.total === null && known !== undefined && known >= done && known > 0) return `${phase} · ${done} / 已发现 ${known} ${unit}`
   return op.phase.total === null ? `${phase} · 已处理 ${done} ${unit}` : `${phase} · ${done} / ${op.phase.total} ${unit}`
+}
+
+/** Server timestamps are UTC, including the older offset-free ISO values. */
+export function elapsedStatus(op: Operation, now: number): string {
+  if (!op.created_at) return ''
+  const value = /(?:Z|[+-]\d\d:\d\d)$/.test(op.created_at) ? op.created_at : op.created_at + 'Z'
+  const seconds = Math.max(0, (now - Date.parse(value)) / 1000)
+  if (!Number.isFinite(seconds)) return ''
+  if (seconds < 60) return '历时不足 1 分钟'
+  if (seconds < 3600) return `历时 ${Math.floor(seconds / 60)} 分钟`
+  return `历时 ${Math.floor(seconds / 3600)} 小时 ${Math.floor(seconds % 3600 / 60)} 分钟`
+}
+
+export function progressPercent(op: Operation | null): number | null {
+  if (!op || op.phase.total === null || op.phase.total <= 0) return null
+  return Math.floor(Math.max(0, Math.min(100, op.phase.done / op.phase.total * 100)))
+}
+
+export function completionStatus(op: Operation): string {
+  const counts = op.result.counts || {}
+  const result = {succeeded: '已完成', partial_failure: '部分完成', failed: '未完成', empty: '无需处理'}[op.result.outcome || ''] || '处理结束'
+  const parts = [['succeeded', '成功'], ['failed', '失败'], ['skipped', '跳过'], ['not_executed', '未执行']]
+    .filter(([key]) => (counts[key!] || 0) > 0).map(([key, label]) => `${label} ${counts[key!]}`)
+  return `${op.label}：${result}${parts.length ? `（${parts.join('，')}）` : ''}`
+}
+
+export function knownStages(op: Operation): string {
+  return Object.entries(op.result.step_progress || {}).filter(([key]) => key !== `${op.phase.name}:${op.phase.unit}`)
+    .slice(0, 3).map(([key, progress]) => {
+      const [phase, unit] = key.split(':')
+      const label = phase === 'checking' && unit === 'pages' ? '列表页' : unit === 'artists' ? '画师' : phases[phase!] || phase
+      return `${label} ${progress.done}/${progress.total}`
+    }).join(' · ')
+}
+
+export function waitingDetail(op: Operation): string {
+  return /等待|冷却|限流|重试|稍后/.test(op.phase.detail) ? op.phase.detail : ''
+}
+
+/** Estimates only the current fixed phase. Discovery, waiting and changed totals reset it. */
+export class PhaseEstimate {
+  private key = ''
+  private samples: {at: number; done: number}[] = []
+  private lastAdvance = 0
+  reset() { this.key = ''; this.samples = []; this.lastAdvance = 0 }
+  observe(op: Operation | null, now: number, stale = false): number | null {
+    if (!op || stale || op.state !== 'running' || op.phase.total === null || op.phase.total <= 0
+        || op.phase.name === 'waiting_connection' || waitingDetail(op)) { this.reset(); return null }
+    const key = `${op.id}:${op.phase.name}:${op.phase.unit}:${op.phase.total}`
+    const last = this.samples.at(-1)
+    if (key !== this.key || (last && (now <= last.at || op.phase.done < last.done))) {
+      this.reset(); this.key = key
+    }
+    const previous = this.samples.at(-1)
+    if (!previous || op.phase.done > previous.done) this.lastAdvance = now
+    this.samples.push({at: now, done: op.phase.done})
+    this.samples = this.samples.filter(sample => now - sample.at <= 90000).slice(-64)
+    const first = this.samples[0]!
+    const elapsed = (now - first.at) / 1000, completed = op.phase.done - first.done
+    if (now - this.lastAdvance >= 30000 || elapsed < 20 || completed < 3 || op.phase.done >= op.phase.total) return null
+    return Math.ceil((op.phase.total - op.phase.done) * elapsed / completed)
+  }
+}
+
+export function remainingStatus(op: Operation, seconds: number | null): string {
+  if (waitingDetail(op)) return waitingDetail(op)
+  if (op.state !== 'running' && op.state !== 'planning') return ''
+  if (op.phase.total === null) return '清单仍在增加，剩余时间待定'
+  if (op.phase.total === 0) return '正在清点处理范围'
+  if (op.phase.done >= op.phase.total) return '本阶段已处理完，等待收尾'
+  if (seconds === null) return '本阶段剩余时间估算中'
+  const time = seconds < 60 ? `${Math.max(10, Math.ceil(seconds / 10) * 10)} 秒`
+    : seconds < 3600 ? `${Math.ceil(seconds / 60)} 分钟` : `${Math.ceil(seconds / 360) / 10} 小时`
+  return `本阶段约还需 ${time}`
 }

@@ -4,7 +4,7 @@ export interface CardMedia {
   animation?: boolean
 }
 
-/** Only visible, foreground cards may own original/animation media. */
+/** The caller controls the bounded foreground media lifetime. */
 export function galleryMediaSource(media: CardMedia, active: boolean, thumbnailFailed: boolean, previewFailed: boolean) {
   if (media.animation && media.preview && active && !previewFailed) return {url: media.preview, kind: 'animation'}
   if (media.thumbnail && !thumbnailFailed) return {url: media.thumbnail, kind: 'thumbnail'}

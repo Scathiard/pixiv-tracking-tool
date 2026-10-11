@@ -5,7 +5,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from src.client import PixivRequestError
-from src.core.models import ArchiveIntent, Artist, Asset, Operation, TrackingPolicy, Work
+from src.core.models import ArchiveIntent, Artist, Asset, Operation, OperationItem, TrackingPolicy, Work
+from src.request_policy import RequestDeferred
 from src.core.runtime import Runtime
 from src.core.source_status import DeletionEvidence
 from src.routes.archive_api import create_router
@@ -117,6 +118,65 @@ def test_homepage_check_runs_only_selected_artist_and_preserves_local_profile(ap
         assert session.get(TrackingPolicy, 1).mode == "paused"
         assert session.get(TrackingPolicy, 2).mode == "stopped"
     assert client.post("/api/artists/999/check-source").status_code == 404
+
+
+@pytest.mark.parametrize("status,code,message,expected_source", [
+    (None, "api_network", "网络连接失败", "available"),
+    (401, "api_unauthorized", "登录未通过", "available"),
+    (404, "artist_unavailable", "对应来源未能取得", "unavailable"),
+])
+def test_homepage_failure_finishes_with_safe_reason_and_preserves_source_fact(api, monkeypatch, status, code, message, expected_source):
+    client, runtime, remote = api
+    account = remote.get_account_id()
+    version = runtime.source_status.begin("artist", 1, account)
+    runtime.source_status.apply_available("artist", 1, {"user_id": "10"}, version, account)
+
+    def fail_read(remote_id):
+        remote.profile_reads.append(remote_id)
+        raise PixivRequestError(status, "SECRET arbitrary transport details", retryable=False, failure_code=code)
+
+    monkeypatch.setattr(remote, "get_artist_detail", fail_read)
+    submitted = client.post("/api/artists/1/check-source").json()
+    assert runtime.queue.run_round()
+    detail = client.get(f"/api/tasks/{submitted['operation_id']}?limit=1").json()
+    assert detail["state"] == "finished"
+    assert detail["phase"]["done"] == detail["phase"]["total"] == 1
+    assert detail["result"]["outcome"] == "failed"
+    failure = detail["items"][0]["result"]
+    assert failure["code"] == "PixivRequestError"
+    assert failure["failure_code"] == code
+    assert failure.get("status") == status
+    assert message in failure["message"]
+    assert "SECRET" not in str(failure)
+    assert failure["availability"]["state"] == expected_source
+    assert remote.profile_reads == ["10"]
+    assert client.get("/api/artists/1").json()["name"] == "Local artist 1"
+
+
+def test_homepage_rate_limit_deferral_yields_then_finishes(api, monkeypatch):
+    client, runtime, remote = api
+    original_read = remote.get_artist_detail
+
+    def defer_read(_):
+        raise RequestDeferred(60, "等待主站请求间隔")
+
+    monkeypatch.setattr(remote, "get_artist_detail", defer_read)
+    submitted = client.post("/api/artists/1/check-source").json()
+    assert runtime.queue.run_round() is False
+    detail = runtime.queue.details(submitted["operation_id"])
+    assert detail["state"] != "finished"
+    assert detail["items"][0]["state"] == "pending"
+    assert detail["items"][0]["attempts"] == 0
+    assert remote.profile_reads == []
+    monkeypatch.setattr(remote, "get_artist_detail", original_read)
+    with runtime.database.write() as session:
+        item = session.scalar(select(OperationItem).where(OperationItem.operation_id == submitted["operation_id"]))
+        item.not_before = None
+    assert runtime.queue.run_round()
+    detail = runtime.queue.details(submitted["operation_id"])
+    assert detail["state"] == "finished"
+    assert detail["result"]["outcome"] == "succeeded"
+    assert remote.profile_reads == ["10"]
 
 
 def test_source_list_is_local_paginated_and_separates_evidence_from_404(api):

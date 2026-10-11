@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { catalogueChanged, hasProgressTrack, nextFocus, phaseStatus, selectPrimary, shouldNotifyFailure, type Operation } from '../src/state/taskProgress.ts'
+import { catalogueChanged, completionStatus, elapsedStatus, hasProgressTrack, knownStages, nextFocus, PhaseEstimate, phaseStatus, progressPercent, remainingStatus, selectPrimary, shouldNotifyFailure, type Operation } from '../src/state/taskProgress.ts'
 
 function operation(id: string, state: string, done = 0, total: number | null = null): Operation {
   return {id, label: id, state, source: 'manual', phase: {name: 'verifying', done, total, unit: 'files', detail: ''}, result: {}}
@@ -121,4 +121,50 @@ test('offline work explains the preserved queue without pretending to run', () =
   assert.equal(hasProgressTrack(task), false)
   task.state = 'paused'
   assert.equal(phaseStatus(task), '已暂停，继续后处理剩余部分')
+})
+
+test('phase estimates require measured progress and reset on totals, waiting, stale data and pauses', () => {
+  const task = operation('one', 'running', 10, 100), estimate = new PhaseEstimate()
+  assert.equal(estimate.observe(task, 0), null)
+  task.phase.done = 12
+  assert.equal(estimate.observe(task, 10000), null)
+  task.phase.done = 20
+  assert.equal(estimate.observe(task, 20000), 160)
+  assert.equal(remainingStatus(task, 160), '本阶段约还需 3 分钟')
+  assert.equal(estimate.observe(task, 51000), null, 'stalled work must not retain a countdown')
+  task.phase.total = 120
+  assert.equal(estimate.observe(task, 52000), null)
+  task.phase.done = 30
+  assert.equal(estimate.observe(task, 72000), 180)
+  assert.equal(estimate.observe(task, 74000, true), null)
+  task.phase.total = null
+  assert.equal(estimate.observe(task, 95000), null)
+  assert.equal(progressPercent(task), null)
+  assert.equal(remainingStatus(task, null), '清单仍在增加，剩余时间待定')
+  task.result.step_progress = {'verifying:files': {done: 30, total: 120}}
+  assert.equal(phaseStatus(task), '核验 · 30 / 已发现 120 个文件')
+  task.phase.total = 120; task.phase.detail = '等待主站冷却'
+  assert.equal(estimate.observe(task, 100000), null)
+  assert.equal(remainingStatus(task, null), '等待主站冷却')
+  task.phase.detail = ''; task.state = 'paused'
+  assert.equal(estimate.observe(task, 130000), null)
+  assert.equal(remainingStatus(task, null), '')
+})
+
+test('completion separates processed counts from success and stage summaries never sum incompatible units', () => {
+  const task = operation('核对主页', 'finished', 1, 1)
+  task.result = {outcome: 'failed', counts: {failed: 1}, step_progress: {
+    'checking:artists': {done: 2, total: 3}, 'checking:pages': {done: 10, total: 20}}}
+  assert.equal(completionStatus(task), '核对主页：未完成（失败 1）')
+  assert.equal(knownStages(task), '画师 2/3 · 列表页 10/20')
+  assert.equal(progressPercent(task), 100)
+  task.result = {outcome: 'partial_failure', counts: {succeeded: 3, failed: 1, skipped: 2}}
+  assert.equal(completionStatus(task), '核对主页：部分完成（成功 3，失败 1，跳过 2）')
+})
+
+test('elapsed duration treats legacy server timestamps as UTC and does not imply active processing time', () => {
+  const task = {...operation('one', 'running'), created_at: '2026-10-11T04:00:00'}
+  assert.equal(elapsedStatus(task, Date.parse('2026-10-11T05:05:00Z')), '历时 1 小时 5 分钟')
+  task.created_at = 'invalid'
+  assert.equal(elapsedStatus(task, Date.now()), '')
 })

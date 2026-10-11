@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { api } from './api'
-import { activeStates, hasProgressTrack, phaseStatus, selectPrimary, shouldNotifyFailure, type Operation } from './state/taskProgress'
+import { activeStates, completionStatus, elapsedStatus, hasProgressTrack, knownStages, PhaseEstimate, phaseStatus, progressPercent, remainingStatus, selectPrimary, type Operation } from './state/taskProgress'
 import { catalogueUpdates } from './state/catalogue'
 import Icon from './components/Icon.vue'
 interface Snapshot {
@@ -16,12 +16,21 @@ const controlling = ref(false)
 const controlError = ref('')
 const focusedId = ref<string | null>(null)
 const runningId = ref<string | null>(null)
-const failure = ref<Operation | null>(null)
+const completion = ref<Operation | null>(null)
+const sampledAt = ref(Date.now()), estimateSeconds = ref<number | null>(null)
+const estimate = new PhaseEstimate()
 const active = computed(() => snapshot.value?.operations.filter(op => activeStates.has(op.state)) || [])
 const primary = computed(() => selectPrimary(active.value, focusedId.value, runningId.value, [...requestedIds]))
 const others = computed(() => active.value.filter(op => op.id !== primary.value?.id))
 const othersCount = computed(() => Math.max(others.value.length, (snapshot.value?.active_operation_count || 0) - (primary.value ? 1 : 0)))
-const visible = computed(() => !!primary.value || !!focusedId.value || !!failure.value || stale.value)
+const visible = computed(() => !!primary.value || !!focusedId.value || !!completion.value || stale.value)
+const percent = computed(() => stale.value ? null : progressPercent(primary.value))
+const remaining = computed(() => primary.value && !stale.value && !snapshot.value?.worker_error ? remainingStatus(primary.value, estimateSeconds.value) : '')
+const compactRemaining = computed(() => remaining.value.replace('本阶段约还需 ', '约 ').replace('本阶段剩余时间估算中', '估算中').replace('清单仍在增加，剩余时间待定', '总量未定'))
+const elapsed = computed(() => primary.value ? elapsedStatus(primary.value, sampledAt.value) : '')
+const stages = computed(() => primary.value ? knownStages(primary.value) : '')
+const completionText = computed(() => completion.value ? completionStatus(completion.value) : '')
+const completionFailed = computed(() => ['failed', 'partial_failure'].includes(completion.value?.result.outcome || ''))
 const measurable = computed(() => hasProgressTrack(primary.value, stale.value, !!snapshot.value?.worker_error))
 const phaseText = computed(() => {
   const op = primary.value
@@ -60,19 +69,20 @@ async function controlTask(op: Operation) {
 }
 
 function showTask(id: string) {
+  controlError.value = ''
   focusedId.value = id
   requestedIds.add(id)
-  failure.value = null
+  completion.value = null
   clearTimeout(failureTimer)
   clearTimeout(timer)
   if (polling) refreshAfterPoll = true
   else if (!stopped) void poll()
 }
 
-function showFailure(operation: Operation) {
-  failure.value = operation
+function showResult(operation: Operation) {
+  completion.value = operation
   clearTimeout(failureTimer)
-  failureTimer = window.setTimeout(() => { failure.value = null }, 8000)
+  failureTimer = window.setTimeout(() => { completion.value = null }, 8000)
 }
 
 async function poll() {
@@ -96,8 +106,8 @@ async function poll() {
     previousRoundId = data.round?.id || ''
     previousRoundState = data.round?.state || ''
     for (const op of data.operations) {
-      if (shouldNotifyFailure(op, previousOperations?.get(op.id), requestedIds.has(op.id))) showFailure(op)
       if (!activeStates.has(op.state) && (activeStates.has(previousOperations?.get(op.id) || '') || requestedIds.has(op.id))) {
+        showResult(op)
         window.dispatchEvent(new CustomEvent('task-completed', {detail: {id: op.id, state: op.state}}))
       }
       if (!activeStates.has(op.state)) requestedIds.delete(op.id)
@@ -105,7 +115,9 @@ async function poll() {
     previousOperations = new Map(data.operations.map(op => [op.id, op.state]))
     runningId.value = selectPrimary(data.operations, focusedId.value, runningId.value, [...requestedIds])?.id || null
     if (focusedId.value && data.operations.some(op => op.id === focusedId.value && !activeStates.has(op.state))) focusedId.value = null
-  } catch { if (!stopped) stale.value = true }
+    sampledAt.value = Date.now()
+    estimateSeconds.value = estimate.observe(primary.value, sampledAt.value, !!data.worker_error)
+  } catch { if (!stopped) { stale.value = true; estimate.reset(); estimateSeconds.value = null } }
   polling = false
   if (stopped) return
   if (refreshAfterPoll) { refreshAfterPoll = false; void poll() }
@@ -127,39 +139,62 @@ defineExpose({showTask})
     <template v-if="primary">
       <div class="task-primary">
         <span class="status-dot" />
-        <div class="task-copy"><div class="task-heading"><strong>{{ primary.label }}</strong><span v-if="othersCount" class="task-other-count" :title="otherText">另有 {{ othersCount }} 项</span></div><span class="task-phase">{{ phaseText }}</span></div>
+        <div class="task-copy">
+          <div class="task-heading"><strong :title="primary.label">{{ primary.label }}</strong><span v-if="remaining" class="task-mobile-eta" :title="remaining">{{ compactRemaining }}</span><span v-if="othersCount" class="task-other-count" :title="otherText">另有 {{ othersCount }} 项</span></div>
+          <div class="task-metrics"><span class="task-phase" :title="phaseText">{{ phaseText }}</span><b v-if="percent !== null" class="task-percent">{{ percent }}%</b><span v-if="controlError || completionText" class="task-inline-feedback" :class="{error: !!controlError || completionFailed}" :title="controlError || completionText" :role="controlError || completionFailed ? 'alert' : 'status'">{{ controlError || completionText }}</span></div>
+        </div>
         <button v-if="!snapshot?.worker_error && (primary.control?.can_pause || primary.control?.can_resume)" class="task-control" :disabled="controlling || stale" :aria-label="controlling ? '正在提交' : primary.pause_requested ? '继续' : '暂停'" :title="primary.pause_requested ? '继续当前任务' : '暂停当前任务'" @click="controlTask(primary)"><Icon :name="controlling ? 'clock' : primary.pause_requested ? 'play' : 'pause'" /><span class="task-control-label">{{ controlling ? '正在提交' : primary.pause_requested ? '继续' : '暂停' }}</span></button>
       </div>
       <div v-if="measurable" class="task-track" role="progressbar" :aria-label="`${primary.label}：${phaseText}`" :aria-valuenow="primary.phase.done" aria-valuemin="0" :aria-valuemax="primary.phase.total ?? undefined"><span :style="{width: trackWidth}" /></div>
+      <p v-if="elapsed || remaining" class="task-timing"><span :title="'从提交起计算，包括排队和暂停'">{{ elapsed }}</span><span class="task-eta">{{ remaining }}</span></p>
+      <p v-if="stages && !stale" class="task-stages" :title="stages">已知阶段：{{ stages }}</p>
       <p v-if="(othersCount || focusedId && !active.some(op => op.id === focusedId)) && !stale" class="task-secondary" :title="otherText">{{ othersCount ? `另有 ${othersCount} 项：` : '' }}{{ otherText }}</p>
     </template>
     <p v-else-if="stale" class="task-primary">任务状态暂不可得，正在重连</p>
     <p v-else-if="focusedId" class="task-secondary">任务已提交，正在确认排队状态</p>
     <p v-if="controlError" class="task-error" role="alert">{{ controlError }}</p>
-    <p v-if="failure" class="task-error" role="alert">{{ failure.label }}未完成；原因可在设置的处理日志中查看。</p>
+    <p v-if="completion" class="task-result" :class="{'task-error': completionFailed}" :title="completionText" :role="completionFailed ? 'alert' : 'status'">{{ completionText }}<span v-if="completionFailed" class="task-log-hint">，原因见设置的处理日志。</span></p>
   </aside>
 </template>
 
 <style scoped>
 /* This informational layer must not cover the controls beneath it. */
 .task-status { pointer-events: none; }
-.task-copy, .task-heading { display: contents; }
+.task-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+.task-heading, .task-metrics, .task-timing { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.task-heading strong { flex: 1; }
+.task-phase { margin-left: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-percent { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text); }
+.task-timing, .task-stages, .task-result { margin: 5px 0 0; font-size: 11px; line-height: 1.5; color: var(--muted); }
+.task-stages { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.task-timing { flex-wrap: wrap; gap: 3px 8px; }
+.task-timing .task-eta { margin-left: auto; }
+.task-mobile-eta, .task-inline-feedback { display: none; }
 .task-other-count, .task-control .icon { display: none; }
 .task-control { pointer-events: auto; border: 0; border-radius: 6px; background: var(--surface2); color: var(--text); padding: 4px 10px; cursor: pointer; flex-shrink: 0; }
 .task-control:disabled { opacity: .55; }
 .task-secondary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 760px) {
-  .task-status { top: 54px; right: 8px; width: calc(100vw - 16px); padding: 0 8px 3px; border-radius: 5px; box-shadow: 0 2px 8px var(--shadow); }
+  /* Reuse the existing header, never add a second layer over the artwork. */
+  :global(.app-shell:has(.task-status) .mobile-head .brand > span) { display: none; }
+  .task-status { top: 0; left: 87px; right: 6px; width: auto; height: 50px; box-sizing: border-box; padding: 0 3px 3px; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
   .task-primary { min-height: 44px; gap: 6px; }
   .task-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 1px; }
   .task-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .task-heading strong { flex: 1; font-size: 12px; line-height: 15px; }
-  .task-other-count { display: inline; flex: none; color: var(--muted); font-size: 10px; }
+  .task-heading strong { flex: 1; font-size: 11px; line-height: 15px; }
+  .task-other-count { display: none; }
+  .task-mobile-eta { display: block; flex: 0 1 auto; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 10px; }
   .task-phase { margin-left: 0; line-height: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .task-control { width: 44px; height: 44px; min-height: 44px; padding: 0; background: transparent; }
   .task-control .icon { display: block; width: 18px; height: 18px; }
   .task-control-label, .task-secondary[title] { display: none; }
   .task-track { height: 2px; margin: 0; }
-  .task-error { margin-top: 3px; }
+  .status-dot, .task-timing, .task-stages, .task-log-hint { display: none; }
+  .task-percent { font-size: 11px; }
+  .task-inline-feedback { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+  .task-metrics:has(.task-inline-feedback) .task-phase, .task-metrics:has(.task-inline-feedback) .task-percent { display: none; }
+  .task-result, .task-error { margin-top: 0; max-height: 44px; overflow: hidden; font-size: 11px; line-height: 20px; }
+  .task-primary ~ .task-result, .task-primary ~ .task-error { display: none; }
+  .task-primary { min-height: 44px; }
 }
 </style>

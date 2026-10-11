@@ -3,13 +3,15 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { api, url, write } from '../api'
 import { sourceInaccessible, sourceStatusLabel, type Artist } from '../types'
 import { LatestIntent, ReadLifecycle } from '../interaction'
+import { activeStates, phaseStatus, type Operation } from '../state/taskProgress'
 import Icon from '../components/Icon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import MediaImage from '../MediaImage.vue'
 import RestrictionBadge from '../components/RestrictionBadge.vue'
-const props = defineProps<{artistId?: number | null}>()
-const emit = defineEmits<{works: [id: number]; work: [artistId: number, workId: number]; message: [text: string, isError?: boolean]; taskQueued: [id: string]}>()
+const props = defineProps<{artistId?: number | null; navigationArtistId?: number | null; navigationPending?: boolean; navigationError?: string}>()
+const emit = defineEmits<{works: [id: number]; work: [artistId: number, workId: number]; message: [text: string, isError?: boolean]; taskQueued: [id: string]; retryNavigation: []}>()
 const artists = ref<Artist[]>([]), total = ref(0), offset = ref(0), query = ref(''), draft = ref('')
+const navigationOnCard = computed(() => artists.value.some(artist => artist.id === props.navigationArtistId))
 const layout = ref<'grid' | 'row'>('grid'), loading = ref(false), error = ref(''), busy = ref(false)
 interface Identity {user_id: string; name: string; biography?: string | null; avatar_url?: string | null; artist_id?: number | null}
 interface CheckStatus {checked_at: string | null; operation: {id: string; state: string; result: {outcome?: string}; finished_at: string | null} | null}
@@ -31,6 +33,9 @@ function sizePreviews() {
 }
 const deleteTarget = ref<Artist | null>(null)
 const checks = ref(new Map<number, string>())
+const sourceChecks = ref(new Map<number, {text: string; failed: boolean}>())
+const sourceReads = new ReadLifecycle()
+let sourceTimer = 0, sourceOffset = 0, sourceDisposed = false
 const request = new LatestIntent()
 const drag = {id: -1, x: 0, left: 0, moved: false, target: null as HTMLElement | null}
 let timer = 0, generation = 0, suppressClickUntil = 0
@@ -54,27 +59,60 @@ async function load(reset = false) {
 async function checkSource(artist: Artist) {
   if (checks.value.has(artist.id)) return
   checks.value.set(artist.id, '')
+  sourceChecks.value.set(artist.id, {text: '正在提交主页核对…', failed: false})
   try {
     const data = await api<{operation?: {id: string}; id?: string; operation_id?: string}>(`/api/artists/${artist.id}/check-source`, {method: 'POST'})
     const operationId = data.operation?.id || data.operation_id || data.id
     if (!operationId) throw new Error('未能确认核对任务，请重试')
     checks.value.set(artist.id, operationId)
+    sourceChecks.value.set(artist.id, {text: '已排队核对主站主页，等待处理', failed: false})
     emit('taskQueued', operationId)
     emit('message', `已排队核对 ${artist.name} 的主站主页，进度见任务提示`)
+    void pollSourceChecks()
   } catch (failure) {
     checks.value.delete(artist.id)
+    sourceChecks.value.set(artist.id, {text: failure instanceof Error ? failure.message : '主页核对未能提交', failed: true})
     emit('message', failure instanceof Error ? failure.message : '主页核对未能提交', true)
   }
+}
+function pollSourceChecks() {
+  clearTimeout(sourceTimer)
+  if (sourceDisposed || document.hidden) return Promise.resolve()
+  const visible = new Set(artists.value.map(artist => artist.id))
+  const tracked = [...checks.value].filter(([id, operation]) => operation && visible.has(id))
+  if (!tracked.length) return Promise.resolve()
+  const batch = Array.from({length: Math.min(4, tracked.length)}, (_, i) => tracked[(sourceOffset + i) % tracked.length]!)
+  sourceOffset = (sourceOffset + batch.length) % tracked.length
+  type SourceOperation = Operation & {items?: {result?: {message?: string}}[]}
+  return sourceReads.run(batch.map(([, id]) => id).join(','), signal => Promise.all(batch.map(async ([artistId, id]) => {
+    try { return {artistId, id, operation: await api<SourceOperation>(`/api/tasks/${encodeURIComponent(id)}?limit=1`, {signal: AbortSignal.any([signal, AbortSignal.timeout(4000)])})} }
+    catch (failure) { return {artistId, id, failure} }
+  })), results => {
+    for (const result of results) {
+      if (checks.value.get(result.artistId) !== result.id) continue
+      if (!result.operation) { sourceChecks.value.set(result.artistId, {text: '核对状态暂时无法读取，正在重试；任务结果尚未确认', failed: true}); continue }
+      const operation = result.operation
+      if (activeStates.has(operation.state)) {
+        sourceChecks.value.set(result.artistId, {text: phaseStatus(operation), failed: false})
+      } else {
+        checks.value.delete(result.artistId)
+        const failed = ['failed', 'partial_failure'].includes(operation.result.outcome || '')
+        const reason = operation.items?.[0]?.result?.message || '请查看处理日志'
+        sourceChecks.value.set(result.artistId, {text: failed ? `主页核对未完成：${reason}${reason.includes('保留') ? '' : '；最近来源事实保留'}` : operation.state === 'finished' ? '主页核对已完成' : '主页核对已停止', failed})
+        if (!failed) refreshArtists()
+      }
+    }
+  }, () => {}, () => { if (!sourceDisposed && !document.hidden) sourceTimer = window.setTimeout(() => { void pollSourceChecks() }, 2500) })
 }
 function refreshArtists() { if (document.visibilityState === 'visible') void load() }
 function taskCompleted(event: Event) {
   const id = (event as CustomEvent<{id: string}>).detail?.id
-  for (const [artistId, operationId] of checks.value) if (operationId === id) checks.value.delete(artistId)
+  if ([...checks.value.values()].includes(id || '')) void pollSourceChecks()
   refreshArtists()
 }
 function visibilityChanged() {
-  if (document.visibilityState === 'visible') refreshArtists()
-  else { request.cancel(); checkStatusReads.cancel(); generation++; loading.value = false }
+  if (document.visibilityState === 'visible') { refreshArtists(); void pollSourceChecks() }
+  else { request.cancel(); checkStatusReads.cancel(); sourceReads.cancel(); clearTimeout(sourceTimer); generation++; loading.value = false }
 }
 function search() { clearTimeout(timer); timer = window.setTimeout(() => { query.value = draft.value; void load(true) }, 280) }
 async function lookupIdentity() {
@@ -161,12 +199,16 @@ function stripUp(event: PointerEvent) {
 }
 function openWork(artistId: number, workId: number) { if (Date.now() >= suppressClickUntil) emit('work', artistId, workId) }
 watch(() => props.artistId, () => { void load(true) })
+watch(artists, () => { void pollSourceChecks() })
+onBeforeUnmount(() => { sourceDisposed = true; sourceReads.dispose(); clearTimeout(sourceTimer) })
 onMounted(() => { resize = new ResizeObserver(sizePreviews); if (artistList.value) resize.observe(artistList.value); try { layout.value = localStorage.getItem('pixiv-local-artist-layout') === 'row' ? 'row' : 'grid' } catch { /* optional */ }; void load(); window.addEventListener('archive-updated', refreshArtists); window.addEventListener('task-completed', taskCompleted); document.addEventListener('visibilitychange', visibilityChanged) })
 onBeforeUnmount(() => { resize?.disconnect(); previewRequest.cancel(); checkStatusReads.dispose(); generation++; request.cancel(); clearTimeout(timer); window.removeEventListener('archive-updated', refreshArtists); window.removeEventListener('task-completed', taskCompleted); document.removeEventListener('visibilitychange', visibilityChanged) })
 function setLayout(next: 'grid' | 'row') { layout.value = next; try { localStorage.setItem('pixiv-local-artist-layout', next) } catch { /* optional */ } }
 </script>
 <template>
   <section class="subpage artists-page">
+    <p v-if="navigationPending && !navigationOnCard" class="notice" role="status">正在读取画师作品…</p>
+    <p v-if="navigationError && !navigationOnCard" class="notice error" role="alert">{{ navigationError }} <button @click="emit('retryNavigation')">重试</button></p>
     <p v-if="checkStatusError" class="muted" role="status">检查状态暂不可得：{{ checkStatusError }}</p>
     <div class="artists-heading"><div><h1>我的画师</h1><p>管理关注的画师，按最近保存的作品继续阅读。</p></div><button class="primary" :disabled="busy" :aria-expanded="adding" @click="adding = !adding"><Icon name="plus" />添加画师</button></div>
     <div v-if="adding" class="artist-add-panel"><form class="identity-query" @submit.prevent="lookupIdentity"><label>名称、Pixiv 用户 ID 或主页地址<input v-model="newPixivId" autocomplete="off" autofocus placeholder="名称 / 123 / https://www.pixiv.net/users/123" @input="identityInput"></label><button class="primary" type="submit" :disabled="previewLoading || !newPixivId.trim()">{{ previewLoading ? '正在查询…' : '查询身份' }}</button><button type="button" @click="adding = false; identityInput()">取消</button></form><p v-if="previewError" class="error" role="alert">{{ previewError }}</p><div v-if="!selectedIdentity" class="identity-results"><button v-for="identity in previews" :key="identity.user_id" class="identity-choice" :disabled="previewLoading" @click="chooseIdentity(identity)"><img v-if="identity.avatar_url" :src="identity.avatar_url" alt="" referrerpolicy="no-referrer"><span>{{ identity.name }}<small>ID {{ identity.user_id }}{{ identity.artist_id ? ' · 已添加' : '' }}</small></span></button></div><article v-if="selectedIdentity" class="identity-confirm"><img v-if="selectedIdentity.avatar_url" :src="selectedIdentity.avatar_url" :alt="`${selectedIdentity.name}头像`" referrerpolicy="no-referrer"><div><h2>{{ selectedIdentity.name }}</h2><p>Pixiv ID {{ selectedIdentity.user_id }}</p><p class="identity-biography">{{ selectedIdentity.biography || '暂无画师简介' }}</p><a :href="`https://www.pixiv.net/users/${selectedIdentity.user_id}`" target="_blank" rel="noopener noreferrer">打开 Pixiv 主页</a><button class="primary" :disabled="busy || previewLoading" @click="addArtist">{{ selectedIdentity.artist_id ? '查看现有画师' : '确认身份并添加' }}</button></div></article></div>
@@ -174,8 +216,10 @@ function setLayout(next: 'grid' | 'row') { layout.value = next; try { localStora
     <p v-if="error" class="notice error" role="alert">{{ error }} <button @click="load()">重试</button></p>
     <div v-if="!loading && !artists.length && !error" class="empty"><h2>没有找到画师</h2><p>试试别的名称，或添加一位画师。</p></div>
     <div ref="artistList" class="artists-list" :class="layout" :style="previewStyle"><article v-for="artist in artists" :key="artist.id" class="artist-profile">
-      <div class="artist-identity"><div class="artist-profile-head"><img v-if="artist.avatar" class="artist-avatar" :class="{'source-deleted': sourceInaccessible(artist.availability)}" :src="artist.avatar" :alt="`${artist.name}头像`"><div v-else class="artist-avatar avatar-empty" :class="{'source-deleted': sourceInaccessible(artist.availability)}" aria-hidden="true"><Icon name="artists" /></div><div><h2>{{ artist.name }}</h2><small>{{ artist.work_count ?? 0 }} 件作品 · {{ artist.mode === 'active' ? '追踪中' : artist.mode === 'paused' ? '已暂停' : '已停止' }}</small><a class="artist-pixiv-link" :href="`https://www.pixiv.net/users/${encodeURIComponent(artist.pixiv_id)}`" target="_blank" rel="noopener noreferrer" :aria-label="`在 Pixiv 查看 ${artist.name}`">Pixiv 主页 <Icon name="external" /></a></div></div><p v-if="sourceStatusLabel(artist.availability, 'artist')" class="artist-source-status">{{ sourceStatusLabel(artist.availability, 'artist') }}<span v-if="artist.availability?.reason"> · {{ artist.availability.reason }}</span></p><p class="artist-last-check">{{ checkLabel(artist) }}</p><p class="artist-bio">{{ artist.biography || '暂无画师简介' }}</p><div class="artist-controls"><button class="text-link" @click="emit('works', artist.id)">查看全部作品 <Icon name="right" /></button><button class="quiet" :disabled="busy" @click="track(artist, artist.mode === 'active' ? 'paused' : 'active')">{{ artist.mode === 'active' ? '暂停追踪' : '恢复追踪' }}</button><button v-if="artist.mode !== 'stopped'" class="quiet" :disabled="busy" @click="track(artist, 'stopped')">停止追踪，保留存档</button><button class="quiet artist-check-new" :disabled="busy || !!checkStatuses.get(artist.id)?.operation && ['queued', 'planning', 'ready', 'running', 'paused', 'interrupted'].includes(checkStatuses.get(artist.id)!.operation!.state)" @click="checkNewWorks(artist)">检查这位画师新作</button><button class="quiet artist-check-source" :disabled="checks.has(artist.id)" @click="checkSource(artist)">{{ checks.has(artist.id) ? '已排队核对' : '核对主站主页' }}</button><button class="danger-link" :disabled="busy" @click="deleteTarget = artist">删除存档</button></div></div>
+      <div class="artist-identity"><div class="artist-profile-head"><img v-if="artist.avatar" class="artist-avatar" :class="{'source-deleted': sourceInaccessible(artist.availability)}" :src="artist.avatar" :alt="`${artist.name}头像`"><div v-else class="artist-avatar avatar-empty" :class="{'source-deleted': sourceInaccessible(artist.availability)}" aria-hidden="true"><Icon name="artists" /></div><div><h2>{{ artist.name }}</h2><small>{{ artist.work_count ?? 0 }} 件作品 · {{ artist.mode === 'active' ? '追踪中' : artist.mode === 'paused' ? '已暂停' : '已停止' }}</small><a class="artist-pixiv-link" :href="`https://www.pixiv.net/users/${encodeURIComponent(artist.pixiv_id)}`" target="_blank" rel="noopener noreferrer" :aria-label="`在 Pixiv 查看 ${artist.name}`">Pixiv 主页 <Icon name="external" /></a></div></div><p v-if="sourceStatusLabel(artist.availability, 'artist')" class="artist-source-status">{{ sourceStatusLabel(artist.availability, 'artist') }}<span v-if="artist.availability?.reason"> · {{ artist.availability.reason }}</span></p><p class="artist-last-check">{{ checkLabel(artist) }}</p><p class="artist-bio">{{ artist.biography || '暂无画师简介' }}</p><div class="artist-controls"><button class="text-link" :aria-busy="navigationPending && navigationArtistId === artist.id" @click="emit('works', artist.id)">{{ navigationPending && navigationArtistId === artist.id ? '正在读取…' : '查看全部作品' }} <Icon name="right" /></button><button class="quiet" :disabled="busy" @click="track(artist, artist.mode === 'active' ? 'paused' : 'active')">{{ artist.mode === 'active' ? '暂停追踪' : '恢复追踪' }}</button><button v-if="artist.mode !== 'stopped'" class="quiet" :disabled="busy" @click="track(artist, 'stopped')">停止追踪，保留存档</button><button class="quiet artist-check-new" :disabled="busy || !!checkStatuses.get(artist.id)?.operation && ['queued', 'planning', 'ready', 'running', 'paused', 'interrupted'].includes(checkStatuses.get(artist.id)!.operation!.state)" @click="checkNewWorks(artist)">检查这位画师新作</button><button class="quiet artist-check-source" :disabled="checks.has(artist.id)" @click="checkSource(artist)">{{ checks.has(artist.id) ? '已排队核对' : '核对主站主页' }}</button><button class="danger-link" :disabled="busy" @click="deleteTarget = artist">删除存档</button></div></div>
       <div class="artist-workarea"><div class="artist-workbar"><span>最近保存</span><div class="strip-nav"><button :aria-label="`向左看 ${artist.name} 的作品`" @click="($event.currentTarget as HTMLElement).closest('.artist-workarea')?.querySelector('.artist-recent-strip')?.scrollBy({left: -250, behavior: 'smooth'})"><Icon name="left" /></button><button :aria-label="`向右看 ${artist.name} 的作品`" @click="($event.currentTarget as HTMLElement).closest('.artist-workarea')?.querySelector('.artist-recent-strip')?.scrollBy({left: 250, behavior: 'smooth'})"><Icon name="right" /></button></div></div><div class="artist-recent-strip" @pointerdown="stripDown" @pointermove="stripMove" @pointerup="stripUp" @pointercancel="stripUp"><button v-for="work in (artist.recent_works || []).slice(0, 12)" :key="work.id" class="artist-work" @click="openWork(artist.id, work.id)"><div class="artist-work-image"><MediaImage :src="work.thumbnail" :label="work.title" thumbnail /><RestrictionBadge :value="work.x_restrict" /></div><span>{{ work.title }}</span></button><p v-if="!artist.recent_works?.length" class="muted">还没有本地作品</p></div></div>
+      <p v-if="sourceChecks.get(artist.id)" class="artist-source-check" :class="{error: sourceChecks.get(artist.id)?.failed}" role="status">{{ sourceChecks.get(artist.id)?.text }}</p>
+      <p v-if="navigationError && navigationArtistId === artist.id" class="artist-navigation-error notice error" role="alert">{{ navigationError }} <button @click="emit('retryNavigation')">重试</button></p>
     </article></div>
     <nav v-if="!artistId && total > LIMIT" class="pagination" aria-label="画师页码"><button :disabled="offset === 0 || loading" @click="offset = Math.max(0, offset - LIMIT); load()">上一页</button><span>第 {{ Math.floor(offset / LIMIT) + 1 }} / {{ Math.ceil(total / LIMIT) }} 页</span><button :disabled="offset + LIMIT >= total || loading" @click="offset += LIMIT; load()">下一页</button></nav>
     <ConfirmDialog v-if="deleteTarget" title="删除画师存档" :description="`将永久删除 ${deleteTarget.name} 的本地作品和文件。这项操作无法撤销。`" action="永久删除" danger @cancel="deleteTarget = null" @confirm="deleteArtist" />
@@ -185,6 +229,8 @@ function setLayout(next: 'grid' | 'row') { layout.value = next; try { localStora
 <style scoped>
 .artist-add-panel{padding:16px;border:1px solid var(--line);background:var(--surface);border-radius:10px;margin-bottom:18px}.identity-query{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.identity-query label{flex:1;min-width:180px;font-size:12px;display:grid;gap:7px;color:var(--muted)}.identity-query input{width:100%}.identity-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:12px}.identity-choice{justify-content:start;white-space:normal;text-align:left}.identity-choice img,.identity-confirm>img{width:48px;height:48px;border-radius:50%;object-fit:cover;flex:none}.identity-choice small{display:block;color:var(--muted);font-size:11px}.identity-confirm{display:flex;gap:15px;margin-top:18px}.identity-confirm h2{font-size:17px}.identity-confirm p{font-size:12px;color:var(--muted)}.identity-confirm button{margin-top:12px;display:flex}.identity-biography{white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0}.artist-last-check{font-size:11px;color:var(--muted);line-height:1.6;margin-top:9px}.artist-work{width:var(--artist-preview-width)}.artist-work-image{height:var(--artist-preview-height)}
 .artists-list{container-type:inline-size}
+.artist-source-check{grid-column:1/-1;font-size:12px;line-height:1.6;margin:10px 0 0;overflow-wrap:anywhere}
+.artist-navigation-error{grid-column:1/-1;margin:10px 0 0}
 .artists-list.row .artist-profile{grid-template-columns:250px minmax(0,1fr)}
 @container(max-width:780px){.artists-list.row .artist-profile{display:block}.artists-list.row .artist-identity{border:0;padding:0}.artists-list.row .artist-workarea{margin-top:14px}}
 @media(max-width:680px){.identity-confirm>div{min-width:0}.artist-recent-strip{gap:10px}.artist-profile{padding:20px}}

@@ -14,7 +14,7 @@ from sqlalchemy import select
 
 from .catalogue_revision import bump_catalogue_revision
 from .models import ApplicationState, ArchiveIntent, Artist, Work, utcnow
-from .tasks import ItemResult, ItemSpec
+from .tasks import ItemResult, ItemSpec, safe_failure
 
 ARTIST_PREFIX = "artist_source:"
 SOURCE_STATES = ("available", "unavailable", "private", "deleted")
@@ -279,6 +279,18 @@ class ArtistSourceHandler:
             if isinstance(exc, ShutdownRequested):
                 raise
             _, reason = classify_failure(exc)
-            return ItemResult("failed", {"message": reason,
+            failure = safe_failure(exc)
+            code, status = failure.get("failure_code"), failure.get("status")
+            if code == "api_network":
+                reason = "网络连接失败，本次主页核对未完成；最近来源事实保留"
+            elif status == 401 or code == "api_unauthorized":
+                reason = "Pixiv 登录未通过，本次主页核对未完成；最近来源事实保留"
+            elif status == 403 or code == "api_forbidden":
+                reason = "Pixiv 拒绝访问，本次主页核对未完成；最近来源事实保留"
+            elif status == 429 or code == "api_rate_limit":
+                reason = "Pixiv 请求受限，本次主页核对未完成；请稍后重试，最近来源事实保留"
+            elif (status is not None and status >= 500) or code == "api_unavailable":
+                reason = "Pixiv 服务暂时不可用，本次主页核对未完成；最近来源事实保留"
+            return ItemResult("failed", {**failure, "message": reason,
                 "availability": self.source_status.snapshot("artist", item.target["artist_id"],
                                                              self.source_status.account_context())})

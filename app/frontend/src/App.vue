@@ -526,8 +526,8 @@ function sort() {
   for (const name of ['ceiling', 'as_of', 'page']) params.delete(name)
   params.set('sort', sortChoice.value); void initialize(params.toString(), '/', true, true)
 }
-function showArtists(id: number | null = null) { clearTimeout(searchTimer); navigation.cancel(); railRequest.cancel(); infoRequest.cancel(); pending.value = false; section.value = 'artists'; artistId.value = id; filterOpen.value = false; infoOpen.value = false; route(true) }
-function showSettings() { clearTimeout(searchTimer); navigation.cancel(); railRequest.cancel(); infoRequest.cancel(); pending.value = false; section.value = 'settings'; filterOpen.value = false; infoOpen.value = false; route(true) }
+function showArtists(id: number | null = null) { clearTimeout(searchTimer); navigation.cancel(); railRequest.cancel(); infoRequest.cancel(); pending.value = false; error.value = ''; section.value = 'artists'; artistId.value = id; filterOpen.value = false; infoOpen.value = false; route(true) }
+function showSettings() { clearTimeout(searchTimer); navigation.cancel(); railRequest.cancel(); infoRequest.cancel(); pending.value = false; error.value = ''; section.value = 'settings'; filterOpen.value = false; infoOpen.value = false; route(true) }
 function openArtistGallery(id: number) {
   detailOrigin.value = 'gallery'; originArtistId.value = null
   const params = new URLSearchParams({artist_ids: String(id), sort: sortChoice.value})
@@ -535,7 +535,7 @@ function openArtistGallery(id: number) {
 }
 async function artistWorks(id: number) {
   detailOrigin.value = 'artists'; originArtistId.value = id
-  const params = new URLSearchParams(homeScope.value); params.delete('ceiling'); params.delete('as_of'); params.delete('favorites'); params.delete('recent'); params.delete('artist_ids_exclude'); params.set('artist_ids', String(id))
+  const params = new URLSearchParams({artist_ids: String(id), sort: sortChoice.value})
   await initialize(params.toString(), '/', true)
 }
 async function artistWork(id: number, workId: number) {
@@ -678,7 +678,7 @@ function updated() { queueCatalogueUpdate() }
         <footer v-if="!readingEnded" class="reading-toolbar" :class="{'is-detail': mode === 'reader'}"><div class="reading-toolbar-inner"><template v-if="mode === 'reader'"><button class="softbtn reader-nav-button" aria-label="上一件作品" :disabled="!ordinaryNeighbors?.previous" @click="navigate(-1)"><Icon name="left" /><span class="reader-nav-label">上一件</span></button><div class="reading-counter"><strong>{{ currentWork?.title }}</strong><small>{{ ordinaryRankKnown && totalExact ? ordinaryIndex + 1 + ' / ' + total : '当前范围阅览' }} 件 · 第 {{ (activePage?.page ?? 0) + 1 }} / {{ currentWork?.display_page_count || 1 }} 页</small></div><BookmarkButton v-if="currentWork" :key="currentWork.id" :work-id="currentWork.id" :initial="currentWork.bookmark" @message="message($event, true)" /><button class="primary reader-nav-button" aria-label="下一件作品" :disabled="!ordinaryNeighbors?.next" @click="navigate(1)"><span class="reader-nav-label">下一件</span><Icon name="right" /></button></template><template v-else><button class="softbtn reader-nav-button" aria-label="上一件作品" :disabled="!activePage || activePage.previous_work_index == null" @click="navigate(-1)"><Icon name="left" /><span class="reader-nav-label">上一件</span></button><button class="reading-counter reading-work-info" aria-label="作品信息与整理" title="作品信息与整理" :disabled="!activePage" @click="activePage && managePage(activePage)"><strong>{{ activePage?.title || '流式阅览' }}</strong><small>{{ flowOrdinalKnown ? (activePage?.work_index ?? 0) + 1 + ' / ' + (totalExact ? total : '未计数') + ' 件' : '当前范围阅览' }} · 第 {{ (activePage?.page ?? 0) + 1 }} / {{ activePage?.page_count || 1 }} 页</small></button><BookmarkButton v-if="activePage" :key="activePage.work_id" :work-id="activePage.work_id" @message="message($event, true)" /><button class="primary reader-nav-button" aria-label="下一件作品" :disabled="!activePage || readingOrder === 'random' && total <= 1 || readingOrder === 'sequential' && activePage.has_next_work === false" @click="navigate(1)"><span class="reader-nav-label">下一件</span><Icon name="right" /></button></template></div></footer>
       </main></template>
     </template>
-    <ArtistsView v-else-if="section === 'artists'" :inert="mobileMenuOpen ? true : undefined" :artist-id="artistId" @works="artistWorks" @work="artistWork" @message="message" @task-queued="taskPanel?.showTask($event)" />
+    <ArtistsView v-else-if="section === 'artists'" :inert="mobileMenuOpen ? true : undefined" :artist-id="artistId" :navigation-artist-id="originArtistId" :navigation-pending="pending" :navigation-error="error" @retry-navigation="retryNavigation" @works="artistWorks" @work="artistWork" @message="message" @task-queued="taskPanel?.showTask($event)" />
     <SettingsView v-else :inert="mobileMenuOpen ? true : undefined" :gallery-mode="continuous ? 'scroll' : String(pageSize)" @gallery-mode="changePageSize" @task="task" @theme="chooseTheme" @message="message" />
     <FilterPanel v-if="filterOpen && section === 'library' && mode === 'gallery'" :key="scope" :query="scope" @apply="filter" @close="filterOpen = false" />
     <div v-if="notification" class="toast" :class="{error: notificationError}" :role="notificationError ? 'alert' : 'status'">{{ notification }}<button @click="notification = ''" aria-label="关闭提示"><Icon name="close" /></button></div>

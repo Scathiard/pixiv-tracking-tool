@@ -15,10 +15,17 @@ const props = defineProps<{
   archive?: ArchiveState
   processing?: ProcessingState
 }>()
-const host = ref<HTMLElement | null>(null), image = ref<HTMLImageElement | null>(null)
+const host = ref<HTMLElement | null>(null), image = ref<HTMLImageElement | null>(null), staticImage = ref<HTMLImageElement | null>(null)
 const visible = ref(false)
 const foreground = ref(document.visibilityState === 'visible')
 const active = computed(() => visible.value && foreground.value && (!props.animation || !props.suspended))
+// Keep only already-started lightweight previews in the bounded virtual window.
+// Scroll/brief exit masks paint; changing src would restart the browser's animation.
+const retainedPreview = ref<string | null>(null)
+watch([active, foreground, () => props.preview, () => props.animation], () => {
+  if (!foreground.value || !props.animation || retainedPreview.value !== props.preview) retainedPreview.value = null
+  if (active.value && props.animation && props.preview) retainedPreview.value = props.preview
+})
 const thumbnailFailed = ref(false), previewFailed = ref(false)
 let observer: IntersectionObserver | null = null
 let previewFailedAt = 0, retryTimer = 0, pendingMediaUpdate = false
@@ -68,25 +75,29 @@ watch(() => props.recovery?.status, (status, previous) => {
     if (previewFailed.value) previewFailed.value = false
   }
 })
-const source = computed(() => galleryMediaSource(props, active.value, thumbnailFailed.value, previewFailed.value))
+const source = computed(() => galleryMediaSource(props, active.value || !!(foreground.value && props.animation && retainedPreview.value && retainedPreview.value === props.preview), thumbnailFailed.value, previewFailed.value))
+const animationMasked = computed(() => source.value?.kind === 'animation' && !active.value)
 const placeholder = computed(() => {
   if (thumbnailFailed.value || previewFailed.value) return {label: '本地图片暂时无法显示', reason: '可打开作品重试图片'}
   if (props.previewStatus === 'ready') return {label: '缩略图待生成', reason: null}
   return mediaPlaceholder(props, props.previewStatus, props.animation)
 })
 function failed(event: Event) {
-  if (event.currentTarget !== image.value) return
+  if (event.currentTarget !== image.value && event.currentTarget !== staticImage.value) return
   if ((event.currentTarget as HTMLImageElement).dataset.mediaSource === 'thumbnail') {
     thumbnailFailures++; thumbnailFailedAt = Date.now(); thumbnailFailed.value = true
-  } else if (active.value) { clearPreviewRetry(); previewFailures++; previewFailedAt = Date.now(); previewFailed.value = true }
+  } else if (active.value || source.value?.kind === 'animation') { clearPreviewRetry(); previewFailures++; previewFailedAt = Date.now(); previewFailed.value = true }
   queueStaticRetry()
 }
 function loaded(event: Event) {
-  if (event.currentTarget !== image.value) return
+  if (event.currentTarget !== image.value && event.currentTarget !== staticImage.value) return
   if ((event.currentTarget as HTMLImageElement).dataset.mediaSource === 'thumbnail') thumbnailFailures = 0
   else previewFailures = 0
 }
 function visibilityChanged() { foreground.value = document.visibilityState === 'visible' }
+watch(foreground, value => {
+  if (!value && image.value?.dataset.mediaSource === 'animation') image.value.removeAttribute('src')
+})
 onMounted(() => {
   document.addEventListener('visibilitychange', visibilityChanged)
   const root = host.value?.closest('.gallery-viewport')
@@ -99,7 +110,7 @@ onMounted(() => {
   observer.observe(host.value)
 })
 watch(active, value => {
-  if (!value && image.value && image.value.dataset.mediaSource !== 'thumbnail') image.value.removeAttribute('src')
+  if (!value && image.value && image.value.dataset.mediaSource === 'original') image.value.removeAttribute('src')
   if (!value) { clearTimeout(retryTimer); retryTimer = 0; clearStaticRetry() }
   else { retryUpdatedPreview(); queueStaticRetry() }
 })
@@ -107,9 +118,17 @@ onBeforeUnmount(() => { observer?.disconnect(); clearPreviewRetry(); clearStatic
 </script>
 
 <template>
-  <div ref="host" class="media-image media-thumbnail">
+  <div ref="host" class="media-image media-thumbnail" :class="{'animation-masked': animationMasked}">
     <img v-if="source" :key="source.kind + source.url" ref="image" :src="source.url" :alt="label"
       :data-media-source="source.kind" draggable="false" decoding="async" loading="lazy" @error="failed" @load="loaded">
-    <div v-else class="media-placeholder"><span>{{ placeholder.label }}</span><span v-if="placeholder.reason" class="placeholder-reason">{{ placeholder.reason }}</span></div>
+    <img v-if="animationMasked && thumbnail && !thumbnailFailed" ref="staticImage" class="animation-static"
+      :src="thumbnail" :alt="label" data-media-source="thumbnail" draggable="false" decoding="async" loading="lazy" @error="failed" @load="loaded">
+    <div v-if="!source || (animationMasked && (!thumbnail || thumbnailFailed))" class="media-placeholder"><span>{{ placeholder.label }}</span><span v-if="placeholder.reason" class="placeholder-reason">{{ placeholder.reason }}</span></div>
   </div>
 </template>
+
+<style scoped>
+.animation-masked{position:relative}
+.animation-masked>img[data-media-source="animation"]{visibility:hidden}
+.animation-static{position:absolute;inset:0}
+</style>

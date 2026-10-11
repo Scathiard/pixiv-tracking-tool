@@ -1,0 +1,59 @@
+[
+  {
+    "width": 1440,
+    "case": "actual scroll resumes same animation node",
+    "before": 12,
+    "after": 15
+  },
+  {
+    "width": 1440,
+    "case": "mounted brief exit resumes same timeline",
+    "after_return": 21
+  },
+  {
+    "width": 1440,
+    "case": "newly visible animation waits for idle"
+  },
+  {
+    "width": 1440,
+    "case": "background and unmount release media"
+  },
+  {
+    "width": 390,
+    "case": "actual scroll resumes same animation node",
+    "before": 12,
+    "after": 15
+  },
+  {
+    "width": 390,
+    "case": "mounted brief exit resumes same timeline",
+    "after_return": 22
+  },
+  {
+    "width": 390,
+    "case": "newly visible animation waits for idle"
+  },
+  {
+    "width": 390,
+    "case": "background and unmount release media"
+  },
+  {
+    "width": 320,
+    "case": "actual scroll resumes same animation node",
+    "before": 12,
+    "after": 15
+  },
+  {
+    "width": 320,
+    "case": "mounted brief exit resumes same timeline",
+    "after_return": 21
+  },
+  {
+    "width": 320,
+    "case": "newly visible animation waits for idle"
+  },
+  {
+    "width": 320,
+    "case": "background and unmount release media"
+  }
+]

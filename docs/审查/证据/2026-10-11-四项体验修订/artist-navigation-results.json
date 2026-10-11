@@ -1,0 +1,48 @@
+{
+  "scope": "Real Vue App/ArtistsView components with synthetic fetch replay; no real backend, account, credentials or media",
+  "base": "main 1d2640f",
+  "before": {
+    "navigation": {
+      "command": "D:/claude_sandbox/pixiv-tracking-tool/.devtools/v012-env/Scripts/python.exe work/tmp/artist-navigation/reproduce.py",
+      "exit_code": 1,
+      "request_received": true,
+      "still_on_artists": true,
+      "visible_loading": false,
+      "visible_timeout": false,
+      "failure": "Artist navigation receives click but gives no loading/error feedback"
+    },
+    "source_check": {
+      "command": "D:/claude_sandbox/pixiv-tracking-tool/.devtools/v012-env/Scripts/python.exe work/tmp/artist-navigation/source-reproduce.py",
+      "exit_code": 1,
+      "injected_task_state": "finished",
+      "injected_task_outcome": "failed",
+      "completion_event_suppressed": true,
+      "observed_button": "已排队核对 (disabled)",
+      "observed_card_feedback": "none",
+      "failure": "Locator expected to be enabled"
+    }
+  },
+  "after": {
+    "command": "D:/claude_sandbox/pixiv-tracking-tool/.devtools/v012-env/Scripts/python.exe app/frontend/tests/artist-navigation-browser.py --artifacts work/tmp/artist-navigation/final-scrolled-card-after",
+    "exit_code": 0,
+    "checks": [
+      "1440: scrolled card waiting/error/retry visible; all works clears old filters; latest artist wins",
+      "1440: source failure/success leaves card feedback and releases button without completion events",
+      "390: scrolled card waiting/error/retry visible; all works clears old filters; latest artist wins",
+      "390: source failure/success leaves card feedback and releases button without completion events"
+    ],
+    "vue_tsc_no_emit_exit_code": 0,
+    "diff_check_exit_code": 0
+  },
+  "limitations": [
+    "Desktop Chromium and mobile viewport simulation; no physical mobile device",
+    "Synthetic finished task results; no real Pixiv network action",
+    "This evidence does not establish packaged EXE or real backend readiness",
+    "Source result text stays on the current mounted artist page; historical result remains available in processing logs after leaving"
+  ],
+  "temporary_items": {
+    "path": "D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261011.13/work/tmp/artist-navigation",
+    "purpose": "initial narrow replay scripts, output and Vite cache",
+    "cleanup": "verified exact Vite PID 42996 and port 5293 stopped; task-owned temporary root removed after absolute-path and no-reparse-point checks; shared node_modules junction remains under parent ownership"
+  }
+}
