@@ -42,3 +42,4 @@
 - `packaged-result-08.json`：最终`.8`隔离EXE启动、空图库6ms、正常退出1.624秒及前端散列核对通过。
 - `actual-activation-08.json`、`real-upgrade-receipt-08.json`：真实备份/映射/激活及正常运行核对，240件首页94ms返回200；包含路径、数量及指纹，不含作品正文或登录凭据。
 - `automatic-check-counts-08.json`：新增BUG-113的只读当前批次计数；数千件是历史列表检查量，不是新增或下载数，未额外提交任务。
+- `temporary-cleanup.json`：本轮76项临时产物已清理，只保留当前日常EXE仍使用的解包目录；真实升级备份、旧包和其他任务文件未删除。

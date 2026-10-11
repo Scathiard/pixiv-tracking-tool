@@ -1,0 +1,13 @@
+{
+  "recorded_at": "2026-10-12T07:05:07.0993471+08:00",
+  "task_root": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout",
+  "kept": [
+    {
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\daily-runtime-08",
+      "reason": "Current daily EXE extraction is still in use"
+    }
+  ],
+  "release_files_removed": false,
+  "real_upgrade_backups_removed": false,
+  "removed_count": 76
+}
