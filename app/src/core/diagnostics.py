@@ -22,6 +22,7 @@ import uuid
 
 _current: ContextVar[tuple[str, str]] = ContextVar("diagnostic_context", default=("", ""))
 _recorder = None
+DEFAULT_PART_BYTES = 64 * 1024 * 1024
 _private = {"token", "password", "secret", "authorization", "cookie", "headers",
     "parameters", "params", "payload", "target", "result", "body", "url", "path",
     "statement", "sql", "message", "account_id"}
@@ -73,12 +74,15 @@ def _caller():
 
 
 class Recorder:
-    def __init__(self, directory, *, build, version, interval=2.0, max_bytes=512 * 1024 * 1024):
+    def __init__(self, directory, *, build, version, interval=2.0, max_bytes=DEFAULT_PART_BYTES):
+        if max_bytes <= 0:
+            raise ValueError("Diagnostic part size must be positive")
         self.started = time.monotonic()
         self.run_id = uuid.uuid4().hex[:12]
         self.salt = os.urandom(16)
         self.interval = interval
         self.max_bytes = max_bytes
+        self.build, self.version = build, version
         self.queue = queue.Queue(maxsize=16384)
         self.lock = threading.Lock()
         self.active = {}
@@ -87,25 +91,31 @@ class Recorder:
         self.sequence = 0
         self.dropped = 0
         self.closed = False
-        self.capped = False
         self.failed = False
         self.stop_event = threading.Event()
         self.heartbeat_at = None
         directory = Path(directory)
         directory.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.file = directory / f"diagnostic-{stamp}-{os.getpid()}-{self.run_id}.jsonl"
+        self.part_prefix = f"diagnostic-{stamp}-{os.getpid()}-{self.run_id}"
+        self.file = directory / f"{self.part_prefix}-part0001.jsonl"
+        self.current_file = self.file
+        self.part = 1
+        self.part_bytes = 0
+        self.part_records = 0
+        self.last_sequence = 0
         self.stream = self.file.open("x", encoding="utf-8", buffering=65536)
         self.writer = threading.Thread(target=self._write, name="diagnostic-writer", daemon=True)
         self.watcher = threading.Thread(target=self._watch, name="diagnostic-watchdog", daemon=True)
         self.writer.start()
         self.put("diagnostic.start", build=build, version=version, pid=os.getpid(),
-                 python=sys.version.split()[0], interval_seconds=interval, byte_limit=max_bytes,
+                 python=sys.version.split()[0], interval_seconds=interval, part_bytes=max_bytes,
+                 retention="continuous parts; prior files retained", run_id=self.run_id,
                  sql_policy="all statements counted; individual spans for slow or failed statements")
         self.watcher.start()
 
     def put(self, event, **fields):
-        if self.closed or self.capped or self.failed:
+        if self.closed or self.failed:
             return
         trace, parent = _current.get()
         record = {"event": event, "utc": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
@@ -120,9 +130,42 @@ class Recorder:
             except queue.Full:
                 self.dropped += 1
 
-    def _write(self):
-        written = 0
+    def _write_marker(self, event, **fields):
+        # Writer-owned boundaries have no producer sequence. Their adjacent
+        # sequence values connect parts without duplicating business records.
+        row = {"event": event, "utc": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+               "elapsed_ms": round((time.monotonic() - self.started) * 1000, 3),
+               "run_id": self.run_id, "part": self.part, "build": self.build,
+               "version": self.version, **fields}
+        line = json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n"
+        self.stream.write(line)
+        self.part_bytes += len(line.encode("utf-8"))
+
+    def _rotate(self, next_sequence):
+        next_file = self.file.with_name(f"{self.part_prefix}-part{self.part + 1:04d}.jsonl")
+        # Open exclusively before sealing the old part, so a collision or disk
+        # error cannot overwrite evidence or silently pretend rotation worked.
+        next_stream = next_file.open("x", encoding="utf-8", buffering=65536)
+        previous_file = self.current_file
         try:
+            self._write_marker("diagnostic.part_end", next_file=next_file.name,
+                               last_sequence=self.last_sequence, next_sequence=next_sequence)
+            self.stream.flush()
+            self.stream.close()
+        except BaseException:
+            next_stream.close()
+            raise
+        self.stream = next_stream
+        self.current_file = next_file
+        self.part += 1
+        self.part_bytes = 0
+        self.part_records = 0
+        self._write_marker("diagnostic.part_start", previous_file=previous_file.name,
+                           first_sequence=next_sequence)
+
+    def _write(self):
+        try:
+            self._write_marker("diagnostic.part_start", previous_file=None, first_sequence=1)
             while not self.stop_event.is_set() or not self.queue.empty():
                 try:
                     first = self.queue.get(timeout=.2)
@@ -136,17 +179,25 @@ class Recorder:
                         batch.append(self.queue.get(timeout=max(0, batch_deadline - time.monotonic())))
                     except queue.Empty:
                         break
-                text = "".join(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n" for row in batch)
-                written += len(text.encode("utf-8"))
-                if written > self.max_bytes:
-                    self.stream.write(json.dumps({"event": "diagnostic.limit_reached", "bytes": written,
-                        "dropped_records": self.dropped, "detail": "Detailed capture stopped; existing log retained"}) + "\n")
-                    self.capped = True
-                    break
-                self.stream.write(text)
+                for row in batch:
+                    line = json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n"
+                    size = len(line.encode("utf-8"))
+                    if self.part_records and self.part_bytes + size > self.max_bytes:
+                        self._rotate(row["seq"])
+                    # A single large JSON row stays intact, even if it exceeds
+                    # the soft part size; rows are never cut between files.
+                    self.stream.write(line)
+                    self.part_bytes += size
+                    self.part_records += 1
+                    self.last_sequence = row["seq"]
                 self.stream.flush()
-        except Exception:
+        except Exception as error:
             self.failed = True
+            try:
+                print(f"[diagnostic] 持续日志写入失败，诊断记录已停止：{type(error).__name__}；"
+                      "请检查磁盘空间和日志目录权限，现有分卷保留。", file=sys.stderr, flush=True)
+            except Exception:
+                pass
         finally:
             try:
                 self.stream.close()
@@ -193,7 +244,7 @@ class Recorder:
 
     def _watch(self):
         while not self.stop_event.wait(self.interval):
-            if self.capped or self.failed:
+            if self.failed:
                 return
             try:
                 self.sample()
@@ -214,14 +265,14 @@ class Recorder:
 
 
 def _live(recorder):
-    return recorder is not None and not (recorder.closed or recorder.capped or recorder.failed)
+    return recorder is not None and not (recorder.closed or recorder.failed)
 
 
 def enabled():
     return _live(_recorder)
 
 
-def start(directory, *, build, version, interval=2.0, max_bytes=512 * 1024 * 1024):
+def start(directory, *, build, version, interval=2.0, max_bytes=DEFAULT_PART_BYTES):
     global _recorder
     if enabled():
         return _recorder.file

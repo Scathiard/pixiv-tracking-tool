@@ -6,6 +6,7 @@ from pathlib import Path
 from PIL import Image
 import pystray
 from .core import diagnostics
+from .core.stdio_log import open_stdio_log
 
 
 def _resource_path(relative_path):
@@ -16,18 +17,11 @@ def _resource_path(relative_path):
 
 
 def _redirect_stdio(log_dir: Path):
-    """将 stdout/stderr 重定向到日志文件。"""
+    """持续追加普通日志，为新输出逐行记录本地时间。"""
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / "tracker.log"
-
-    # 限制日志文件大小：超过 1MB 截断保留后半
-    if log_path.exists() and log_path.stat().st_size > 1_048_576:
-        old = log_path.read_text(encoding='utf-8', errors='replace')
-        log_path.write_text(old[-512_000:], encoding='utf-8')
-
-    f = open(log_path, 'a', encoding='utf-8', buffering=1)
-    sys.stdout = f
-    sys.stderr = f
+    stream = open_stdio_log(log_dir / "tracker.log")
+    sys.stdout = stream
+    sys.stderr = stream
 
 
 def _open_gallery():

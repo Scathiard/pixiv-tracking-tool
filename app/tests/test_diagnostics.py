@@ -1,5 +1,6 @@
 """Small observer checks: privacy, pending work, cancellation and real SQLite."""
 import json
+import time
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -77,13 +78,37 @@ def test_sqlite_commit_rollback_and_http_keep_behavior(capture, tmp_path):
     assert any(row["event"] == "db.read.body.end" and row["trace"] == http["trace"] for row in rows)
 
 
-def test_capture_size_limit_is_explicit_and_existing_files_survive(tmp_path):
+def test_capture_rotates_and_keeps_recording_with_existing_files_intact(tmp_path):
     old = tmp_path / "existing.jsonl"
     old.write_text("keep", encoding="utf-8")
-    path = diagnostics.start(tmp_path, build="synthetic", version="0.2.0", interval=60, max_bytes=300)
-    diagnostics.emit("synthetic.extra")
-    rows = records(path)
-    assert any(row["event"] == "diagnostic.limit_reached" for row in rows)
+    path = diagnostics.start(tmp_path, build="synthetic", version="0.2.0", interval=60, max_bytes=1400)
+    recorder = diagnostics._recorder
+    with diagnostics.span("synthetic.cross_volume"):
+        for number in range(20):
+            diagnostics.emit("synthetic.extra", number=number, padding="x" * 160)
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline and len(list(tmp_path.glob("diagnostic-*.jsonl"))) < 3:
+            time.sleep(.02)
+        assert diagnostics.enabled() and recorder.writer.is_alive()
+        assert len(list(tmp_path.glob("diagnostic-*.jsonl"))) >= 3
+        diagnostics.emit("synthetic.after_rotation")
+    diagnostics.stop()
+    volumes = sorted(tmp_path.glob("diagnostic-*.jsonl"))
+    rows = [json.loads(line) for volume in volumes for line in volume.read_text(encoding="utf-8").splitlines()]
+    assert not any(row["event"] == "diagnostic.limit_reached" for row in rows)
+    assert sorted(row["number"] for row in rows if row["event"] == "synthetic.extra") == list(range(20))
+    assert any(row["event"] == "synthetic.after_rotation" for row in rows)
+    assert any(row["event"] == "diagnostic.stop" for row in rows)
+    sequences = [row["seq"] for row in rows if "seq" in row]
+    assert sequences == list(range(1, len(sequences) + 1))
+    assert len(sequences) == len(set(sequences))
+    beginning = next(row for row in rows if row["event"] == "synthetic.cross_volume.begin")
+    ending = next(row for row in rows if row["event"] == "synthetic.cross_volume.end")
+    assert beginning["trace"] == ending["trace"]
+    assert all("utc" in row for row in rows)
+    assert any(row["event"] == "diagnostic.part_start" for row in rows)
+    assert all(volume.read_bytes().endswith(b"\n") for volume in volumes)
+    assert path.exists()
     assert old.read_text(encoding="utf-8") == "keep"
 
 
@@ -100,3 +125,25 @@ def test_observer_failure_does_not_replace_business_error_or_prevent_stop(captur
     diagnostics.stop()
     assert recorder.stop_event.is_set()
     assert not recorder.writer.is_alive() and not recorder.watcher.is_alive()
+
+
+def test_rotation_write_failure_is_visible_without_leaking_exception_text(tmp_path, monkeypatch, capsys):
+    original_open = type(tmp_path).open
+    def fail_second_part(path, *args, **kwargs):
+        if path.name.endswith("part0002.jsonl"):
+            raise OSError("PRIVATE_DISK_DETAIL")
+        return original_open(path, *args, **kwargs)
+    monkeypatch.setattr(type(tmp_path), "open", fail_second_part)
+    diagnostics.start(tmp_path, build="synthetic", version="0.2.0", interval=60, max_bytes=900)
+    recorder = diagnostics._recorder
+    for number in range(8):
+        diagnostics.emit("synthetic.extra", number=number, padding="x" * 160)
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline and not recorder.failed:
+        time.sleep(.02)
+    diagnostics.stop()
+    assert recorder.failed and not recorder.writer.is_alive()
+    assert not recorder.watcher.is_alive()
+    warning = capsys.readouterr().err
+    assert "OSError" in warning and "记录已停止" in warning
+    assert "PRIVATE_DISK_DETAIL" not in warning
