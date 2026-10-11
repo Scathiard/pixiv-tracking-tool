@@ -39,3 +39,6 @@
 - `copy-guard-new-01.txt`：新增回归的中间失败，SQLite创建索引的内部REINDEX被写入限制拦住；修为只允许新索引的该动作，不放开旧表保护。
 - `copy-guard-fix-02.txt`：正常复制、激活与回退单项通过（4.34秒），禁止SQL大字段指纹的检查实际到达候选构建。
 - `copy-guard-related-03.txt`：两份相关升级文件23项一次通过（95.00秒）；旧业务转换、旧凭据、原表写入限制、对象碰撞、WAL变化及恢复边界，仅合成库。
+- `packaged-result-08.json`：最终`.8`隔离EXE启动、空图库6ms、正常退出1.624秒及前端散列核对通过。
+- `actual-activation-08.json`、`real-upgrade-receipt-08.json`：真实备份/映射/激活及正常运行核对，240件首页94ms返回200；包含路径、数量及指纹，不含作品正文或登录凭据。
+- `automatic-check-counts-08.json`：新增BUG-113的只读当前批次计数；数千件是历史列表检查量，不是新增或下载数，未额外提交任务。
