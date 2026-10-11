@@ -46,7 +46,10 @@ def _clean(value, depth=0):
 
 def _location(frame):
     filename = frame.f_code.co_filename.replace("\\", "/")
-    if "/src/" in filename:
+    module = frame.f_globals.get("__name__", "")
+    if isinstance(module, str) and module.startswith("src."):
+        filename = module.replace(".", "/") + ".py"
+    elif "/src/" in filename:
         filename = "src/" + filename.rsplit("/src/", 1)[1]
     elif "/site-packages/" in filename:
         filename = filename.rsplit("/site-packages/", 1)[1]
@@ -61,7 +64,9 @@ def _caller():
         if frame is None:
             break
         filename = frame.f_code.co_filename.replace("\\", "/")
-        if "/src/" in filename and not filename.endswith(("diagnostics.py", "database.py")):
+        module = frame.f_globals.get("__name__", "")
+        application_frame = isinstance(module, str) and module.startswith("src.")
+        if (application_frame or "/src/" in filename) and not filename.endswith(("diagnostics.py", "database.py")):
             return _location(frame)
         frame = frame.f_back
     return "unknown"
