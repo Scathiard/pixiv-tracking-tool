@@ -1,17 +1,21 @@
 """Local catalogue operations. No authentication, scheduler, or HTTP dependency."""
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
+import base64
+import hashlib
+import json
 from datetime import datetime, timedelta
 from pathlib import PurePosixPath
 from urllib.parse import quote
 
 from sqlalchemy import Integer, String, and_, case, cast, func, literal, or_, select
-from sqlalchemy.orm import aliased, joinedload, load_only, selectinload
+from sqlalchemy.orm import aliased, defer, joinedload, load_only, selectinload
 
 from ..security import sanitize_caption
 
 from .archive_state import work_states
+from .read_projection import CursorExpired
 from .media import CARD_MOTION_SPEC
 from .tag_translations import tag_details
 from .source_status import ARTIST_PREFIX, availability_snapshot
@@ -62,7 +66,8 @@ def readable_page_url(record, *, animation=False):
 
 
 def remote_availability(work, account_id=None):
-    value = (work.source_metadata or {}).get("remote_availability")
+    metadata = work._read_metadata if hasattr(work, "_read_metadata") else work.source_metadata
+    value = (metadata or {}).get("remote_availability")
     return availability_snapshot(value, account_id)
 
 
@@ -135,20 +140,27 @@ class Library:
 
     @staticmethod
     def _related(statement):
-        return statement.options(selectinload(Work.artist), selectinload(Work.tags),
+        return statement.options(defer(Work.source_metadata, raiseload=True), selectinload(Work.artist), selectinload(Work.tags),
                                  selectinload(Work.preference), selectinload(Work.bookmark))
+
+    @staticmethod
+    def _load_display_metadata(session, works, *, detail=False):
+        from .display_metadata import read
+        works = list(works)
+        metadata = read(session, [work.id for work in works], include_translations=detail)
+        for work in works:
+            work._read_metadata = metadata[str(work.id)]
 
     @staticmethod
     def _bookmark_operations(session, ids):
         if not ids:
             return {}
-        ranked = select(BookmarkOperation.id.label("id"), BookmarkOperation.work_id.label("work_id"),
-            func.row_number().over(partition_by=BookmarkOperation.work_id,
-                order_by=(BookmarkOperation.version.desc(), BookmarkOperation.created_at.desc(),
-                          BookmarkOperation.id.desc())).label("position")).where(
-            BookmarkOperation.work_id.in_(ids)).subquery()
-        return {operation.work_id: operation for operation in session.scalars(select(BookmarkOperation).join(
-            ranked, BookmarkOperation.id == ranked.c.id).where(ranked.c.position == 1))}
+        latest = select(BookmarkOperation.id).where(BookmarkOperation.work_id == Work.id).order_by(
+            BookmarkOperation.version.desc(), BookmarkOperation.created_at.desc(), BookmarkOperation.id.desc()
+        ).limit(1).correlate(Work).scalar_subquery()
+        winner_ids = select(latest).select_from(Work).where(Work.id.in_(ids))
+        return {operation.work_id: operation for operation in session.scalars(
+            select(BookmarkOperation).where(BookmarkOperation.id.in_(winner_ids)))}
 
     def _bookmark_view(self, work, operation=None):
         from .bookmarks import bookmark_snapshot
@@ -178,7 +190,8 @@ class Library:
             "type": work.type, "page_count": work.page_count,
             "caption": sanitize_caption(work.caption), "caption_state": work.caption_state,
             "tags": [tag.tag for tag in work.tags],
-            "tag_details": tag_details([tag.tag for tag in work.tags], work.source_metadata),
+            "tag_details": tag_details([tag.tag for tag in work.tags],
+                work._read_metadata if hasattr(work, "_read_metadata") else work.source_metadata),
             "is_hidden": bool(work.preference and work.preference.is_hidden),
             "rating": work.preference.rating if work.preference else 0,
             "is_bookmarked": bool(bookmark["value"]), "bookmark": bookmark,
@@ -210,14 +223,20 @@ class Library:
             if q.strip():
                 statement = statement.where(or_(Artist.name.contains(q.strip(), autoescape=True),
                     Artist.account.contains(q.strip(), autoescape=True)))
-            total = session.scalar(select(func.count()).select_from(statement.subquery())) or 0
+            if not q.strip():
+                from .source_read_projection import artist_count
+                total = artist_count(session.connection())
+            else:
+                # Explicit name/account search retains its scope-dependent count.
+                total = session.scalar(select(func.count()).select_from(statement.subquery())) or 0
             statement = statement.order_by(Artist.name, Artist.id).offset(offset)
             if limit is not None:
                 statement = statement.limit(limit)
             artists = list(session.scalars(statement))
             items = self._artist_views(session, artists)
             return {"items": items, "total": total, "offset": offset,
-                    "limit": limit if limit is not None else total}
+                    "limit": limit if limit is not None else total,
+                    "performance": "indexed_seek" if not q.strip() and offset == 0 and limit is not None else "on_demand_scan"}
 
     def artist_detail(self, artist_id):
         with self.database.read() as session:
@@ -227,38 +246,33 @@ class Library:
             return self._artist_views(session, [artist])[0]
 
     def _artist_views(self, session, artists):
+        from .source_read_projection import artist_totals, recent_ids
         ids = [artist.id for artist in artists]
         availability = self._artist_availability(session, artists)
-        counts = dict(session.execute(select(Work.artist_id, func.count()).where(
-            Work.artist_id.in_(ids), ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(
-                ArchiveIntent.mode == "suppressed"))).group_by(Work.artist_id)).all()) if ids else {}
-        ranked = select(Work.id.label("id"), Work.artist_id.label("artist_id"),
-            Work.pixiv_illust_id.label("pixiv_id"), Work.title.label("title"),
-            Work.type.label("type"), Work.page_count.label("page_count"), Work.x_restrict.label("x_restrict"),
-            func.row_number().over(partition_by=Work.artist_id,
-                order_by=(Work.posted_at.desc(), Work.id.desc())).label("position")).where(
-            Work.artist_id.in_(ids), ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(
-                ArchiveIntent.mode == "suppressed"))).subquery()
-        recent_rows = list(session.execute(select(ranked).where(ranked.c.position <= 12).order_by(
-            ranked.c.artist_id, ranked.c.position)).mappings()) if ids else []
-        work_ids = [row["id"] for row in recent_rows]
-        preview_works = list(session.scalars(select(Work).options(load_only(Work.id, Work.default_revision_id,
-            Work.latest_revision_id)).where(Work.id.in_(work_ids)))) if work_ids else []
-        snapshots = selected_snapshots(session, preview_works)
+        totals = artist_totals(session.connection(), ids)
+        # Each author is an indexed top-12 seek, including hidden works and
+        # excluding suppressed works. Window functions would visit all N works.
+        windows = {artist_id: recent_ids(session.connection(), artist_id) for artist_id in ids}
+        work_ids = [work_id for artist_id in ids for work_id in windows[artist_id]]
+        preview_works = list(session.scalars(select(Work).options(load_only(Work.id, Work.artist_id,
+            Work.pixiv_illust_id, Work.title, Work.type, Work.page_count, Work.x_restrict,
+            Work.default_revision_id, Work.latest_revision_id)).where(Work.id.in_(work_ids)))) if work_ids else []
+        by_id = {work.id: work for work in preview_works}
+        snapshots = selected_snapshots(session, preview_works, compact=True)
         originals, derived = media_maps(session, preview_works, snapshots, ranges={work.id: (0, 1) for work in preview_works})
-        thumbs = {work_id: derived.get((work_id, "thumbnail", 0, "v1")) for work_id in work_ids}
         recent = {artist_id: [] for artist_id in ids}
-        for row in recent_rows:
-            thumb = thumbs.get(row["id"])
-            if thumb is not None and thumb.state != "verified":
-                thumb = None
-            url = media_url(thumb.relative_path) if thumb else readable_page_url(originals.get((row["id"], "image", 0)))
-            if url and thumb and thumb.sha256:
-                url += "?v=" + thumb.sha256[:16]
-            recent[row["artist_id"]].append({"id": row["id"], "pixiv_id": row["pixiv_id"],
-                "title": row["title"], "type": row["type"], "page_count": row["page_count"],
-                "x_restrict": row["x_restrict"],
-                "thumbnail": url})
+        for artist_id in ids:
+            for work_id in windows[artist_id]:
+                work = by_id[work_id]
+                thumb = derived.get((work_id, "thumbnail", 0, "v1"))
+                if thumb is not None and thumb.state != "verified":
+                    thumb = None
+                url = media_url(thumb.relative_path) if thumb else readable_page_url(originals.get((work_id, "image", 0)))
+                if url and thumb and thumb.sha256:
+                    url += "?v=" + thumb.sha256[:16]
+                recent[artist_id].append({"id": work_id, "pixiv_id": work.pixiv_illust_id,
+                    "title": work.title, "type": work.type, "page_count": work.page_count,
+                    "x_restrict": work.x_restrict, "thumbnail": url})
         return [{"id": artist.id, "pixiv_id": artist.pixiv_user_id, "name": artist.name,
             "account": artist.account, "avatar_url": media_url(artist.avatar_path),
             "avatar": media_url(artist.avatar_path), "biography": artist.biography,
@@ -267,7 +281,7 @@ class Library:
             "mode": artist.policy.mode if artist.policy else "stopped",
             "added_at": artist.added_at.isoformat() if artist.added_at else None,
             "last_checked_at": artist.last_checked_at.isoformat() if artist.last_checked_at else None,
-            "work_count": counts.get(artist.id, 0), "recent_works": recent[artist.id]}
+            "work_count": totals.get(artist.id, {}).get("total", 0), "recent_works": recent[artist.id]}
             for artist in artists]
 
     def set_tracking(self, artist_id, mode):
@@ -286,7 +300,7 @@ class Library:
         if rating is not None and (type(rating) is not int or not 0 <= rating <= 5):
             raise ValueError("评分必须为 0 到 5")
         with self.database.write() as session:
-            work = session.get(Work, work_id)
+            work = session.get(Work, work_id, options=[load_only(Work.id, raiseload=True)])
             if work is None:
                 raise KeyError(work_id)
             if work.preference is None:
@@ -296,73 +310,349 @@ class Library:
             if rating is not None:
                 work.preference.rating = rating
 
+    def _hydrate_window(self, session, window_ids, *, compact=False):
+        related = select(Work).where(Work.id.in_(window_ids))
+        related = related.options(load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title,
+            Work.type, Work.page_count, Work.posted_at, Work.x_restrict,
+            Work.default_revision_id, Work.latest_revision_id, raiseload=True), selectinload(Work.artist).load_only(Artist.name),
+            selectinload(Work.preference), selectinload(Work.bookmark)) if compact else self._related(related)
+        by_id = {work.id: work for work in session.scalars(related)} if window_ids else {}
+        works = [by_id[work_id] for work_id in window_ids]
+        self._load_display_metadata(session, works, detail=not compact)
+        snapshots = selected_snapshots(session, works, compact=compact, display=True)
+        operations = self._bookmark_operations(session, [work.id for work in works])
+        views = [{"id": work.id, "pixiv_id": work.pixiv_illust_id, "artist_id": work.artist_id,
+                  "artist_name": work.artist.name, "title": work.title, "type": work.type,
+                  "page_count": work.page_count, "x_restrict": work.x_restrict,
+                  "is_hidden": bool(work.preference and work.preference.is_hidden),
+                  "posted_at": work.posted_at.isoformat() if work.posted_at else None,
+                  "bookmark": self._bookmark_view(work, operations.get(work.id)),
+                  "availability": remote_availability(work, self.account_id)} for work in works] if compact else [self._work_view(work, operations.get(work.id)) for work in works]
+        if compact:
+            for view in views:
+                view["is_bookmarked"] = bool(view["bookmark"]["value"])
+        for work, view in zip(works, views):
+            apply_snapshot(view, work, snapshots.get(work.id), compact=compact)
+        ids = [work.id for work in works]
+        animation_ids = [view["id"] for view in views if view["type"] == "ugoira"]
+        states, revision = work_states(session, works)
+        assets, derived = media_maps(session, works, snapshots, ranges={work.id: (0, 1) for work in works})
+        thumbnails = {work.id: derived.get((work.id, "thumbnail", 0, "v1")) for work in works}
+        first_pages = {work.id: assets.get((work.id, "image", 0)) for work in works}
+        animations = {work_id: derived.get((work_id, "gif", 0, "v1")) for work_id in animation_ids}
+        card_animations = {work_id: derived.get((work_id, "thumbnail", 0, CARD_MOTION_SPEC)) for work_id in animation_ids}
+        for view in views:
+            view.update(states[view["id"]])
+            thumb = thumbnails.get(view["id"])
+            if thumb is not None and thumb.state != "verified":
+                thumb = None
+            preview = animations.get(view["id"]) if view["type"] == "ugoira" else first_pages.get(view["id"])
+            if compact and view["type"] == "ugoira":
+                source = preview
+                preview = card_animations.get(view["id"])
+                if (preview is None or preview.state != "verified" or not preview.sha256 or source is None
+                        or source.state != "verified" or not source.sha256 or preview.source_version != source.sha256):
+                    preview = None
+            view["preview"] = readable_page_url(preview, animation=view["type"] == "ugoira")
+            if compact and view["type"] == "ugoira" and view["preview"]:
+                view["preview"] += "?v=" + preview.sha256[:16]
+            if view["preview"]:
+                view["preview_status"] = "ready"
+            elif preview and preview.state == "failed":
+                view["preview_status"] = "failed"
+            elif preview and preview.state in ("invalid", "mismatch"):
+                view["preview_status"] = "unavailable"
+            else:
+                view["preview_status"] = "pending"
+            view["thumbnail"] = media_url(thumb.relative_path) if thumb else None
+            if view["thumbnail"] and thumb.sha256:
+                view["thumbnail"] += "?v=" + thumb.sha256[:16]
+        return views, works, operations, revision
+
+    @staticmethod
+    def _fast_scope(filters):
+        """Only scopes backed by a matching ordered index promise fixed work."""
+        if (filters.show_hidden or filters.recent or filters.q.strip()
+                or filters.tags is not None or filters.tags_exclude is not None
+                or filters.artist_ids_exclude is not None or filters.posted_after is not None
+                or filters.posted_before is not None):
+            return None
+        selected = []
+        if filters.artist_ids is not None:
+            if len(filters.artist_ids) != 1:
+                return None
+            selected.append(f"artist:{filters.artist_ids[0]}")
+        if filters.types is not None:
+            if len(filters.types) != 1:
+                return None
+            selected.append(f"type:{filters.types[0]}")
+        if filters.favorites:
+            selected.append("favorite")
+        return (selected[0] if selected else "visible") if len(selected) <= 1 else None
+
+    @staticmethod
+    def _filter_key(filters):
+        value = asdict(filters)
+        # A reference timestamp has no bearing on a non-relative scope. The
+        # explicit posted boundaries already bind period/date filters.
+        if not filters.recent:
+            value["as_of"] = None
+        return hashlib.sha256(json.dumps(value, sort_keys=True, default=str,
+            separators=(",", ":")).encode()).hexdigest()[:32]
+
+    @staticmethod
+    def _encode_cursor(filters, generation, ceiling, work_id, key):
+        value = {"v": 1, "filter": Library._filter_key(filters), "generation": generation,
+                 "ceiling": ceiling, "id": work_id, "key": key,
+                 "as_of": filters.as_of.isoformat() if filters.as_of else None}
+        return base64.urlsafe_b64encode(json.dumps(value, separators=(",", ":"),
+            ensure_ascii=False).encode()).decode().rstrip("=")
+
+    @staticmethod
+    def cursor_reference(token):
+        """Recover the relative-filter reference before parsing request filters.
+
+        This is a parsing aid, never authorization; _decode_cursor subsequently
+        validates the complete token, scope, boundary and generation.
+        """
+        try:
+            if not isinstance(token, str) or len(token) > 4096:
+                raise ValueError()
+            value = json.loads(base64.b64decode(token + "=" * (-len(token) % 4), altchars=b"-_", validate=True))
+            stamp = value.get("as_of")
+            if stamp is None:
+                return None
+            if not isinstance(stamp, str) or datetime.fromisoformat(stamp).tzinfo is not None:
+                raise ValueError()
+            return stamp
+        except (ValueError, TypeError, UnicodeError, AttributeError) as exc:
+            raise ValueError("游标格式无效") from exc
+
+    @staticmethod
+    def _decode_cursor(token, filters, generation, ceiling=None):
+        from .read_projection import CursorExpired
+        try:
+            if not isinstance(token, str) or len(token) > 4096:
+                raise ValueError()
+            value = json.loads(base64.b64decode(token + "=" * (-len(token) % 4),
+                altchars=b"-_", validate=True))
+            if (not isinstance(value, dict) or value.get("v") != 1
+                    or type(value.get("id")) is not int or value["id"] < 1
+                    or type(value.get("ceiling")) is not int or value["ceiling"] < value["id"]
+                    or type(value.get("generation")) is not int
+                    or not isinstance(value.get("key"), str)
+                    or value.get("filter") != Library._filter_key(filters)
+                    or ceiling is not None and value["ceiling"] != ceiling):
+                raise ValueError()
+        except (ValueError, TypeError, UnicodeError, KeyError) as exc:
+            raise ValueError("游标与筛选或范围不匹配") from exc
+        if value["generation"] != generation:
+            raise CursorExpired("图库范围已变化，请按当前作品重新打开窗口")
+        return value
+
+    @staticmethod
+    def _seek_key(filters):
+        if filters.sort == "title":
+            return func.lower(Work.title)
+        field = Work.downloaded_at if filters.sort == "added" else Work.posted_at
+        return func.coalesce(cast(field, String), "")
+
+    def _seek_rows(self, session, filters, ceiling, *, boundary=None,
+                   direction="next", inclusive=False, limit=100):
+        """Return narrow rows; unsupported filters explicitly retain scan cost."""
+        scope = self._fast_scope(filters)
+        ascending = filters.sort in ("oldest", "title")
+        forward = direction == "next"
+        query_ascending = ascending if forward else not ascending
+        comparison = ">" if query_ascending else "<"
+        if inclusive:
+            comparison += "="
+        if scope is not None:
+            column = {"title": "title_key", "added": "added_key"}.get(filters.sort, "order_key")
+            predicates, args = ["visible=1", "work_id<=?"], [ceiling]
+            index = {"title": "ix_read_work_title", "added": "ix_read_work_added"}.get(
+                filters.sort, "ix_read_work_order")
+            if scope.startswith("artist:"):
+                predicates.append("artist_id=?"); args.append(int(scope[7:]))
+                index = index + "_artist" if column != "order_key" else "ix_read_work_artist"
+            elif scope.startswith("type:"):
+                predicates.append("work_type=?"); args.append(scope[5:])
+                index = index + "_type" if column != "order_key" else "ix_read_work_type"
+            elif scope == "favorite":
+                predicates.append("favorite=1")
+                index = index + "_favorite" if column != "order_key" else "ix_read_work_favorite"
+            order = "ASC" if query_ascending else "DESC"
+            sql = f"SELECT work_id,{column} FROM read_work_order INDEXED BY {index} WHERE " + " AND ".join(predicates)
+            suffix = f" ORDER BY {column} {order},work_id {order} LIMIT ?"
+            if boundary is None:
+                rows = session.connection().exec_driver_sql(sql + suffix, (*args, limit)).all()
+            else:
+                # SQLite can seek only the leading key for a row-value range
+                # and then walk every tied key to test work_id. Two disjoint
+                # index ranges keep even an all-equal sort key bounded.
+                # Do not leave two upper bounds on work_id: SQLite may choose
+                # the looser ceiling and walk all tied IDs to the anchor.
+                equal_sql = f"SELECT work_id,{column} FROM read_work_order INDEXED BY {index} WHERE " + \
+                    " AND ".join([predicates[0], *predicates[2:]]) + f" AND {column}=?"
+                if query_ascending:
+                    lower = boundary[0] if inclusive else boundary[0] + 1
+                    equal_sql += " AND work_id>=? AND work_id<=?"
+                    equal_args = (*args[1:], boundary[1], lower, ceiling, limit)
+                else:
+                    upper = min(ceiling, boundary[0] if inclusive else boundary[0] - 1)
+                    equal_sql += " AND work_id<=?"
+                    equal_args = (*args[1:], boundary[1], upper, limit)
+                rows = session.connection().exec_driver_sql(equal_sql + suffix, equal_args).all()
+                if len(rows) < limit:
+                    strict = ">" if query_ascending else "<"
+                    rows += session.connection().exec_driver_sql(sql +
+                        f" AND {column} {strict} ?" + suffix,
+                        (*args, boundary[1], limit - len(rows))).all()
+        else:
+            from sqlalchemy import tuple_
+            key = self._seek_key(filters)
+            statement = self._statement(filters, ceiling).with_only_columns(Work.id, key)
+            if boundary is not None:
+                statement = statement.where(tuple_(key, Work.id).op(comparison)((boundary[1], boundary[0])))
+            order = (key.asc(), Work.id.asc()) if query_ascending else (key.desc(), Work.id.desc())
+            rows = session.execute(statement.order_by(*order).limit(limit)).all()
+        return list(rows)
+
+    def _anchor_row(self, session, work_id, filters, ceiling):
+        scope = self._fast_scope(filters)
+        if scope is not None:
+            column = {"title": "title_key", "added": "added_key"}.get(filters.sort, "order_key")
+            row = session.connection().exec_driver_sql(
+                f"SELECT work_id,{column},visible,artist_id,work_type,favorite FROM read_work_order WHERE work_id=?",
+                (work_id,)).first()
+            if row is None or not row[2] or row[0] > ceiling:
+                raise KeyError(work_id)
+            if (scope.startswith("artist:") and row[3] != int(scope[7:])
+                    or scope.startswith("type:") and row[4] != scope[5:]
+                    or scope == "favorite" and not row[5]):
+                raise KeyError(work_id)
+            return (row[0], row[1])
+        row = session.execute(self._statement(filters, ceiling).with_only_columns(
+            Work.id, self._seek_key(filters)).where(Work.id == work_id)).first()
+        if row is None:
+            raise KeyError(work_id)
+        return row
+
+    def _cursor_metadata(self, session, filters, rows, ceiling, generation):
+        tokens = [self._encode_cursor(filters, generation, ceiling, row[0], row[1]) for row in rows]
+        more = bool(rows and self._seek_rows(session, filters, ceiling, boundary=rows[-1], limit=1))
+        previous = bool(rows and self._seek_rows(session, filters, ceiling,
+            boundary=rows[0], direction="previous", limit=1))
+        return {"boundaries": tokens, "next_cursor": tokens[-1] if more else None,
+                "previous_cursor": tokens[0] if previous else None,
+                "has_more": more, "has_previous": previous, "generation": generation}
+
+    def query_cursor(self, filters=LibraryFilter(), *, limit=100, cursor=None,
+                     direction="next", ceiling=None, anchor_work_id=None, compact=True):
+        """Seek a gallery window; arbitrary exact counts are separate opt-in work.
+
+        Single visible/artist/type/favorite scopes with each supported ordering
+        use O(log N + K) indexed seeks and O(1) maintained counts. Other filters
+        keep their complete semantics, but advertise on-demand scan cost.
+        """
+        from .read_projection import session_generation, common_count
+        if type(limit) is not int or not 1 <= limit <= 500 or direction not in ("next", "previous"):
+            raise ValueError("游标分页范围不合法")
+        if filters.as_of is None:
+            stamp = self.cursor_reference(cursor) if cursor else None
+            filters = replace(filters, as_of=datetime.fromisoformat(stamp) if stamp else utcnow())
+        with self.database.read() as session:
+            generation = session_generation(session)
+            decoded = self._decode_cursor(cursor, filters, generation, ceiling) if cursor else None
+            current_ceiling = session.scalar(select(func.max(Work.id))) or 0
+            ceiling = decoded["ceiling"] if decoded else current_ceiling if ceiling is None else ceiling
+            if type(ceiling) is not int or ceiling < 0:
+                raise ValueError("图库范围无效")
+            boundary = (decoded["id"], decoded["key"]) if decoded else None
+            if anchor_work_id is not None:
+                if decoded and decoded["id"] != anchor_work_id:
+                    raise ValueError("游标与作品不匹配")
+                boundary = self._anchor_row(session, anchor_work_id, filters, ceiling)
+                if decoded and boundary[1] != decoded["key"]:
+                    raise ValueError("游标边界无效")
+            rows = self._seek_rows(session, filters, ceiling, boundary=boundary,
+                direction=direction, inclusive=anchor_work_id is not None, limit=limit)
+            if direction == "previous":
+                rows.reverse()
+            scope = self._fast_scope(filters)
+            indexed = scope is not None and ceiling == current_ceiling
+            total = common_count(session.connection(), scope) if indexed else None
+            metadata = self._cursor_metadata(session, filters, rows, ceiling, generation)
+            views, works, operations, revision = self._hydrate_window(session, [row[0] for row in rows], compact=compact)
+            for view, token in zip(views, metadata["boundaries"]):
+                view["cursor"] = token
+        self._refresh_bookmarks(views, works, operations)
+        return {"items": views, "total": total, "offset": 0, "ceiling": ceiling,
+                "as_of": (filters.as_of or utcnow()).isoformat(), "catalogue_revision": revision,
+                "performance": "indexed_seek" if indexed else "on_demand_scan",
+                "count_mode": "indexed" if indexed else "on_demand", **metadata}
+
+    list_cursor = query_cursor
+
+    def cursor_neighbors(self, work_id, filters=LibraryFilter(), *, ceiling=None, cursor=None):
+        from .read_projection import session_generation
+        if filters.as_of is None:
+            stamp = self.cursor_reference(cursor) if cursor else None
+            filters = replace(filters, as_of=datetime.fromisoformat(stamp) if stamp else utcnow())
+        with self.database.read() as session:
+            generation = session_generation(session)
+            decoded = self._decode_cursor(cursor, filters, generation, ceiling) if cursor else None
+            ceiling = decoded["ceiling"] if decoded else ceiling
+            ceiling = ceiling if ceiling is not None else session.scalar(select(func.max(Work.id))) or 0
+            row = self._anchor_row(session, work_id, filters, ceiling)
+            if decoded and (decoded["id"] != work_id or decoded["key"] != row[1]):
+                raise ValueError("游标与作品不匹配")
+            result = {"index": None, "generation": generation, "ceiling": ceiling,
+                "anchor_cursor": self._encode_cursor(filters, generation, ceiling, *row)}
+            for name, direction in (("previous", "previous"), ("next", "next")):
+                near = self._seek_rows(session, filters, ceiling, boundary=row, direction=direction, limit=1)
+                if not near:
+                    result[name] = None
+                    continue
+                neighbor = session.scalar(select(Work).where(Work.id == near[0][0]).options(
+                    load_only(Work.id, Work.default_revision_id, Work.type, Work.page_count, raiseload=True)))
+                snapshot = selected_snapshots(session, [neighbor], compact=True).get(neighbor.id)
+                result[name] = {"work_id": neighbor.id, "revision_id": snapshot.id if snapshot else None,
+                    "page_count": 1 if (snapshot.type if snapshot else neighbor.type) == "ugoira"
+                        else (snapshot.page_count if snapshot else neighbor.page_count),
+                    "cursor": self._encode_cursor(filters, generation, ceiling, *near[0])}
+            return result
+
     def query(self, filters=LibraryFilter(), *, offset=0, limit=100, ceiling=None, compact=False):
+        """Explicit numeric jump compatibility; deep OFFSET is O(offset + K)."""
+        filters = replace(filters, as_of=filters.as_of or utcnow())
+        from .read_projection import session_generation, common_count
         if offset < 0 or not 1 <= limit <= 500:
             raise ValueError("分页范围不合法")
         with self.database.read() as session:
-            ceiling = ceiling if ceiling is not None else session.scalar(select(func.max(Work.id))) or 0
-            statement = self._statement(filters, ceiling)
-            count_statement = self._statement(filters, ceiling, for_count=True).with_only_columns(Work.id)
-            total = session.scalar(select(func.count()).select_from(count_statement.subquery()))
-            window_ids = list(session.scalars(statement.with_only_columns(Work.id).order_by(
-                *self._order(filters)).offset(offset).limit(limit)))
-            related = select(Work).where(Work.id.in_(window_ids))
-            related = related.options(load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title,
-                Work.type, Work.page_count, Work.posted_at, Work.x_restrict, Work.source_metadata,
-                Work.default_revision_id, Work.latest_revision_id, raiseload=True), selectinload(Work.artist).load_only(Artist.name),
-                selectinload(Work.preference), selectinload(Work.bookmark)) if compact else self._related(related)
-            by_id = {work.id: work for work in session.scalars(related)} if window_ids else {}
-            works = [by_id[work_id] for work_id in window_ids]
-            snapshots = selected_snapshots(session, works, compact=compact)
-            operations = self._bookmark_operations(session, [work.id for work in works])
-            views = [{"id": work.id, "pixiv_id": work.pixiv_illust_id, "artist_id": work.artist_id,
-                      "artist_name": work.artist.name, "title": work.title, "type": work.type,
-                      "page_count": work.page_count, "x_restrict": work.x_restrict,
-                      "is_hidden": bool(work.preference and work.preference.is_hidden),
-                      "posted_at": work.posted_at.isoformat() if work.posted_at else None,
-                      "bookmark": self._bookmark_view(work, operations.get(work.id)),
-                      "availability": remote_availability(work, self.account_id)} for work in works] if compact else [self._work_view(work, operations.get(work.id)) for work in works]
-            if compact:
-                for view in views:
-                    view["is_bookmarked"] = bool(view["bookmark"]["value"])
-            for work, view in zip(works, views):
-                apply_snapshot(view, work, snapshots.get(work.id), compact=compact)
-            ids = [work.id for work in works]
-            animation_ids = [view["id"] for view in views if view["type"] == "ugoira"]
-            states, revision = work_states(session, works)
-            assets, derived = media_maps(session, works, snapshots, ranges={work.id: (0, 1) for work in works})
-            thumbnails = {work.id: derived.get((work.id, "thumbnail", 0, "v1")) for work in works}
-            first_pages = {work.id: assets.get((work.id, "image", 0)) for work in works}
-            animations = {work_id: derived.get((work_id, "gif", 0, "v1")) for work_id in animation_ids}
-            card_animations = {work_id: derived.get((work_id, "thumbnail", 0, CARD_MOTION_SPEC)) for work_id in animation_ids}
-            for view in views:
-                view.update(states[view["id"]])
-                thumb = thumbnails.get(view["id"])
-                if thumb is not None and thumb.state != "verified":
-                    thumb = None
-                preview = animations.get(view["id"]) if view["type"] == "ugoira" else first_pages.get(view["id"])
-                if compact and view["type"] == "ugoira":
-                    source = preview
-                    preview = card_animations.get(view["id"])
-                    if (preview is None or preview.state != "verified" or not preview.sha256 or source is None
-                            or source.state != "verified" or not source.sha256 or preview.source_version != source.sha256):
-                        preview = None
-                view["preview"] = readable_page_url(preview, animation=view["type"] == "ugoira")
-                if compact and view["type"] == "ugoira" and view["preview"]:
-                    view["preview"] += "?v=" + preview.sha256[:16]
-                if view["preview"]:
-                    view["preview_status"] = "ready"
-                elif preview and preview.state == "failed":
-                    view["preview_status"] = "failed"
-                elif preview and preview.state in ("invalid", "mismatch"):
-                    view["preview_status"] = "unavailable"
-                else:
-                    view["preview_status"] = "pending"
-                view["thumbnail"] = media_url(thumb.relative_path) if thumb else None
-                if view["thumbnail"] and thumb.sha256:
-                    view["thumbnail"] += "?v=" + thumb.sha256[:16]
+            generation = session_generation(session)
+            current_ceiling = session.scalar(select(func.max(Work.id))) or 0
+            ceiling = ceiling if ceiling is not None else current_ceiling
+            scope = self._fast_scope(filters)
+            if scope is not None and ceiling == current_ceiling:
+                total = common_count(session.connection(), scope)
+            else:
+                count_statement = self._statement(filters, ceiling, for_count=True).with_only_columns(Work.id)
+                total = session.scalar(select(func.count()).select_from(count_statement.subquery()))
+            if offset == 0 and scope is not None:
+                rows = self._seek_rows(session, filters, ceiling, limit=limit)
+            else:
+                statement = self._statement(filters, ceiling)
+                window_ids = list(session.scalars(statement.with_only_columns(Work.id).order_by(
+                    *self._order(filters)).offset(offset).limit(limit)))
+                rows = [self._anchor_row(session, work_id, filters, ceiling) for work_id in window_ids]
+            views, works, operations, revision = self._hydrate_window(session, [row[0] for row in rows], compact=compact)
+            metadata = self._cursor_metadata(session, filters, rows, ceiling, generation)
+            for view, token in zip(views, metadata["boundaries"]):
+                view["cursor"] = token
         self._refresh_bookmarks(views, works, operations)
-        return {"items": views, "total": total, "offset": offset, "has_more": offset + len(views) < total,
+        return {"items": views, "total": total, "offset": offset, **metadata,
+                "has_more": offset + len(views) < total, "performance": "offset_scan",
                 "ceiling": ceiling, "catalogue_revision": revision}
 
     def counts(self, filters=LibraryFilter(), *, ceiling=None):
@@ -371,7 +661,7 @@ class Library:
             ceiling = ceiling if ceiling is not None else session.scalar(select(func.max(Work.id))) or 0
             filters = replace(filters, as_of=filters.as_of or utcnow())
             result = {"ceiling": ceiling, "as_of": filters.as_of.isoformat(),
-                      "catalogue_revision": catalogue_revision(session)}
+                      "catalogue_revision": catalogue_revision(session), "performance": "on_demand_exact"}
             base = replace(filters, favorites=False, recent=False)
             counts_by_filter = {}
             for name, selected in (("all", base), ("recent", replace(base, recent=True)),
@@ -396,6 +686,11 @@ class Library:
 
     @staticmethod
     def _revision_archive(session, snapshot):
+        from .projection_maintenance import read_revision_state
+        return read_revision_state(session, snapshot.id)
+
+    @staticmethod
+    def _raw_revision_archive(session, snapshot):
         total = 2 if snapshot.type == "ugoira" else snapshot.page_count
         required = RevisionAsset.role.in_(("ugoira_zip", "ugoira_timing")) if snapshot.type == "ugoira" else and_(
             RevisionAsset.role == "image", RevisionAsset.page_index < snapshot.page_count)
@@ -416,10 +711,17 @@ class Library:
             raise ValueError("阅读窗口过大")
         ids = list({request["work_id"] for request in requests})
         with self.database.read() as session:
-            works = {work.id: work for work in session.scalars(self._related(self._statement(
-                LibraryFilter(show_hidden=True), 2**63 - 1)).where(Work.id.in_(ids)))}
+            works = {work.id: work for work in session.scalars(select(Work).where(
+                Work.id.in_(ids), ~select(ArchiveIntent.pixiv_illust_id).where(
+                    ArchiveIntent.pixiv_illust_id == Work.pixiv_illust_id,
+                    ArchiveIntent.mode == "suppressed").exists()).options(
+                        load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title, Work.type,
+                            Work.page_count, Work.x_restrict, Work.default_revision_id, Work.latest_revision_id,
+                            raiseload=True), selectinload(Work.artist).load_only(Artist.name),
+                        selectinload(Work.bookmark)))}
+            self._load_display_metadata(session, works.values())
             explicit = {request["work_id"]: request["revision_id"] for request in requests}
-            snapshots = selected_snapshots(session, works.values(), explicit)
+            snapshots = selected_snapshots(session, works.values(), explicit, compact=True)
             ranges = {}
             for request in requests:
                 start, end = request["page_offset"], request["page_offset"] + request["page_limit"]
@@ -430,8 +732,12 @@ class Library:
             assets, derived = media_maps(session, works.values(), snapshots, ranges=ranges)
             states, revision = work_states(session, works.values())
             operations = self._bookmark_operations(session, ids)
-            views = {work.id: apply_snapshot(self._work_view(work, operations.get(work.id)), work,
-                snapshots.get(work.id)) for work in works.values()}
+            views = {work.id: apply_snapshot({"title": work.title, "artist_id": work.artist_id,
+                "artist_name": work.artist.name, "pixiv_id": work.pixiv_illust_id, "type": work.type,
+                "page_count": work.page_count, "x_restrict": work.x_restrict,
+                "bookmark": self._bookmark_view(work, operations.get(work.id)),
+                "availability": remote_availability(work, self.account_id)}, work,
+                snapshots.get(work.id), compact=True) for work in works.values()}
             items = []
             for request in requests:
                 work = works.get(request["work_id"])
@@ -458,14 +764,45 @@ class Library:
         self._refresh_bookmarks(items, works.values(), operations)
         return {"items": items, "catalogue_revision": revision}
 
+    @staticmethod
+    def _revision_page(session, work_id, *, before_ordinal=None, limit=100, default_revision_id=None):
+        statement = select(WorkRevision.id, WorkRevision.ordinal, WorkRevision.created_at,
+            WorkRevision.change_kind, WorkRevision.state, WorkRevision.page_count).where(
+                WorkRevision.work_id == work_id, WorkRevision.state != "redundant")
+        if before_ordinal is not None:
+            statement = statement.where(WorkRevision.ordinal < before_ordinal)
+        rows = list(session.execute(statement.order_by(WorkRevision.ordinal.desc()).limit(limit + 1)))
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+        return {"items": [{"id": row.id, "ordinal": row.ordinal, "created_at": row.created_at.isoformat(),
+            "change_kind": row.change_kind, "state": row.state, "page_count": row.page_count,
+            "current": row.id == default_revision_id} for row in rows], "has_more": has_more,
+            "before": rows[-1].ordinal if rows and has_more else None}
+
+    def revision_page(self, work_id, *, before_ordinal=None, limit=100):
+        if type(limit) is not int or not 1 <= limit <= 100 or before_ordinal is not None and (
+                type(before_ordinal) is not int or before_ordinal < 1):
+            raise ValueError("版本分页范围不合法")
+        with self.database.read() as session:
+            work = session.get(Work, work_id, options=[load_only(Work.id, Work.pixiv_illust_id,
+                Work.default_revision_id, raiseload=True)])
+            if work is None or session.scalar(select(ArchiveIntent.mode).where(
+                    ArchiveIntent.pixiv_illust_id == work.pixiv_illust_id)) == "suppressed":
+                raise KeyError(work_id)
+            return self._revision_page(session, work_id, before_ordinal=before_ordinal,
+                limit=limit, default_revision_id=work.default_revision_id)
+
     def detail(self, work_id, *, page_offset=0, page_limit=100, revision_id=None):
         if page_offset < 0 or not 1 <= page_limit <= 200:
             raise ValueError("页面范围不合法")
         with self.database.read() as session:
-            work = session.scalar(self._related(self._statement(LibraryFilter(show_hidden=True), work_id)).where(Work.id == work_id))
+            work = session.scalar(self._related(select(Work).where(Work.id == work_id,
+                ~select(ArchiveIntent.pixiv_illust_id).where(ArchiveIntent.pixiv_illust_id == Work.pixiv_illust_id,
+                    ArchiveIntent.mode == "suppressed").exists())))
             if work is None:
                 raise KeyError(work_id)
-            snapshots = selected_snapshots(session, [work], {work_id: revision_id} if revision_id else None)
+            self._load_display_metadata(session, [work], detail=True)
+            snapshots = selected_snapshots(session, [work], {work_id: revision_id} if revision_id else None, display=True)
             snapshot = snapshots.get(work_id)
             if revision_id is not None and (snapshot is None or snapshot.state == "redundant"):
                 raise KeyError(revision_id)
@@ -480,10 +817,16 @@ class Library:
             preview = derived.get((work_id, "gif", 0, "v1"))
             if snapshot is not None:
                 view["archive"] = self._revision_archive(session, snapshot)
-            view["revisions"] = [{"id": row.id, "ordinal": row.ordinal, "created_at": row.created_at.isoformat(),
-                "change_kind": row.change_kind, "state": row.state, "page_count": row.page_count,
-                "current": row.id == work.default_revision_id} for row in session.scalars(select(WorkRevision).where(
-                    WorkRevision.work_id == work_id, WorkRevision.state != "redundant").order_by(WorkRevision.ordinal.desc()))]
+            versions = self._revision_page(session, work_id, default_revision_id=work.default_revision_id)
+            view["revisions"] = versions["items"]
+            # A pinned old/default revision remains selectable even when its
+            # ordinal is older than the first history page.
+            if snapshot is not None and snapshot.id not in {row["id"] for row in view["revisions"]}:
+                view["revisions"].append({"id": snapshot.id, "ordinal": snapshot.ordinal,
+                    "created_at": snapshot.created_at.isoformat(), "change_kind": snapshot.change_kind,
+                    "state": snapshot.state, "page_count": snapshot.page_count,
+                    "current": snapshot.id == work.default_revision_id})
+            view["revisions_has_more"], view["revisions_before"] = versions["has_more"], versions["before"]
             view["pages"] = []
             for index in range(page_offset, min(count, page_offset + page_limit)):
                 record = preview if view["type"] == "ugoira" else originals.get((work_id, "image", index))
@@ -563,13 +906,14 @@ class Library:
             ids = [row["work_id"] for row in rows]
             works = {work.id: work for work in session.scalars(select(Work).options(
                 load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title, Work.type, Work.page_count, Work.x_restrict,
-                          Work.source_metadata, Work.default_revision_id, Work.latest_revision_id),
+                          Work.default_revision_id, Work.latest_revision_id, raiseload=True),
                 joinedload(Work.artist).load_only(Artist.name), joinedload(Work.bookmark)).where(Work.id.in_(ids)))}
             operations = self._bookmark_operations(session, ids)
             states, revision = work_states(session, works.values())
+            self._load_display_metadata(session, works.values())
             bookmark_views = {work_id: self._bookmark_view(work, operations.get(work_id))
                               for work_id, work in works.items()}
-            snapshots = selected_snapshots(session, works.values())
+            snapshots = selected_snapshots(session, works.values(), compact=True)
             originals, previews = media_maps(session, works.values(), snapshots, ranges={row["work_id"]:
                 (max(0, offset - row["page_start"]), min(row["page_count"], offset + limit - row["page_start"])) for row in rows})
             items = []
@@ -606,6 +950,7 @@ class Library:
             works = list(session.scalars(self._related(statement).order_by(Work.id).offset(max(0, offset)).limit(min(max(1, limit), 100))))
             operations = self._bookmark_operations(session, [work.id for work in works])
             states, _ = work_states(session, works)
+            self._load_display_metadata(session, works, detail=True)
             return [{**self._work_view(work, operations.get(work.id)), **states[work.id]} for work in works]
 
     def _artist_availability(self, session, artists):
@@ -665,95 +1010,49 @@ class Library:
 
     @staticmethod
     def _artist_local_summaries(session, artists):
-        ids = [artist.id for artist in artists]
-        if not ids:
-            return {}
-        # Aggregate local work facts in SQL. No per-artist/per-work queries or
-        # loading every image-page record just to obtain two summary counts.
-        current_type, current_pages = func.coalesce(WorkRevision.type, Work.type), func.coalesce(WorkRevision.page_count, Work.page_count)
-        asset_bound = or_(and_(Work.latest_revision_id.is_(None), Asset.revision_id.is_(None)),
-            select(RevisionAsset.asset_id).where(RevisionAsset.revision_id == Work.latest_revision_id,
-                RevisionAsset.asset_id == Asset.id).exists())
-        required = and_(asset_bound, or_(and_(current_type != "ugoira", Asset.role == "image", Asset.page_index < current_pages),
-            and_(current_type == "ugoira", Asset.role.in_(("ugoira_zip", "ugoira_timing")), Asset.page_index == 0)))
-        counts = select(Asset.work_id.label("work_id"), func.count().label("recorded"),
-            func.sum(case((and_(Asset.state == "verified", func.length(Asset.relative_path) > 0), 1), else_=0)).label("verified"),
-            func.sum(case((or_(Asset.state.in_(("missing", "failed", "invalid", "mismatch", "corrupt")),
-                                  Asset.relative_path.is_(None), Asset.relative_path == ""), 1), else_=0)).label("missing")
-            ).join(Work, Work.id == Asset.work_id).outerjoin(WorkRevision, WorkRevision.id == Work.latest_revision_id).where(Work.artist_id.in_(ids), required).group_by(Asset.work_id).subquery()
-        total = case((current_type == "ugoira", 2), else_=current_pages)
-        derivative_bound = or_(and_(Work.latest_revision_id.is_(None), Derivative.revision_id.is_(None)),
-            select(RevisionDerivative.derivative_id).where(RevisionDerivative.revision_id == Work.latest_revision_id,
-                RevisionDerivative.derivative_id == Derivative.id).exists())
-        thumbnail_base = select(Derivative.id).where(Derivative.work_id == Work.id, Derivative.kind == "thumbnail",
-            Derivative.page_index == 0, Derivative.spec_key == "v1", func.length(Derivative.relative_path) > 0, derivative_bound)
-        gif_base = select(Derivative.id).where(Derivative.work_id == Work.id, Derivative.kind == "gif", Derivative.page_index == 0,
-            Derivative.spec_key == "v1", func.length(Derivative.relative_path) > 0, derivative_bound)
-        bad = ("missing", "failed", "invalid", "mismatch", "corrupt")
-        thumbnail = thumbnail_base.where(~Derivative.state.in_(bad)).exists()
-        gif = gif_base.where(~Derivative.state.in_(bad)).exists()
-        thumbnail_verified = thumbnail_base.where(Derivative.state == "verified").exists()
-        gif_verified = gif_base.where(Derivative.state == "verified").exists()
-        incomplete = or_(func.coalesce(counts.c.recorded, 0) < total, func.coalesce(counts.c.missing, 0) > 0,
-                         ~thumbnail, and_(current_type == "ugoira", ~gif), Work.caption_state.in_(("unavailable", "missing", "failed")))
-        unknown = or_(func.coalesce(counts.c.verified, 0) < total, ~Work.caption_state.in_(("available", "empty")),
-                      ~thumbnail_verified, and_(current_type == "ugoira", ~gif_verified))
-        rows = session.execute(select(Work.artist_id, func.count().label("total"),
-            func.sum(case((incomplete, 1), else_=0)).label("incomplete"),
-            func.sum(case((and_(~incomplete, unknown), 1), else_=0)).label("unknown")
-            ).outerjoin(counts, counts.c.work_id == Work.id).outerjoin(WorkRevision, WorkRevision.id == Work.latest_revision_id).where(Work.artist_id.in_(ids),
-            ~Work.pixiv_illust_id.in_(select(ArchiveIntent.pixiv_illust_id).where(ArchiveIntent.mode == "suppressed")))
-            .group_by(Work.artist_id)).all()
-        counts_by_artist = {row.artist_id: row for row in rows}
+        from .source_read_projection import artist_totals
+        counts = artist_totals(session.connection(), [artist.id for artist in artists])
         result = {}
         for artist in artists:
-            row = counts_by_artist.get(artist.id)
-            incomplete_count, unknown_count = (row.incomplete or 0, row.unknown or 0) if row else (0, 0)
+            row = counts.get(artist.id, {})
+            incomplete_count, unknown_count = row.get("incomplete", 0), row.get("unknown", 0)
             missing = []
             if incomplete_count:
                 missing.append({"role": "saved_works", "page": None,
-                                "label": f"{incomplete_count} 件已保存作品有本地缺项", "kind": "original"})
+                    "label": f"{incomplete_count} 件已保存作品有本地缺项", "kind": "original"})
             if artist.avatar_url and not artist.avatar_path:
                 missing.append({"role": "avatar", "page": None, "label": "画师头像缓存", "kind": "derivative"})
             unknown = bool(unknown_count or artist.profile_refreshed_at is None)
-            result[artist.id] = {"work_count": row.total if row else 0, "incomplete_work_count": incomplete_count,
+            result[artist.id] = {"work_count": row.get("total", 0), "incomplete_work_count": incomplete_count,
                 "local": {"state": "incomplete" if missing else "unknown" if unknown else "complete", "missing": missing}}
         return result
 
     def source_overview(self, *, kind="works", group="all", offset=0, limit=50):
+        from .source_read_projection import counts as source_counts, page_ids, work_details
         if kind not in ("works", "artists") or group not in ("all", "deleted", "unavailable"):
             raise ValueError("来源一览筛选不合法")
         if type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("来源一览分页不合法")
         with self.database.read() as session:
-            counts = {}
-            for category in ("works", "artists"):
-                base, deleted, unavailable = self._source_statement(category)
-                count = session.execute(base.with_only_columns(func.sum(case((deleted, 1), else_=0)),
-                    func.sum(case((unavailable, 1), else_=0)))).one()
-                counts[category] = {"deleted": count[0] or 0, "unavailable": count[1] or 0}
-            base, deleted, unavailable = self._source_statement(kind)
-            selected = base.where(deleted if group == "deleted" else unavailable if group == "unavailable" else or_(deleted, unavailable))
+            counts = source_counts(session.connection(), self.account_id)
+            ids = page_ids(session.connection(), kind=kind, group=group,
+                account_id=self.account_id, offset=offset, limit=limit)
             total = counts[kind][group] if group != "all" else sum(counts[kind].values())
             if kind == "works":
-                works = list(session.scalars(selected.options(selectinload(Work.artist)).order_by(Work.id).offset(offset).limit(limit)))
-                requests = {work.id: work.latest_revision_id for work in works if work.latest_revision_id}
-                snapshots = selected_snapshots(session, works, requests)
-                asset_map, derivative_map = media_maps(session, works, snapshots)
-                from .revisions import project_revision
-                projected = {work.id: project_revision(work, snapshots.get(work.id)) for work in works}
-                asset_groups, derivative_groups = {}, {}
-                for key, asset in asset_map.items(): asset_groups.setdefault(key[0], []).append(asset)
-                for key, record in derivative_map.items(): derivative_groups.setdefault(key[0], []).append(record)
+                by_id = {work.id: work for work in session.scalars(select(Work).options(load_only(Work.id, Work.pixiv_illust_id, Work.title, Work.type, Work.page_count, Work.artist_id, raiseload=True), joinedload(Work.artist).load_only(Artist.name)).where(Work.id.in_(ids)))} if ids else {}
+                works = [by_id[identity] for identity in ids]
+                self._load_display_metadata(session, works)
+                local = work_details(session.connection(), ids)
                 items = [{"kind": "work", "id": work.id, "pixiv_id": work.pixiv_illust_id, "title": work.title,
                     "type": work.type, "page_count": work.page_count, "artist_id": work.artist_id,
                     "artist_name": work.artist.name, "availability": remote_availability(work, self.account_id),
-                    "local": {**self._local_work(projected[work.id], asset_groups.get(work.id, []), derivative_groups.get(work.id, [])),
-                        "default_revision_id": work.default_revision_id, "latest_revision_id": work.latest_revision_id,
-                        "has_saved_version": work.default_revision_id is not None}} for work in works]
+                    "local": local[work.id]} for work in works]
             else:
-                artists = list(session.scalars(selected.order_by(Artist.id).offset(offset).limit(limit)))
-                availability = self._artist_availability(session, artists)
+                rows = list(session.execute(select(Artist, ApplicationState.value).join(ApplicationState,
+                    ApplicationState.key == literal(ARTIST_PREFIX) + Artist.pixiv_user_id).where(Artist.id.in_(ids)))) if ids else []
+                by_id = {artist.id: artist for artist, value in rows}
+                artists = [by_id[identity] for identity in ids]
+                availability = {artist.id: availability_snapshot(value, self.account_id) for artist, value in rows}
                 local = self._artist_local_summaries(session, artists)
                 items = [{"kind": "artist", "id": artist.id, "pixiv_id": artist.pixiv_user_id, "name": artist.name,
                     "avatar": media_url(artist.avatar_path), "availability": availability.get(artist.id),

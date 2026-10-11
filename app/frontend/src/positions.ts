@@ -6,7 +6,7 @@ export function galleryEntryIndex(query: string, pageSize: number, total: number
 }
 export function freshLibraryQuery(query: string, resetPage = false) {
   const params = new URLSearchParams(query)
-  for (const name of ['ceiling', 'as_of', 'offset', 'limit', 'page_offset', 'mode', 'origin', 'origin_artist']) params.delete(name)
+  for (const name of ['ceiling', 'as_of', 'offset', 'limit', 'page_offset', 'mode', 'origin', 'origin_artist', 'cursor', 'direction', 'anchor_work_id', 'index', 'work_index']) params.delete(name)
   if (resetPage) params.delete('page')
   return params.toString()
 }

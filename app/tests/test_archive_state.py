@@ -254,8 +254,8 @@ def test_window_reads_bound_entities_and_queries_with_5000_works_and_2000_pages(
         session.add(ApplicationState(key="catalogue_revision", value=7))
     statements, loaded = [], []
 
-    def statement(*args):
-        statements.append(1)
+    def statement(connection, cursor, sql, parameters, context, many):
+        statements.append(sql)
 
     def load(record, context):
         loaded.append(type(record).__name__)
@@ -268,7 +268,11 @@ def test_window_reads_bound_entities_and_queries_with_5000_works_and_2000_pages(
         assert len(cards["items"]) == 60
         assert cards["items"][0]["archive"]["total"] == 2000
         assert cards["items"][0]["archive"]["verified"] == 2000
-        assert len(statements) <= 11
+        # State/display projections and cursor boundary checks add fixed reads;
+        # each 60-work hydration still uses one state and one display batch.
+        assert len(statements) <= 20
+        assert sum(sql.startswith("SELECT work_id,value FROM read_work_state") for sql in statements) == 1
+        assert sum(sql.startswith("SELECT scope,availability FROM read_display_metadata") for sql in statements) == 1
         assert loaded.count("Work") == 60
         assert loaded.count("Asset") == 1
         assert "OperationItem" not in loaded
@@ -276,7 +280,9 @@ def test_window_reads_bound_entities_and_queries_with_5000_works_and_2000_pages(
         loaded.clear()
         feed = library.feed(ceiling=5000, offset=1880, limit=120)
         assert len(feed["items"]) == 120
-        assert len(statements) <= 10
+        assert len(statements) <= 12
+        assert sum(sql.startswith("SELECT work_id,value FROM read_work_state") for sql in statements) == 1
+        assert sum(sql.startswith("SELECT scope,availability FROM read_display_metadata") for sql in statements) == 1
         assert loaded.count("Work") == 1
         assert loaded.count("Asset") == 120
         assert "OperationItem" not in loaded
@@ -304,8 +310,8 @@ def test_motion_card_reads_are_batched_for_current_window(catalogue):
             "sha256": "b" * 64, "source_version": "a" * 64,
             "relative_path": f".thumbnails/{index}_card_motion_v1.webp"} for index in range(1, 62)])
     statements, loaded = [], []
-    def statement(*args):
-        statements.append(1)
+    def statement(connection, cursor, sql, parameters, context, many):
+        statements.append(sql)
     def load(record, context):
         if record.spec_key == "card-motion-v1":
             loaded.append(record.work_id)
@@ -313,12 +319,21 @@ def test_motion_card_reads_are_batched_for_current_window(catalogue):
     event.listen(Derivative, "load", load)
     try:
         one = library.query(compact=True, limit=1, ceiling=60)
-        single_count = len(statements)
+        # Each boundary uses at most two disjoint indexed ranges. A window
+        # ending at the final tie can require one more empty range than K=1.
+        is_seek = lambda sql: sql.startswith("SELECT work_id,order_key FROM read_work_order")
+        single_hydration_count = sum(not is_seek(sql) for sql in statements)
+        assert len(statements) <= 20
+        assert sum(is_seek(sql) for sql in statements) <= 5
         assert len(one["items"]) == 1 and len(loaded) == 1
         statements.clear()
         loaded.clear()
         window = library.query(compact=True, limit=60, ceiling=60)
-        assert len(statements) == single_count
+        assert len(statements) <= 20
+        assert sum(not is_seek(sql) for sql in statements) == single_hydration_count
+        assert sum(is_seek(sql) for sql in statements) <= 5
+        assert sum(sql.startswith("SELECT derivatives.id") for sql in statements) == 1
+        assert sum(sql.startswith("SELECT work_id,value FROM read_work_state") for sql in statements) == 1
         assert len(loaded) == 60 and set(loaded) == set(range(1, 61))
         assert all("card_motion_v1.webp?v=" in card["preview"] for card in window["items"])
     finally:

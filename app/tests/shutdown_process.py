@@ -1,6 +1,6 @@
 """Isolated tray/server process probe; no native tray or external services.
 
-Writes retained synthetic data and results only under a new b7-shutdown run.
+Writes synthetic data only under the calling test's explicit external root.
 """
 from pathlib import Path
 import json
@@ -13,9 +13,7 @@ import time
 
 root = Path(sys.argv[1]).resolve()
 mode = sys.argv[2]
-checkout = Path(__file__).resolve().parents[2]
-project = checkout.parents[1] if checkout.parent.name == ".worktrees" else checkout
-allowed = project / ".devtools" / "test-runs"
+allowed = Path(os.environ["PIXIV_TEST_ARTIFACT_ROOT"]).resolve()
 if not root.is_relative_to(allowed) or not root.relative_to(allowed).parts[0].startswith("b7-shutdown-"):
     raise ValueError("Requires a new isolated b7-shutdown test-run directory")
 root.mkdir(parents=True, exist_ok=False)

@@ -13,7 +13,7 @@ from typing import Protocol
 from datetime import timedelta
 from contextlib import ExitStack, contextmanager
 
-from sqlalchemy import and_, case, event, exists, func, or_, select, true, tuple_, union_all
+from sqlalchemy import and_, case, event, exists, func, literal_column, or_, select, true, tuple_, union_all
 from sqlalchemy.orm import aliased
 
 from .database import ArchiveDatabase
@@ -22,10 +22,12 @@ from .models import ApplicationState, Asset, Derivative, Operation, OperationIte
 from ..version import __build__
 from ..request_policy import AccountChanged, RequestDeferred, TaskRemoteRetry
 from .read_control import LocalReadError
+from . import task_read_projection as task_reads
 
 log = logging.getLogger(__name__)
 SETTLED = ("succeeded", "failed", "skipped", "not_executed")
 ACTIVE = ("queued", "planning", "ready", "running", "interrupted")
+_SOURCE_RESULT = object()
 
 
 @dataclass(frozen=True)
@@ -421,7 +423,21 @@ class TaskQueue:
         return paused
 
     def operation_paused(self, operation_id):
-        return operation_id in self._effective_paused()
+        # A visible task needs only its own ancestors. Rebuilding the complete
+        # descendant closure here made a cold/invalidated status read scale
+        # with every unrelated task relationship. The scheduler still uses the
+        # shared closure when it actually needs the complete paused set.
+        with self._scheduler_lock:
+            pending, seen = [operation_id], set()
+            while pending:
+                ident = pending.pop()
+                if ident in seen:
+                    continue
+                seen.add(ident)
+                if ident in self._paused_operations:
+                    return True
+                pending.extend(self._control_parents.get(ident, ()))
+        return False
 
     @staticmethod
     def _paused_in_transaction(session, operation):
@@ -576,7 +592,14 @@ class TaskQueue:
         """Call after filesystem journal recovery, before starting the sole worker."""
         self._clear_byte_attempts()
         with self.database.write() as session:
-            for item in session.scalars(select(OperationItem).where(OperationItem.state == "running")):
+            # Existing operation/state indexes cover SQLite rowid. Select the
+            # narrow physical identities first, then fetch only running rows;
+            # a direct ORM state filter scans every historical JSON payload.
+            # Do not filter by parent state: interrupted items can also belong
+            # to finished operations. Rowid stays within this write transaction.
+            row_id = literal_column("operation_items.rowid")
+            running_ids = select(row_id).select_from(OperationItem).where(OperationItem.state == "running")
+            for item in session.scalars(select(OperationItem).where(row_id.in_(running_ids))):
                 item.state = "pending"
             for operation in session.scalars(self._allowed_query(select(Operation).where(Operation.state.in_(("planning", "running", "interrupted"))))):
                 round_record = session.get(TaskRound, operation.round_id) if operation.round_id else None
@@ -1144,15 +1167,11 @@ class TaskQueue:
 
     @classmethod
     def _phase_counts(cls, session, operation_id, phase, unit):
-        states = cls._item_states(operation_id)
-        return dict(session.execute(select(OperationItem.state, func.count()).where(
-            OperationItem.operation_id == operation_id,
-            OperationItem.state.in_(select(states.c.state).where(states.c.state.is_not(None))),
-            OperationItem.phase == phase, OperationItem.unit == unit).group_by(OperationItem.state)).all())
+        return task_reads.phase_counts(session, operation_id, phase, unit)
 
-    def _step_progress(self, session, operation, phase, unit, *, initialize=False):
+    def _step_progress(self, session, operation, phase, unit, *, initialize=False, result_override=None):
         key = phase + ":" + unit
-        progress = dict(operation.result.get("step_progress", {}))
+        progress = dict((operation.result if result_override is None else result_override).get("step_progress", {}))
         value = progress.get(key)
         with self._scheduler_lock:
             trusted = (operation.id, key) in self._validated_phases
@@ -1326,9 +1345,10 @@ class TaskQueue:
                 rounds.add(operation.round_id)
             if operation.state not in ("ready", "running") or operation.result.get("planning_complete") is False:
                 continue
-            states = self._item_states(operation.id)
-            unfinished = session.scalar(select(states.c.state).where(~states.c.state.in_(SETTLED)).limit(1))
-            if unfinished is not None:
+            counts = task_reads.operation_counts(session, operation.id)
+            # The previous SQL completion gate ignored NULL states while still
+            # retaining unknown non-NULL states (including the empty string).
+            if any(state is not None and state not in SETTLED for state in counts):
                 continue
             child_counts = None
             if operation.result.get("child_operation_ids"):
@@ -1343,7 +1363,6 @@ class TaskQueue:
                     continue
                 # Aggregate persisted child results once, after the SQL completion gate.
                 child_counts = session.execute(select(*[func.coalesce(func.sum(Operation.result["counts"][state].as_integer()), 0) for state in SETTLED]).select_from(parent_record).join(child_keys, true()).join(Operation, Operation.id == child_keys.c.value).where(parent_record.id == operation.id)).one()
-            counts = dict(session.execute(select(OperationItem.state, func.count()).where(OperationItem.operation_id == operation.id).group_by(OperationItem.state)).all())
             aggregate = Counter(counts)
             if child_counts:
                 aggregate.update({state: count for state, count in zip(SETTLED, child_counts) if count})
@@ -1381,8 +1400,7 @@ class TaskQueue:
 
     @staticmethod
     def _round_counts(session, round_id):
-        return dict(session.execute(select(OperationItem.state, func.count()).join(Operation).where(
-            Operation.round_id == round_id).group_by(OperationItem.state)).all())
+        return task_reads.round_counts(session, round_id)
 
     def acknowledge(self, operation_id):
         with self.database.write() as session:
@@ -1395,8 +1413,8 @@ class TaskQueue:
         running_items = {}
         with self.database.read() as session:
             current = session.scalar(select(TaskRound).order_by(TaskRound.created_at.desc()).limit(1))
-            waiting = session.scalar(select(func.count()).select_from(Operation).where(
-                Operation.round_id.is_(None), Operation.state == "queued"))
+            counters = task_reads.status_counts(session)
+            waiting = counters["waiting"]
             rounds = None
             if current is not None:
                 counts = self._round_counts(session, current.id)
@@ -1405,15 +1423,16 @@ class TaskQueue:
                     "total": total if current.frozen_at else None, "settled": settled,
                     "ratio": settled / total if current.frozen_at and total else None,
                     "outcome": current.result.get("outcome"), "created_at": current.created_at.isoformat()}
-            active_operation_count = session.scalar(select(func.count()).select_from(Operation).where(Operation.state.in_(ACTIVE)))
-            queued_operation_count = session.scalar(select(func.count()).select_from(Operation).where(Operation.state.in_(("queued", "ready"))))
-            priority = case((Operation.source == "manual", 0), (Operation.source == "maintenance", 2), else_=1)
-            active = list(session.scalars(select(Operation).where(Operation.state.in_(("planning", "running"))).order_by(priority, Operation.created_at).limit(4)))
-            active += list(session.scalars(select(Operation).where(Operation.state.in_(("queued", "ready", "interrupted"))).order_by(priority, Operation.created_at).limit(32)))
-            history = list(session.scalars(select(Operation).where(Operation.state == "finished").order_by(
-                Operation.finished_at.desc()).limit(max(1, min(history_limit, 100)))))
-            attention_count = session.scalar(select(func.count()).select_from(Operation).where(Operation.needs_attention.is_(True)))
-            views = [self._operation_view(op, session, running_items) for op in active + history]
+            active_operation_count = counters["active"]
+            queued_operation_count = counters["queued"]
+            # Seek bounded IDs in the exact ordered index before hydration.
+            # SQLite may otherwise choose a state-leading index and sort the
+            # full active set, even with the partial priority index available.
+            active = task_reads.active_head(session, running=True, limit=4)
+            active += task_reads.active_head(session, running=False, limit=32)
+            history = task_reads.history_head(session, limit=max(1, min(history_limit, 100)), status=True)
+            attention_count = counters["attention"]
+            views = [self._operation_view(op, session, running_items, result_override=result) for op, result in active + history]
             for view in views:
                 view["result"] = {key: value for key, value in view["result"].items() if key not in ("child_operation_ids", "parent_operation_ids")}
             response = {"active_operation_count": active_operation_count, "queued_operation_count": queued_operation_count, "catalogue_revision": catalogue_revision(session), "round": rounds, "next_round_count": waiting, "needs_attention_count": attention_count,
@@ -1423,9 +1442,12 @@ class TaskQueue:
         self._merge_byte_progress(views, running_items)
         return response
 
-    def _operation_view(self, op, session=None, running_items=None):
+    def _operation_view(self, op, session=None, running_items=None, *, result_override=_SOURCE_RESULT):
+        if result_override is None:
+            raise task_reads.ProjectionUnavailable("task operation result projection is missing")
         # Durable snapshots from older versions are never live byte progress.
-        result = {key: value for key, value in op.result.items() if key not in ("current_item", "current_items")}
+        result = {key: value for key, value in (op.result if result_override is _SOURCE_RESULT else result_override).items()
+            if key not in ("current_item", "current_items")}
         running = []
         manually_paused = self.operation_paused(op.id)
         waiting_connection = op.state in ACTIVE and not self.kind_allowed(op.kind)
@@ -1433,19 +1455,15 @@ class TaskQueue:
         if waiting_connection:
             lane, phase["name"], phase["detail"] = None, "waiting_connection", "等待连接 Pixiv，任务进度已保留"
         if session is not None and op.state in ACTIVE and not waiting_connection:
-            running = list(session.scalars(select(OperationItem).where(OperationItem.operation_id == op.id, OperationItem.state == "running").order_by(OperationItem.position).limit(4)))
-            remote_pages = session.scalar(select(OperationItem.id).where(OperationItem.operation_id == op.id,
-                OperationItem.kind.in_(("discover_page", "bookmark_page", "bookmark_artist")),
-                OperationItem.state.in_(("pending", "running")),
-                OperationItem.phase.in_(("checking", "bookmarks")),
-                OperationItem.unit.in_(("pages", "artists"))).limit(1))
+            running = task_reads.running_window(session, op.id)
+            remote_pages = task_reads.remote_inventory_pending(session, op.id)
             if remote_pages:
                 phase["total"] = None
             lane = "check" if op.state == "planning" else None
             if running:
                 running.sort(key=lambda item: TaskQueue._lane(item) != "download")
                 item = running[0]
-                progress = self._step_progress(session, op, item.phase, item.unit)
+                progress = self._step_progress(session, op, item.phase, item.unit, result_override=result)
                 phase = {"name": item.phase, "unit": item.unit, "done": progress["done"],
                     "total": None if result.get("planning_complete") is False or remote_pages else progress["total"], "detail": "正在处理"}
                 lane = TaskQueue._lane(item)
@@ -1464,19 +1482,16 @@ class TaskQueue:
         limit = max(1, min(limit, 100))
         running_items = {}
         with self.database.read() as session:
-            operation = session.get(Operation, operation_id)
-            if operation is None:
+            stored = session.execute(task_reads.operation_statement().where(Operation.id == operation_id)).first()
+            if stored is None:
                 raise KeyError(operation_id)
-            counts = dict(session.execute(select(OperationItem.state, func.count()).where(
-                OperationItem.operation_id == operation_id).group_by(OperationItem.state)).all())
-            statement = select(OperationItem).where(OperationItem.operation_id == operation_id)
-            if problems_only:
-                statement = statement.where(OperationItem.state.in_(("failed", "not_executed")))
-            found = list(session.scalars(statement.order_by(OperationItem.position).offset(max(0, offset)).limit(max(1, min(limit, 100)) + 1)))
+            operation, operation_result = stored
+            counts = task_reads.operation_counts(session, operation_id)
+            found = task_reads.item_window(session, operation_id, offset=max(0, offset),
+                limit=limit + 1, problems_only=problems_only)
             items = found[:limit]
-            phases = session.execute(select(OperationItem.phase, OperationItem.unit, OperationItem.state, func.count()).where(
-                OperationItem.operation_id == operation_id).group_by(OperationItem.phase, OperationItem.unit, OperationItem.state))
-            response = {**self._operation_view(operation, session, running_items), "counts": counts, "has_more_items": len(found) > limit,
+            phases = task_reads.operation_phases(session, operation_id)
+            response = {**self._operation_view(operation, session, running_items, result_override=operation_result), "counts": counts, "has_more_items": len(found) > limit,
                 "phases": [{"phase": p, "unit": u, "state": s, "count": c} for p, u, s, c in phases],
                 "items": [{"id": i.id, "key": i.item_key, "state": i.state, "phase": i.phase,
                            "attempts": i.attempts, "result": i.result} for i in items]}
@@ -1486,17 +1501,14 @@ class TaskQueue:
     def history(self, before=None, limit=20, attention_only=False):
         limit = max(1, min(limit, 100))
         with self.database.read() as session:
-            statement = select(Operation).where(Operation.state == "finished")
-            if attention_only:
-                statement = statement.where(Operation.needs_attention.is_(True))
+            boundary = None
             if before:
-                reference = session.get(Operation, before)
+                reference = session.execute(select(Operation.id, Operation.finished_at).where(Operation.id == before)).first()
                 if reference is None or reference.finished_at is None:
                     raise KeyError(before)
-                statement = statement.where(or_(Operation.finished_at < reference.finished_at,
-                    and_(Operation.finished_at == reference.finished_at, Operation.id < reference.id)))
-            found = list(session.scalars(statement.order_by(Operation.finished_at.desc(), Operation.id.desc()).limit(limit + 1)))
-            return {"items": [self._operation_view(operation) for operation in found[:limit]],
+                boundary = (reference.finished_at, reference.id)
+            found = task_reads.history_head(session, limit=limit + 1, before=boundary, attention_only=attention_only)
+            return {"items": [self._operation_view(operation, result_override=result) for operation, result in found[:limit]],
                     "has_more": len(found) > limit}
 
     def retry(self, operation_id):

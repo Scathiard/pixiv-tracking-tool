@@ -1,6 +1,6 @@
 import { api, url } from '../api.ts'
 import { freshLibraryQuery, galleryEntryIndex } from '../positions.ts'
-import type { GalleryBatch } from '../types.ts'
+import { normalizeGalleryBatch, type CursorGalleryBatch, type GalleryBatch } from '../types.ts'
 
 export interface GallerySeed {query: string; anchor: number; pageSize: number; continuous: boolean; data: GalleryBatch}
 
@@ -10,7 +10,8 @@ export async function readLibraryEntry(query: string, path: string, pageSize: nu
   params.delete('page'); params.delete('revision_id')
   const wanted = path === '/' ? galleryEntryIndex(query, pageSize, Number.MAX_SAFE_INTEGER) : 0
   const limit = path !== '/' ? 1 : continuous ? 240 : pageSize
-  let data = await api<GalleryBatch>(url('/api/library', params.toString(), {offset: wanted, limit, compact: 1}), {signal})
+  const endpoint = wanted > 0 ? '/api/library' : '/api/library/cursor'
+  let data = normalizeGalleryBatch(await api<CursorGalleryBatch>(url(endpoint, params.toString(), {...(wanted > 0 ? {offset: wanted} : {}), limit, compact: 1}), {signal}), wanted)
   signal.throwIfAborted()
   params.set('ceiling', String(data.ceiling)); params.set('as_of', data.as_of)
   const entry = path === '/' ? galleryEntryIndex(query, pageSize, data.total) : 0
@@ -18,7 +19,7 @@ export async function readLibraryEntry(query: string, path: string, pageSize: nu
   // An explicit page can have disappeared since the URL was saved. Re-read only
   // that boundary case using the first response's snapshot.
   if (path === '/' && wanted !== anchor) {
-    data = await api<GalleryBatch>(url('/api/library', params.toString(), {offset: anchor, limit, compact: 1}), {signal})
+    data = normalizeGalleryBatch(await api<CursorGalleryBatch>(url('/api/library', params.toString(), {offset: anchor, limit, compact: 1}), {signal}), anchor)
     signal.throwIfAborted()
   }
   return {query: params.toString(), anchor, pageSize, continuous, data}

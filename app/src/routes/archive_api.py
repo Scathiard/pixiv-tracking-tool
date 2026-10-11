@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.datastructures import QueryParams
 
 from ..core.library import LibraryFilter
+from ..core.read_projection import CursorExpired
 from ..core.read_control import local_read
 from ..core.models import utcnow
 from ..core.tasks import safe_failure
@@ -130,6 +131,133 @@ def create_router(get_runtime):
             raise HTTPException(422, "筛选条件无效") from exc
         return {**runtime().library.query(selected, offset=offset, limit=limit, ceiling=ceiling, compact=compact), "as_of": parameters["as_of"]}
 
+    def cursor_failure(exc):
+        if isinstance(exc, CursorExpired):
+            raise HTTPException(409, {"code": "cursor_expired",
+                "message": "图库已变化，当前位置仍保留；重新定位后可继续",
+                "recoverable": True}) from exc
+        raise HTTPException(422, "游标或筛选条件无效") from exc
+
+    def cursor_filters(request, cursor):
+        try:
+            parameters = request.query_params
+            if cursor and "as_of" not in parameters:
+                parameters = QueryParams([*parameters.multi_items(),
+                    ("as_of", runtime().library.cursor_reference(cursor))])
+            return parse_filters(parameters)
+        except ValueError as exc:
+            cursor_failure(exc)
+
+    @router.get("/api/library/cursor")
+    @local_read(get_runtime)
+    def cursor_library(request: Request, limit: int = Query(100, ge=1, le=500),
+                       cursor: str | None = Query(None, max_length=8192),
+                       direction: Literal["next", "previous"] = "next",
+                       ceiling: int | None = Query(None, ge=0), compact: bool = False,
+                       anchor_work_id: int | None = Query(None, gt=0)):
+        try:
+            return runtime().library.list_cursor(cursor_filters(request, cursor), limit=limit, cursor=cursor,
+                direction=direction, ceiling=ceiling, compact=compact, anchor_work_id=anchor_work_id)
+        except ValueError as exc:
+            cursor_failure(exc)
+        except KeyError as exc:
+            raise HTTPException(404, "当前位置已移出这个范围；请从范围开头继续") from exc
+
+    @router.get("/api/works/{work_id}/cursor-neighbors")
+    @local_read(get_runtime)
+    def cursor_neighbors(request: Request, work_id: int,
+                         ceiling: int | None = Query(None, ge=0),
+                         cursor: str | None = Query(None, max_length=8192)):
+        try:
+            return runtime().library.cursor_neighbors(work_id, cursor_filters(request, cursor), ceiling=ceiling, cursor=cursor)
+        except ValueError as exc:
+            cursor_failure(exc)
+        except KeyError as exc:
+            raise HTTPException(404, "作品已移出这个范围；请重新定位") from exc
+
+    @router.get("/api/library/cursor/feed")
+    @local_read(get_runtime)
+    def cursor_feed(request: Request, limit: int = Query(48, ge=1, le=120),
+                    cursor: str | None = Query(None, max_length=8192),
+                    direction: Literal["next", "previous"] = "next",
+                    ceiling: int | None = Query(None, ge=0),
+                    anchor_work_id: int | None = Query(None, gt=0),
+                    page: int = Query(0, ge=-1), index: int = Query(0, ge=0),
+                    work_index: int = Query(0, ge=0)):
+        # Ordinals are browser-local hints, never exact SQL ranks. The token
+        # binds the actual identity, ordering, filters and projection generation.
+        selected = cursor_filters(request, cursor)
+        current = runtime().library
+        try:
+            batch = current.list_cursor(selected, limit=min(500, limit + 1), cursor=cursor,
+                direction=direction, ceiling=ceiling, compact=True, anchor_work_id=anchor_work_id)
+            cards = batch["items"]
+            boundaries = batch.get("boundaries", [])
+            positions = {card["id"]: position for position, card in enumerate(cards)}
+            tokens = {card["id"]: card.get("cursor") or boundaries[position]
+                      for position, card in enumerate(cards)}
+            requests, remaining, ordinal, position = [], limit, index, work_index
+            candidates = cards if direction == "next" else list(reversed(cards))
+            more = bool(batch.get("has_more")) if direction == "next" else bool(batch.get("has_previous"))
+            for number, card in enumerate(candidates):
+                count = max(1, 1 if card["type"] == "ugoira" else card["page_count"])
+                first = page if number == 0 and anchor_work_id is not None else (0 if direction == "next" else count - 1)
+                if direction == "next" and first >= count or direction == "previous" and first < 0:
+                    position += 1 if direction == "next" else -1
+                    continue
+                first = min(count - 1, max(0, first))
+                take = min(remaining, count - first if direction == "next" else first + 1)
+                start_page = first if direction == "next" else first - take + 1
+                start_index = ordinal if direction == "next" else ordinal - take + 1
+                work_start = start_index - start_page
+                requests.append({"work_id": card["id"], "revision_id": card.get("revision_id"),
+                    "page_offset": start_page, "page_limit": take, "index": max(0, start_index),
+                    "work_index": max(0, position), "round": 0,
+                    "previous_work_index": None, "next_work_index": work_start + count})
+                remaining -= take
+                ordinal += take if direction == "next" else -take
+                if not remaining:
+                    more = more or (first + take < count if direction == "next" else start_page > 0) or number + 1 < len(candidates)
+                    break
+                position += 1 if direction == "next" else -1
+            if direction == "previous":
+                requests.reverse()
+            if requests:
+                # A single predecessor lookup gives the first work's boundary;
+                # the remaining boundaries follow directly from this K window.
+                first = requests[0]
+                nearby = current.cursor_neighbors(first["work_id"], selected, ceiling=batch["ceiling"],
+                    cursor=tokens[first["work_id"]])
+                predecessor = nearby.get("previous")
+                previous = (first["index"] - first["page_offset"] - predecessor["page_count"]) if predecessor else None
+                for wanted in requests:
+                    wanted["previous_work_index"] = max(0, previous) if previous is not None else None
+                    previous = wanted["index"] - wanted["page_offset"]
+            result = current.reading_window(requests)
+            items = result["items"]
+            if len(items) != sum(wanted["page_limit"] for wanted in requests):
+                raise CursorExpired("阅读范围已变化")
+            if cards:
+                # Separate read connections cannot silently cross a write.
+                current.list_cursor(selected, limit=1, cursor=tokens[cards[0]["id"]],
+                    anchor_work_id=cards[0]["id"], ceiling=batch["ceiling"], compact=True)
+            for item in items:
+                item["work_cursor"] = tokens[item["work_id"]]
+                card_position = positions[item["work_id"]]
+                item["has_next_work"] = card_position + 1 < len(cards) or bool(batch.get("has_more"))
+            end = items[-1]["index"] + 1 if items else index
+            return {**result, "items": items, "offset": items[0]["index"] if items else index,
+                "total": end + (1 if direction == "next" and more else 0),
+                "has_more": more if direction == "next" else bool(items),
+                "has_previous": more if direction == "previous" else bool(items and items[0]["index"] > 0),
+                "ceiling": batch["ceiling"], "as_of": batch["as_of"],
+                "generation": batch["generation"], "performance": batch.get("performance"),
+                "count_mode": batch.get("count_mode")}
+        except ValueError as exc:
+            cursor_failure(exc)
+        except KeyError as exc:
+            raise HTTPException(404, "当前位置已移出这个范围；请重新定位") from exc
+
     @router.get("/api/library/feed")
     @local_read(get_runtime)
     def feed(request: Request, offset: int = Query(0, ge=0), limit: int = Query(48, ge=1, le=120), ceiling: int = Query(..., ge=0)):
@@ -205,6 +333,15 @@ def create_router(get_runtime):
     def work(work_id: int, page_offset: int = Query(0, ge=0), page_limit: int = Query(100, ge=1, le=200), revision_id: str | None = Query(None, max_length=64)):
         try:
             return runtime().library.detail(work_id, page_offset=page_offset, page_limit=page_limit, revision_id=revision_id)
+        except KeyError as exc:
+            raise HTTPException(404, "作品不存在或已删除") from exc
+
+    @router.get("/api/works/{work_id}/revisions")
+    @local_read(get_runtime)
+    def work_revisions(work_id: int, before_ordinal: int | None = Query(None, ge=1),
+                       limit: int = Query(100, ge=1, le=100)):
+        try:
+            return runtime().library.revision_page(work_id, before_ordinal=before_ordinal, limit=limit)
         except KeyError as exc:
             raise HTTPException(404, "作品不存在或已删除") from exc
 

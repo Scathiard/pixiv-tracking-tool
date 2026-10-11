@@ -15,7 +15,7 @@ from sqlalchemy.exc import OperationalError, TimeoutError as PoolTimeout
 from .models import Base
 from .read_control import LocalReadBusy, ReadBudget, ReadController, current_read
 
-SCHEMA_REVISION = "0003_revisions"
+SCHEMA_REVISION = "0004_read_projections"
 
 
 class UpgradeRequired(RuntimeError):
@@ -41,7 +41,10 @@ class ArchiveDatabase:
             with self.engine.connect() as connection:
                 if "alembic_version" not in inspect(connection).get_table_names():
                     raise UpgradeRequired("此数据库需要先完成显式升级，原库未转换")
-                revision = connection.scalar(text("SELECT version_num FROM alembic_version"))
+                revisions = connection.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
+                if len(revisions) != 1:
+                    raise UpgradeRequired("数据库结构版本记录不是唯一一行，未自动修补")
+                revision = revisions[0]
                 if revision != SCHEMA_REVISION:
                     raise UpgradeRequired(f"不支持的数据库结构版本：{revision}")
                 schema = inspect(connection)
@@ -51,6 +54,27 @@ class ArchiveDatabase:
                     actual = {column["name"] for column in schema.get_columns(table.name)}
                     if not {column.name for column in table.columns}.issubset(actual):
                         raise UpgradeRequired("数据库字段与结构版本不符，未自动改表")
+                required_projection_tables = {"read_model_meta", "read_model_dirty", "read_resource_totals",
+                    "read_resource_facts", "read_work_order", "read_common_counts", "read_task_candidates",
+                    "read_operation_scope", "read_work_state", "read_revision_state"}
+                if not required_projection_tables.issubset(schema.get_table_names()):
+                    raise UpgradeRequired("读取投影结构不完整，需要显式修复，未自动补建")
+                capture_tables = {"works", "work_revisions", "assets", "derivatives", "revision_assets",
+                    "revision_derivatives", "local_preferences", "remote_bookmarks", "archive_intents",
+                    "operations", "operation_items", "application_state", "work_tags"}
+                expected_triggers = {f"read_capture_{table}_{action}" for table in capture_tables
+                    for action in ("insert", "update", "delete")}
+                actual_triggers = set(connection.exec_driver_sql(
+                    "SELECT name FROM sqlite_master WHERE type='trigger'").scalars())
+                if not expected_triggers.issubset(actual_triggers):
+                    raise UpgradeRequired("读取投影变更捕获不完整，未自动修补")
+                from .projection_maintenance import validate_projection_schema
+                from .read_projection import ProjectionUnavailable
+                try:
+                    validate_projection_schema(connection)
+                except ProjectionUnavailable as exc:
+                    raise UpgradeRequired("读取投影结构与版本不符，需要显式修复，未自动改表") from exc
+                self._schema_version = connection.exec_driver_sql("PRAGMA schema_version").scalar()
         except Exception:
             self.engine.dispose()
             raise
@@ -120,6 +144,10 @@ class ArchiveDatabase:
                 Base.metadata.create_all(connection)
                 from .task_indexes import create_task_indexes
                 create_task_indexes(connection)
+                from .projection_maintenance import install_projections
+                from .read_projection import finish_verified_batch
+                install_projections(connection)
+                finish_verified_batch(connection)
                 operations.create_table(
                     "alembic_version",
                     Column("version_num", String(32), primary_key=True),
@@ -134,6 +162,23 @@ class ArchiveDatabase:
         finally:
             engine.dispose()
         return cls(path)
+
+    def refresh_schema_contract_after_index_preparation(self):
+        """Explicit sanctioned startup DDL completion, never an automatic repair."""
+        from .projection_maintenance import validate_projection_schema
+        from .read_projection import require_ready
+        with self._write_lock, self.engine.connect() as connection:
+            if self._closed:
+                raise RuntimeError("数据库已关闭")
+            validate_projection_schema(connection)
+            require_ready(connection)
+            self._schema_version = connection.exec_driver_sql("PRAGMA schema_version").scalar()
+
+    def _check_schema(self, connection):
+        # A connection can outlive external DDL. Detect a removed/modified
+        # capture trigger before admitting a clean-looking stale projection.
+        if connection.exec_driver_sql("PRAGMA schema_version").scalar() != self._schema_version:
+            raise UpgradeRequired("数据库结构在打开后已变化，需要重新核验，未自动修补")
 
     @contextmanager
     def read(self):
@@ -166,8 +211,16 @@ class ArchiveDatabase:
             driver.execute("PRAGMA busy_timeout=100")
             with self.session(bind=connection) as session:
                 session.connection().exec_driver_sql("BEGIN")
-                yield session
-                budget.checkpoint()
+                from .read_projection import require_ready
+                self._check_schema(session.connection())
+                session.info['read_projection_generation'] = require_ready(session.connection())
+                try:
+                    yield session
+                    budget.checkpoint()
+                finally:
+                    # A Session may be retained/reused by a caller after this
+                    # context; never carry readiness to a different snapshot.
+                    session.info.pop('read_projection_generation', None)
         except PoolTimeout as exc:
             budget.checkpoint()
             raise LocalReadBusy("本地读取繁忙，请稍后重试") from exc
@@ -200,7 +253,16 @@ class ArchiveDatabase:
             try:
                 self._writer_state.active = True
                 session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+                from .read_projection import require_ready
+                from .projection_maintenance import maintain_projections
+                self._check_schema(session.connection())
+                # Pre-existing dirty records came from an external writer. Do
+                # not turn an ordinary transaction into an implicit repair.
+                require_ready(session.connection())
+                session.info['read_projection_writer'] = True
                 yield session
+                session.flush()
+                maintain_projections(session)
                 session.commit()
                 # Even an empty successful transaction may conservatively
                 # fence snapshots; detecting DML must not borrow/read SQL here.
@@ -211,6 +273,7 @@ class ArchiveDatabase:
                 session.rollback()
                 raise
             finally:
+                session.info.pop('read_projection_writer', None)
                 self._writer_state.active = False
 
     def enable_wal_maintenance(self, owner):

@@ -1,18 +1,19 @@
 """Bounded, database-only work state shared by gallery, detail, and feed."""
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
-from sqlalchemy import Integer, String, and_, case, cast, func, literal, literal_column, or_, select, true, union, union_all
+from sqlalchemy import Integer, String, and_, case, cast, func, literal, literal_column, or_, select, true, union, union_all, text
 from sqlalchemy.orm import aliased
 
 from .catalogue_revision import catalogue_revision
 from .models import ApplicationState, Asset, Derivative, Operation, OperationItem, Work, RevisionAsset, RevisionDerivative
-from .task_indexes import task_target
+from .task_indexes import task_target, TASK_TARGET_SQL
 
 ACTIVE = ("queued", "planning", "ready", "running", "interrupted")
 LOCAL_KINDS = ("check", "metadata", "repair", "verify", "backfill", "thumbnails", "reconcile", "compare")
 
 
-def _operation_window(ids):
+def _operation_window(ids, *, indexed_scope=False):
     # Fixed identity expressions match the additive indexes. Two composite
     # indexes also provide the work-only left prefix; no extra work index.
     scope = func.json_each(Operation.parameters, "$.work_ids").table_valued("value").alias("scope")
@@ -30,12 +31,20 @@ def _operation_window(ids):
         task_target(OperationItem.target, "work_id").is_(None),
         task_target(OperationItem.target, "asset_id").is_(None),
         task_target(OperationItem.target, "record_id").is_(None)).distinct()
+    if indexed_scope:
+        # Runtime prepares this covering partial index before any library read.
+        # SQLite otherwise chooses a broad NULL target prefix or reads every
+        # parent's parameters before finding the few identity-free histories.
+        legacy_index = text("SELECT DISTINCT operation_id FROM operation_items "
+            "INDEXED BY ix_items_target_scope WHERE " + " AND ".join(
+                value + " IS NULL" for value in TASK_TARGET_SQL.values())).columns(operation_id=String).subquery("identity_free_index")
+        identity_free = select(legacy_index.c.operation_id)
     any_item = select(OperationItem.id).where(OperationItem.operation_id == Operation.id).correlate(Operation).exists()
     scope_eligible = union(identity_free, select(Operation.id).where(
         has_scope, Operation.state.in_(ACTIVE), ~any_item)).cte("scope_eligible").prefix_with("MATERIALIZED")
     scoped_operation = select(Operation.id).join(scope_eligible,
         scope_eligible.c.operation_id == Operation.id).join(scope, true()).where(
-        cast(scope.c.value, Integer).in_(ids), Operation.kind.in_(LOCAL_KINDS)).distinct().cte("scoped_operations").prefix_with("MATERIALIZED")
+        cast(scope.c.value, Integer).in_(ids), has_scope).distinct().cte("scoped_operations").prefix_with("MATERIALIZED")
     explicit_work = task_target(OperationItem.target, "work_id")
     asset_id = task_target(OperationItem.target, "asset_id")
     record_id = task_target(OperationItem.target, "record_id")
@@ -54,8 +63,7 @@ def _operation_window(ids):
     # so legacy equal-position candidates keep their existing winning item.
     items = select(OperationItem.id, OperationItem.operation_id, OperationItem.kind,
         OperationItem.state, OperationItem.position, explicit_work.label("work_id"),
-        asset_id.label("asset_id"), record_id.label("record_id"),
-        OperationItem.result["message"].as_string().label("reason")).join(
+        asset_id.label("asset_id"), record_id.label("record_id")).join(
             selected_ids, selected_ids.c.row_id == item_row_id).order_by(
                 OperationItem.id).cte("selected_items").prefix_with("MATERIALIZED")
     asset, derivative = aliased(Asset), aliased(Derivative)
@@ -65,7 +73,7 @@ def _operation_window(ids):
     direct = select(cast(target_work, Integer).label("work_id"), Operation.id.label("operation_id"),
         Operation.state.label("operation_state"), Operation.created_at.label("created_at"),
         Operation.updated_at.label("updated_at"), items.c.state.label("item_state"),
-        items.c.reason, items.c.position,
+        items.c.id.label("item_id"), items.c.position,
         case((or_(items.c.asset_id.is_not(None), items.c.kind == "ugoira_pair"), "original"),
              (or_(items.c.record_id.is_not(None), Operation.kind == "thumbnails",
                   items.c.kind.in_(("gif", "thumbnail", "verify_derivative"))), "local"),
@@ -92,7 +100,7 @@ def _operation_window(ids):
     scoped = select(cast(scope.c.value, Integer).label("work_id"), Operation.id.label("operation_id"),
         Operation.state.label("operation_state"), Operation.created_at.label("created_at"),
         Operation.updated_at.label("updated_at"), func.coalesce(OperationItem.state, "pending").label("item_state"),
-        OperationItem.result["message"].as_string().label("reason"),
+        OperationItem.id.label("item_id"),
         func.coalesce(OperationItem.position, 0).label("position"),
         case((Operation.kind == "thumbnails", "local"), else_="work").label("concern")).select_from(Operation).join(
         scope, true()).join(chosen, chosen.c.id == Operation.id).outerjoin(OperationItem, OperationItem.id == chosen.c.item_id).where(
@@ -105,7 +113,13 @@ def _operation_window(ids):
         order_by=(priority, candidates.c.created_at.desc(), candidates.c.updated_at.desc(),
                   case((candidates.c.item_state.in_(("failed", "not_executed")), 0), else_=1),
                   candidates.c.position, candidates.c.operation_id.desc())).label("rank")).subquery()
-    return ranked
+    # Hydrate a reason only after ranking. Results can contain large historical
+    # payloads; neither candidate eligibility nor ordering uses that payload.
+    reason_item = aliased(OperationItem)
+    reason = select(reason_item.result["message"].as_string()).where(
+        reason_item.id == ranked.c.item_id).correlate(ranked).scalar_subquery()
+    return select(*(column for column in ranked.c if column.name != "item_id"),
+        reason.label("reason")).subquery()
 
 
 def _retry_time(value):
@@ -188,7 +202,13 @@ def _recovery(ledger, processing, archive):
 
 
 def work_states(session, works):
-    """One batch query, one output row per work, no filesystem or network I/O."""
+    """Hydrate verified current states using only the requested work identities."""
+    from .projection_maintenance import read_work_states
+    return read_work_states(session, works), catalogue_revision(session)
+
+
+def raw_work_states(session, works, *, histories=None):
+    """Batch snapshot reads, one output row per work, no filesystem/network I/O."""
     works = list(works)
     ids = [work.id for work in works]
     if not ids:
@@ -208,26 +228,67 @@ def work_states(session, works):
         func.sum(case((verified, 1), else_=0)).label("verified"),
         func.sum(case((missing, 1), else_=0)).label("missing")).select_from(current).join(Work, Work.id == current.c.work_id).where(
         required).group_by(current.c.work_id).subquery()
-    operations = _operation_window(ids)
     ledger, revision = aliased(ApplicationState), aliased(ApplicationState)
-    current_derivative = or_(and_(Work.default_revision_id.is_(None), Derivative.revision_id.is_(None)),
-        select(RevisionDerivative.revision_id).where(RevisionDerivative.revision_id == Work.default_revision_id,
-            RevisionDerivative.derivative_id == Derivative.id).correlate(Work, Derivative).exists())
-    thumbnail_ready = select(Derivative.id).where(Derivative.work_id == Work.id,
-        Derivative.kind == "thumbnail", Derivative.page_index == 0, Derivative.spec_key == "v1",
-        Derivative.state == "verified", func.length(Derivative.relative_path) > 0, current_derivative).exists()
-    animation_ready = select(Derivative.id).where(Derivative.work_id == Work.id,
-        Derivative.kind == "gif", Derivative.spec_key == "v1", Derivative.state.in_(("verified", "unknown")),
-        func.length(Derivative.relative_path) > 0, current_derivative).exists()
+    selected_revisions = select(Work.default_revision_id).where(
+        Work.id.in_(ids), Work.default_revision_id.is_not(None)).correlate(None)
+    physical_row = literal_column("derivatives.rowid")
+    selected_files = select(physical_row).select_from(Derivative).where(
+        Derivative.id.in_(select(RevisionDerivative.derivative_id).where(
+            RevisionDerivative.revision_id.in_(selected_revisions)))).correlate(None)
+    bound_files = select(Derivative.id, Derivative.work_id, Derivative.kind, Derivative.page_index,
+        Derivative.spec_key, Derivative.state, Derivative.relative_path).where(
+        physical_row.in_(selected_files)).cte("selected_physical_derivatives").prefix_with("MATERIALIZED")
+
+    def ready_derivative(kind, *, first_page=False, states=("verified",)):
+        legacy_predicates = [Derivative.kind == kind, Derivative.spec_key == "v1",
+            Derivative.state.in_(states), func.length(Derivative.relative_path) > 0]
+        bound_predicates = [bound_files.c.kind == kind, bound_files.c.spec_key == "v1",
+            bound_files.c.state.in_(states), func.length(bound_files.c.relative_path) > 0]
+        if first_page:
+            legacy_predicates.append(Derivative.page_index == 0)
+            bound_predicates.append(bound_files.c.page_index == 0)
+        legacy_ready = select(Derivative.id).where(
+            Work.default_revision_id.is_(None), Derivative.work_id == Work.id,
+            Derivative.revision_id.is_(None), *legacy_predicates).correlate(Work).exists()
+        # Eligibility must match this work's own selected revision, even when
+        # another selected work happens to bind the same physical file.
+        own_binding = select(RevisionDerivative.derivative_id).where(
+            RevisionDerivative.revision_id == Work.default_revision_id,
+            RevisionDerivative.derivative_id == bound_files.c.id).correlate(Work, bound_files).exists()
+        bound_ready = select(bound_files.c.work_id).where(
+            bound_files.c.work_id == Work.id, *bound_predicates, own_binding).correlate(Work).exists()
+        return or_(legacy_ready, bound_ready)
+
+    thumbnail_ready = ready_derivative("thumbnail", first_page=True)
+    animation_ready = ready_derivative("gif", states=("verified", "unknown"))
     local_gap = or_(~thumbnail_ready, and_(Work.type == "ugoira", ~animation_ready))
     rows = session.execute(select(Work.id.label("work_id"), counts.c.recorded, counts.c.verified,
-        counts.c.missing, operations.c.operation_id, operations.c.operation_state,
-        operations.c.item_state, operations.c.reason, operations.c.concern, ledger.value.label("ledger"),
-        revision.value.label("revision"), local_gap.label("local_gap")).outerjoin(counts, counts.c.work_id == Work.id).outerjoin(
-        operations, and_(operations.c.work_id == Work.id, operations.c.rank == 1)).outerjoin(
+        counts.c.missing, ledger.value.label("ledger"),
+        revision.value.label("revision"), local_gap.label("local_gap"),
+        (select(Operation.id).where(Operation.kind.in_(LOCAL_KINDS), Operation.state.in_(ACTIVE)).exists() if histories is None else literal(False)).label("has_active"),
+        (select(Operation.id).where(Operation.kind.in_(LOCAL_KINDS)).exists() if histories is None else literal(False)).label("has_history")).outerjoin(counts, counts.c.work_id == Work.id).outerjoin(
         ledger, ledger.key == literal("maintenance_work:") + cast(Work.id, String)).outerjoin(
         revision, revision.key == "catalogue_revision").where(Work.id.in_(ids))).all()
     by_id = {work.id: work for work in works}
+    # Settled history cannot affect complete works without maintenance state.
+    # Read the resource facts first, then hydrate only histories that can affect
+    # _processing/_recovery. An active local operation may affect any work, so
+    # retain the full window while one exists. All reads share this snapshot.
+    active = bool(rows and rows[0].has_active)
+    history_ids = ids if active else [row.work_id for row in rows if (
+        bool(row.local_gap)
+        or (row.missing or 0) + max(0, (2 if by_id[row.work_id].type == "ugoira"
+            else by_id[row.work_id].page_count) - (row.recorded or 0))
+        or _source_update(by_id[row.work_id])["pending"]
+        or (isinstance(row.ledger, dict) and bool(row.ledger)))]
+    supplied_histories = histories is not None
+    histories = histories if supplied_histories else {}
+    if not supplied_histories and history_ids and rows and rows[0].has_history:
+        operations = _operation_window(history_ids, indexed_scope=True)
+        histories = {row.work_id: row for row in session.execute(
+            select(operations).where(operations.c.rank == 1))}
+    idle_history = SimpleNamespace(item_state=None, operation_state=None,
+        operation_id=None, reason=None, concern=None)
     result, current_revision = {}, 0
     for row in rows:
         work = by_id[row.work_id]
@@ -239,7 +300,7 @@ def work_states(session, works):
                    "total": total, "verified": verified_count, "missing": missing_count, "unknown": unknown_count}
         source_update = _source_update(work)
         value = row.ledger if isinstance(row.ledger, dict) else {}
-        processing = _processing(row, value, original_gap=bool(missing_count), local_gap=row.local_gap,
+        processing = _processing(histories.get(work.id, idle_history), value, original_gap=bool(missing_count), local_gap=row.local_gap,
                                  source_pending=source_update["pending"])
         result[work.id] = {"archive": archive, "processing": processing, "source_update": source_update,
                            "recovery": _recovery(value, processing, archive)}

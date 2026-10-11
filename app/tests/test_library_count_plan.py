@@ -13,6 +13,7 @@ from sqlalchemy.pool import StaticPool
 from src.core.library import Library, LibraryFilter
 from src.core.models import ArchiveIntent, Artist, Base, LocalPreference, RemoteBookmark, Work, WorkTag
 from sqlalchemy import select
+from projection_fixture import prepare_synthetic_projection
 
 
 REFERENCE = datetime(2026, 10, 4, 12)
@@ -33,6 +34,7 @@ def library():
         session.add_all([ArchiveIntent(pixiv_illust_id=str(i), mode="suppressed") for i in (102, 105, 999)])
         session.add_all([WorkTag(work_id=i, tag="A" if i % 2 else "B") for i in range(1, 31)])
         session.add_all([RemoteBookmark(work_id=i, value=True, confirmed_at=REFERENCE) for i in (3, 15, 20)])
+    prepare_synthetic_projection(engine)
     class MemoryDatabase:
         @contextmanager
         def read(self):
@@ -48,10 +50,12 @@ def library():
 
 
 def test_default_query_and_count_endpoints_use_covering_work_index(library):
-    statements = []
+    statements, maintained_counts = [], []
     def capture(conn, cursor, sql, params, context, many):
         if sql.startswith("SELECT count(*)"):
             statements.append((sql, params))
+        if sql.startswith("SELECT value FROM read_common_counts"):
+            maintained_counts.append((sql, params))
     event.listen(library.test_engine, "before_cursor_execute", capture)
     try:
         assert library.query(ceiling=30, compact=True)["total"] == 26
@@ -61,9 +65,10 @@ def test_default_query_and_count_endpoints_use_covering_work_index(library):
     plans = []
     with library.test_engine.connect() as connection:
         work_root = connection.exec_driver_sql("SELECT rootpage FROM sqlite_master WHERE type='table' AND name='works'").scalar()
-        # First query total, then counts all/recent/favorites (total reuses all). Only default
-        # totals can be covered without another filter's columns or relations.
-        for position in (0, 1):
+        # Numeric first-page total now uses the maintained O(1) counter. The
+        # explicit counts endpoint retains three exact, on-demand queries.
+        # Its first (all) query can still use the covering Work index.
+        for position in (0,):
             sql, params = statements[position]
             plan = connection.exec_driver_sql("EXPLAIN QUERY PLAN " + sql, params).all()
             vm = connection.exec_driver_sql("EXPLAIN " + sql, params).all()
@@ -72,7 +77,8 @@ def test_default_query_and_count_endpoints_use_covering_work_index(library):
     if artifact:
         Path(artifact).mkdir(parents=True, exist_ok=True)
         Path(artifact, "memory-count-plan.json").write_text(json.dumps(plans, indent=2), encoding="utf-8")
-    assert len(statements) == 4
+    assert len(maintained_counts) == 1
+    assert len(statements) == 3
     assert all(any("works USING COVERING INDEX" in row[3] for row in item["plan"]) for item in plans), plans
     assert all(not item["opens_work_table"] for item in plans), plans
 
@@ -162,6 +168,7 @@ def test_two_phase_window_matches_direct_sql_order_with_filters(library, sort):
         session.get(Work, 4).title = "alpha"
         session.get(Work, 4).posted_at = session.get(Work, 3).posted_at
         session.get(Work, 6).posted_at = None
+    prepare_synthetic_projection(library.test_engine, install=False)
     for filters in (LibraryFilter(sort=sort), LibraryFilter(sort=sort, show_hidden=True),
                     LibraryFilter(sort=sort, artist_ids=(2,)), LibraryFilter(sort=sort, types=("manga",)),
                     LibraryFilter(sort=sort, tags_exclude=("A",)), LibraryFilter(sort=sort, q="alpha"),

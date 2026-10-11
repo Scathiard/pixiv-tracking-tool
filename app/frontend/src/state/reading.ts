@@ -1,5 +1,5 @@
-import { api, url } from '../api'
-import type { Anchor, PageBatch } from '../types'
+import { api, url } from '../api.ts'
+import type { Anchor, PageBatch, PageData } from '../types.ts'
 export type ReadingOrder = 'sequential' | 'random'
 export interface ReadingVisit {session_id: string; total: number; page_total: number}
 export interface ReadingEntry {work_id: number; revision_id: string | null; work_index: number; page_count: number; total: number}
@@ -17,4 +17,9 @@ export function locateVisit(visit: ReadingVisit, workId: number, order: ReadingO
 }
 export function visitPages(visit: ReadingVisit, order: ReadingOrder, offset: number, limit: number, signal: AbortSignal) {
   return api<PageBatch>(url(`/api/reading-sessions/${visit.session_id}/feed`, '', {mode: order, offset, limit}), {signal})
+}
+
+/** A rebased identity window has no negative ordinal for its predecessor. */
+export function needsIdentityPrevious(page: PageData): boolean {
+  return page.previous_work_index === 0 && page.index - page.page === 0
 }

@@ -1,22 +1,25 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
-import { api, url } from './api'
+import { api, ApiReadError, url } from './api'
 import { LatestIntent } from './interaction'
 import { observeCatalogueData } from './state/catalogue'
 import { singleArtistScope } from './state/filterSelection'
 import { matchingGallerySeed, type GallerySeed } from './state/libraryEntry'
-import { cardSourceLabel, cardSourceReason, isOlderCatalogue, needsCardRefresh, type Artist, type GalleryBatch, type WorkCard } from './types'
+import { normalizeGalleryBatch, cardSourceLabel, cardSourceReason, isOlderCatalogue, needsCardRefresh, type Artist, type CursorGalleryBatch, type GalleryBatch, type WorkCard } from './types'
 import Icon from './components/Icon.vue'
 import GalleryCardImage from './GalleryCardImage.vue'
 import BookmarkButton from './components/BookmarkButton.vue'
 import RestrictionBadge from './components/RestrictionBadge.vue'
-const props = defineProps<{query: string; startIndex: number; pageSize: number; continuous: boolean; resetKey?: number; initialBatch?: GallerySeed | null}>()
-const emit = defineEmits<{open: [index: number]; artist: [id: number]; message: [text: string]; anchor: [index: number, workId: number]; total: [count: number]; page: [index: number]; seedConsumed: []}>()
+const props = defineProps<{query: string; startIndex: number; pageSize: number; continuous: boolean; resetKey?: number; initialBatch?: GallerySeed | null; exactTotal?: number}>()
+const emit = defineEmits<{open: [index: number, work: WorkCard]; artist: [id: number]; message: [text: string]; anchor: [index: number, workId: number]; total: [count: number, exact: boolean]; recovered: [seed: GallerySeed]; page: [index: number]; seedConsumed: []}>()
 const viewportRevision = ref(0)
 const viewport = ref<HTMLDivElement | null>(null), windowElement = ref<HTMLDivElement | null>(null), works = ref<WorkCard[]>([]), total = ref(0)
 const page = ref(0), start = ref(0), columns = ref(5), width = ref(1000), loading = ref(false), error = ref('')
-const animationSuspended = ref(false)
+const animationSuspended = ref(false), expired = ref(false), totalExact = ref(true), ordinalExact = ref(true)
+const hasMore = ref(false), hasPrevious = ref(false)
+let generation: number | undefined
+const costNotice = ref('')
 const artistScope = computed(() => singleArtistScope(props.query))
 const artistProfile = ref<Artist | null>(null), profileError = ref(''), profileLoading = ref(false), bioExpanded = ref(false)
 const profileElement = ref<HTMLDivElement | null>(null), profileHeight = ref(0)
@@ -97,7 +100,15 @@ async function fetchRange(offset: number, limit: number, anchor: number, backgro
   }
   const ticket = request.begin(); loading.value = true
   try {
-    const data = prepared || await api<GalleryBatch>(url('/api/library', props.query, {offset, limit, compact: 1}), {signal: ticket.signal})
+    const anchorWork = background ? works.value[0] : null
+    const useCursor = offset === 0 || !!anchorWork?.cursor
+    const data = prepared || normalizeGalleryBatch(await api<CursorGalleryBatch>(url(useCursor ? '/api/library/cursor' : '/api/library', props.query, {limit, compact: 1, ...(anchorWork?.cursor ? {cursor: anchorWork.cursor, anchor_work_id: anchorWork.id} : useCursor ? {} : {offset})}), {signal: ticket.signal}), offset)
+    if (generation !== undefined && data.generation !== undefined && generation !== data.generation && background) throw new ApiReadError('图库已变化，当前位置仍保留；重新定位后可继续', 'cursor_expired')
+    generation = data.generation ?? generation
+    expired.value = false; totalExact.value = data.total_exact !== false; ordinalExact.value = data.ordinal_exact !== false
+    hasMore.value = data.has_more ?? offset + data.items.length < data.total
+    hasPrevious.value = data.has_previous ?? offset > 0
+    costNotice.value = data.performance === 'on_demand_scan' ? '当前筛选或排序按需查询；精确数量与数字跳页可能需要遍历此范围。' : useCursor ? '' : '数字跳页按需定位，会读取目标页之前的作品。'
     if (!ticket.current() || isOlderCatalogue(data.catalogue_revision, catalogueRevision)) return
     catalogueRevision = data.catalogue_revision ?? catalogueRevision
     if (!background) {
@@ -105,14 +116,15 @@ async function fetchRange(offset: number, limit: number, anchor: number, backgro
       restoration.cancel(); restoring = false; restoreIndex = anchor
       viewportRevision.value++
     }
-    start.value = offset; total.value = data.total; works.value = data.items; emit('total', data.total)
+    start.value = offset; total.value = data.total; works.value = data.items; emit('total', data.total, totalExact.value)
     if (!background && !props.continuous) page.value = Math.floor(offset / props.pageSize)
     observeCatalogueData(data.catalogue_revision)
     if (!background) { restoreIndex = anchor; await restore(anchor, 0, true, ticket.current); if (!ticket.current()) return; if (!props.continuous) emit('page', page.value) }
     await nextTick()
   } catch (failure) {
     if (ticket.current()) {
-      if (background && works.value.length) {
+      if (failure instanceof ApiReadError && failure.code === 'cursor_expired') { expired.value = true; error.value = failure.message }
+      else if (background && works.value.length) {
         if (!quiet) emit('message', '图库暂时无法刷新，已载入的作品仍可浏览')
       } else error.value = failure instanceof Error ? failure.message : '图库未能载入'
     }
@@ -125,7 +137,7 @@ function load(index: number, anchor = index * props.pageSize) {
 function restart() {
   restoration.cancel(); restoring = false
   cancelAnimationFrame(scrollFrame); scrollFrame = 0
-  catalogueRevision = undefined
+  catalogueRevision = undefined; generation = undefined; expired.value = false
   clearTimeout(refreshTimer); refreshTimer = 0
   const seed = props.initialBatch
   const prepared = seed !== consumedSeed ? matchingGallerySeed(seed, props.query, props.startIndex, props.pageSize, props.continuous) : undefined
@@ -156,33 +168,55 @@ async function extend(direction: number) {
   if (loading.value || restoring || !props.continuous) return
   const amount = Math.floor(192 / columns.value) * columns.value
   const end = start.value + works.value.length
-  if (direction < 0 && start.value === 0 || direction > 0 && end >= total.value) return
+  if (direction < 0 && !hasPrevious.value || direction > 0 && !hasMore.value) return
   const ticket = request.begin(); loading.value = true; error.value = ''; failedExtension = null
   try {
     const offset = direction > 0 ? end : Math.max(0, start.value - amount)
     const limit = direction > 0 ? amount : start.value - offset
-    const data = await api<GalleryBatch>(url('/api/library', props.query, {offset, limit, compact: 1}), {signal: ticket.signal})
+    const edge = direction > 0 ? works.value.at(-1) : works.value[0]
+    if (!edge?.cursor) throw new Error('当前窗口缺少定位信息，请重新定位')
+    const data = normalizeGalleryBatch(await api<CursorGalleryBatch>(url('/api/library/cursor', props.query, {limit, compact: 1, cursor: edge.cursor, direction: direction > 0 ? 'next' : 'previous'}), {signal: ticket.signal}), offset)
+    if (generation !== undefined && data.generation !== generation) throw new ApiReadError('图库已变化，当前位置仍保留；重新定位后可继续', 'cursor_expired')
+    if (direction > 0) hasMore.value = data.has_more ?? offset + data.items.length < data.total
+    else hasPrevious.value = data.has_previous ?? offset > 0
+    totalExact.value = data.total_exact !== false
     if (!ticket.current() || isOlderCatalogue(data.catalogue_revision, catalogueRevision)) return
     catalogueRevision = data.catalogue_revision ?? catalogueRevision
     const row = rows.value.find(row => row.end > (viewport.value?.scrollTop || 0))
     const anchor = start.value + (row?.index || 0) * columns.value
     const pixel = (viewport.value?.scrollTop || 0) - (row?.start || 0)
     let items = direction > 0 ? [...works.value, ...data.items] : [...data.items, ...works.value]
-    let first = direction > 0 ? start.value : offset
+    let first = direction > 0 ? start.value : Math.max(0, start.value - data.items.length)
     if (items.length > 480) {
       const trim = Math.ceil((items.length - 480) / columns.value) * columns.value
       if (direction > 0) { items = items.slice(trim); first += trim }
       else items = items.slice(0, items.length - trim)
     }
-    start.value = first; works.value = items; total.value = data.total
+    start.value = first; works.value = items; total.value = totalExact.value ? data.total : Math.max(total.value, first + items.length + (hasMore.value ? 1 : 0))
+    emit('total', total.value, totalExact.value)
     observeCatalogueData(data.catalogue_revision)
     await restore(anchor, pixel, false, ticket.current); if (!ticket.current()) return
   } catch (failure) {
-    if (ticket.current()) { failedExtension = direction; error.value = failure instanceof Error ? failure.message : '更多作品暂时无法载入' }
+    if (ticket.current()) { if (failure instanceof ApiReadError && failure.code === 'cursor_expired') expired.value = true; failedExtension = direction; error.value = failure instanceof Error ? failure.message : '更多作品暂时无法载入' }
   }
   finally { if (ticket.current()) { loading.value = false; queueRefresh() } }
 }
+async function recoverRange() {
+  const row = rows.value.find(row => row.end > (viewport.value?.scrollTop || 0))
+  const anchorWork = works.value[(row?.index || 0) * columns.value] || works.value[0]
+  const ticket = request.begin(); loading.value = true
+  try {
+    const params = new URLSearchParams(props.query); params.delete('ceiling'); params.delete('as_of')
+    const data = normalizeGalleryBatch(await api<CursorGalleryBatch>(url('/api/library/cursor', params.toString(), {limit: props.continuous ? 240 : props.pageSize, compact: 1, ...(anchorWork ? {anchor_work_id: anchorWork.id} : {})}), {signal: ticket.signal}))
+    if (!ticket.current()) return
+    params.set('ceiling', String(data.ceiling)); params.set('as_of', data.as_of)
+    data.ordinal_exact = false
+    emit('recovered', {query: params.toString(), anchor: 0, pageSize: props.pageSize, continuous: props.continuous, data})
+  } catch (failure) { if (ticket.current()) error.value = failure instanceof Error ? failure.message : '当前位置已移出范围，请返回开头' }
+  finally { if (ticket.current()) loading.value = false }
+}
 function retryFailedRange() {
+  if (expired.value) { void recoverRange(); return }
   if (failedExtension !== null) void extend(failedExtension)
   else restart()
 }
@@ -208,6 +242,7 @@ function readScroll() {
   if (row.index > Math.ceil(works.value.length / columns.value) - 12) void extend(1)
   else if (row.index < 6) void extend(-1)
 }
+watch(() => props.exactTotal, count => { if (count !== undefined) { total.value = count; totalExact.value = true } })
 watch(() => [props.query, props.pageSize, props.continuous, props.resetKey], restart)
 onMounted(() => {
   profileObserver = new ResizeObserver(entries => {
@@ -253,7 +288,8 @@ defineExpose({isAtBeginning: () => (!props.continuous ? page.value === 0 : start
 </script>
 <template>
   <section class="gallery-view" aria-label="本地图库">
-    <div v-if="error" class="notice error" role="alert">{{ error }} <button @click="retryFailedRange">重试</button></div>
+    <div v-if="error" class="notice error" role="alert">{{ error }} <button :disabled="loading" @click="retryFailedRange">{{ expired ? '重新定位后继续' : '重试' }}</button></div>
+    <p v-if="costNotice" class="muted" role="status">{{ costNotice }}</p>
     <div :key="viewportRevision" ref="viewport" class="gallery-viewport" @scroll.passive="scroll" :aria-busy="loading">
       <div v-if="artistScope" ref="profileElement" class="gallery-artist-intro" :data-artist-id="artistScope">
         <template v-if="artistProfile"><div class="gallery-artist-summary"><img v-if="artistProfile.avatar" class="artist-avatar" :src="artistProfile.avatar" :alt="`${artistProfile.name}头像`"><div v-else class="artist-avatar avatar-empty" aria-hidden="true"><Icon name="artists" /></div><div><h2>{{ artistProfile.name }}</h2><p>{{ artistProfile.work_count ?? total }} 件本地作品</p><a class="artist-pixiv-link" :href="`https://www.pixiv.net/users/${encodeURIComponent(artistProfile.pixiv_id)}`" target="_blank" rel="noopener noreferrer">Pixiv 主页 <Icon name="external" /></a></div></div><p class="gallery-artist-bio" :class="{expanded: bioExpanded}">{{ artistProfile.biography || '暂无画师简介' }}</p><button v-if="(artistProfile.biography?.length || 0) > 120 || (artistProfile.biography?.split('\n').length || 0) > 3" class="text-link" :aria-expanded="bioExpanded" @click="bioExpanded = !bioExpanded">{{ bioExpanded ? '收起简介' : '展开简介' }}</button></template>
@@ -263,7 +299,7 @@ defineExpose({isAtBeginning: () => (!props.continuous ? page.value === 0 : start
         <div v-for="row in rows" :key="String(row.key)" class="gallery-row" :style="{transform: `translateY(${row.start - profileHeight}px)`, gridTemplateColumns: `repeat(${columns},minmax(0,1fr))`}">
           <article v-for="(work, col) in works.slice(row.index * columns, (row.index + 1) * columns)" :key="work.id"
             class="work-card" :class="{'is-hidden': work.is_hidden}" :data-work-id="work.id">
-            <button class="card-open" :aria-label="`查看 ${work.title}${work.x_restrict === 2 ? '，R-18G' : work.x_restrict === 1 ? '，R-18' : ''}${cardSourceLabel(work) ? `，${cardSourceLabel(work)}：${cardSourceReason(work) || '详情可查看原因'}` : ''}`" @click="emit('open', start + row.index * columns + col)"><div class="card-picture"><GalleryCardImage :thumbnail="work.thumbnail" :preview="work.preview || null" :media-revision="catalogueRevision" :preview-status="work.preview_status || 'pending'" :recovery="work.recovery" :archive="work.archive" :processing="work.processing" :animation="work.type === 'ugoira'" :suspended="animationSuspended" :label="work.title" /><RestrictionBadge :value="work.x_restrict" /><span v-if="cardSourceLabel(work)" class="card-source" :title="cardSourceReason(work) || cardSourceLabel(work) || undefined">{{ cardSourceLabel(work) }}</span><span v-if="work.type === 'ugoira' || work.page_count > 1" class="card-count">{{ work.type === 'ugoira' ? '动图' : work.page_count + ' 页' }}</span></div><strong>{{ work.title }}</strong></button>
+            <button class="card-open" :aria-label="`查看 ${work.title}${work.x_restrict === 2 ? '，R-18G' : work.x_restrict === 1 ? '，R-18' : ''}${cardSourceLabel(work) ? `，${cardSourceLabel(work)}：${cardSourceReason(work) || '详情可查看原因'}` : ''}`" @click="emit('open', start + row.index * columns + col, work)"><div class="card-picture"><GalleryCardImage :thumbnail="work.thumbnail" :preview="work.preview || null" :media-revision="catalogueRevision" :preview-status="work.preview_status || 'pending'" :recovery="work.recovery" :archive="work.archive" :processing="work.processing" :animation="work.type === 'ugoira'" :suspended="animationSuspended" :label="work.title" /><RestrictionBadge :value="work.x_restrict" /><span v-if="cardSourceLabel(work)" class="card-source" :title="cardSourceReason(work) || cardSourceLabel(work) || undefined">{{ cardSourceLabel(work) }}</span><span v-if="work.type === 'ugoira' || work.page_count > 1" class="card-count">{{ work.type === 'ugoira' ? '动图' : work.page_count + ' 页' }}</span></div><strong>{{ work.title }}</strong></button>
             <button class="card-artist" @click="emit('artist', work.artist_id)">{{ work.artist_name }}<span v-if="work.is_hidden"> · 已隐藏</span></button>
             <BookmarkButton :work-id="work.id" :initial="work.bookmark" @message="emit('message', $event)" />
           </article>
@@ -271,7 +307,7 @@ defineExpose({isAtBeginning: () => (!props.continuous ? page.value === 0 : start
       </div>
       <div v-if="!works.length" class="empty"><h2>{{ loading ? '正在读取本地图库' : '这个范围里还没有作品' }}</h2><p>{{ loading ? '图片不会重新从 Pixiv 下载。' : '调整筛选，或从画师管理添加想要存档的画师。' }}</p><a v-if="!loading" href="/artists">前往画师管理</a></div>
     </div>
-    <nav v-if="!continuous" class="pagination" aria-label="图库页码"><button :disabled="page <= 0 || loading" @click="load(page - 1)">上一页</button><label>第 <input aria-label="图库页码" type="number" min="1" :max="maxPage + 1" :value="page + 1" @change="load(Math.max(0, Math.min(maxPage, Number(($event.target as HTMLInputElement).value) - 1)))"> / {{ maxPage + 1 }} 页</label><button :disabled="page >= maxPage || loading" @click="load(page + 1)">下一页</button><span class="muted">{{ total }} 件作品</span></nav>
+    <nav v-if="!continuous" class="pagination" aria-label="图库页码"><button :disabled="page <= 0 || loading" @click="load(page - 1)">上一页</button><label>{{ ordinalExact ? '第' : '数字定位' }} <input aria-label="图库页码" type="number" min="1" :max="totalExact ? maxPage + 1 : undefined" :value="ordinalExact ? page + 1 : undefined" :placeholder="ordinalExact ? undefined : '页码'" @change="load(Math.max(0, Math.min(totalExact ? maxPage : Number.MAX_SAFE_INTEGER, Number(($event.target as HTMLInputElement).value) - 1)))"> / {{ totalExact ? maxPage + 1 : '未计数' }} 页</label><button :disabled="!hasMore || loading" @click="load(page + 1)">下一页</button><span class="muted">{{ totalExact ? total : '已载入 ' + (start + works.length) }} 件作品</span></nav>
     <button v-if="continuous && startIndex > 0" class="gallery-jump" :disabled="loading" aria-label="回到开头" title="回到开头" @click="fetchRange(0, 240, 0)">↑</button>
   </section>
 </template>

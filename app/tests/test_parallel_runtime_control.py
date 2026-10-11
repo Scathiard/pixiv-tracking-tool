@@ -326,17 +326,27 @@ def test_phase_baseline_recertifies_old_writer_states_and_then_stays_incremental
         item = session.scalar(select(OperationItem).where(OperationItem.operation_id == ident,
             OperationItem.state == "pending").order_by(OperationItem.position))
         item.state = "succeeded"
-    counts_queries = []
+    counts_queries, baseline_queries = [], []
     def observe(connection, cursor, statement, params, context, many):
         if "count(" in statement.lower() and "operation_items.phase" in statement:
             counts_queries.append(statement)
+        if statement.startswith("SELECT state,value FROM read_task_phase_counts") and "phase IS ?" in statement:
+            baseline_queries.append((statement, params))
     event.listen(restarted.database.writer_engine, "before_cursor_execute", observe)
     try:
         restarted.queue.recover()
         assert restarted.queue._step("local")
         assert restarted.queue._step("local")
-        assert len(counts_queries) == 1
+        # Canonical changes are trigger-maintained even when the operation's
+        # older JSON progress cache cannot update them. Re-certify once from
+        # the persisted phase aggregate, then retain incremental progress.
+        assert counts_queries == []
+        assert len(baseline_queries) == 1
         with restarted.database.read() as session:
+            sql, params = baseline_queries[0]
+            plan = session.connection().exec_driver_sql('EXPLAIN QUERY PLAN ' + sql, params).all()
+            assert any('SEARCH read_task_phase_counts USING' in row[3] for row in plan)
+            assert not any('SCAN read_task_phase_counts' in row[3] for row in plan)
             operation = session.get(Operation, ident)
             assert operation.result["step_progress"]["inventory:items"] == {"done": 4, "total": 4}
             assert operation.state == "finished"

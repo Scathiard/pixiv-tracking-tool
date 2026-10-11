@@ -66,6 +66,7 @@ def prepare_migration(source_root: Path, target_root: Path) -> MigrationPlan:
     target = raw_target.resolve()
     if not source.is_dir():
         raise MigrationError(f"源数据目录不存在: {source}")
+    _guard_source_upgrade(source)
     if source == target:
         raise MigrationError("目标目录与当前数据目录相同")
     if _is_relative_to(target, source):
@@ -117,7 +118,7 @@ def _copy_tree(source: Path, target: Path, *, skip_database: bool = False):
         return
     for path in _iter_copyable_files(source) or ():
         relative = path.relative_to(source)
-        if skip_database and relative.as_posix() == "pixiv_tracker.db":
+        if skip_database and relative.as_posix() in ("pixiv_tracker.db", "pixiv_tracker.db.upgrade-journal.jsonl"):
             continue
         destination = target / relative
         if destination.exists():
@@ -130,7 +131,7 @@ def _manifest(root: Path, *, skip_database: bool = False) -> dict[str, tuple[int
     result = {}
     for path in _iter_copyable_files(root) or ():
         relative = path.relative_to(root).as_posix()
-        if skip_database and relative == "pixiv_tracker.db":
+        if skip_database and relative in ("pixiv_tracker.db", "pixiv_tracker.db.upgrade-journal.jsonl"):
             continue
         with path.open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
@@ -152,6 +153,7 @@ def _backup_sqlite(source_db: Path, target_db: Path) -> bool:
 
 
 def execute_migration(plan: MigrationPlan) -> MigrationReport:
+    _guard_source_upgrade(plan.source_root)
     if plan.target_root.exists() and any(plan.target_root.iterdir()):
         raise MigrationError("目标目录在迁移开始前已不再为空")
     plan.target_root.mkdir(parents=True, exist_ok=True)
@@ -182,6 +184,7 @@ def execute_migration(plan: MigrationPlan) -> MigrationReport:
     image_bytes = sum(size for size, _ in target_image_manifest.values())
     if len(target_image_manifest) != plan.image_files:
         raise MigrationError("迁移期间源图片清单发生变化")
+    _guard_source_upgrade(plan.source_root)
     return MigrationReport(
         source_root=plan.source_root,
         target_root=plan.target_root,
@@ -189,3 +192,15 @@ def execute_migration(plan: MigrationPlan) -> MigrationReport:
         image_files=len(target_image_manifest),
         image_bytes=image_bytes,
     )
+
+
+def _guard_source_upgrade(root: Path):
+    # The active upgrade journal owns one resolved database path. It remains
+    # at the original location, like the writer lease, rather than being copied
+    # into a new database owner's startup guard. Unresolved/corrupt/foreign
+    # records block every preparation, execution and successful completion.
+    from .core.upgrade import guard_upgrade_recovery, UpgradeRecoveryRequired
+    try:
+        guard_upgrade_recovery(Path(root) / "data" / "pixiv_tracker.db")
+    except UpgradeRecoveryRequired as error:
+        raise MigrationError("源图库切换记录需要恢复核验，未启用迁移副本") from error

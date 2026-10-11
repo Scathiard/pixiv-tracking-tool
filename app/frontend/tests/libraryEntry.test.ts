@@ -54,3 +54,17 @@ test('cancelled navigation never returns a late snapshot', async t => {
   t.mock.method(globalThis, 'fetch', async () => { controller.abort(); return Response.json(response(0)) })
   await assert.rejects(readLibraryEntry('', '/', 100, false, controller.signal), {name: 'AbortError'})
 })
+
+
+test('ordinary first entry uses cursor cards and never requests an exact filtered count', async t => {
+  const targets: string[] = []
+  t.mock.method(globalThis, 'fetch', async (path: string) => {
+    targets.push(path)
+    assert.equal(new URL(path, 'http://fixture').pathname, '/api/library/cursor')
+    return Response.json({...response(0), total: null, has_more: true, generation: 4, boundaries: [], performance: 'on_demand_scan'})
+  })
+  const seed = await readLibraryEntry('q=arbitrary', '/', 100, false, new AbortController().signal)
+  assert.equal(seed.data.total_exact, false)
+  assert.equal(seed.anchor, 0)
+  assert.equal(targets.length, 1)
+})

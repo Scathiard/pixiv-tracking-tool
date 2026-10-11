@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { setImmediate as nextTurn } from 'node:timers/promises'
-import { api, prepareImage, write } from '../src/api.ts'
+import { api, ApiReadError, prepareImage, write } from '../src/api.ts'
 
 test('a plain-text 503 reports a safe HTTP error instead of a JSON parse failure', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => new Response('Service Unavailable', {
@@ -412,4 +412,11 @@ test('structured proxy errors still retry when they carry no final local read ou
 test('connection loss during a response body remains a network error instead of malformed JSON', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => new Response(new ReadableStream({start(controller) {controller.error(new TypeError('terminated'))}})))
   await assert.rejects(api('/api/broken-body'), {name: 'TypeError', message: '无法连接本地服务，请检查程序是否仍在运行'})
+})
+
+
+test('expired cursor is a typed recoverable error and is never retried automatically', async t => {
+  const mock = t.mock.method(globalThis, 'fetch', async () => Response.json({detail:{code:'cursor_expired',message:'图库已变化',recoverable:true}}, {status:409}))
+  await assert.rejects(api('/api/library/cursor?cursor=expired'), error => error instanceof ApiReadError && error.code === 'cursor_expired')
+  assert.equal(mock.mock.callCount(), 1)
 })

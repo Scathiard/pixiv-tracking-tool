@@ -72,6 +72,7 @@ async function request<T>(path: string, options: RequestInit): Promise<T> {
       }
       signal.throwIfAborted()
       if (!response.ok || value?.ok === false) {
+        if (value?.detail?.code === 'cursor_expired') throw new ApiReadError(value.detail.message || '图库已变化，请重新定位后继续', 'cursor_expired')
         const message = typeof value?.detail === 'string' ? value.detail : value?.detail?.message || value?.error
         throw new Error(typeof message === 'string' && message ? message : httpError(response.status))
       }

@@ -238,13 +238,13 @@ def test_pause_graph_one_linear_snapshot_shared_parents_deep_chain_and_cycles(ca
             queue._pause_generation += 1
             queue._pause_cache = None
         for index in range(count):
-            assert not queue.operation_paused(str(index))
+            assert str(index) not in queue._effective_paused()
         assert graph.copies == count
         with queue._scheduler_lock:
             queue._paused_operations.clear()
             queue._pause_generation += 1
             queue._pause_cache = None
-        assert not queue.operation_paused("0")
+        assert "0" not in queue._effective_paused()
         assert graph.copies == count
     parents = {str(index): (str(index - 1),) for index in range(1, 3000)}
     parents.update({"a": ("root", "free"), "b": ("root",), "cycle-a": ("a", "cycle-b"),
@@ -273,9 +273,9 @@ def test_pause_generation_change_during_unlocked_bfs_retries_snapshot(case, monk
         return original(paused, parents)
 
     monkeypatch.setattr(queue, "_paused_closure", closure)
-    assert queue.operation_paused(parent)
+    assert parent in queue._effective_paused()
     assert len(calls) == 2
-    assert queue.operation_paused(parent)
+    assert parent in queue._effective_paused()
     assert len(calls) == 2
 
 
@@ -294,7 +294,7 @@ def test_pause_snapshot_and_warm_checkpoints_never_borrow_database(case, monkeyp
     monkeypatch.setattr(db, "read", forbidden)
     monkeypatch.setattr(db, "write", forbidden)
     for _ in range(20):
-        assert queue.operation_paused("grandchild")
+        assert "grandchild" in queue._effective_paused()
     assert graph.copies == 2
 
 

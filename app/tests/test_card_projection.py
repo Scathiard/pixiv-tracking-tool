@@ -12,6 +12,7 @@ from src.core.media import CARD_MOTION_SPEC
 from src.core.models import (
     Artist, Base, Derivative, RevisionDerivative, Work, WorkRevision, WorkTag,
 )
+from projection_fixture import prepare_synthetic_projection
 
 
 @pytest.fixture
@@ -53,6 +54,7 @@ def library():
                 relative_path=f"synthetic/{ident}.webp", sha256=digest, source_version=source))
             session.add(RevisionDerivative(revision_id="saved-2", derivative_id=ident,
                 kind=kind, spec_key=spec, page_index=0))
+    prepare_synthetic_projection(engine)
     class MemoryDatabase:
         @contextmanager
         def read(self):

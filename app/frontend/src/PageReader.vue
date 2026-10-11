@@ -3,15 +3,15 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { archiveNotice, isOlderCatalogue, needsPageRefresh, type Anchor, type PageData, type PageLoader } from './types'
 import { DirectionGesture, LatestIntent } from './interaction'
-import { prepareImage } from './api'
+import { ApiReadError, prepareImage } from './api'
 import { observeCatalogueData } from './state/catalogue'
 import MediaImage from './MediaImage.vue'
 import RestrictionBadge from './components/RestrictionBadge.vue'
 import Icon from './components/Icon.vue'
 
 const props = defineProps<{mode: 'reader' | 'feed'; loader: PageLoader; initial: Anchor | null; sessionKey: string; inactive?: boolean}>()
-const emit = defineEmits<{focus: [page: PageData, anchor: Anchor]; navigate: [delta: number]; artist: [id: number]; zoom: [page: PageData]; bookmark: [page: PageData]; manage: [page: PageData]}>()
-const heartPage = ref<number | null>(null)
+const emit = defineEmits<{focus: [page: PageData, anchor: Anchor]; navigate: [delta: number]; artist: [id: number]; zoom: [page: PageData]; bookmark: [page: PageData]; manage: [page: PageData]; recover: [page: PageData | null]}>()
+const heartPage = ref<number | null>(null), expired = ref(false)
 let heartTimer = 0
 function bookmark(page: PageData) {
   clearTimeout(heartTimer); heartPage.value = page.index
@@ -79,7 +79,7 @@ async function jump(index: number, offset = 0, showIntro = true) {
   stopRefresh()
   const request = intent.begin()
   targetIndex = index
-  loading.value = true; restoring = true; error.value = ''
+  loading.value = true; restoring = true; error.value = ''; expired.value = false
   failedAction = () => { void jump(index, offset, showIntro) }
   try {
     const cached = pages.value.find(page => page.index === index)
@@ -99,7 +99,7 @@ async function jump(index: number, offset = 0, showIntro = true) {
     } else if (target) await restore({work_id: target.work_id, page: target.page, offset, index: target.index, work_index: target.work_index}, request.current)
     else viewport.value?.scrollTo({top: 0})
   } catch (failure) {
-    if (request.current()) error.value = failure instanceof Error ? failure.message : '图片页未能载入'
+    if (request.current()) { expired.value = failure instanceof ApiReadError && failure.code === 'cursor_expired'; error.value = failure instanceof Error ? failure.message : '图片页未能载入' }
   } finally {
     if (request.current()) { targetIndex = null; loading.value = false; restoring = false; report(); queueRefresh() }
   }
@@ -117,7 +117,7 @@ async function extend(direction: number) {
   if (direction < 0 && first === 0 || direction > 0 && end >= total.value) return
   stopRefresh()
   const request = intent.begin()
-  loading.value = true; error.value = ''
+  loading.value = true; error.value = ''; expired.value = false
   failedAction = () => { void extend(direction) }
   try {
     const offset = direction > 0 ? end : Math.max(0, first - CHUNK)
@@ -132,7 +132,7 @@ async function extend(direction: number) {
     observeCatalogueData(batch.catalogue_revision)
     await restore(anchor, request.current)
   } catch (failure) {
-    if (request.current()) error.value = failure instanceof Error ? failure.message : '暂时无法载入更多图片'
+    if (request.current()) { expired.value = failure instanceof ApiReadError && failure.code === 'cursor_expired'; error.value = failure instanceof Error ? failure.message : '暂时无法载入更多图片' }
   } finally {
     if (request.current()) { loading.value = false; restoring = false; report(); queueRefresh() }
   }
@@ -252,7 +252,7 @@ function down(event: PointerEvent) {
 function move(event: PointerEvent) { if (gesture.move(event.pointerId, event.clientX, event.clientY) && event.cancelable) event.preventDefault() }
 function up(event: PointerEvent) { const direction = gesture.up(event.pointerId); if (direction && !props.inactive) emit('navigate', direction) }
 function dimensions(page: PageData, width: number, height: number) { page.width = width; page.height = height }
-function retry() { failedAction?.() }
+function retry() { if (expired.value) emit('recover', current()?.page || pages.value[0] || null); else failedAction?.() }
 watch(() => props.sessionKey, () => { lastAnchor = null; catalogueRevision = undefined; void jump(props.initial?.index || 0, props.initial?.offset || 0) })
 onMounted(() => {
   observer = new ResizeObserver(entries => { for (const entry of entries) { const rect = entry.contentRect; if (entry.target === viewport.value) size.value = {width: rect.width, height: rect.height}; else if (entry.target === before.value) beforeHeight.value = rect.height } })
@@ -295,7 +295,7 @@ defineExpose({readAnchor, jump, stepPage, scrollBy: (delta: number) => viewport.
       <p v-if="!loading && !pages.length" class="empty">当前范围没有可阅读的作品。</p>
       <p v-if="pages.length && pages.at(-1)!.index + 1 === total" class="end-mark">已到{{ mode === 'feed' ? '当前图库范围' : '这件作品' }}末尾</p>
     </div>
-    <div v-if="loading || error" class="reader-notice" role="status">{{ error || '正在载入图片页…' }} <button v-if="error" @click="retry">重试</button></div>
+    <div v-if="loading || error" class="reader-notice" role="status">{{ error || '正在载入图片页…' }} <button v-if="error" @click="retry">{{ expired ? '重新定位后继续' : '重试' }}</button></div>
   </div>
 </template>
 <style scoped>

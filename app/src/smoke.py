@@ -111,6 +111,24 @@ async def _request_status(app, path):
     return start["status"], body
 
 
+def _run_round_to_completion(queue, timeout=30):
+    """Respect persisted cooldowns before asserting a synthetic round outcome.
+
+    run_round() returns False while all remaining lanes are temporarily idle;
+    that is not a finished round. Keep the real limiter and stop on a finite
+    deadline instead of bypassing retries or assuming slow queries consumed it.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        if queue.run_round():
+            return
+        if getattr(queue, "worker_error", None):
+            raise RuntimeError("synthetic round worker failed before completion")
+        if time.monotonic() >= deadline:
+            raise TimeoutError("synthetic round did not finish before its smoke deadline")
+        time.sleep(.05)
+
+
 def run_smoke_test() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke-test", action="store_true")
@@ -189,11 +207,11 @@ def run_smoke_test() -> int:
                 raise RuntimeError("默认版本没有可阅览文件")
             return runtime.images / unquote(urlsplit(src).path.removeprefix("/images/"))
         runtime.queue.submit("repair", {"work_ids": [1]}, "smoke")
-        runtime.queue.run_round()
+        _run_round_to_completion(runtime.queue)
         if runtime.queue.snapshot()["round"]["outcome"] != "succeeded":
             raise RuntimeError("打包程序的原图下载、核验或缩略图生成失败")
         first_batch = runtime.queue.submit("repair", {}, "smoke manual animation scope")
-        runtime.queue.run_round()
+        _run_round_to_completion(runtime.queue)
         first_result = runtime.queue.details(first_batch["operation_id"])
         if first_result["result"]["outcome"] != "partial_failure":
             raise RuntimeError("打包程序将不可获取的原包误报为已补齐")
@@ -207,7 +225,7 @@ def run_smoke_test() -> int:
             if session.get(Work, 3).source_metadata.get("remote_availability", {}).get("state") != "unavailable":
                 raise RuntimeError("打包程序未保留核实的作品来源状态")
         retry_batch = runtime.queue.submit("repair", {}, "smoke skip unavailable animation")
-        runtime.queue.run_round()
+        _run_round_to_completion(runtime.queue)
         if runtime.queue.details(retry_batch["operation_id"])["counts"].get("skipped") != 1:
             raise RuntimeError("打包程序未在批量补下载中跳过已知无法获取的原包")
         if metadata_reads != ["2", "3"] or detail_reads != ["3"] or (runtime.images / "3.gif").read_bytes() != unavailable_gif:
@@ -270,7 +288,7 @@ def run_smoke_test() -> int:
         original_bytes = original_path.read_bytes()
         original_path.write_bytes(b"")
         maintenance = runtime.queue.submit("reconcile", {}, "检查并补齐图库")
-        runtime.queue.run_round()
+        _run_round_to_completion(runtime.queue)
         maintenance_result = runtime.queue.details(maintenance["operation_id"])
         if maintenance_result["result"]["outcome"] != "succeeded" or maintenance_result["counts"].get("failed"):
             raise RuntimeError("打包程序统一维护未完成合成本地缺项修复")
@@ -288,7 +306,7 @@ def run_smoke_test() -> int:
                 or overview["items"][0]["local"]["state"] != "incomplete"):
             raise RuntimeError("来源一览未保留已核实的无法访问事实，或丢失本地缺项")
         profile_check = runtime.queue.submit("artist_source", {"artist_ids": [1]}, "核对 smoke 的主站主页")
-        runtime.queue.run_round()
+        _run_round_to_completion(runtime.queue)
         if (runtime.queue.details(profile_check["operation_id"])["result"]["outcome"] != "succeeded"
                 or profile_reads != ["1", "1"] or maintenance_reads != ["1", "2", "3"]):
             raise RuntimeError("主页核对未保持独立画师范围")

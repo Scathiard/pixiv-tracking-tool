@@ -15,6 +15,7 @@ from . import config as _cfg
 from .auth import cancel_auth, get_pending_login_url, submit_oauth_code, validate_oauth_input
 from .client import PixivClient
 from .core.database import UpgradeRequired
+from .core.upgrade import UpgradeRecoveryRequired
 from .core.runtime import Runtime
 from .scheduler import start_scheduler, stop_scheduler
 from .security import RequestBoundaryMiddleware
@@ -108,6 +109,9 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
             if authenticate and current.client is None and not application.state.stopping:
                 application.state.auth_task = asyncio.create_task(connect())
             application.state.startup_upgrade.ready()
+        except UpgradeRecoveryRequired as error:
+            application.state.upgrade_required = True
+            application.state.startup_upgrade.require_recovery(error)
         except UpgradeRequired:
             application.state.upgrade_required = True
             application.state.startup_upgrade.require()

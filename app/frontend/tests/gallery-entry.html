@@ -6,7 +6,7 @@
 const fixture = window.galleryEntryFixture = {requests: [], cancelled: [], pending: new Map(), fail: false}
 const image = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="24" height="24"%3E%3Crect width="24" height="24" fill="teal"/%3E%3C/svg%3E'
 const bookmark = id => ({work_id:id, operation_id:null, status:'confirmed', desired:null, value:false, confirmed_at:'2026-10-10', error:null, version:1, cached:false, verified:true, fact_account_id:'synthetic', current_account_id:'synthetic', account_epoch:1})
-const cards = Array.from({length: 120}, (_, i) => ({id:i+1, pixiv_id:String(i+1), title:`合成作品 ${i+1}`, artist_id:1, artist_name:'合成画师', type:'illust', page_count:1, x_restrict:0, thumbnail:image, preview:image, preview_status:'ready', is_hidden:false, posted_at:null, bookmark:bookmark(i+1), archive:{state:'complete',total:1,verified:1,missing:0,unknown:0}}))
+const cards = Array.from({length: 120}, (_, i) => ({id:i+1, pixiv_id:String(i+1), title:`合成作品 ${i+1}`, artist_id:1, artist_name:'合成画师', type:'illust', page_count:1, x_restrict:0, thumbnail:image, preview:image, preview_status:'ready', is_hidden:false, posted_at:null, cursor:`synthetic-${i+1}`, bookmark:bookmark(i+1), archive:{state:'complete',total:1,verified:1,missing:0,unknown:0}}))
 function hold(key, options, response) {
   return new Promise((resolve, reject) => {
     const abort = () => { fixture.cancelled.push(key); fixture.pending.delete(key); reject(options.signal.reason) }
@@ -25,11 +25,19 @@ window.fetch = (target, options = {}) => {
   if (path === '/api/status') return json({page_size:100, pagination_mode:'pages'})
   if (path === '/api/progress') return json({round:null, operations:[]})
   if (path === '/api/library/counts') return hold('counts', options, Response.json({all:120,recent:0,favorites:0}))
-  if (path === '/api/library') {
+  if (path === '/api/library' || path === '/api/library/cursor') {
     if (fixture.fail) return Promise.resolve(Response.json({detail:{code:'read_timeout',message:'合成读取超时'}}, {status:504}))
     const offset = Number(params.get('offset') || 0), limit = Number(params.get('limit') || 100), q = params.get('q')
-    const response = Response.json({items:cards.slice(offset, offset+limit).map(card => ({...card, title:q ? `${q} ${card.id}` : card.title})), total:120, offset, ceiling:120, as_of:'2026-10-10T00:00:00Z', catalogue_revision:1})
+    const response = Response.json({items:cards.slice(offset, offset+limit).map(card => ({...card, title:q ? `${q} ${card.id}` : card.title})), total:120, offset, ceiling:120, as_of:'2026-10-10T00:00:00Z', catalogue_revision:1, generation:1, has_more:offset+limit<120, has_previous:offset>0, boundaries:cards.slice(offset,offset+limit).map(card=>card.cursor)})
     return q === 'slow' ? hold('slow', options, response) : Promise.resolve(response)
+  }
+  if (path.endsWith('/cursor-neighbors')) {
+    const id=Number(path.split('/')[3])
+    return json({anchor_cursor:`synthetic-${id}`,generation:1,previous:id>1?{work_id:id-1,revision_id:null,page_count:1,cursor:`synthetic-${id-1}`}:null,next:id<120?{work_id:id+1,revision_id:null,page_count:1,cursor:`synthetic-${id+1}`}:null})
+  }
+  if (path === '/api/library/cursor/feed') {
+    const index=Number(params.get('index')||0),limit=Number(params.get('limit')||48),id=Number(params.get('anchor_work_id')||index+1)
+    return json({items:cards.slice(id-1,id-1+limit).map((card,at)=>({index:index+at,work_id:card.id,work_cursor:card.cursor,work_index:index+at,page:0,page_count:1,title:card.title,artist_name:card.artist_name,artist_id:1,pixiv_id:card.pixiv_id,type:'illust',x_restrict:0,next_work_index:index+at+1,previous_work_index:index+at?index+at-1:null,src:image,width:24,height:24,state:'verified',bookmark:bookmark(card.id)})),offset:index,total:120,ceiling:120,as_of:'2026-10-10T00:00:00',generation:1,has_more:index+limit<120,catalogue_revision:1})
   }
   if (path === '/api/library/locate') return json({work_id:1, work_index:0,page:0,index:0,offset:0})
   if (path === '/api/reading-sessions') return json({session_id:'synthetic', total:120, page_total:120})

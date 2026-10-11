@@ -36,9 +36,9 @@ with sync_playwright() as pw:
                 page.goto('http://127.0.0.1:5198/reader/tests/gallery-entry.html')
             card = page.locator('.work-card strong').first
             expect(card).to_have_text('合成作品 1')
-            assert page.evaluate("galleryEntryFixture.requests.filter(x=>x.startsWith('/api/library?')).length") == 1
-            assert page.evaluate("galleryEntryFixture.pending.has('counts')")
-            result['checks'].append(f'{width}: cards appear with counts still pending; no repeated first batch')
+            assert page.evaluate("galleryEntryFixture.requests.filter(x=>(x.startsWith('/api/library?')||x.startsWith('/api/library/cursor?'))).length") == 1
+            assert not page.evaluate("galleryEntryFixture.pending.has('counts')")
+            result['checks'].append(f'{width}: cards appear without on-demand counts; no repeated first batch')
 
             # A failed search retains the cards, summary, input and remembered home scope.
             page.evaluate('galleryEntryFixture.fail = true')
@@ -54,8 +54,8 @@ with sync_playwright() as pw:
             expect(card).to_have_text('合成作品 1')
             expect(search).to_have_value('')
             assert page.evaluate("localStorage.getItem('pixiv-local-home-scope') || ''") == ''
-            assert page.evaluate("galleryEntryFixture.cancelled.includes('counts')")
-            result['checks'].append(f'{width}: failed navigation preserves cards and filter controls; old counts cancelled')
+            assert not page.evaluate("galleryEntryFixture.requests.some(x=>x.startsWith('/api/library/counts'))")
+            result['checks'].append(f'{width}: failed navigation preserves cards and filter controls; no hidden exact count')
             page.evaluate('galleryEntryFixture.fail = false')
             page.get_by_role('alert').get_by_text('重试', exact=True).click()
             expect(card).to_have_text('failed 1')
@@ -73,7 +73,7 @@ with sync_playwright() as pw:
             expect(card).to_have_text('合成作品 101')
             expect(page.get_by_role('spinbutton', name='图库页码')).to_have_value('2')
             result['checks'].append(f'{width}: explicit page two uses its seed and displays the correct page')
-            reads_before = page.evaluate("galleryEntryFixture.requests.filter(x=>x.startsWith('/api/library?')).length")
+            reads_before = page.evaluate("galleryEntryFixture.requests.filter(x=>(x.startsWith('/api/library?')||x.startsWith('/api/library/cursor?'))).length")
             # Browser route APIs deliberately drive direct address and feed entries.
             page.evaluate("history.pushState(null, '', '/illust/1'); dispatchEvent(new PopStateEvent('popstate'))")
             expect(page.locator('.detail-title-row h1')).to_have_text('合成作品 1')
@@ -81,14 +81,14 @@ with sync_playwright() as pw:
             expect(page.locator('.stream-head h1')).to_have_text('流式阅览')
             page.get_by_text('返回图库', exact=True).first.click()
             expect(card).to_have_text('合成作品 1')
-            assert page.evaluate("galleryEntryFixture.requests.filter(x=>x.startsWith('/api/library?')).length") == reads_before + 3
+            assert page.evaluate("galleryEntryFixture.requests.filter(x=>(x.startsWith('/api/library?')||x.startsWith('/api/library/cursor?'))).length") == reads_before + 3
             result['checks'].append(f'{width}: direct detail, feed and return to gallery remain usable')
             # A remount in continuous mode also consumes its first response exactly once.
             page.evaluate("localStorage.setItem('pixiv-local-page-size', 'scroll')")
             page.goto('http://127.0.0.1:5198/reader/tests/gallery-entry.html' if not args.url else args.url.rstrip('/') + '/')
             expect(card).to_have_text('fast 1')
             assert page.locator('.pagination').count() == 0
-            assert page.evaluate("galleryEntryFixture.requests.filter(x=>x.startsWith('/api/library?')).length") == 1
+            assert page.evaluate("galleryEntryFixture.requests.filter(x=>(x.startsWith('/api/library?')||x.startsWith('/api/library/cursor?'))).length") == 1
             page.locator('.gallery-viewport').hover()
             page.mouse.wheel(0, 1400)
             page.wait_for_function("document.querySelector('.gallery-viewport').scrollTop > 500")

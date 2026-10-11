@@ -8,7 +8,7 @@ from sqlalchemy import event
 
 from client_fixture import make_library
 from src.core.library import LibraryFilter
-from src.core.models import utcnow
+from src.core.models import Asset, Derivative, OperationItem, Work, utcnow
 from src.routes.archive_api import create_router
 
 
@@ -18,21 +18,36 @@ def test_large_library_filters_positions_and_bounded_artist_queries(tmp_path):
     metrics = {"fixture_seconds": round(perf_counter() - started, 3)}
     try:
         library = runtime.library
-        statement_count = 0
+        statements, loaded = [], []
 
-        def count_statement(*_):
-            nonlocal statement_count
-            statement_count += 1
+        def count_statement(connection, cursor, sql, parameters, context, many):
+            statements.append(sql)
+
+        def load(record, context):
+            loaded.append(type(record).__name__)
 
         event.listen(runtime.database.engine, "before_cursor_execute", count_statement)
+        for model in (Work, Asset, Derivative, OperationItem):
+            event.listen(model, "load", load)
         try:
             began = perf_counter()
             artists = library.artist_page(offset=0, limit=5, q="本地")
             metrics["artist_page_seconds"] = round(perf_counter() - began, 3)
-            metrics["artist_page_queries"] = statement_count
-            assert statement_count <= 12
+            metrics["artist_page_queries"] = len(statements)
+            # Five indexed top-12 author heads plus fixed projection/media
+            # batches replace the old N-wide aggregation. Resource hydration
+            # remains bounded to this page, including the 2,000-page work.
+            assert len(statements) <= 16
+            assert sum("SELECT work_id FROM read_source_work_local" in sql for sql in statements) == 5
+            assert sum(sql.startswith("SELECT assets.id") for sql in statements) == 1
+            assert sum(sql.startswith("SELECT derivatives.id") for sql in statements) == 1
+            assert loaded.count("Work") == 60
+            assert loaded.count("Asset") <= 60 and loaded.count("Derivative") <= 60
+            assert "OperationItem" not in loaded
         finally:
             event.remove(runtime.database.engine, "before_cursor_execute", count_statement)
+            for model in (Work, Asset, Derivative, OperationItem):
+                event.remove(model, "load", load)
         assert artists["total"] == 12 and len(artists["items"]) == 5
         assert all(item["work_count"] > 0 and len(item["recent_works"]) == 12 for item in artists["items"])
         assert all(item["avatar"].startswith("/images/") for item in artists["items"])

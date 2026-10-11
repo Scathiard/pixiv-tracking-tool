@@ -72,7 +72,7 @@ export interface WorkSummary extends ArchiveProjection {
   availability?: AvailabilityState | null
 }
 export interface PageData extends ArchiveProjection {
-  revision_id?: string | null; round?: number; previous_work_index?: number | null
+  revision_id?: string | null; work_cursor?: string; has_next_work?: boolean; round?: number; previous_work_index?: number | null
   index: number; work_id: number; work_index: number; page: number; page_count: number
   title: string; artist_name: string; artist_id: number; pixiv_id: string; type: string; x_restrict: number | null
   next_work_index: number; src: string | null; width: number | null; height: number | null; state: string
@@ -81,6 +81,7 @@ export interface PageData extends ArchiveProjection {
   availability?: AvailabilityState | null
 }
 export interface WorkDetail extends WorkSummary {
+  revisions_has_more?: boolean; revisions_before?: number | null
   revisions?: {id: string; ordinal: number; created_at: string; change_kind: string; state: string; page_count: number; current: boolean}[]
   catalogue_revision?: number
   display_page_count: number
@@ -88,9 +89,10 @@ export interface WorkDetail extends WorkSummary {
   assets: {id: string; role: string; page: number; state: string; error: string | null}[]
   legacy_variants: {page: number; files: {src: string | null; name: string; default: boolean}[]}[]
 }
-export interface PageBatch {items: PageData[]; total: number; offset: number; ceiling?: number; catalogue_revision?: number}
+export interface PageBatch {items: PageData[]; total: number; offset: number; ceiling?: number; as_of?: string; catalogue_revision?: number; generation?: number; has_more?: boolean; has_previous?: boolean}
 export type WorkCard = Pick<WorkSummary, 'id' | 'pixiv_id' | 'title' | 'artist_id' | 'artist_name' | 'type' | 'page_count' | 'x_restrict' | 'thumbnail' | 'is_hidden' | 'posted_at' | 'bookmark'> & ArchiveProjection & {
   preview?: string | null
+  revision_id?: string | null; cursor?: string
   preview_status?: 'ready' | 'pending' | 'failed' | 'unavailable'
   recovery?: RecoveryState | null
   availability?: AvailabilityState | null
@@ -150,7 +152,20 @@ export function sourceNotice(availability?: AvailabilityState | null, recovery?:
   if (/已有存档保留|已存内容/.test(reason)) return reason
   return `${reason}；已存内容仍可阅览`
 }
-export interface GalleryBatch {items: WorkCard[]; total: number; offset: number; ceiling: number; as_of: string; catalogue_revision?: number}
+export interface CursorMetadata {
+  generation?: number; next_cursor?: string | null; previous_cursor?: string | null; boundaries?: string[]
+  has_more?: boolean; has_previous?: boolean; performance?: 'indexed_seek' | 'on_demand_scan' | 'offset_scan'
+  count_mode?: 'indexed' | 'on_demand'
+}
+export interface GalleryBatch extends CursorMetadata {items: WorkCard[]; total: number; total_exact?: boolean; ordinal_exact?: boolean; offset: number; ceiling: number; as_of: string; catalogue_revision?: number}
+export interface CursorGalleryBatch extends CursorMetadata {items: WorkCard[]; total: number | null; offset: number | null; ceiling: number; as_of: string; catalogue_revision?: number}
+export function normalizeGalleryBatch(data: CursorGalleryBatch, offset = 0): GalleryBatch {
+  const start = offset > 0 ? offset : data.offset ?? offset
+  const known = data.total !== null
+  return {...data, offset: start, total_exact: known,
+    total: data.total ?? start + data.items.length + (data.has_more ? 1 : 0),
+    items: data.items.map((item, index) => ({...item, cursor: item.cursor || data.boundaries?.[index]}))}
+}
 export function hasNewWorks(fresh: GalleryBatch, ceiling: number, total: number): boolean {
   return fresh.ceiling > ceiling && (fresh.total > total || !!fresh.items[0] && fresh.items[0].id > ceiling)
 }

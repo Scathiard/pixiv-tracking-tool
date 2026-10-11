@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 from pathlib import Path
+import os
 from PyInstaller.utils.hooks import collect_submodules
 
 version_namespace = {}
@@ -13,7 +14,7 @@ a = Analysis(
     datas=[
         ('src/templates', 'src/templates'),
         ('static', 'static'),
-        ('frontend/dist', 'frontend/dist'),
+        (os.environ.get('PIXIV_FRONTEND_DIST', 'frontend/dist'), 'frontend/dist'),
     ],
     hiddenimports=collect_submodules('gallery_dl') + [
         'jinja2.ext',

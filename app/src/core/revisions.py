@@ -10,7 +10,8 @@ import json
 from types import SimpleNamespace
 from urllib.parse import urlsplit
 
-from sqlalchemy import select, func, case, and_
+from sqlalchemy import select, func, case, and_, literal_column
+from sqlalchemy.orm import load_only
 
 from .models import Asset, Derivative, RevisionAsset, RevisionDerivative, Work, WorkTag, WorkRevision, new_id
 
@@ -96,8 +97,8 @@ def selected_revision(session, work_id, revision_id=None):
         revision = session.get(WorkRevision, revision_id)
         return revision if revision and revision.work_id == work_id and revision.state != "redundant" else None
     base = select(WorkRevision).where(WorkRevision.work_id == work_id, WorkRevision.state != "redundant")
-    return session.scalar(base.order_by(case((and_(WorkRevision.state == "complete", WorkRevision.viewable.is_(True)), 2),
-        (WorkRevision.viewable.is_(True), 1), else_=0).desc(), WorkRevision.ordinal.desc()).limit(1))
+    rank = literal_column("CASE WHEN state='complete' AND viewable=1 THEN 2 WHEN viewable=1 THEN 1 ELSE 0 END")
+    return session.scalar(base.order_by(rank.desc(), WorkRevision.ordinal.desc()).limit(1))
 
 
 def bind_asset(session, revision, asset, *, role=None, page_index=None):
@@ -122,7 +123,7 @@ def bind_derivative(session, revision, record):
         binding.derivative_id = record.id
 
 
-def ensure_legacy_revision(session, work):
+def ensure_legacy_revision(session, work, *, raw=False):
     revision = latest_revision(session, work.id)
     if revision:
         return revision
@@ -143,7 +144,7 @@ def ensure_legacy_revision(session, work):
     for record in list(work.derivatives):
         record.revision_id = revision.id
         bind_derivative(session, revision, record)
-    refresh_revision(session, revision)
+    refresh_revision(session, revision, raw=raw)
     return revision
 
 
@@ -211,19 +212,36 @@ def observe_revision(session, work, snapshot, *, compare_content=False):
     return revision, True
 
 
-def refresh_revision(session, revision):
+def refresh_revision(session, revision, *, raw=False):
     session.flush()
     if revision.state != "redundant":
-        facts = revision_facts(session, revision)
+        if raw:
+            # Explicit legacy candidate conversion is the only source-scan
+            # route. Ordinary runtime never repairs absent lifecycle tables.
+            facts = revision_facts(session, revision)
+        else:
+            from .projection_maintenance import cached_revision_facts, reconcile_physical_resources
+            connection = session.connection()
+            dirty = connection.exec_driver_sql("SELECT entity,identity FROM read_model_dirty WHERE entity IN ('physical_asset','physical_derivative')").all()
+            reconcile_physical_resources(connection,
+                [identity for entity, identity in dirty if entity == 'physical_asset'],
+                [identity for entity, identity in dirty if entity == 'physical_derivative'])
+            facts = cached_revision_facts(session, revision)
         revision.state, revision.viewable = facts["state"], facts["viewable"]
         session.flush()
-        work = session.get(Work, revision.work_id)
+        work = session.scalar(select(Work).where(Work.id == revision.work_id).options(
+            load_only(Work.id, Work.latest_revision_id, Work.default_revision_id,
+                Work.title, Work.caption, Work.caption_state, Work.type, Work.page_count)))
         if work:
-            latest = latest_revision(session, work.id)
-            selected = selected_revision(session, work.id)
-            work.latest_revision_id = latest.id if latest else None
-            work.default_revision_id = selected.id if selected else None
-            if selected:
+            connection = session.connection()
+            latest_id = connection.exec_driver_sql("SELECT id FROM work_revisions WHERE work_id=? AND state != 'redundant' ORDER BY ordinal DESC LIMIT 1", (work.id,)).scalar()
+            selected_id = connection.exec_driver_sql("SELECT id FROM work_revisions WHERE work_id=? AND state != 'redundant' ORDER BY (CASE WHEN state='complete' AND viewable=1 THEN 2 WHEN viewable=1 THEN 1 ELSE 0 END) DESC,ordinal DESC LIMIT 1", (work.id,)).scalar()
+            work.latest_revision_id = latest_id
+            work.default_revision_id = selected_id
+            if selected_id:
+                selected = session.scalar(select(WorkRevision).where(WorkRevision.id == selected_id).options(
+                    load_only(WorkRevision.id, WorkRevision.title, WorkRevision.caption,
+                        WorkRevision.caption_state, WorkRevision.type, WorkRevision.page_count, WorkRevision.tags)))
                 for key in ("title", "caption", "caption_state", "type", "page_count"):
                     setattr(work, key, getattr(selected, key))
                 existing = {tag.tag: tag for tag in work.tags}
@@ -233,8 +251,11 @@ def refresh_revision(session, revision):
 def refresh_for_record(session, record):
     bindings = RevisionDerivative if isinstance(record, Derivative) else RevisionAsset
     column = bindings.derivative_id if isinstance(record, Derivative) else bindings.asset_id
+    session.flush()
     for revision_id in session.scalars(select(bindings.revision_id).where(column == record.id)):
-        revision = session.get(WorkRevision, revision_id)
+        revision = session.scalar(select(WorkRevision).where(WorkRevision.id == revision_id).options(
+            load_only(WorkRevision.id, WorkRevision.work_id, WorkRevision.type,
+                WorkRevision.page_count, WorkRevision.state, WorkRevision.viewable)))
         if revision:
             refresh_revision(session, revision)
 

@@ -100,9 +100,19 @@ def test_runtime_prepares_settings_before_workers_with_wal_backup_and_idempotenc
     actual_queue = runtime_module.TaskQueue
     with closing(sqlite3.connect(database.path)) as wal_owner:
         wal_owner.execute('PRAGMA wal_autocheckpoint=0')
-        wal_owner.execute("UPDATE works SET caption='committed WAL synthetic' WHERE id=1")
-        wal_owner.commit()
+        # Join the WAL pager before the sanctioned writer closes its handles.
+        wal_owner.execute('SELECT id FROM works WHERE id=1').fetchone()
+        # Keep committed frames in WAL while source and its projections share
+        # the same sanctioned writer transaction. A raw external source commit
+        # would intentionally leave this schema dirty and block startup.
+        writer = ArchiveDatabase(database.path)
+        try:
+            with writer.write() as session:
+                session.connection().exec_driver_sql("UPDATE works SET caption='committed WAL synthetic' WHERE id=1")
+        finally:
+            writer.close()
         assert database.path.with_name(database.path.name+'-wal').stat().st_size > 0
+        assert wal_owner.execute('SELECT count(*) FROM read_model_dirty').fetchone() == (0,)
         before = snapshot(database.path)
 
         def checked_queue(database, *args, **kwargs):

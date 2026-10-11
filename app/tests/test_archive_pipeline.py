@@ -660,23 +660,31 @@ def test_legacy_timing_source_update_clears_only_after_new_frames_publish(archiv
         assert all(asset.state == "verified" for asset in assets)
 
 
-def test_parent_completion_gate_does_not_materialize_five_thousand_children(archive):
+@pytest.mark.parametrize("child_count", [10, 5000])
+def test_parent_completion_gate_does_not_materialize_five_thousand_children(archive, child_count):
     db, root = archive
     queue = queue_for(db, root)
     with db.write() as session:
         parent = Operation(kind="check", parameters={}, label="large parent", dedupe_key="parent", state="ready")
         session.add(parent)
         session.flush()
-        children = [Operation(id=f"child-{index}", kind="repair", parameters={}, label="child", dedupe_key=f"child-{index}", state="ready") for index in range(5000)]
+        children = [Operation(id=f"child-{index}", kind="repair", parameters={}, label="child", dedupe_key=f"child-{index}", state="ready") for index in range(child_count)]
         session.add_all(children)
         parent.result = {"child_operation_ids": [child.id for child in children]}
         parent_id = parent.id
     from sqlalchemy import event
     from sqlalchemy.orm import Session
-    queries, entities = [], []
+    queries, entities, drivers, vm_steps = [], [], set(), [0]
+
+    def progress():
+        vm_steps[0] += 1
+        return 0
 
     def query_observer(connection, cursor, statement, parameters, context, executemany):
         queries.append(statement)
+        driver = connection.connection.driver_connection
+        drivers.add(driver)
+        driver.set_progress_handler(progress, 1)
 
     def entity_observer(session, instance):
         if isinstance(instance, Operation):
@@ -690,6 +698,12 @@ def test_parent_completion_gate_does_not_materialize_five_thousand_children(arch
     finally:
         event.remove(db.writer_engine, "before_cursor_execute", query_observer)
         event.remove(Session, "loaded_as_persistent", entity_observer)
+        for driver in drivers:
+            driver.set_progress_handler(None, 0)
     assert entities == [parent_id]
-    assert len(queries) < 10
+    # Atomic read projections add fixed readiness/counter/maintenance queries.
+    # Keep a fixed complete-transaction cap and additionally bound actual VM
+    # work through fetching; neither may grow with the five-thousand children.
+    assert len(queries) < 20
+    assert vm_steps[0] < 1000
     assert any("json_each" in statement and "LIMIT" in statement for statement in queries)

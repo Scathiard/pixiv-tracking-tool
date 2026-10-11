@@ -18,12 +18,14 @@ if __name__ == "__main__":
 
 from src.core.models import Base, Operation, OperationItem
 from src.core.tasks import TaskQueue
+from projection_fixture import prepare_synthetic_projection
 
 
 @contextmanager
 def isolated_memory_database():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
+    prepare_synthetic_projection(engine)
     database = SimpleNamespace(engine=engine, read=sessionmaker(engine, expire_on_commit=False))
     try:
         yield database
@@ -49,7 +51,7 @@ def remote_query_probe(database):
 
     def before(connection, cursor, statement, parameters, context, many):
         finish()
-        if "operation_items.kind IN" not in statement:
+        if "operation_items.kind IN" not in statement and "ix_task_item_remote_inventory" not in statement:
             return
         cursor.execute("EXPLAIN QUERY PLAN " + statement, parameters)
         record = {"sql": statement, "parameters": parameters,
@@ -77,6 +79,7 @@ def operation(database, kind="reconcile"):
             state="running", phase="verifying", phase_unit="assets", phase_done=12, phase_total=100000,
             result={"planning_complete": True}))
         session.commit()
+    prepare_synthetic_projection(database.engine, install=False)
     return TaskQueue(database, {})
 
 
@@ -91,6 +94,7 @@ def remote_gate_memory_budget(database, evidence_path):
                 '{"asset_id":"synthetic","padding":"' || hex(zeroblob(128)) || '"}',
                 CASE WHEN i%3=0 THEN 'reconciling' WHEN i%3=1 THEN 'verifying' ELSE 'checking' END,
                 CASE WHEN i%3=2 THEN 'works' ELSE 'assets' END,'[]','pending',NULL,0,'{}' FROM rows"""))
+    prepare_synthetic_projection(database.engine, install=False)
     with database.read() as session:
         with remote_query_probe(database) as baseline:
             assert session.scalar(select(OperationItem.id).where(OperationItem.operation_id == "progress-op",
@@ -110,7 +114,7 @@ def remote_gate_memory_budget(database, evidence_path):
     assert peak_bytes < 300 * 1024 * 1024
     assert baseline[0]["vm_steps"] > 500000
     assert candidate[0]["vm_steps"] < 5000
-    assert any("operation_id=? AND state=? AND phase=? AND unit=?" in row[-1] for row in candidate[0]["plan"])
+    assert any("ix_task_item_remote_inventory (operation_id=?)" in row[-1] for row in candidate[0]["plan"])
 
 
 def test_progress_remote_gate_does_not_visit_unrelated_pending_targets(tmp_path):
@@ -145,6 +149,7 @@ def test_progress_remote_gate_preserves_new_and_legacy_unknown_denominators(
         session.add(OperationItem(id="remote", operation_id="progress-op", item_key="arbitrary-legacy-key",
             position=0, kind=kind, phase=phase, unit=unit, state=state, lane=None, target={}, depends_on=[], result={}))
         session.commit()
+    prepare_synthetic_projection(database.engine, install=False)
     with database.read() as session:
         view = queue._operation_view(session.get(Operation, "progress-op"), session)
     assert view["phase"]["total"] == (None if unknown_total else 100000)

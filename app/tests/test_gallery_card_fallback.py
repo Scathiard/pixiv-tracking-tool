@@ -66,18 +66,21 @@ def test_missing_original_stays_visible_and_repair_then_generates_thumbnail(tmp_
         assert repaired_card["preview"] and repaired_card["thumbnail"]
         assert repaired_card["preview_status"] == "ready"
 
-        statements = 0
+        statements = []
 
-        def count_statement(*_):
-            nonlocal statements
-            statements += 1
+        def count_statement(conn, cursor, sql, params, context, many):
+            statements.append(sql)
 
         event.listen(database.engine, "before_cursor_execute", count_statement)
         try:
             feed = library.feed(ceiling=2)
         finally:
             event.remove(database.engine, "before_cursor_execute", count_statement)
-        assert statements <= 10
+        # Verified state/display projections add three fixed batch statements;
+        # preserve the N+1 guard rather than counting the old aggregate path.
+        assert len(statements) <= 13
+        assert len([sql for sql in statements if sql.startswith("SELECT work_id,value FROM read_work_state")]) == 1
+        assert len([sql for sql in statements if sql.startswith("SELECT scope,availability FROM read_display_metadata")]) == 1
         second_work = [item for item in feed["items"] if item["work_id"] == 2]
         assert len(second_work) == 2
         assert all(item["bookmark"]["value"] is True for item in second_work)

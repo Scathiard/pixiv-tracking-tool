@@ -7,7 +7,7 @@ from pathlib import Path
 import threading
 from uuid import uuid4
 from .ownership import LibraryLease
-from .upgrade import activate_upgrade, prepare_upgrade, rollback_upgrade
+from .upgrade import activate_upgrade, prepare_upgrade, rollback_upgrade, UpgradeRecoveryRequired
 
 
 class StartupUpgrade:
@@ -16,7 +16,8 @@ class StartupUpgrade:
         self.factory, self.stopping = factory, stopping
         self._lock = threading.RLock()
         self._status = {"state":"starting", "stage":"正在打开图库", "message":None,
-                        "can_start":False, "activated":False, "backup":None, "candidate":None}
+                        "can_start":False, "activated":False, "backup":None, "candidate":None,
+                        "recovery_required":False}
         self.receipt = None
         self.task = None
 
@@ -31,6 +32,15 @@ class StartupUpgrade:
 
     def ready(self):
         self._set(state="ready",stage="图库已准备好",message=None,can_start=False)
+
+    def require_recovery(self, error=None):
+        changes = {}
+        intent = getattr(error, "intent", None)
+        if intent:
+            changes = {key: intent.get(key) for key in ("backup", "candidate")}
+        self._set(state="failed",stage="启用后的恢复需要处理",recovery_required=True,
+            message="图库切换记录需要恢复核验。请关闭程序后检查恢复记录与保留的图库文件。",
+            can_start=False, **changes)
 
     def _receipt_file(self, directory, receipt):
         # The receipt contains paths/counts/fingerprints, never artwork or login.
@@ -70,6 +80,11 @@ class StartupUpgrade:
             attempted_start = True
             current.start()
             return current
+        except UpgradeRecoveryRequired as error:
+            # Activation did not return a receipt, so do not assume the source
+            # path was restored or retry conversion over an uncertain switch.
+            self.require_recovery(error)
+            return None
         except Exception:
             if current is not None:
                 current.request_stop(cancel_remote=True); current.close(timeout=None)
@@ -78,7 +93,8 @@ class StartupUpgrade:
                     with LibraryLease(self.images): rollback_upgrade(self.receipt,writers_stopped=True)
                     self.receipt=None; self._set(activated=False)
                 except Exception:
-                    self._set(state="failed",stage="启用后的恢复需要处理",message="图库启用未完成，自动回退未能完成。保留旧库备份与新版数据，请关闭程序后检查恢复记录。",can_start=False)
+                    self._set(state="failed",stage="启用后的恢复需要处理",recovery_required=True,
+                        message="图库启用未完成，自动回退未能完成。保留旧库备份与新版数据，请关闭程序后检查恢复记录。",can_start=False)
                     return None
             activated=self.snapshot()["activated"]
             self._set(state="failed",stage="启动未完成" if activated else "升级未完成",

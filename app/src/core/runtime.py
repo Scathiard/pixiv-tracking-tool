@@ -129,6 +129,20 @@ class RemoteAccess:
         return self.runtime.publish_account(expected, account_id)
 
 
+@contextmanager
+def _startup_phase(name):
+    began = time.perf_counter()
+    print(f"startup phase={name} state=begin", flush=True)
+    state = "ok"
+    try:
+        yield
+    except BaseException:
+        state = "error"
+        raise
+    finally:
+        print(f"startup phase={name} state={state} elapsed_ms={(time.perf_counter() - began) * 1000:.1f}", flush=True)
+
+
 class Runtime:
     def __init__(self, database_path: Path, images: Path, *, create=False, client=None, downloader=None,
                  index_progress=None, check_workers=1):
@@ -143,9 +157,14 @@ class Runtime:
         self._close_lock = threading.Lock()
         self.lease = LibraryLease(images).acquire()
         try:
-            self.database = ArchiveDatabase.create(database_path) if create else ArchiveDatabase(database_path)
+            from .upgrade import guard_upgrade_recovery
+            guard_upgrade_recovery(database_path)
+            with _startup_phase("database_open"):
+                self.database = ArchiveDatabase.create(database_path) if create else ArchiveDatabase(database_path)
             from .index_preparation import prepare_task_indexes
-            self.index_preparation = prepare_task_indexes(self.database, self.lease, progress=index_progress)
+            with _startup_phase("query_indexes"):
+                self.index_preparation = prepare_task_indexes(self.database, self.lease, progress=index_progress)
+                self.database.refresh_schema_contract_after_index_preparation()
         except BaseException:
             if hasattr(self, 'database'):
                 self.database.close()
@@ -249,16 +268,21 @@ class Runtime:
                 raise RuntimeError("已开始关闭的图库不能重新启动")
             if self._started:
                 return
-            self.wal_maintenance.start()
-            self.database.enable_wal_maintenance(self.wal_maintenance)
-            self.publisher.recover()
+            with _startup_phase("wal_start"):
+                self.wal_maintenance.start()
+                self.database.enable_wal_maintenance(self.wal_maintenance)
+            with _startup_phase("publication_recovery"):
+                self.publisher.recover()
             if self._closing.is_set():
                 raise RuntimeError("图库正在关闭，未启动业务工作者")
-            self.bookmarks.start()
-            self.queue.recover()
+            with _startup_phase("bookmark_start"):
+                self.bookmarks.start()
+            with _startup_phase("task_recovery"):
+                self.queue.recover()
             if self._closing.is_set():
                 raise RuntimeError("图库正在关闭，未启动任务工作者")
-            self.queue.start()
+            with _startup_phase("workers_start"):
+                self.queue.start()
             self._started = True
 
     def request_stop(self, *, cancel_remote=False):

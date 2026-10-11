@@ -285,18 +285,14 @@ def test_actual_tray_and_server_process_finishes(tmp_path, mode):
     from pathlib import Path
     import subprocess
     import sys
+    import os
 
-    checkout = Path(__file__).resolve().parents[2]
-    project = checkout.parents[1] if checkout.parent.name == ".worktrees" else checkout
-    allowed = project / ".devtools" / "test-runs"
-    if tmp_path.is_relative_to(allowed) and tmp_path.relative_to(allowed).parts[0].startswith("b7-shutdown-"):
-        root = tmp_path / "child"
-    else:
-        # Full-suite callers can choose another fresh basetemp; the retained
-        # process probe still uses its dedicated and explicitly isolated root.
-        root = allowed / ("b7-shutdown-process-" + uuid4().hex)
+    # Honor the suite's isolated/bounded root, including subprocess artifacts.
+    # Never silently create a second retained tree under the repository.
+    root = tmp_path / ("b7-shutdown-process-" + uuid4().hex)
+    environment = dict(os.environ, PIXIV_TEST_ARTIFACT_ROOT=str(tmp_path.resolve()))
     result = subprocess.run([sys.executable, str(Path(__file__).with_name("shutdown_process.py")), str(root), mode],
-                            capture_output=True, text=True, timeout=12)
+                            capture_output=True, text=True, timeout=12, env=environment)
     assert result.returncode == 0, result.stderr + result.stdout + (
         (root / "data/tracker.log").read_text(encoding="utf-8") if (root / "data/tracker.log").exists() else "")
     evidence = json.loads((root / "result.json").read_text(encoding="utf-8"))
