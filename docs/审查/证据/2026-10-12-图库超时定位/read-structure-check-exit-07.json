@@ -1,0 +1,14 @@
+{
+  "expected_exe": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261012.7.exe",
+  "posted": 2,
+  "remaining": [
+    40128,
+    49344
+  ],
+  "process_ids": [
+    40128,
+    49344
+  ],
+  "elapsed_ms": 15016,
+  "force_used": false
+}

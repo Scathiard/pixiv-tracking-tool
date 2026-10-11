@@ -25,6 +25,7 @@ OLD_REVISION = "0001_archive"
 CLIENT_REVISION = "0002_client"
 REVISIONS_REVISION = "0003_revisions"
 READ_PROJECTIONS_REVISION = "0004_read_projections"
+_FILE_FINGERPRINT = "sqlite_files_v1"
 _SUPPORTED_SOURCES = (OLD_REVISION, CLIENT_REVISION, REVISIONS_REVISION, READ_PROJECTIONS_REVISION)
 _REVISION_TABLES = {"work_revisions", "revision_assets", "revision_derivatives"}
 _NEW_ARTIST = {"biography", "avatar_path", "profile_refreshed_at"}
@@ -229,6 +230,53 @@ def _fingerprint(connection):
     return digest.hexdigest()
 
 
+def _file_fingerprint(path):
+    """Sequential byte audit, including WAL frames; ignore SQLite copy metadata.
+
+    Source and backup identities are separate: a checkpoint changes physical
+    layout even when committed values are unchanged. No SQL payload scan is
+    needed, and a committed WAL write cannot hide behind an unchanged DB file.
+    """
+    path = Path(path)
+    digest = hashlib.sha256()
+    for name, minimum in ((path, 0), (Path(str(path) + "-wal"), 32)):
+        try:
+            before = name.stat()
+        except FileNotFoundError:
+            if minimum:
+                continue
+            raise
+        if minimum and before.st_size <= minimum:
+            continue
+        digest.update(b"wal" if minimum else b"database")
+        digest.update(before.st_size.to_bytes(8, "big"))
+        with name.open("rb") as source:
+            if not minimum:
+                header = bytearray(source.read(100))
+                if header[:16] != b"SQLite format 3\x00" or len(header) != 100:
+                    raise UpgradeRequired("数据库文件头不完整，不能核验升级")
+                # backup/checkpoint/open can change mode, change counters,
+                # schema cookie and last-writer metadata, not stored values.
+                for start, end in ((18, 20), (24, 28), (40, 44), (92, 100)):
+                    header[start:end] = b"\x00" * (end - start)
+                digest.update(header)
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+        after = name.stat()
+        if (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
+            raise UpgradeRequired("数据库核验期间发生写入，请关闭写入者后重试")
+    return digest.hexdigest()
+
+
+def _path_fingerprint(path, mode="semantic"):
+    if mode == _FILE_FINGERPRINT:
+        return _file_fingerprint(path)
+    if mode != "semantic":
+        raise UpgradeRequired("升级凭据指纹格式不受支持")
+    with _readonly(path) as connection:
+        return _fingerprint(connection)
+
+
 def _preserved_tables(connection):
     # AUTOINCREMENT high-water marks are source facts too, even if deleted IDs
     # leave no corresponding row. Snapshot upgrades keep SQLite's own tables.
@@ -311,7 +359,7 @@ def _validate_revision_links(connection, *, require_complete=False):
     return warnings
 
 
-def _verify_preserved_revisions(check, old):
+def _verify_preserved_revisions(check, old, *, guarded_copy=False):
     """Copied upgrades preserve source facts and pre-existing schema objects."""
     source_revision = old.execute("SELECT version_num FROM alembic_version").fetchone()[0]
     actual = {(row[0], row[1]): tuple(row) for row in check.execute(
@@ -325,12 +373,22 @@ def _verify_preserved_revisions(check, old):
             # Membership is a derived task lookup. 0005 reconstructs it from
             # source parameters once; operation/item records remain identical.
             continue
-        if _columns(old, name) != _columns(check, name) or _table_fingerprint(old, name) != _table_fingerprint(check, name):
+        equal = (_columns(old, name) == _columns(check, name))
+        if equal and guarded_copy:
+            equal = old.execute(f'SELECT count(*) FROM {_identifier(name)}').fetchone() == check.execute(
+                f'SELECT count(*) FROM {_identifier(name)}').fetchone()
+        elif equal:
+            equal = _table_fingerprint(old, name) == _table_fingerprint(check, name)
+        if not equal:
             raise UpgradeRequired(f"候选库保留数据核验失败：{name}")
 
 
 def validate_candidate(candidate, backup=None):
     """Read-only verification. Validation never installs or repairs a projection."""
+    return _validate_candidate(candidate, backup)
+
+
+def _validate_candidate(candidate, backup=None, *, guarded_copy=False):
     source_version = None
     if backup:
         with _readonly(backup) as old:
@@ -349,7 +407,8 @@ def validate_candidate(candidate, backup=None):
             with _readonly(backup) as old:
                 source_version = _inspect_old(old)
                 if source_version in (REVISIONS_REVISION, READ_PROJECTIONS_REVISION):
-                    _verify_preserved_revisions(check, old)
+                    _verify_preserved_revisions(check, old,
+                        guarded_copy=guarded_copy and source_version == READ_PROJECTIONS_REVISION)
                 else:
                     for table in Base.metadata.sorted_tables:
                         name = table.name
@@ -438,6 +497,56 @@ def _finish_projection_candidate(candidate, *, install=False, convert_legacy=Fal
         engine.dispose()
 
 
+def _read_candidate_objects():
+    from . import gallery_card_projection, normalized_task_projection
+    new_tables = {gallery_card_projection.TABLE, *normalized_task_projection.TABLES}
+    triggers = {*gallery_card_projection.TRIGGERS, "read_task_scope_definition_update"}
+    indexes = {gallery_card_projection._ARTIST_INDEX.split()[2], *(statement.split()[2]
+        for statement in normalized_task_projection._DDL if statement.startswith("CREATE INDEX "))}
+    return new_tables, triggers, indexes
+
+
+@contextmanager
+def _read_candidate_write_guard(connection):
+    """Fence the exact DBAPI connection used for additive 0004 construction."""
+    new_tables, triggers, indexes = _read_candidate_objects()
+    writable = new_tables | {"alembic_version", "read_operation_scope"}
+    driver = connection.connection.driver_connection
+
+    def authorize(action, first, second, database, origin):
+        if database not in (None, "main"):
+            return sqlite3.SQLITE_DENY
+        if action in (sqlite3.SQLITE_INSERT, sqlite3.SQLITE_UPDATE, sqlite3.SQLITE_DELETE):
+            # SQLite itself edits sqlite_master when approved DDL runs.
+            return sqlite3.SQLITE_OK if first in writable | {"sqlite_master"} else sqlite3.SQLITE_DENY
+        if action == sqlite3.SQLITE_CREATE_TABLE:
+            return sqlite3.SQLITE_OK if first in new_tables else sqlite3.SQLITE_DENY
+        if action == sqlite3.SQLITE_CREATE_INDEX:
+            return sqlite3.SQLITE_OK if second in new_tables else sqlite3.SQLITE_DENY
+        if action == sqlite3.SQLITE_CREATE_TRIGGER:
+            return sqlite3.SQLITE_OK if first in triggers else sqlite3.SQLITE_DENY
+        if action == sqlite3.SQLITE_REINDEX:
+            # SQLite emits this authorization while filling a CREATE INDEX.
+            return sqlite3.SQLITE_OK if first in indexes else sqlite3.SQLITE_DENY
+        if action in (sqlite3.SQLITE_ALTER_TABLE, sqlite3.SQLITE_DROP_TABLE,
+                sqlite3.SQLITE_DROP_INDEX, sqlite3.SQLITE_DROP_TRIGGER,
+                sqlite3.SQLITE_CREATE_VIEW, sqlite3.SQLITE_DROP_VIEW,
+                sqlite3.SQLITE_CREATE_VTABLE, sqlite3.SQLITE_DROP_VTABLE,
+                sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH):
+            return sqlite3.SQLITE_DENY
+        if action == sqlite3.SQLITE_PRAGMA:
+            # No schema bypass, journal change or file rewrite during backfill.
+            return sqlite3.SQLITE_OK if first in ("table_info", "table_xinfo", "table_list",
+                "index_list", "index_info", "index_xinfo", "foreign_key_list") else sqlite3.SQLITE_DENY
+        return sqlite3.SQLITE_OK
+
+    driver.set_authorizer(authorize)
+    try:
+        yield
+    finally:
+        driver.set_authorizer(None)
+
+
 def _finish_read_candidate(candidate):
     """0004 -> 0005 adds narrow reads without rebuilding old source projections."""
     from . import gallery_card_projection, normalized_task_projection
@@ -446,23 +555,26 @@ def _finish_read_candidate(candidate):
     try:
         with engine.begin() as connection:
             connection.exec_driver_sql("BEGIN IMMEDIATE")
-            require_ready(connection)
-            gallery_card_projection.install(connection)
-            normalized_task_projection.install(connection)
-            with Session(bind=connection) as session:
-                gallery_card_projection.backfill(session)
-                normalized_task_projection.backfill(connection)
-            connection.exec_driver_sql("UPDATE alembic_version SET version_num=?", (SCHEMA_REVISION,))
+            with _read_candidate_write_guard(connection):
+                require_ready(connection)
+                gallery_card_projection.install(connection)
+                normalized_task_projection.install(connection)
+                with Session(bind=connection) as session:
+                    gallery_card_projection.backfill(session)
+                    normalized_task_projection.backfill(connection)
+                connection.exec_driver_sql("UPDATE alembic_version SET version_num=?", (SCHEMA_REVISION,))
     finally:
         engine.dispose()
 
 
-def _prepared_result(source, candidate, backup, version, source_fingerprint, validation):
-    with _readonly(candidate) as saved:
-        candidate_fingerprint = _fingerprint(saved)
+def _prepared_result(source, candidate, backup, version, source_fingerprint, validation,
+        *, fingerprint_mode="semantic", backup_fingerprint=None):
+    candidate_fingerprint = _path_fingerprint(candidate, fingerprint_mode)
     return {"source": source, "candidate": candidate, "backup": backup,
         "source_revision": version, "source_fingerprint": source_fingerprint,
-        "candidate_fingerprint": candidate_fingerprint, "validation": validation}
+        "candidate_fingerprint": candidate_fingerprint, "validation": validation,
+        "fingerprint_mode": fingerprint_mode,
+        "backup_fingerprint": backup_fingerprint or source_fingerprint}
 
 
 def prepare_upgrade(source, candidate, backup, *, expected_revision=None):
@@ -473,12 +585,24 @@ def prepare_upgrade(source, candidate, backup, *, expected_revision=None):
     if candidate.exists() or backup.exists(): raise FileExistsError("候选库或备份路径已存在")
     with _readonly(source) as src:
         version = _inspect_old(src, expected_revision)
+        if version == READ_PROJECTIONS_REVISION:
+            additions = set().union(*_read_candidate_objects())
+            occupied = {row[0] for row in src.execute("SELECT name FROM sqlite_master")}
+            if additions & occupied:
+                raise UpgradeRequired("源库存在新增读取结构的同名对象，未转换")
         # Preserve a historical fail-closed fixture/foreign table collision.
         collision = "remote_bookmarks_next" in _tables(src) and version == OLD_REVISION
     backup.parent.mkdir(parents=True, exist_ok=True); candidate.parent.mkdir(parents=True, exist_ok=True)
+    mode = _FILE_FINGERPRINT if version == READ_PROJECTIONS_REVISION else "semantic"
+    source_fingerprint = _file_fingerprint(source) if mode == _FILE_FINGERPRINT else None
     _snapshot(source, backup)
     with _readonly(backup) as saved:
-        _inspect_old(saved, version); source_fingerprint = _fingerprint(saved)
+        _inspect_old(saved, version)
+        if mode == "semantic":
+            source_fingerprint = _fingerprint(saved)
+    backup_fingerprint = _file_fingerprint(backup) if mode == _FILE_FINGERPRINT else source_fingerprint
+    if mode == _FILE_FINGERPRINT and _file_fingerprint(source) != source_fingerprint:
+        raise UpgradeRequired("源库在备份期间已改变，请关闭写入者后重新准备")
     if collision:
         _snapshot(backup, candidate)
         raise sqlite3.OperationalError("candidate table collision")
@@ -490,8 +614,9 @@ def prepare_upgrade(source, candidate, backup, *, expected_revision=None):
             _finish_read_candidate(candidate)
         else:
             _finish_projection_candidate(candidate, install=True)
-        validation = validate_candidate(candidate, backup)
-        return _prepared_result(source, candidate, backup, version, source_fingerprint, validation)
+        validation = _validate_candidate(candidate, backup, guarded_copy=version == READ_PROJECTIONS_REVISION)
+        return _prepared_result(source, candidate, backup, version, source_fingerprint, validation,
+            fingerprint_mode=mode, backup_fingerprint=backup_fingerprint)
     db = ArchiveDatabase.create(candidate); db.close()
     with _readonly(backup) as saved, _writable(candidate) as destination:
         try:
@@ -541,29 +666,32 @@ def activate_upgrade(result, *, writers_stopped=False):
     if not writers_stopped: raise RuntimeError("启用前必须关闭图库写入者")
     source, candidate, backup = (Path(result[key]).resolve() for key in ("source", "candidate", "backup"))
     guard_upgrade_recovery(source)
+    mode = result.get("fingerprint_mode", "semantic")
+    expected_backup = result.get("backup_fingerprint", result["source_fingerprint"])
     expected_candidate = result.get("candidate_fingerprint")
     if expected_candidate is None:
         # Older prepared receipts have no validation identity; validate once.
         validate_candidate(candidate, backup)
-        with _readonly(candidate) as saved:
-            expected_candidate = _fingerprint(saved)
-    with _readonly(backup) as saved:
-        if _fingerprint(saved) != result["source_fingerprint"]:
-            raise UpgradeRequired("源库备份在准备后已改变，候选不能启用")
-    with _readonly(source) as old:
-        if _fingerprint(old) != result["source_fingerprint"]:
-            raise UpgradeRequired("源库在准备后已改变，候选不能启用")
+        expected_candidate = _path_fingerprint(candidate, mode)
+    if _path_fingerprint(backup, mode) != expected_backup:
+        raise UpgradeRequired("源库备份在准备后已改变，候选不能启用")
+    if _path_fingerprint(source, mode) != result["source_fingerprint"]:
+        raise UpgradeRequired("源库在准备后已改变，候选不能启用")
+    if _path_fingerprint(candidate, mode) != expected_candidate:
+        raise UpgradeRequired("候选库在核验后已改变，未启用")
     # Close and checkpoint the source only after the caller explicitly quiesces it.
     with _writable(source) as old:
         if old.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0]:
             raise UpgradeRequired("源库仍被使用，未启用候选")
+    # WAL is now folded into the retained main file. Recovery must compare
+    # that checkpointed identity rather than the pre-checkpoint source files.
+    retained_fingerprint = _path_fingerprint(source, mode)
     staged = source.with_name(source.name + ".activation-" + uuid4().hex)
     retained = source.with_name(source.name + ".previous-" + uuid4().hex)
     _snapshot(candidate, staged)
-    with _readonly(staged) as ready:
-        active_fingerprint = _fingerprint(ready)
-        if active_fingerprint != expected_candidate:
-            raise UpgradeRequired("候选库在核验后已改变，未启用")
+    active_fingerprint = _path_fingerprint(staged, mode)
+    if active_fingerprint != expected_candidate:
+        raise UpgradeRequired("候选库在核验后已改变，未启用")
     intent = _begin_switch(source, action="activate", staged=staged, retained=retained,
         backup=backup, candidate=candidate)
     moved_source = False
@@ -580,9 +708,8 @@ def activate_upgrade(result, *, writers_stopped=False):
             if moved_source:
                 if source.exists(): os.replace(source, source.with_name(source.name + ".failed-" + uuid4().hex))
                 os.replace(retained, source)
-            with _readonly(source) as restored:
-                if _fingerprint(restored) != result["source_fingerprint"]:
-                    raise UpgradeRequired("恢复后的源库与准备快照不符")
+            if _path_fingerprint(source, mode) != retained_fingerprint:
+                raise UpgradeRequired("恢复后的源库与准备快照不符")
             _finish_switch(source, intent, "restored")
         except BaseException as restore_error:
             raise UpgradeRecoveryRequired(source, retained, intent=intent) from restore_error
@@ -594,19 +721,23 @@ def rollback_upgrade(receipt, *, writers_stopped=False):
     if not writers_stopped: raise RuntimeError("回退前必须关闭图库写入者")
     active, backup = Path(receipt["active"]).resolve(), Path(receipt["backup"]).resolve()
     guard_upgrade_recovery(active)
+    mode = receipt.get("fingerprint_mode", "semantic")
+    expected_backup = receipt.get("backup_fingerprint", receipt.get("source_fingerprint"))
     with _readonly(backup) as old:
         _inspect_old(old)
-        if not receipt.get("source_fingerprint") or _fingerprint(old) != receipt["source_fingerprint"]:
-            raise UpgradeRequired("旧库备份已改变，保留当前库，不能自动回退")
-    with _readonly(active) as current:
-        if not receipt.get("active_fingerprint") or _fingerprint(current) != receipt["active_fingerprint"]:
-            raise UpgradeRequired("新版库启用后已有写入，保留当前库与旧备份，不能自动回退")
+    if not expected_backup or _path_fingerprint(backup, mode) != expected_backup:
+        raise UpgradeRequired("旧库备份已改变，保留当前库，不能自动回退")
+    if not receipt.get("active_fingerprint") or _path_fingerprint(active, mode) != receipt["active_fingerprint"]:
+        raise UpgradeRequired("新版库启用后已有写入，保留当前库与旧备份，不能自动回退")
     staged = active.with_name(active.name + ".rollback-" + uuid4().hex)
     failed = active.with_name(active.name + ".failed-" + uuid4().hex)
     _snapshot(backup, staged)
+    if _path_fingerprint(staged, mode) != expected_backup:
+        raise UpgradeRequired("回退副本与旧库备份不符，保留当前库")
     with _writable(active) as current:
         if current.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0]:
             raise UpgradeRequired("新版库仍被使用，未执行回退")
+    retained_fingerprint = _path_fingerprint(active, mode)
     intent = _begin_switch(active, action="rollback", staged=staged, retained=failed, backup=backup,
         candidate=receipt.get("candidate"))
     moved_active = False
@@ -614,18 +745,16 @@ def rollback_upgrade(receipt, *, writers_stopped=False):
         os.replace(active, failed)
         moved_active = True
         os.replace(staged, active)
-        with _readonly(active) as restored:
-            if _fingerprint(restored) != receipt["source_fingerprint"]:
-                raise UpgradeRequired("回退后的源库与旧备份不符")
+        if _path_fingerprint(active, mode) != expected_backup:
+            raise UpgradeRequired("回退后的源库与旧备份不符")
         _finish_switch(active, intent, "rolled_back")
     except BaseException:
         try:
             if moved_active:
                 if active.exists(): os.replace(active, active.with_name(active.name + ".failed-" + uuid4().hex))
                 os.replace(failed, active)
-            with _readonly(active) as restored:
-                if _fingerprint(restored) != receipt["active_fingerprint"]:
-                    raise UpgradeRequired("恢复后的新版库与启用记录不符")
+            if _path_fingerprint(active, mode) != retained_fingerprint:
+                raise UpgradeRequired("恢复后的新版库与启用记录不符")
             _finish_switch(active, intent, "restored")
         except BaseException as restore_error:
             raise UpgradeRecoveryRequired(active, failed, intent=intent) from restore_error

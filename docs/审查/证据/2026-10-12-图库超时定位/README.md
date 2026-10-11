@@ -33,3 +33,9 @@
 - `packaged-result-06.json`、`actual-activation-06.json`、`read-structure-check-exit-06.json`、`read-structure-check-exit-followup-06.json`：`.6`隔离包通过，真实升级仍停在备份前；只结束本轮自有只读进程、未转换原库。
 - `cards-tasks-upgrade-checks-03.xml`：测试临时路径同时作为系统临时目录和pytest清理目标，8项均在fixture建立前遇到目录占用；不是业务验证结果。改为两个独立临时路径后用新证据验证，旧失败不覆盖。
 - `cards-tasks-upgrade-checks-04.xml`：8项升级与切换定向回归通过（59.54秒），包含新增读取结构、篡改候选拒绝、失败源保留、旧转换路径、源改变和回退边界；没有跑全量或长测。
+- `packaged-result-07.json`：`.7`隔离包启动、空图库50ms及正常退出6.892秒通过；原前端散列一致，不代表真实图库可用。
+- `actual-activation-07.json`、`read-structure-check-exit-07.json`、`read-structure-check-exit-followup-07.json`：`.7`一致性备份完成，原表内容指纹读取长时间停留，候选未生成、原库未切换；仅结束本轮自有进程，保留备份。
+- `fingerprint-plans-07.json`：指纹查询的真实只读EXPLAIN全部为表扫描，没有排序或索引回表；没有实际执行全库指纹查询。
+- `copy-guard-new-01.txt`：新增回归的中间失败，SQLite创建索引的内部REINDEX被写入限制拦住；修为只允许新索引的该动作，不放开旧表保护。
+- `copy-guard-fix-02.txt`：正常复制、激活与回退单项通过（4.34秒），禁止SQL大字段指纹的检查实际到达候选构建。
+- `copy-guard-related-03.txt`：两份相关升级文件23项一次通过（95.00秒）；旧业务转换、旧凭据、原表写入限制、对象碰撞、WAL变化及恢复边界，仅合成库。

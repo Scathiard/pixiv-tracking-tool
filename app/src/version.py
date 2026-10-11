@@ -1,7 +1,7 @@
 """Public version changes only with an approved public release."""
 
 __version__ = "0.2.0"
-__build__ = "20261012.7"
+__build__ = "20261012.8"
 DIAGNOSTIC_BUILD = True
 
 DISPLAY_VERSION = f"{__version__} · 构建 {__build__}"

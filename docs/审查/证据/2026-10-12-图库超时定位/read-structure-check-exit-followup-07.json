@@ -1,0 +1,49 @@
+{
+  "recorded_at": "2026-10-12T06:36:41.6306590+08:00",
+  "source_activated": false,
+  "sample": {
+    "utc": "2026-10-12T06:36:40.478+08:00",
+    "elapsed_ms": 716532.0,
+    "read_bytes": 2203439383,
+    "write_bytes": 1729160330,
+    "cpu_user": 5.84375,
+    "cpu_system": 9.875
+  },
+  "build": "20261012.7",
+  "files": [
+    {
+      "Name": "backup.db",
+      "Length": 1727369216
+    },
+    {
+      "Name": "backup.db-shm",
+      "Length": 32768
+    },
+    {
+      "Name": "backup.db-wal",
+      "Length": 0
+    }
+  ],
+  "backup_preserved": true,
+  "stopped": [
+    40128,
+    49344
+  ],
+  "stack": {
+    "utc": "2026-10-12T06:36:40.478+08:00",
+    "elapsed_ms": 716532.0,
+    "stack": [
+      "src/core/upgrade.py:246:_table_fingerprint",
+      "src/core/upgrade.py:228:_fingerprint",
+      "src/core/upgrade.py:481:prepare_upgrade",
+      "src/core/startup_upgrade.py:61:_prepare_and_start",
+      "thread.py:59:run",
+      "thread.py:93:_worker",
+      "threading.py:1012:run",
+      "threading.py:1075:_bootstrap_inner",
+      "threading.py:1032:_bootstrap"
+    ]
+  },
+  "force_used": true,
+  "stage": "source content fingerprint after consistent backup"
+}
