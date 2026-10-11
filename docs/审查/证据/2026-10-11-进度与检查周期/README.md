@@ -1,5 +1,7 @@
 # 本轮证据
 
+诊断版交付补充：`diagnostic-checks-02.xml` 为 8 项开启探针专项；`package-10-*` 保存再次失败的包内／实际读取和退出初次等待结果；`package-11-*` 为全面诊断初版的包内、真实读取、线程／SQL摘要及正常退出；`package-12-daily-after.json` 为最终诊断版的实际启动与源码位置核对。`.12` 仅调整打包调用位置，没有重复 `.11` 的包内 25 项；最终 EXE 使用实际日常启动和日志检查。完整原始诊断日志保存在 `D:/PixivTracker/data/diagnostic-*.jsonl`，不自动清理。
+
 范围：`main / 6f26420` 的进度超时、周期保存报错及 `.8` 实际使用时后台无响应。仅保存合成回归与脱敏结果，不含真实图库、令牌或任务标识。
 
 - `progress-diagnostic-red.xml`／`progress-diagnostic-green.xml`：固定阶段诊断的修前／修后回归；修后 3 项通过，不代表超时已解决。
