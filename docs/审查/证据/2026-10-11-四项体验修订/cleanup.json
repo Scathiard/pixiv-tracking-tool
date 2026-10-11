@@ -1,0 +1,10 @@
+{
+  "date": "2026-10-11T13:35:07.2108950+08:00",
+  "owned_temporary_root": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261011.13\\work\\tmp\\task-feedback",
+  "bytes_removed": 99505641.0,
+  "dependency_junction_removed": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261011.13\\app\\frontend\\node_modules",
+  "shared_dependency_target_preserved": "C:\\Users\\princ\\AppData\\Local\\Temp\\PixivTracker-structural-20261011-4ac9f17e\\windows-frontend\\node_modules",
+  "owned_browser_debug_removed": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261011.13\\debug.log",
+  "evidence_and_release_preserved": true,
+  "real_library_and_logs_untouched": true
+}

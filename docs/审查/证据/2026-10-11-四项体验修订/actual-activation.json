@@ -1,0 +1,41 @@
+{
+  "build": "20261011.13",
+  "normal_mode": true,
+  "recorded_at": "2026-10-11T13:31:33.2758258+08:00",
+  "startup_ready": true,
+  "timings_ms": {
+    "status": 3.77,
+    "library_cursor_20": 462.64,
+    "progress": 18.4
+  },
+  "processes": [
+    {
+      "ProcessId": 7100,
+      "ParentProcessId": 35464,
+      "ExecutablePath": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261011.13.exe",
+      "CommandLine": "\"D:\\PixivTracker\\PixivTracker_v0.2.0_build20261011.13.exe\" "
+    },
+    {
+      "ProcessId": 39792,
+      "ParentProcessId": 7100,
+      "ExecutablePath": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261011.13.exe",
+      "CommandLine": "\"D:\\PixivTracker\\PixivTracker_v0.2.0_build20261011.13.exe\" "
+    }
+  ],
+  "status": {
+    "logged_in": true,
+    "upgrade_required": false,
+    "listening_port": 1919,
+    "saved_port": 1919
+  },
+  "automatic_paused": false,
+  "active_operations": 140,
+  "library_count": 20,
+  "page_assets": [
+    "index-BO2hWihb.js",
+    "index-DvPJb2tN.css"
+  ],
+  "new_bundle_verified": true,
+  "diagnostic_log": "D:\\PixivTracker\\data\\diagnostic-20261011-133107-39792-38e12e2048cd.jsonl",
+  "diagnostic_bytes": 20306107
+}

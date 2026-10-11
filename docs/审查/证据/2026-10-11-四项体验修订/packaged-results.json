@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "build": "20261011.13",
+  "pid": 14740,
+  "real_account": false,
+  "real_library": false,
+  "browser": [
+    {
+      "width": 390,
+      "gallery": true,
+      "artist_all_works": true,
+      "task_rect": {
+        "x": 87,
+        "y": 0,
+        "width": 297,
+        "height": 50
+      },
+      "page_errors": []
+    },
+    {
+      "width": 1440,
+      "gallery": true,
+      "artist_all_works": true,
+      "task_rect": {
+        "x": 1084,
+        "y": 14,
+        "width": 340,
+        "height": 96.5
+      },
+      "page_errors": []
+    }
+  ],
+  "bundled_assets_match": true,
+  "exit_code": 0,
+  "packaged_checks": 26
+}
