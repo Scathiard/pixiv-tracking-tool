@@ -4,9 +4,10 @@ SQLite source triggers retain both sides of identity changes, including raw SQL.
 An ordinary writer may consume only the changes it made after a clean starting
 snapshot. Already dirty databases require an explicit candidate repair/rebuild.
 Work refreshes inspect their current resources, never all their revision/task
-history. Parent lifecycle changes reconcile their items and scope; ordinary
-progress reports leave parent ordering unchanged. A single item update refreshes
-its direct candidate and changed fallback facts.
+history. Parent lifecycle changes update one shared narrow fact; ordinary progress
+reports leave parent ordering unchanged. A single item update refreshes its
+item-only fact and indexed best-item identities. Reads compose task state with
+the current source and resource snapshots for the requested works.
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ from sqlalchemy.orm import load_only
 from sqlalchemy.orm.attributes import set_committed_value
 
 from . import read_projection as store
+from . import normalized_task_projection as tasks
 from .models import Work, WorkRevision, ArchiveIntent, LocalPreference, RemoteBookmark
 
 ACTIVE = ("queued", "planning", "ready", "running", "interrupted")
@@ -155,6 +157,7 @@ def install_projections(connection):
     from .task_indexes import create_task_indexes
     store.install(connection)
     install_state_cache(connection)
+    tasks.install(connection)
     create_task_indexes(connection)
     connection.exec_driver_sql('CREATE INDEX IF NOT EXISTS ix_bookmark_work_latest ON bookmark_operations(work_id,version DESC,created_at DESC,id DESC)')
     connection.exec_driver_sql('CREATE INDEX IF NOT EXISTS ix_revision_visible_history ON work_revisions(work_id,state,ordinal DESC)')
@@ -167,6 +170,8 @@ def install_projections(connection):
     install_source_projection(connection)
     from .display_metadata import install as install_display_metadata
     install_display_metadata(connection)
+    from .gallery_card_projection import install as install_gallery_cards
+    install_gallery_cards(connection)
 
 
 def _normalized_ddl(statement):
@@ -230,52 +235,6 @@ def _candidate_values(operation, item, *, concern):
         position=item["position"], operation_id=operation["id"], item_id=item.get("id") or "", payload=payload)
 
 
-def _candidate(connection, work_id, candidate_id, operation, item, *, concern):
-    store.task_fact(connection, work_id, candidate_id, **_candidate_values(operation, item, concern=concern))
-
-
-def _candidate_record(values):
-    return tuple(values[key] for key in ('priority', 'created_at', 'updated_at',
-        'failure_priority', 'position', 'operation_id', 'item_id')) + (
-            json.dumps(values['payload'], ensure_ascii=False),)
-
-
-def _sync_candidates(connection, previous, expected):
-    """Diff resolved identities before writing; retain unchanged physical facts."""
-    removed = sorted(previous.keys() - expected.keys())
-    changed = [(*identity, *record) for identity, record in sorted(expected.items())
-        if identity not in previous or previous[identity][:-1] != record[:-1]
-        or json.loads(previous[identity][-1]) != json.loads(record[-1])]
-    if removed:
-        connection.exec_driver_sql('DELETE FROM read_task_candidates WHERE work_id=? AND candidate_id=?', removed)
-    if changed:
-        connection.exec_driver_sql('''INSERT INTO read_task_candidates VALUES(?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(work_id,candidate_id) DO UPDATE SET priority=excluded.priority,
-            created_at=excluded.created_at,updated_at=excluded.updated_at,
-            failure_priority=excluded.failure_priority,position=excluded.position,
-            operation_id=excluded.operation_id,item_id=excluded.item_id,payload=excluded.payload''', changed)
-    return {identity[0] for identity in removed} | {record[0] for record in changed}
-
-
-def _remove_candidates(connection, *, item_id=None, operation_id=None, scope_only=False):
-    if scope_only:
-        # Start from the persisted scope membership, never scan a parent's H
-        # direct candidates just to find its one fallback candidate per member.
-        candidate_id = 'scope:' + operation_id
-        ids = set(connection.exec_driver_sql("""SELECT c.work_id FROM read_operation_scope s
-            CROSS JOIN read_task_candidates c WHERE s.operation_id=?
-            AND c.work_id=s.work_id AND c.candidate_id=?""", (operation_id, candidate_id)).scalars())
-        if ids:
-            connection.exec_driver_sql('DELETE FROM read_task_candidates WHERE work_id=? AND candidate_id=?',
-                [(work_id, candidate_id) for work_id in sorted(ids)])
-        return ids
-    key, value = ("item_id", item_id) if item_id is not None else ("operation_id", operation_id)
-    predicate = f"{key}=?" + (" AND candidate_id='scope:'||operation_id" if scope_only else "")
-    if item_id is not None:
-        predicate += " AND candidate_id='item:'||item_id"
-    ids = set(connection.exec_driver_sql(f"SELECT work_id FROM read_task_candidates WHERE {predicate}", (value,)).scalars())
-    connection.exec_driver_sql(f"DELETE FROM read_task_candidates WHERE {predicate}", (value,))
-    return ids
 
 
 _DIRECT_SQL = """
@@ -313,22 +272,11 @@ def _direct_candidate(connection, row, operation, *, dry_run=False):
         or row["kind"] in ("gif", "thumbnail", "verify_derivative") else "work")
     if dry_run:
         return identity, "item:" + row["id"], _candidate_values(operation, row, concern=concern)
-    _candidate(connection, identity, "item:" + row["id"], operation, row, concern=concern)
-    return identity
+    raise RuntimeError("direct task candidates must use normalized transactional maintenance")
 
 
 def reconcile_item(connection, item_id):
-    with diagnostics.span("projection.item.reconcile", item=diagnostics.ref(item_id)) as detail:
-        affected = _remove_candidates(connection, item_id=item_id)
-        row = connection.exec_driver_sql(_DIRECT_SQL.format(predicate="i.id=?"), (item_id,)).mappings().first()
-        if row is not None:
-            operation = _operation(connection, row["operation_id"])
-            if operation is not None and operation["kind"] in LOCAL_KINDS:
-                identity = _direct_candidate(connection, row, operation)
-                if identity is not None:
-                    affected.add(identity)
-        detail['affected_count'] = len(affected)
-        return affected
+    return tasks.reconcile_item(connection, item_id)
 
 
 def _scope_values(connection, operation_id, *, members=None):
@@ -358,52 +306,11 @@ def _scope_values(connection, operation_id, *, members=None):
 
 
 def reconcile_scope(connection, operation_id, *, membership_unchanged=False):
-    with diagnostics.span("projection.scope.reconcile", operation=diagnostics.ref(operation_id), membership_unchanged=membership_unchanged) as detail:
-        previous = set(connection.exec_driver_sql('SELECT work_id FROM read_operation_scope WHERE operation_id=?', (operation_id,)).scalars())
-        candidate_id = 'scope:' + operation_id
-        old = {row[0]: tuple(row[1:]) for row in connection.exec_driver_sql("""SELECT c.work_id,c.priority,c.created_at,c.updated_at,
-        c.failure_priority,c.position,c.operation_id,c.item_id,c.payload
-        FROM read_operation_scope s CROSS JOIN read_task_candidates c
-        WHERE s.operation_id=? AND c.work_id=s.work_id AND c.candidate_id=?""", (operation_id, candidate_id))}
-        members, values = _scope_values(connection, operation_id,
-            members=previous if membership_unchanged else None)
-        removed, added = previous - members, members - previous
-        detail.update(previous_count=len(previous), member_count=len(members),
-            candidate_count=len(old), removed_count=len(removed), added_count=len(added))
-        if removed:
-            connection.exec_driver_sql('DELETE FROM read_operation_scope WHERE operation_id=? AND work_id=?',
-                [(operation_id, value) for value in sorted(removed)])
-        if added:
-            connection.exec_driver_sql('INSERT INTO read_operation_scope VALUES(?,?)',
-                [(operation_id, value) for value in sorted(added)])
-        record = _candidate_record(values) if values is not None else None
-        expected = {} if record is None else {
-            (work_id, candidate_id): record for work_id in members}
-        affected = _sync_candidates(connection,
-            {(work_id, candidate_id): record for work_id, record in old.items()}, expected)
-        detail['affected_count'] = len(affected)
-        return affected
+    return tasks.reconcile_scope(connection, operation_id, membership_unchanged=membership_unchanged)
 
 
 def reconcile_operation(connection, operation_id):
-    with diagnostics.span("projection.operation.reconcile", operation=diagnostics.ref(operation_id)) as detail:
-        previous = {(row[0], row[1]): tuple(row[2:]) for row in connection.exec_driver_sql('''
-            SELECT work_id,candidate_id,priority,created_at,updated_at,failure_priority,
-            position,operation_id,item_id,payload FROM read_task_candidates
-            WHERE operation_id=? AND candidate_id!='scope:'||operation_id''', (operation_id,))}
-        expected = {}
-        operation = _operation(connection, operation_id)
-        if operation is not None and operation["kind"] in LOCAL_KINDS:
-            for row in connection.exec_driver_sql(_DIRECT_SQL.format(predicate="i.operation_id=?"), (operation_id,)).mappings():
-                fact = _direct_candidate(connection, row, operation, dry_run=True)
-                if fact is not None:
-                    work_id, candidate_id, values = fact
-                    expected[(work_id, candidate_id)] = _candidate_record(values)
-        affected = _sync_candidates(connection, previous, expected)
-        detail['direct_affected_count'] = len(affected)
-        result = affected | reconcile_scope(connection, operation_id)
-        detail['affected_count'] = len(result)
-        return result
+    return tasks.reconcile_operation(connection, operation_id)
 
 
 def _histories(connection, work_ids):
@@ -594,11 +501,9 @@ def _drop_scope(connection, scope):
 
 
 def _current_states(session, works, *, source_ids=None):
-    from .archive_state import _source_update, _processing, _recovery
+    from .archive_state import _source_update
     connection = session.connection()
-    histories = _histories(connection, works)
     result = {}
-    idle = SimpleNamespace(item_state=None, operation_state=None, operation_id=None, reason=None, concern=None)
     for work in works.values():
         row = connection.exec_driver_sql('SELECT recorded,verified,missing,thumbnail,gif FROM read_resource_totals WHERE scope=?', (f'work:{work.id}',)).first()
         if row is None and connection.exec_driver_sql('SELECT 1 FROM read_resource_facts WHERE scope=? LIMIT 1', (f'work:{work.id}',)).first():
@@ -619,79 +524,13 @@ def _current_states(session, works, *, source_ids=None):
             if previous is None:
                 raise store.ProjectionUnavailable('current source state is missing; explicit repair is required')
             source_update = json.loads(previous)['source_update']
-        processing = _processing(histories.get(work.id, idle), ledger, original_gap=bool(missing),
-            local_gap=not thumbnail or (work.type == 'ugoira' and not gif), source_pending=source_update['pending'])
-        result[work.id] = {'archive': archive, 'processing': processing, 'source_update': source_update,
-            'recovery': _recovery(ledger, processing, archive)}
+        result[work.id] = {'archive': archive, 'source_update': source_update}
     return result
 
 
 def reconcile_task_states(connection, work_ids):
-    """Task-only deltas reuse the verified archive/source snapshot and sort fact.
-
-    Source/ledger/media changes must first use reconcile_works in this transaction.
-    Missing existing-work caches are an error, never an implicit source rebuild.
-    """
-    from .archive_state import _processing, _recovery
-    ids = sorted(set(work_ids))
-    idle = SimpleNamespace(item_state=None, operation_state=None, operation_id=None, reason=None, concern=None)
-    with diagnostics.span('projection.task_states', count=len(ids)) as detail:
-        changed = 0
-        for start in range(0, len(ids), 200):
-            selected = ids[start:start + 200]
-            placeholders = ','.join('?' for _ in selected)
-            rows = connection.exec_driver_sql(f'''SELECT s.work_id,s.value,o.work_type,
-                r.scope,r.thumbnail,r.gif,l.value,
-                (SELECT c.payload FROM read_task_candidates c INDEXED BY ix_read_task_winner
-                 WHERE c.work_id=s.work_id ORDER BY c.priority,c.created_at DESC,c.updated_at DESC,
-                 c.failure_priority,c.position,c.operation_id DESC,
-                 (CASE WHEN substr(c.candidate_id,1,6)='scope:' THEN 1 ELSE 0 END),c.item_id LIMIT 1)
-                FROM read_work_state s LEFT JOIN read_work_order o ON o.work_id=s.work_id
-                LEFT JOIN read_resource_totals r ON r.scope='work:'||s.work_id
-                LEFT JOIN application_state l ON l.key='maintenance_work:'||s.work_id
-                WHERE s.work_id IN ({placeholders})''', tuple(selected)).all()
-            present = {row[0] for row in rows}
-            absent = sorted(set(selected) - present)
-            if absent:
-                missing_placeholders = ','.join('?' for _ in absent)
-                existing = connection.exec_driver_sql(
-                    f'SELECT id FROM works WHERE id IN ({missing_placeholders})', tuple(absent)).first()
-                if existing is not None:
-                    raise store.ProjectionUnavailable('current task state is missing; explicit repair is required')
-                # Historical task identities need not identify an existing work.
-                # Preserve the old missing-work cleanup without hydrating Work.
-                for work_id in absent:
-                    store.work_fact(connection, work_id)
-                    _drop_scope(connection, f'work:{work_id}')
-            updates = []
-            for work_id, encoded, work_type, resource_scope, thumbnail, gif, ledger_value, payload in rows:
-                if work_type is None:
-                    # A removed Work can retain a state only until its captured
-                    # source deletion is reconciled. Never repair a live cache.
-                    existing = connection.exec_driver_sql('SELECT id FROM works WHERE id=?', (work_id,)).first()
-                    if existing is not None:
-                        raise store.ProjectionUnavailable('current task ordering is missing; explicit repair is required')
-                    connection.exec_driver_sql('DELETE FROM read_work_state WHERE work_id=?', (work_id,))
-                    _drop_scope(connection, f'work:{work_id}')
-                    continue
-                if resource_scope is None and connection.exec_driver_sql(
-                        'SELECT 1 FROM read_resource_facts WHERE scope=? LIMIT 1', (f'work:{work_id}',)).first():
-                    raise store.ProjectionUnavailable('resource aggregate is missing; explicit repair is required')
-                previous = json.loads(encoded)
-                archive, source_update = previous['archive'], previous['source_update']
-                ledger = json.loads(ledger_value) if ledger_value is not None else {}
-                ledger = ledger if isinstance(ledger, dict) else {}
-                winner = SimpleNamespace(**json.loads(payload)) if payload is not None else idle
-                processing = _processing(winner, ledger, original_gap=bool(archive['missing']),
-                    local_gap=not thumbnail or (work_type == 'ugoira' and not gif),
-                    source_pending=source_update['pending'])
-                current = {**previous, 'processing': processing, 'recovery': _recovery(ledger, processing, archive)}
-                if current != previous:
-                    updates.append((json.dumps(current, ensure_ascii=False), work_id))
-            if updates:
-                connection.exec_driver_sql('UPDATE read_work_state SET value=? WHERE work_id=?', updates)
-                changed += len(updates)
-        detail['changed_count'] = changed
+    """Task facts are combined at read time; resource/source caches stay separate."""
+    return None
 
 
 def reconcile_works(session, work_ids, *, resource_ids=None, display_ids=None, raw_state_reader=None, raw_revision_reader=None):
@@ -792,7 +631,7 @@ def maintain_projections(session):
     for entity, identity in dirty:
         entities.setdefault(entity, set()).add(identity)
     from .source_read_projection import DIRTY_ENTITIES
-    if set(entities) - ({"work", "resource_work", "revision", "lifecycle_revision", "physical_asset", "physical_derivative", "operation", "item", "scope", "generation", "task_status", "display_work", "display_revision"} | DIRTY_ENTITIES):
+    if set(entities) - ({"work", "resource_work", "revision", "lifecycle_revision", "physical_asset", "physical_derivative", "operation", "item", "scope", "scope_definition", "generation", "task_status", "display_work", "display_revision", "card_work", "card_artist"} | DIRTY_ENTITIES):
         raise store.ProjectionUnavailable('unrecognized dirty source identity; explicit repair is required')
     works = {int(value) for value in entities.get("work", ())}
     task_works = set()
@@ -804,10 +643,12 @@ def maintain_projections(session):
     with diagnostics.span("projection.items", count=len(entities.get("item", ()))):
         for item_id in sorted(entities.get("item", ())):
             task_works.update(reconcile_item(connection, item_id))
-    with diagnostics.span("projection.scopes", count=len(entities.get("scope", set()) - operations)):
-        for operation_id in sorted(entities.get("scope", set()) - operations):
+    with diagnostics.span("projection.scopes", count=len(entities.get("scope", set()))):
+        for operation_id in sorted(entities.get("scope", set())):
             task_works.update(reconcile_scope(connection, operation_id, membership_unchanged=True))
     resources = {int(value) for value in entities.get("resource_work", ())}
+    for operation_id in sorted(entities.get('scope_definition',set())):
+        tasks.reconcile_scope(connection,operation_id,membership_unchanged=False)
     with diagnostics.span("projection.physical", asset_count=len(entities.get('physical_asset', ())),
             derivative_count=len(entities.get('physical_derivative', ()))) as detail:
         physical_works, physical_revisions = reconcile_physical_resources(connection,
@@ -835,6 +676,13 @@ def maintain_projections(session):
     from .display_metadata import maintain as maintain_display_metadata
     with diagnostics.span("projection.display"):
         maintain_display_metadata(connection)
+    from .gallery_card_projection import reconcile_cards
+    card_ids = works | {int(value) for value in entities.get("card_work", ())}
+    for artist_id in entities.get("card_artist", ()):
+        card_ids.update(connection.exec_driver_sql(
+            "SELECT work_id FROM read_gallery_cards WHERE artist_id=?", (int(artist_id),)).scalars())
+    with diagnostics.span("projection.cards", count=len(card_ids)):
+        reconcile_cards(connection, card_ids)
     # Delete precisely the captured identities after every reconciler succeeds.
     with diagnostics.span("projection.finalize", count=len(dirty)):
         connection.exec_driver_sql('DELETE FROM read_model_dirty')
@@ -851,8 +699,9 @@ def rebuild_projections(session):
     for table in ("read_resource_facts", "read_resource_totals", "read_work_order", "read_common_counts",
                   "read_task_candidates", "read_operation_scope", 'read_revision_lifecycle_facts', 'read_revision_lifecycle_totals', *STATE_TABLES):
         connection.exec_driver_sql(f'DELETE FROM {table}')
-    for operation_id in connection.exec_driver_sql('SELECT id FROM operations ORDER BY id').scalars().all():
-        reconcile_operation(connection, operation_id)
+    from .task_read_projection import rebuild_task_read_projection
+    rebuild_task_read_projection(connection)
+    tasks.backfill(connection)
     ids = list(session.scalars(select(Work.id).order_by(Work.id)))
     # Bounded batches avoid SQLite variable limits and large ORM retention.
     for start in range(0, len(ids), 200):
@@ -864,6 +713,8 @@ def rebuild_projections(session):
     rebuild_source_projection(connection)
     from .display_metadata import rebuild as rebuild_display_metadata
     rebuild_display_metadata(session)
+    from .gallery_card_projection import backfill as backfill_gallery_cards
+    backfill_gallery_cards(connection)
     connection.exec_driver_sql('DELETE FROM read_model_dirty')
     store.finish_verified_batch(connection)
     return {"works": len(ids), "revisions": connection.exec_driver_sql('SELECT count(*) FROM read_revision_state').scalar()}
@@ -880,34 +731,7 @@ def _verify_resource_scope(connection, scope, expected):
 
 
 def _verify_tasks(connection):
-    operation_ids = set(connection.exec_driver_sql('SELECT id FROM operations').scalars())
-    if connection.exec_driver_sql('SELECT 1 FROM read_task_candidates WHERE operation_id NOT IN (SELECT id FROM operations) LIMIT 1').first():
-        raise store.ProjectionUnavailable('orphan task candidate')
-    if connection.exec_driver_sql('SELECT 1 FROM read_operation_scope WHERE operation_id NOT IN (SELECT id FROM operations) LIMIT 1').first():
-        raise store.ProjectionUnavailable('orphan task scope')
-    for operation_id in operation_ids:
-        operation = _operation(connection, operation_id)
-        expected = {}
-        if operation["kind"] in LOCAL_KINDS:
-            for row in connection.exec_driver_sql(_DIRECT_SQL.format(predicate="i.operation_id=?"), (operation_id,)).mappings():
-                fact = _direct_candidate(connection, row, operation, dry_run=True)
-                if fact is not None:
-                    work_id, candidate_id, values = fact
-                    expected[(work_id, candidate_id)] = values
-        members, values = _scope_values(connection, operation_id)
-        if members != set(connection.exec_driver_sql('SELECT work_id FROM read_operation_scope WHERE operation_id=?', (operation_id,)).scalars()):
-            raise store.ProjectionUnavailable('task scope membership mismatch')
-        if values is not None:
-            for work_id in members:
-                expected[(work_id, 'scope:' + operation_id)] = values
-        actual = {}
-        for row in connection.exec_driver_sql('SELECT * FROM read_task_candidates WHERE operation_id=?', (operation_id,)).mappings():
-            data = dict(row)
-            work_id, candidate_id = data.pop('work_id'), data.pop('candidate_id')
-            data['payload'] = json.loads(data['payload'])
-            actual[(work_id, candidate_id)] = data
-        if actual != expected:
-            raise store.ProjectionUnavailable('task source candidate mismatch')
+    return tasks.verify(connection)
 
 
 def verify_projections(session):
@@ -1001,22 +825,40 @@ def verify_projections(session):
     actual = dict(connection.exec_driver_sql('SELECT scope,value FROM read_common_counts').all())
     if any(actual.get(key, 0) != value for key, value in expected_counts.items()) or any(value != expected_counts.get(key, 0) for key, value in actual.items()):
         raise store.ProjectionUnavailable('common count mismatch')
+    from .gallery_card_projection import verify as verify_gallery_cards
+    verify_gallery_cards(connection)
     return {"works": len(source_ids), "revisions": len(revision_ids), "generation": generation}
 
 
 def read_work_states(session, works):
-    """K primary-key lookups, independent of catalogue/resources/task history."""
+    """Compose current parent state for only the requested Work identities."""
+    from .archive_state import _processing, _recovery
     works = list(works)
     connection = session.connection()
     store.session_generation(session)
     ids = sorted({work.id for work in works})
     result = {}
-    for start in range(0, len(ids), 500):
-        selected = ids[start:start + 500]
+    idle = SimpleNamespace(item_state=None, operation_state=None, operation_id=None, reason=None, concern=None)
+    for start in range(0, len(ids), 240):
+        selected = ids[start:start + 240]
         placeholders = ','.join('?' for _ in selected)
-        for work_id, value in connection.exec_driver_sql(
-                f'SELECT work_id,value FROM read_work_state WHERE work_id IN ({placeholders})', tuple(selected)):
-            result[work_id] = json.loads(value)
+        task_winners = tasks.winners(connection, selected)
+        rows = connection.exec_driver_sql(f'''SELECT s.work_id,s.value,o.work_type,r.thumbnail,r.gif,l.value
+            FROM read_work_state s JOIN read_work_order o ON o.work_id=s.work_id
+            LEFT JOIN read_resource_totals r ON r.scope='work:'||s.work_id
+            LEFT JOIN application_state l ON l.key='maintenance_work:'||s.work_id
+            WHERE s.work_id IN ({placeholders})''', tuple(selected))
+        for work_id, encoded, work_type, thumbnail, gif, ledger_value in rows:
+            value = json.loads(encoded)
+            archive, source_update = value['archive'], value['source_update']
+            ledger = json.loads(ledger_value) if ledger_value is not None else {}
+            ledger = ledger if isinstance(ledger, dict) else {}
+            winner = task_winners.get(work_id)
+            history = SimpleNamespace(**winner['payload']) if winner is not None else idle
+            processing = _processing(history, ledger, original_gap=bool(archive['missing']),
+                local_gap=not thumbnail or (work_type=='ugoira' and not gif),
+                source_pending=source_update['pending'])
+            result[work_id] = {**value, 'processing':processing, 'recovery':_recovery(ledger,processing,archive)}
     if set(result) != set(ids):
         raise store.ProjectionUnavailable('work state is missing; explicit repair is required')
     return result

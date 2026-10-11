@@ -1,0 +1,11 @@
+{
+  "expected_exe": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261012.3.exe",
+  "force_used": true,
+  "reason": "Owned .3 repair instance remained in task projection fetch for more than five minutes during requested shutdown.",
+  "process_ids": [
+    34432,
+    37452
+  ],
+  "remaining": [],
+  "timestamp": "2026-10-12T05:12:31.1938535+08:00"
+}

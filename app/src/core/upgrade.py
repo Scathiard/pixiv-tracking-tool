@@ -24,7 +24,8 @@ from .revisions import ensure_legacy_revision
 OLD_REVISION = "0001_archive"
 CLIENT_REVISION = "0002_client"
 REVISIONS_REVISION = "0003_revisions"
-_SUPPORTED_SOURCES = (OLD_REVISION, CLIENT_REVISION, REVISIONS_REVISION)
+READ_PROJECTIONS_REVISION = "0004_read_projections"
+_SUPPORTED_SOURCES = (OLD_REVISION, CLIENT_REVISION, REVISIONS_REVISION, READ_PROJECTIONS_REVISION)
 _REVISION_TABLES = {"work_revisions", "revision_assets", "revision_derivatives"}
 _NEW_ARTIST = {"biography", "avatar_path", "profile_refreshed_at"}
 _NEW_BOOKMARK = {"source", "account_id", "version"}
@@ -192,12 +193,12 @@ def _inspect_old(connection, expected=None):
         raise UpgradeRequired("源数据库不是支持的旧结构版本")
     version = versions[0][0]
     for table in Base.metadata.sorted_tables:
-        if version != REVISIONS_REVISION and table.name in _REVISION_TABLES or version == OLD_REVISION and table.name in _NEW_TABLES:
+        if version not in (REVISIONS_REVISION, READ_PROJECTIONS_REVISION) and table.name in _REVISION_TABLES or version == OLD_REVISION and table.name in _NEW_TABLES:
             continue
         if table.name not in tables:
             raise UpgradeRequired("源数据库缺少必要表")
         required = {column.name for column in table.columns}
-        if version != REVISIONS_REVISION:
+        if version not in (REVISIONS_REVISION, READ_PROJECTIONS_REVISION):
             required -= _NEW_COLUMNS.get(table.name, set())
         if version == OLD_REVISION and table.name == "artists": required -= _NEW_ARTIST
         if version == OLD_REVISION and table.name == "remote_bookmarks": required -= _NEW_BOOKMARK
@@ -308,14 +309,18 @@ def _validate_revision_links(connection, *, require_complete=False):
 
 
 def _verify_preserved_revisions(check, old):
-    """0003 upgrades preserve every source table and existing schema object."""
+    """Copied upgrades preserve source facts and pre-existing schema objects."""
+    source_revision = old.execute("SELECT version_num FROM alembic_version").fetchone()[0]
     actual = {(row[0], row[1]): tuple(row) for row in check.execute(
         "SELECT type,name,tbl_name,sql FROM sqlite_master")}
     for row in old.execute("SELECT type,name,tbl_name,sql FROM sqlite_master"):
         if actual.get((row[0], row[1])) != tuple(row):
             raise UpgradeRequired(f"候选库保留结构核验失败：{row[1]}")
     for name in sorted(_preserved_tables(old)):
-        if name == "alembic_version":
+        if name == "alembic_version" or (source_revision == READ_PROJECTIONS_REVISION
+                and name == "read_operation_scope"):
+            # Membership is a derived task lookup. 0005 reconstructs it from
+            # source parameters once; operation/item records remain identical.
             continue
         if _columns(old, name) != _columns(check, name) or _table_fingerprint(old, name) != _table_fingerprint(check, name):
             raise UpgradeRequired(f"候选库保留数据核验失败：{name}")
@@ -336,7 +341,7 @@ def validate_candidate(candidate, backup=None):
         if backup:
             with _readonly(backup) as old:
                 source_version = _inspect_old(old)
-                if source_version == REVISIONS_REVISION:
+                if source_version in (REVISIONS_REVISION, READ_PROJECTIONS_REVISION):
                     _verify_preserved_revisions(check, old)
                 else:
                     for table in Base.metadata.sorted_tables:
@@ -366,7 +371,7 @@ def validate_candidate(candidate, backup=None):
         totals = {name: check.execute(f'SELECT count(*) FROM {_identifier(name)}').fetchone()[0] for name in sorted(_tables(check))}
     # A verification bug must not silently repair a candidate. query_only fences
     # this standalone session as well as the SQLite mode=ro source checks above.
-    from .projection_maintenance import verify_projections
+    from .projection_maintenance import verify_projections, validate_projection_schema
     engine = ArchiveDatabase._engine(Path(candidate).resolve())
     try:
         with engine.connect() as connection:
@@ -374,7 +379,19 @@ def validate_candidate(candidate, backup=None):
             connection.exec_driver_sql("BEGIN")
             with Session(bind=connection) as session:
                 try:
-                    projection = verify_projections(session)
+                    if source_version == READ_PROJECTIONS_REVISION:
+                        # Existing resource/order/count projections are copied
+                        # unchanged. Validate only the newly derived structures;
+                        # do not replay every historical task for every Work.
+                        from . import gallery_card_projection, normalized_task_projection
+                        from .read_projection import require_ready
+                        validate_projection_schema(connection)
+                        generation = require_ready(connection)
+                        projection = {"generation": generation,
+                            "cards": gallery_card_projection.verify(connection),
+                            "tasks": normalized_task_projection.verify(connection)}
+                    else:
+                        projection = verify_projections(session)
                 except Exception as error:
                     raise UpgradeRequired("候选库读取投影核验失败，未启用") from error
     finally:
@@ -412,6 +429,27 @@ def _finish_projection_candidate(candidate, *, install=False, convert_legacy=Fal
         engine.dispose()
 
 
+def _finish_read_candidate(candidate):
+    """0004 -> 0005 adds narrow reads without rebuilding old source projections."""
+    from . import gallery_card_projection, normalized_task_projection
+    from .read_projection import require_ready
+    engine = ArchiveDatabase._engine(Path(candidate).resolve())
+    try:
+        with engine.begin() as connection:
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+            require_ready(connection)
+            gallery_card_projection.install(connection)
+            normalized_task_projection.install(connection)
+            with Session(bind=connection) as session:
+                gallery_card_projection.backfill(session)
+                normalized_task_projection.backfill(connection)
+            gallery_card_projection.verify(connection)
+            normalized_task_projection.verify(connection)
+            connection.exec_driver_sql("UPDATE alembic_version SET version_num=?", (SCHEMA_REVISION,))
+    finally:
+        engine.dispose()
+
+
 def prepare_upgrade(source, candidate, backup, *, expected_revision=None):
     source, candidate, backup = (Path(path).resolve() for path in (source, candidate, backup))
     if len({source, candidate, backup}) != 3: raise ValueError("源库、候选库和备份路径必须互不相同")
@@ -429,11 +467,14 @@ def prepare_upgrade(source, candidate, backup, *, expected_revision=None):
     if collision:
         _snapshot(backup, candidate)
         raise sqlite3.OperationalError("candidate table collision")
-    if version == REVISIONS_REVISION:
+    if version in (REVISIONS_REVISION, READ_PROJECTIONS_REVISION):
         # Snapshot-copy, rather than reconstruct, preserves unknown source tables,
         # logical bindings, existing indexes, and the exact task target JSON.
         _snapshot(backup, candidate)
-        _finish_projection_candidate(candidate, install=True)
+        if version == READ_PROJECTIONS_REVISION:
+            _finish_read_candidate(candidate)
+        else:
+            _finish_projection_candidate(candidate, install=True)
         validation = validate_candidate(candidate, backup)
         return {"source": source, "candidate": candidate, "backup": backup,
             "source_revision": version, "source_fingerprint": source_fingerprint, "validation": validation}
@@ -477,6 +518,10 @@ def upgrade_0003(source, candidate, backup):
 
 def upgrade_0004(source, candidate, backup):
     return prepare_upgrade(source, candidate, backup, expected_revision=REVISIONS_REVISION)
+
+
+def upgrade_0005(source, candidate, backup):
+    return prepare_upgrade(source, candidate, backup, expected_revision=READ_PROJECTIONS_REVISION)
 
 
 def activate_upgrade(result, *, writers_stopped=False):

@@ -1,0 +1,41 @@
+{
+  "status": "passed",
+  "tests": 3,
+  "duration_seconds": 11.93,
+  "synthetic_only": true,
+  "parent_update": {
+    "items": 960,
+    "works": 240,
+    "item_or_membership_selects": 0,
+    "work_state_writes": 0
+  },
+  "batch_winners": {
+    "works": 240,
+    "sql_queries": 1
+  },
+  "unrelated_history": {
+    "additional_parents": 400,
+    "vm_steps_before": 487,
+    "vm_steps_after": 407
+  },
+  "covered": [
+    "bulk candidate backfill equivalence",
+    "direct/scope/unplanned fallback",
+    "ready/running/interrupted/finished transitions",
+    "scope and parent kind changes",
+    "item failure/deletion",
+    "parent deletion",
+    "transaction rollback",
+    "raw reader semantics"
+  ],
+  "limits": [
+    "Historical work-parent summaries are proportional to that selected Work related parents, not guaranteed O(1).",
+    "Synthetic Python validation only; packaged executable and real gallery are owned by root."
+  ],
+  "source_sha256": {
+    "app\\src\\core\\normalized_task_projection.py": "1ba344e50f2e8ea7d01aacc64bdb75b56dc9fb4114f7ee620e6208320d9adcb3",
+    "app\\src\\core\\projection_maintenance.py": "25d4efd1cf35d35c68318589170b9f85aeb528bb55c84166f2ae73023e75c261",
+    "app\\src\\core\\read_projection.py": "5e205a32aec2f38fa5936bf896a3cd801c06ddbc6d61bba715d1632f4726842d",
+    "app\\tests\\test_normalized_task_projection.py": "8bc0cf9cb6936bc9ec2fad13b8f8b6bfd90e97d61a4e5a2971e446b646766d03"
+  }
+}

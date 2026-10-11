@@ -120,7 +120,7 @@ def test_revisions_upgrade_copies_all_source_facts_and_only_adds_verified_projec
     result = upgrade.prepare_upgrade(source, tmp_path / "candidate.db", tmp_path / "backup.db")
     assert result["source_revision"] == "0003_revisions"
     assert snapshot(source) == snapshot(result["backup"]) == before
-    assert revision(result["candidate"]) == SCHEMA_REVISION == "0004_read_projections"
+    assert revision(result["candidate"]) == SCHEMA_REVISION == "0005_read_cards_tasks"
     assert result["validation"]["projection"]
     with upgrade._readonly(result["candidate"]) as candidate, upgrade._readonly(source) as old:
         upgrade._verify_preserved_revisions(candidate, old)

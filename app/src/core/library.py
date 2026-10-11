@@ -17,7 +17,6 @@ from ..security import sanitize_caption
 from .archive_state import work_states
 from .read_projection import CursorExpired
 from .read_control import track_read_stage
-from .media import CARD_MOTION_SPEC
 from .tag_translations import tag_details
 from .source_status import ARTIST_PREFIX, availability_snapshot
 from .catalogue_revision import catalogue_revision
@@ -156,12 +155,22 @@ class Library:
     def _bookmark_operations(session, ids):
         if not ids:
             return {}
-        latest = select(BookmarkOperation.id).where(BookmarkOperation.work_id == Work.id).order_by(
-            BookmarkOperation.version.desc(), BookmarkOperation.created_at.desc(), BookmarkOperation.id.desc()
-        ).limit(1).correlate(Work).scalar_subquery()
-        winner_ids = select(latest).select_from(Work).where(Work.id.in_(ids))
-        return {operation.work_id: operation for operation in session.scalars(
-            select(BookmarkOperation).where(BookmarkOperation.id.in_(winner_ids)))}
+        result = {}
+        for begin in range(0, len(ids), 240):
+            selected = ids[begin:begin + 240]
+            values = ",".join("(?)" for _ in selected)
+            winner_ids = list(session.connection().exec_driver_sql(f"""WITH selected(work_id) AS (VALUES {values})
+                SELECT (SELECT id FROM bookmark_operations b WHERE b.work_id=selected.work_id
+                    ORDER BY version DESC,created_at DESC,id DESC LIMIT 1) FROM selected""",
+                tuple(selected)).scalars())
+            winner_ids = [identity for identity in winner_ids if identity is not None]
+            if winner_ids:
+                result.update((operation.work_id, operation) for operation in session.scalars(
+                    select(BookmarkOperation).where(BookmarkOperation.id.in_(winner_ids)).options(
+                        load_only(BookmarkOperation.id, BookmarkOperation.work_id, BookmarkOperation.desired,
+                            BookmarkOperation.account_id, BookmarkOperation.status, BookmarkOperation.version,
+                            BookmarkOperation.error, raiseload=True))))
+        return result
 
     def _bookmark_view(self, work, operation=None):
         from .bookmarks import bookmark_snapshot
@@ -313,58 +322,37 @@ class Library:
                 work.preference.rating = rating
 
     def _hydrate_window(self, session, window_ids, *, compact=False):
-        related = select(Work).where(Work.id.in_(window_ids))
-        related = related.options(load_only(Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title,
-            Work.type, Work.page_count, Work.posted_at, Work.x_restrict,
-            Work.default_revision_id, Work.latest_revision_id, raiseload=True), selectinload(Work.artist).load_only(Artist.name),
-            selectinload(Work.preference), selectinload(Work.bookmark)) if compact else self._related(related)
+        if compact:
+            return self._hydrate_cards(session, window_ids)
+        related = self._related(select(Work).where(Work.id.in_(window_ids)))
         with track_read_stage("library_works"):
             by_id = {work.id: work for work in session.scalars(related)} if window_ids else {}
         works = [by_id[work_id] for work_id in window_ids]
         with track_read_stage("library_metadata"):
-            self._load_display_metadata(session, works, detail=not compact)
+            self._load_display_metadata(session, works, detail=True)
         with track_read_stage("library_revisions"):
-            snapshots = selected_snapshots(session, works, compact=compact, display=True)
+            snapshots = selected_snapshots(session, works, display=True)
         with track_read_stage("library_bookmarks"):
             operations = self._bookmark_operations(session, [work.id for work in works])
-        views = [{"id": work.id, "pixiv_id": work.pixiv_illust_id, "artist_id": work.artist_id,
-                  "artist_name": work.artist.name, "title": work.title, "type": work.type,
-                  "page_count": work.page_count, "x_restrict": work.x_restrict,
-                  "is_hidden": bool(work.preference and work.preference.is_hidden),
-                  "posted_at": work.posted_at.isoformat() if work.posted_at else None,
-                  "bookmark": self._bookmark_view(work, operations.get(work.id)),
-                  "availability": remote_availability(work, self.account_id)} for work in works] if compact else [self._work_view(work, operations.get(work.id)) for work in works]
-        if compact:
-            for view in views:
-                view["is_bookmarked"] = bool(view["bookmark"]["value"])
+        views = [self._work_view(work, operations.get(work.id)) for work in works]
         for work, view in zip(works, views):
-            apply_snapshot(view, work, snapshots.get(work.id), compact=compact)
-        ids = [work.id for work in works]
+            apply_snapshot(view, work, snapshots.get(work.id))
         animation_ids = [view["id"] for view in views if view["type"] == "ugoira"]
         with track_read_stage("library_states"):
             states, revision = work_states(session, works)
         with track_read_stage("library_media"):
             assets, derived = media_maps(session, works, snapshots,
-                ranges={work.id: (0, 1) for work in works}, compact=compact)
+                ranges={work.id: (0, 1) for work in works})
         thumbnails = {work.id: derived.get((work.id, "thumbnail", 0, "v1")) for work in works}
         first_pages = {work.id: assets.get((work.id, "image", 0)) for work in works}
         animations = {work_id: derived.get((work_id, "gif", 0, "v1")) for work_id in animation_ids}
-        card_animations = {work_id: derived.get((work_id, "thumbnail", 0, CARD_MOTION_SPEC)) for work_id in animation_ids}
         for view in views:
             view.update(states[view["id"]])
             thumb = thumbnails.get(view["id"])
             if thumb is not None and thumb.state != "verified":
                 thumb = None
             preview = animations.get(view["id"]) if view["type"] == "ugoira" else first_pages.get(view["id"])
-            if compact and view["type"] == "ugoira":
-                source = preview
-                preview = card_animations.get(view["id"])
-                if (preview is None or preview.state != "verified" or not preview.sha256 or source is None
-                        or source.state != "verified" or not source.sha256 or preview.source_version != source.sha256):
-                    preview = None
             view["preview"] = readable_page_url(preview, animation=view["type"] == "ugoira")
-            if compact and view["type"] == "ugoira" and view["preview"]:
-                view["preview"] += "?v=" + preview.sha256[:16]
             if view["preview"]:
                 view["preview_status"] = "ready"
             elif preview and preview.state == "failed":
@@ -376,6 +364,31 @@ class Library:
             view["thumbnail"] = media_url(thumb.relative_path) if thumb else None
             if view["thumbnail"] and thumb.sha256:
                 view["thumbnail"] += "?v=" + thumb.sha256[:16]
+        return views, works, operations, revision
+
+    def _hydrate_cards(self, session, window_ids):
+        """Draw a default gallery window without hydrating wide source entities."""
+        from .gallery_card_projection import read_cards, card_view
+        with track_read_stage("library_works"):
+            by_id = read_cards(session, window_ids)
+            works = [by_id[identity] for identity in window_ids]
+        with track_read_stage("library_bookmarks"):
+            preferences = {row.work_id: row for row in session.scalars(
+                select(LocalPreference).where(LocalPreference.work_id.in_(window_ids)))} if window_ids else {}
+            bookmarks = {row.work_id: row for row in session.scalars(
+                select(RemoteBookmark).where(RemoteBookmark.work_id.in_(window_ids)))} if window_ids else {}
+            operations = self._bookmark_operations(session, window_ids)
+            views = []
+            for work in works:
+                work.preference, work.bookmark = preferences.get(work.id), bookmarks.get(work.id)
+                bookmark = self._bookmark_view(work, operations.get(work.id))
+                views.append({**card_view(work, self.account_id),
+                    "is_hidden": bool(work.preference and work.preference.is_hidden),
+                    "bookmark": bookmark, "is_bookmarked": bool(bookmark["value"])})
+        with track_read_stage("library_states"):
+            states, revision = work_states(session, works)
+            for view in views:
+                view.update(states[view["id"]])
         return views, works, operations, revision
 
     @staticmethod

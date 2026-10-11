@@ -222,5 +222,5 @@ def task_fact(connection, work_id, candidate_id, *, priority=None, created_at=""
 def task_winner(connection, work_id, *, check_ready=True):
     if check_ready:
         require_ready(connection)
-    row = connection.exec_driver_sql("SELECT candidate_id,payload FROM read_task_candidates WHERE work_id=? ORDER BY priority,created_at DESC,updated_at DESC,failure_priority,position,operation_id DESC,(CASE WHEN substr(candidate_id,1,6)='scope:' THEN 1 ELSE 0 END),item_id LIMIT 1", (work_id,)).first()
-    return None if row is None else {"candidate_id": row[0], "payload": json.loads(row[1])}
+    from .normalized_task_projection import task_winner as normalized_winner
+    return normalized_winner(connection, work_id)

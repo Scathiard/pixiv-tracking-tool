@@ -16,7 +16,7 @@ from .models import Base
 from . import diagnostics
 from .read_control import LocalReadBusy, ReadBudget, ReadController, current_read
 
-SCHEMA_REVISION = "0004_read_projections"
+SCHEMA_REVISION = "0005_read_cards_tasks"
 
 
 class UpgradeRequired(RuntimeError):
@@ -57,7 +57,8 @@ class ArchiveDatabase:
                         raise UpgradeRequired("数据库字段与结构版本不符，未自动改表")
                 required_projection_tables = {"read_model_meta", "read_model_dirty", "read_resource_totals",
                     "read_resource_facts", "read_work_order", "read_common_counts", "read_task_candidates",
-                    "read_operation_scope", "read_work_state", "read_revision_state"}
+                    "read_operation_scope", "read_work_state", "read_revision_state", "read_gallery_cards",
+                    "read_task_parent", "read_task_item_fact", "read_task_work_parent", "read_task_scope_best"}
                 if not required_projection_tables.issubset(schema.get_table_names()):
                     raise UpgradeRequired("读取投影结构不完整，需要显式修复，未自动补建")
                 capture_tables = {"works", "work_revisions", "assets", "derivatives", "revision_assets",

@@ -19,3 +19,9 @@
 - `packaged-result-03.json`、`actual-activation-03.json`、`second-repair-failure.json`：第二轮 `.3` 隔离基础核对通过、真实首屏仍 504，以及媒体阶段和同期线程现场；包含首屏前八秒，不是整份日常日志。
 - `correlation-check.xml`：内层计数必须关联当前作品的微型合成回归，不能让其他作品的版本补上本作品缺页。
 - `card-media-checks.json`、`card-media-checks.xml`、`card-media-existing-checks.xml`：3 项卡片新回归和 1 项原完整读取回归通过；涵盖默认／显式版本、槽与归属、窄字段、首图回退、动图 SHA、有限 SQL 和 241 动图分支上限，仅合成数据。
+- `packaged-result-04.json`、`actual-activation-04.json`、`third-repair-failure.json`：第三轮 `.4` 的隔离基础核对与真实首屏失败，后者按启动时间只保留前80秒及相关SQL；媒体新路径尚未开始就已耗尽预算。
+- `second-repair-exit-followup.json`：`.3` 正常退出等待超过五分钟后，仅结束本轮拥有的进程；保留原库。
+- `exit-query-plans.json`、`exact-exit-query-plan.json`、`exact-exit-query-plan-02.json`：前两份中断留证及最终精确候选SELECT计划；非覆盖操作索引存在，不能把前两份当成功计划。
+- `normalized-task-checks.xml`、`normalized-task-results.json`：共享父状态3项合成验证，960项父变化不读项目／成员、不写作品状态；400份无关父历史增长不增加所选作品读取指令。
+- `gallery-card-checks.xml`：3项窄卡片对照、归属／SHA、事务与读取边界验证，仅合成数据。
+- `cards-tasks-upgrade-checks.xml`、`card-integration-checks.xml`：0004升级／激活／回退、失败源保留、0003兼容及正式卡片与收藏即时更新共4项通过（8.88／1.81秒），不等同真实图库已升级。

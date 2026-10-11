@@ -12,6 +12,7 @@ import runpy
 import subprocess
 import sys
 from src.core.database import SCHEMA_REVISION
+from src.core.upgrade import _SUPPORTED_SOURCES
 
 APP = Path(__file__).resolve().parent
 
@@ -52,6 +53,7 @@ def main() -> None:
                 "source_dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
                 "frontend_dist": str(frontend_dist), "database_schema": SCHEMA_REVISION, "database_upgrade_required": False,
                 "database_compatible_from": SCHEMA_REVISION,
+                "explicit_upgrade_supported_from": list(_SUPPORTED_SOURCES),
                 "older_database_upgrade_required": True,
                 "database_upgrade_entry": "startup-confirmed backup / validate / activate",
                 "build_environment": {"os": platform.platform(), "python": platform.python_version(),
