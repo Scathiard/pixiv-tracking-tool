@@ -4,8 +4,9 @@ SQLite source triggers retain both sides of identity changes, including raw SQL.
 An ordinary writer may consume only the changes it made after a clean starting
 snapshot. Already dirty databases require an explicit candidate repair/rebuild.
 Work refreshes inspect their current resources, never all their revision/task
-history. A parent operation update intentionally fans out to its items and scope;
-a single item update refreshes one direct candidate and the operation's fallback.
+history. Structural parent updates reconcile their items and scope; progress-only
+updates preserve candidates and refresh state only when the winning task changes.
+A single item update refreshes its direct candidate and changed fallback facts.
 """
 from __future__ import annotations
 
@@ -15,17 +16,44 @@ import re
 from functools import lru_cache
 from types import SimpleNamespace
 
-from sqlalchemy import select
+from sqlalchemy import inspect, select
 from sqlalchemy.orm import load_only
-from sqlalchemy.orm.attributes import set_committed_value
+from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 
 from . import read_projection as store
-from .models import Work, WorkRevision, ArchiveIntent, LocalPreference, RemoteBookmark
+from .models import Work, WorkRevision, ArchiveIntent, LocalPreference, RemoteBookmark, Operation
 
 ACTIVE = ("queued", "planning", "ready", "running", "interrupted")
 LOCAL_KINDS = ("check", "metadata", "repair", "verify", "backfill", "thumbnails", "reconcile", "compare")
 BAD = ("missing", "failed", "invalid", "mismatch", "corrupt")
 STATE_TABLES = ("read_work_state", "read_revision_state")
+_OPERATION_SHAPE = ("id", "kind", "state", "created_at", "parameters")
+
+
+def capture_operation_progress(session, flush_context, instances):
+    """Transaction-local hints only; unknown/raw source changes keep full repair."""
+    hints = session.info.setdefault('read_operation_progress', {})
+    for operation in session.new | session.dirty | session.deleted:
+        if not isinstance(operation, Operation):
+            continue
+        attrs = inspect(operation).attrs
+        ident = operation.id
+        if (operation in session.new or operation in session.deleted or
+                any(attrs[name].history.has_changes() for name in _OPERATION_SHAPE)):
+            hints[ident] = None
+            continue
+        if ident in hints or not attrs.updated_at.history.has_changes():
+            continue
+        if any(attrs[name].loaded_value is NO_VALUE for name in _OPERATION_SHAPE) or operation.created_at is None:
+            hints[ident] = None
+            continue
+        # Raw SQL before this first flush has no reliable ORM before-image.
+        if session.connection().exec_driver_sql("SELECT 1 FROM read_model_dirty WHERE entity='operation' AND identity=?", (ident,)).first():
+            hints[ident] = None
+            continue
+        hints[ident] = (operation.kind, operation.state,
+            operation.created_at.isoformat(' ', timespec='microseconds'),
+            json.dumps(operation.parameters, sort_keys=True))
 
 
 def install_state_cache(connection):
@@ -303,12 +331,13 @@ def reconcile_item(connection, item_id):
     return affected
 
 
-def _scope_values(connection, operation_id):
+def _scope_values(connection, operation_id, *, members=None):
     operation = _operation(connection, operation_id)
     if operation is None or operation["kind"] not in LOCAL_KINDS or operation["scope_type"] is None:
         return set(), None
     # Keep CAST semantics of json_each, including scalar/object legacy values.
-    members = set(connection.exec_driver_sql("SELECT DISTINCT CAST(value AS INTEGER) FROM operations,json_each(operations.parameters,'$.work_ids') WHERE operations.id=? AND CAST(value AS INTEGER) IS NOT NULL", (operation_id,)).scalars())
+    if members is None:
+        members = set(connection.exec_driver_sql("SELECT DISTINCT CAST(value AS INTEGER) FROM operations,json_each(operations.parameters,'$.work_ids') WHERE operations.id=? AND CAST(value AS INTEGER) IS NOT NULL", (operation_id,)).scalars())
     if not members:
         return members, None
     item = connection.exec_driver_sql("""SELECT id,state,position,json_extract(result,'$.message') AS reason
@@ -328,17 +357,60 @@ def _scope_values(connection, operation_id):
         concern="local" if operation["kind"] == "thumbnails" else "work")
 
 
-def reconcile_scope(connection, operation_id):
-    affected = _remove_candidates(connection, operation_id=operation_id, scope_only=True)
-    connection.exec_driver_sql('DELETE FROM read_operation_scope WHERE operation_id=?', (operation_id,))
-    members, values = _scope_values(connection, operation_id)
-    if members:
-        connection.exec_driver_sql('INSERT INTO read_operation_scope VALUES(?,?)', [(operation_id, value) for value in sorted(members)])
-    if values is not None:
-        for work_id in members:
-            store.task_fact(connection, work_id, "scope:" + operation_id, **values)
-        affected.update(members)
+def reconcile_scope(connection, operation_id, *, membership_unchanged=False):
+    previous = set(connection.exec_driver_sql('SELECT work_id FROM read_operation_scope WHERE operation_id=?', (operation_id,)).scalars())
+    candidate_id = 'scope:' + operation_id
+    old = {row[0]: tuple(row[1:]) for row in connection.exec_driver_sql("""SELECT c.work_id,c.priority,c.created_at,c.updated_at,
+        c.failure_priority,c.position,c.operation_id,c.item_id,c.payload
+        FROM read_operation_scope s CROSS JOIN read_task_candidates c
+        WHERE s.operation_id=? AND c.work_id=s.work_id AND c.candidate_id=?""", (operation_id, candidate_id))}
+    members, values = _scope_values(connection, operation_id,
+        members=previous if membership_unchanged else None)
+    removed, added = previous - members, members - previous
+    if removed:
+        connection.exec_driver_sql('DELETE FROM read_operation_scope WHERE operation_id=? AND work_id=?',
+            [(operation_id, value) for value in sorted(removed)])
+    if added:
+        connection.exec_driver_sql('INSERT INTO read_operation_scope VALUES(?,?)',
+            [(operation_id, value) for value in sorted(added)])
+    expected = None if values is None else tuple(values[key] for key in
+        ('priority', 'created_at', 'updated_at', 'failure_priority', 'position', 'operation_id', 'item_id')) + (json.dumps(values['payload'], ensure_ascii=False),)
+    affected = set()
+    for work_id in set(old) | (members if values is not None else set()):
+        new = expected if work_id in members else None
+        if old.get(work_id) == new:
+            continue
+        if new is None:
+            connection.exec_driver_sql('DELETE FROM read_task_candidates WHERE work_id=? AND candidate_id=?', (work_id, candidate_id))
+        else:
+            store.task_fact(connection, work_id, candidate_id, **values)
+        affected.add(work_id)
     return affected
+
+
+def reconcile_operation_progress(connection, operation_id, baseline):
+    operation = _operation(connection, operation_id)
+    if operation is None or (operation['kind'], operation['state'], operation['created_at'],
+            json.dumps(json.loads(operation['parameters']), sort_keys=True)) != baseline:
+        return None
+    # Deduplicate indexed members before checking competitors; many items can
+    # refer to one work. Two set queries avoid one Python/SQL roundtrip per work.
+    # Keep the exact winner order used by read_projection.task_winner.
+    winner_sql = """WITH members AS MATERIALIZED (
+        SELECT DISTINCT work_id FROM read_task_candidates INDEXED BY ix_read_task_operation WHERE operation_id=?
+        ), competing AS MATERIALIZED (
+        SELECT m.work_id FROM members m WHERE EXISTS(SELECT 1 FROM read_task_candidates c
+        WHERE c.work_id=m.work_id AND c.operation_id<>?)
+        ) SELECT w.work_id,(SELECT candidate_id FROM read_task_candidates c INDEXED BY ix_read_task_winner
+        WHERE c.work_id=w.work_id ORDER BY priority,created_at DESC,updated_at DESC,failure_priority,
+        position,operation_id DESC,(CASE WHEN substr(candidate_id,1,6)='scope:' THEN 1 ELSE 0 END),item_id LIMIT 1)
+        FROM competing w"""
+    before = dict(connection.exec_driver_sql(winner_sql, (operation_id, operation_id)).all())
+    updated = operation['updated_at'] or ''
+    connection.exec_driver_sql('UPDATE read_task_candidates SET updated_at=? WHERE operation_id=? AND updated_at IS NOT ?',
+        (updated, operation_id, updated))
+    after = dict(connection.exec_driver_sql(winner_sql, (operation_id, operation_id)).all())
+    return {work_id for work_id in before if after[work_id] != before[work_id]}
 
 def reconcile_operation(connection, operation_id):
     affected = _remove_candidates(connection, operation_id=operation_id)
@@ -660,12 +732,20 @@ def maintain_projections(session):
         raise store.ProjectionUnavailable('unrecognized dirty source identity; explicit repair is required')
     works = {int(value) for value in entities.get("work", ())}
     operations = entities.get("operation", set())
+    full_operations = set()
+    hints = session.info.get('read_operation_progress', {})
     for operation_id in sorted(operations):
-        works.update(reconcile_operation(connection, operation_id))
+        baseline = hints.get(operation_id)
+        affected = None if baseline is None else reconcile_operation_progress(connection, operation_id, baseline)
+        if affected is None:
+            works.update(reconcile_operation(connection, operation_id))
+            full_operations.add(operation_id)
+        else:
+            works.update(affected)
     for item_id in sorted(entities.get("item", ())):
         works.update(reconcile_item(connection, item_id))
-    for operation_id in sorted(entities.get("scope", set()) - operations):
-        works.update(reconcile_scope(connection, operation_id))
+    for operation_id in sorted(entities.get("scope", set()) - full_operations):
+        works.update(reconcile_scope(connection, operation_id, membership_unchanged=True))
     resources = {int(value) for value in entities.get("resource_work", ())}
     physical_works, physical_revisions = reconcile_physical_resources(connection,
         entities.get('physical_asset', ()), entities.get('physical_derivative', ()))

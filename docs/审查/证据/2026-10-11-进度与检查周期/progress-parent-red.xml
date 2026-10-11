@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="33.026" timestamp="2026-10-11T10:50:32.195726+08:00" hostname="Baseline"><testcase classname="tests.test_projection_transactions" name="test_parent_progress_preserves_candidates_and_competing_winners_without_manifest_rebuild" time="4.384"><failure message="assert not True&#10; +  where True = any(&lt;generator object test_parent_progress_preserves_candidates_and_competing_winners_without_manifest_rebuild.&lt;locals&gt;.&lt;genexpr&gt; at 0x000001A54D5AB370&gt;)">database = &lt;src.core.database.ArchiveDatabase object at 0x000001A54C95DB80&gt;
+
+    def test_parent_progress_preserves_candidates_and_competing_winners_without_manifest_rebuild(database):
+        created = datetime(2026, 1, 1)
+        with database.write() as session:
+            session.add(operation(parameters={'work_ids': [1, 2, 3]}, created_at=created, updated_at=created))
+            session.flush()
+            session.add_all([OperationItem(id=f'item-{i}', operation_id='operation', item_key=str(i),
+                kind='verify', target={'work_id': 1 + i % 3}, phase='checking', state='pending',
+                position=i) for i in range(30)])
+        queries = []
+        def capture(connection, cursor, statement, parameters, context, executemany):
+            queries.append(statement.lower())
+        event.listen(database.writer_engine, 'before_cursor_execute', capture)
+        try:
+            with database.write() as session:
+                parent = session.get(Operation, 'operation')
+                parent.phase, parent.updated_at = 'checking', created + timedelta(seconds=1)
+&gt;           assert not any('delete from read_task_candidates' in sql or
+                'insert into read_task_candidates' in sql or 'from operation_items' in sql for sql in queries)
+E               assert not True
+E                +  where True = any(&lt;generator object test_parent_progress_preserves_candidates_and_competing_winners_without_manifest_rebuild.&lt;locals&gt;.&lt;genexpr&gt; at 0x000001A54D5AB370&gt;)
+
+tests\test_projection_transactions.py:216: AssertionError</failure></testcase></testsuite></testsuites>

@@ -1,0 +1,47 @@
+{
+  "build": "20261011.8",
+  "mode": "normal",
+  "reads": [
+    {
+      "path": "/",
+      "status": 200,
+      "milliseconds": 23.21,
+      "bytes": 453
+    },
+    {
+      "path": "/api/status",
+      "status": 200,
+      "milliseconds": 11.02,
+      "bytes": 162
+    },
+    {
+      "path": "/api/library/cursor?limit=20&compact=1",
+      "status": 200,
+      "milliseconds": 62.39,
+      "bytes": 37276,
+      "items": 20
+    },
+    {
+      "path": "/api/progress",
+      "status": 200,
+      "milliseconds": 5.28,
+      "bytes": 21371,
+      "operations": 21
+    },
+    {
+      "path": "/api/settings",
+      "status": 200,
+      "milliseconds": 354.86,
+      "bytes": 505,
+      "version": "0.2.0",
+      "build": "20261011.8",
+      "login": "logged_in",
+      "automatic_paused": false,
+      "check_interval_minutes": 360,
+      "next_check_at": "2026-10-11T07:40:23.463196+00:00",
+      "current_port": 1919,
+      "works": 15316
+    }
+  ],
+  "account_write_tests": false
+}
