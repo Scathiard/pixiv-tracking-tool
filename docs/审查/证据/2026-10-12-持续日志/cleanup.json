@@ -1,0 +1,12 @@
+{
+  "recorded_at": "2026-10-12T02:40:26.5651529+08:00",
+  "registered_root": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.1\\work\\tmp\\continuous-logs",
+  "file_count": 3702,
+  "bytes": 481362366.0,
+  "synthetic_processes_stopped": true,
+  "reparse_points_found": false,
+  "formal_evidence_saved": true,
+  "real_logs_preserved": true,
+  "daily_runtime_temp": "C:\\Users\\princ\\AppData\\Local\\Temp (owned by running daily program; not cleaned)",
+  "cleaned": true
+}

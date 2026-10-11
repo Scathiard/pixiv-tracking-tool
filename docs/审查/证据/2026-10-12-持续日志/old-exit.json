@@ -1,0 +1,12 @@
+{
+  "normal_exit": true,
+  "old_pids": [
+    7100,
+    39792
+  ],
+  "stop_messages": 2,
+  "remaining_pids": [
+    null
+  ],
+  "elapsed_ms": 1595.12
+}

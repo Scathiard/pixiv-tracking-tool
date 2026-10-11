@@ -1,0 +1,44 @@
+{
+  "build": "20261012.1",
+  "mode": "isolated-offline",
+  "real_library_used": false,
+  "recorded_at": "2026-10-12T02:28:54.9426444+08:00",
+  "startup_ready": true,
+  "empty_library_response": {
+    "items": [],
+    "total": 0,
+    "offset": 0,
+    "ceiling": 0,
+    "as_of": "2026-10-11T18:28:55.100339",
+    "catalogue_revision": 0,
+    "performance": "indexed_seek",
+    "count_mode": "indexed",
+    "boundaries": [],
+    "next_cursor": null,
+    "previous_cursor": null,
+    "has_more": false,
+    "has_previous": false,
+    "generation": 1
+  },
+  "logged_in": false,
+  "upgrade_required": false,
+  "served_js_sha256": "bac9a095b70d372eeb74162d3b19dfeb141b224e4c36962e9f532ab30b8f51de",
+  "process_ids": [
+    44208,
+    46580
+  ],
+  "tray_stop_sent": 2,
+  "normal_exit_ms": 1337.27,
+  "timestamped_lines": 142,
+  "diagnostic": {
+    "first_event": "diagnostic.part_start",
+    "records": 238671,
+    "last_event": "diagnostic.stop",
+    "name": "diagnostic-20261012-022547-46580-4f15fdb444cd-part0001.jsonl",
+    "bytes": 55266607,
+    "producer_errors": 0
+  },
+  "initial_launch_restriction": "Three workspace launches hit pystray ChangeWindowMessageFilterEx WinError 5; same artifact from daily directory opened and exited normally. No application code change.",
+  "helper_corrections": "Readonly PowerShell HOME variable and /assets vs /reader/assets path corrected; no application change.",
+  "success": true
+}
