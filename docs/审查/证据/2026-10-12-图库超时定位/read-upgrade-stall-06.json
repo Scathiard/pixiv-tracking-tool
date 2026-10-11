@@ -1,0 +1,56 @@
+{
+  "samples": [
+    {
+      "utc": "2026-10-12T06:19:01.864+08:00",
+      "elapsed_ms": 467656.0,
+      "read_bytes": 1219153392,
+      "write_bytes": 1029351,
+      "cpu_user": 1.53125,
+      "cpu_system": 8.03125
+    },
+    {
+      "utc": "2026-10-12T06:19:03.878+08:00",
+      "elapsed_ms": 469672.0,
+      "read_bytes": 1219870192,
+      "write_bytes": 1033262,
+      "cpu_user": 1.546875,
+      "cpu_system": 8.0625
+    }
+  ],
+  "stage": "source quick_check before backup",
+  "build": "20261012.6",
+  "upgrade_files": [],
+  "stacks": [
+    {
+      "utc": "2026-10-12T06:19:01.864+08:00",
+      "elapsed_ms": 467656.0,
+      "thread_name": "asyncio_0",
+      "stack": [
+        "src/core/upgrade.py:198:_inspect_old",
+        "src/core/upgrade.py:470:prepare_upgrade",
+        "src/core/startup_upgrade.py:61:_prepare_and_start",
+        "thread.py:59:run",
+        "thread.py:93:_worker",
+        "threading.py:1012:run",
+        "threading.py:1075:_bootstrap_inner",
+        "threading.py:1032:_bootstrap"
+      ]
+    },
+    {
+      "utc": "2026-10-12T06:19:03.878+08:00",
+      "elapsed_ms": 469672.0,
+      "thread_name": "asyncio_0",
+      "stack": [
+        "src/core/upgrade.py:198:_inspect_old",
+        "src/core/upgrade.py:470:prepare_upgrade",
+        "src/core/startup_upgrade.py:61:_prepare_and_start",
+        "thread.py:59:run",
+        "thread.py:93:_worker",
+        "threading.py:1012:run",
+        "threading.py:1075:_bootstrap_inner",
+        "threading.py:1032:_bootstrap"
+      ]
+    }
+  ],
+  "source_changed": false
+}

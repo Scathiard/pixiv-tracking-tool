@@ -1,0 +1,1089 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="8" failures="0" skipped="0" tests="8" time="2.306" timestamp="2026-10-12T06:18:36.688506+08:00" hostname="Baseline"><testcase classname="tests.test_upgrade_cards_tasks" name="test_0004_candidate_keeps_sources_and_can_activate_then_rollback" time="0.003"><error message="failed on setup with &quot;PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'&quot;">path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+&gt;           os.rmdir(path)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:637: PermissionError
+
+During handling of the above exception, another exception occurred:
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+ignore_errors = False, onerror = None
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+dir_fd = None
+
+    def rmtree(path, ignore_errors=False, onerror=None, *, onexc=None, dir_fd=None):
+        """Recursively delete a directory tree.
+    
+        If dir_fd is not None, it should be a file descriptor open to a directory;
+        path will then be relative to that directory.
+        dir_fd may not be implemented on your platform.
+        If it is unavailable, using it will raise a NotImplementedError.
+    
+        If ignore_errors is set, errors are ignored; otherwise, if onexc or
+        onerror is set, it is called to handle the error with arguments (func,
+        path, exc_info) where func is platform and implementation dependent;
+        path is the argument to that function that caused it to fail; and
+        the value of exc_info describes the exception. For onexc it is the
+        exception instance, and for onerror it is a tuple as returned by
+        sys.exc_info().  If ignore_errors is false and both onexc and
+        onerror are None, the exception is reraised.
+    
+        onerror is deprecated and only remains for backwards compatibility.
+        If both onerror and onexc are set, onerror is ignored and onexc is used.
+        """
+    
+        sys.audit("shutil.rmtree", path, dir_fd)
+        if ignore_errors:
+            def onexc(*args):
+                pass
+        elif onerror is None and onexc is None:
+            def onexc(*args):
+                raise
+        elif onexc is None:
+            if onerror is None:
+                def onexc(*args):
+                    raise
+            else:
+                # delegate to onerror
+                def onexc(*args):
+                    func, path, exc = args
+                    if exc is None:
+                        exc_info = None, None, None
+                    else:
+                        exc_info = type(exc), exc, exc.__traceback__
+                    return onerror(func, path, exc_info)
+    
+        if _use_fd_functions:
+            # While the unsafe rmtree works fine on bytes, the fd based does not.
+            if isinstance(path, bytes):
+                path = os.fsdecode(path)
+            stack = [(os.lstat, dir_fd, path, None)]
+            try:
+                while stack:
+                    _rmtree_safe_fd(stack, onexc)
+            finally:
+                # Close any file descriptors still on the stack.
+                while stack:
+                    func, fd, path, entry = stack.pop()
+                    if func is not os.close:
+                        continue
+                    try:
+                        os.close(fd)
+                    except OSError as err:
+                        onexc(os.close, path, err)
+        else:
+            if dir_fd is not None:
+                raise NotImplementedError("dir_fd unavailable on this platform")
+            try:
+                if _rmtree_islink(path):
+                    # symlinks to directories are forbidden, see bug #1669
+                    raise OSError("Cannot call rmtree on a symbolic link")
+            except OSError as err:
+                onexc(os.path.islink, path, err)
+                # can't continue even if onexc hook returns
+                return
+&gt;           return _rmtree_unsafe(path, onexc)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:781: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+            os.rmdir(path)
+        except OSError as err:
+&gt;           onexc(os.rmdir, path, err)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:639: PermissionError</error></testcase><testcase classname="tests.test_upgrade_cards_tasks" name="test_verified_candidate_change_is_rejected_before_switch" time="0.002"><error message="failed on setup with &quot;PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'&quot;">path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+&gt;           os.rmdir(path)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:637: PermissionError
+
+During handling of the above exception, another exception occurred:
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+ignore_errors = False, onerror = None
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+dir_fd = None
+
+    def rmtree(path, ignore_errors=False, onerror=None, *, onexc=None, dir_fd=None):
+        """Recursively delete a directory tree.
+    
+        If dir_fd is not None, it should be a file descriptor open to a directory;
+        path will then be relative to that directory.
+        dir_fd may not be implemented on your platform.
+        If it is unavailable, using it will raise a NotImplementedError.
+    
+        If ignore_errors is set, errors are ignored; otherwise, if onexc or
+        onerror is set, it is called to handle the error with arguments (func,
+        path, exc_info) where func is platform and implementation dependent;
+        path is the argument to that function that caused it to fail; and
+        the value of exc_info describes the exception. For onexc it is the
+        exception instance, and for onerror it is a tuple as returned by
+        sys.exc_info().  If ignore_errors is false and both onexc and
+        onerror are None, the exception is reraised.
+    
+        onerror is deprecated and only remains for backwards compatibility.
+        If both onerror and onexc are set, onerror is ignored and onexc is used.
+        """
+    
+        sys.audit("shutil.rmtree", path, dir_fd)
+        if ignore_errors:
+            def onexc(*args):
+                pass
+        elif onerror is None and onexc is None:
+            def onexc(*args):
+                raise
+        elif onexc is None:
+            if onerror is None:
+                def onexc(*args):
+                    raise
+            else:
+                # delegate to onerror
+                def onexc(*args):
+                    func, path, exc = args
+                    if exc is None:
+                        exc_info = None, None, None
+                    else:
+                        exc_info = type(exc), exc, exc.__traceback__
+                    return onerror(func, path, exc_info)
+    
+        if _use_fd_functions:
+            # While the unsafe rmtree works fine on bytes, the fd based does not.
+            if isinstance(path, bytes):
+                path = os.fsdecode(path)
+            stack = [(os.lstat, dir_fd, path, None)]
+            try:
+                while stack:
+                    _rmtree_safe_fd(stack, onexc)
+            finally:
+                # Close any file descriptors still on the stack.
+                while stack:
+                    func, fd, path, entry = stack.pop()
+                    if func is not os.close:
+                        continue
+                    try:
+                        os.close(fd)
+                    except OSError as err:
+                        onexc(os.close, path, err)
+        else:
+            if dir_fd is not None:
+                raise NotImplementedError("dir_fd unavailable on this platform")
+            try:
+                if _rmtree_islink(path):
+                    # symlinks to directories are forbidden, see bug #1669
+                    raise OSError("Cannot call rmtree on a symbolic link")
+            except OSError as err:
+                onexc(os.path.islink, path, err)
+                # can't continue even if onexc hook returns
+                return
+&gt;           return _rmtree_unsafe(path, onexc)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:781: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+            os.rmdir(path)
+        except OSError as err:
+&gt;           onexc(os.rmdir, path, err)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:639: PermissionError</error></testcase><testcase classname="tests.test_upgrade_cards_tasks" name="test_0004_failed_new_backfill_does_not_change_source_or_publish_candidate" time="0.002"><error message="failed on setup with &quot;PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'&quot;">path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+&gt;           os.rmdir(path)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:637: PermissionError
+
+During handling of the above exception, another exception occurred:
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+ignore_errors = False, onerror = None
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+dir_fd = None
+
+    def rmtree(path, ignore_errors=False, onerror=None, *, onexc=None, dir_fd=None):
+        """Recursively delete a directory tree.
+    
+        If dir_fd is not None, it should be a file descriptor open to a directory;
+        path will then be relative to that directory.
+        dir_fd may not be implemented on your platform.
+        If it is unavailable, using it will raise a NotImplementedError.
+    
+        If ignore_errors is set, errors are ignored; otherwise, if onexc or
+        onerror is set, it is called to handle the error with arguments (func,
+        path, exc_info) where func is platform and implementation dependent;
+        path is the argument to that function that caused it to fail; and
+        the value of exc_info describes the exception. For onexc it is the
+        exception instance, and for onerror it is a tuple as returned by
+        sys.exc_info().  If ignore_errors is false and both onexc and
+        onerror are None, the exception is reraised.
+    
+        onerror is deprecated and only remains for backwards compatibility.
+        If both onerror and onexc are set, onerror is ignored and onexc is used.
+        """
+    
+        sys.audit("shutil.rmtree", path, dir_fd)
+        if ignore_errors:
+            def onexc(*args):
+                pass
+        elif onerror is None and onexc is None:
+            def onexc(*args):
+                raise
+        elif onexc is None:
+            if onerror is None:
+                def onexc(*args):
+                    raise
+            else:
+                # delegate to onerror
+                def onexc(*args):
+                    func, path, exc = args
+                    if exc is None:
+                        exc_info = None, None, None
+                    else:
+                        exc_info = type(exc), exc, exc.__traceback__
+                    return onerror(func, path, exc_info)
+    
+        if _use_fd_functions:
+            # While the unsafe rmtree works fine on bytes, the fd based does not.
+            if isinstance(path, bytes):
+                path = os.fsdecode(path)
+            stack = [(os.lstat, dir_fd, path, None)]
+            try:
+                while stack:
+                    _rmtree_safe_fd(stack, onexc)
+            finally:
+                # Close any file descriptors still on the stack.
+                while stack:
+                    func, fd, path, entry = stack.pop()
+                    if func is not os.close:
+                        continue
+                    try:
+                        os.close(fd)
+                    except OSError as err:
+                        onexc(os.close, path, err)
+        else:
+            if dir_fd is not None:
+                raise NotImplementedError("dir_fd unavailable on this platform")
+            try:
+                if _rmtree_islink(path):
+                    # symlinks to directories are forbidden, see bug #1669
+                    raise OSError("Cannot call rmtree on a symbolic link")
+            except OSError as err:
+                onexc(os.path.islink, path, err)
+                # can't continue even if onexc hook returns
+                return
+&gt;           return _rmtree_unsafe(path, onexc)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:781: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+            os.rmdir(path)
+        except OSError as err:
+&gt;           onexc(os.rmdir, path, err)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:639: PermissionError</error></testcase><testcase classname="tests.test_upgrade_revisions" name="test_upgrade_keeps_ids_original_paths_dates_preferences_pending_tasks_and_journals" time="0.005"><error message="failed on setup with &quot;PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'&quot;">path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+&gt;           os.rmdir(path)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:637: PermissionError
+
+During handling of the above exception, another exception occurred:
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+ignore_errors = False, onerror = None
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+dir_fd = None
+
+    def rmtree(path, ignore_errors=False, onerror=None, *, onexc=None, dir_fd=None):
+        """Recursively delete a directory tree.
+    
+        If dir_fd is not None, it should be a file descriptor open to a directory;
+        path will then be relative to that directory.
+        dir_fd may not be implemented on your platform.
+        If it is unavailable, using it will raise a NotImplementedError.
+    
+        If ignore_errors is set, errors are ignored; otherwise, if onexc or
+        onerror is set, it is called to handle the error with arguments (func,
+        path, exc_info) where func is platform and implementation dependent;
+        path is the argument to that function that caused it to fail; and
+        the value of exc_info describes the exception. For onexc it is the
+        exception instance, and for onerror it is a tuple as returned by
+        sys.exc_info().  If ignore_errors is false and both onexc and
+        onerror are None, the exception is reraised.
+    
+        onerror is deprecated and only remains for backwards compatibility.
+        If both onerror and onexc are set, onerror is ignored and onexc is used.
+        """
+    
+        sys.audit("shutil.rmtree", path, dir_fd)
+        if ignore_errors:
+            def onexc(*args):
+                pass
+        elif onerror is None and onexc is None:
+            def onexc(*args):
+                raise
+        elif onexc is None:
+            if onerror is None:
+                def onexc(*args):
+                    raise
+            else:
+                # delegate to onerror
+                def onexc(*args):
+                    func, path, exc = args
+                    if exc is None:
+                        exc_info = None, None, None
+                    else:
+                        exc_info = type(exc), exc, exc.__traceback__
+                    return onerror(func, path, exc_info)
+    
+        if _use_fd_functions:
+            # While the unsafe rmtree works fine on bytes, the fd based does not.
+            if isinstance(path, bytes):
+                path = os.fsdecode(path)
+            stack = [(os.lstat, dir_fd, path, None)]
+            try:
+                while stack:
+                    _rmtree_safe_fd(stack, onexc)
+            finally:
+                # Close any file descriptors still on the stack.
+                while stack:
+                    func, fd, path, entry = stack.pop()
+                    if func is not os.close:
+                        continue
+                    try:
+                        os.close(fd)
+                    except OSError as err:
+                        onexc(os.close, path, err)
+        else:
+            if dir_fd is not None:
+                raise NotImplementedError("dir_fd unavailable on this platform")
+            try:
+                if _rmtree_islink(path):
+                    # symlinks to directories are forbidden, see bug #1669
+                    raise OSError("Cannot call rmtree on a symbolic link")
+            except OSError as err:
+                onexc(os.path.islink, path, err)
+                # can't continue even if onexc hook returns
+                return
+&gt;           return _rmtree_unsafe(path, onexc)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:781: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+            os.rmdir(path)
+        except OSError as err:
+&gt;           onexc(os.rmdir, path, err)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:639: PermissionError</error></testcase><testcase classname="tests.test_upgrade_revisions" name="test_activation_and_rollback_preserve_both_candidates" time="0.002"><error message="failed on setup with &quot;PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'&quot;">path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+&gt;           os.rmdir(path)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:637: PermissionError
+
+During handling of the above exception, another exception occurred:
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+ignore_errors = False, onerror = None
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+dir_fd = None
+
+    def rmtree(path, ignore_errors=False, onerror=None, *, onexc=None, dir_fd=None):
+        """Recursively delete a directory tree.
+    
+        If dir_fd is not None, it should be a file descriptor open to a directory;
+        path will then be relative to that directory.
+        dir_fd may not be implemented on your platform.
+        If it is unavailable, using it will raise a NotImplementedError.
+    
+        If ignore_errors is set, errors are ignored; otherwise, if onexc or
+        onerror is set, it is called to handle the error with arguments (func,
+        path, exc_info) where func is platform and implementation dependent;
+        path is the argument to that function that caused it to fail; and
+        the value of exc_info describes the exception. For onexc it is the
+        exception instance, and for onerror it is a tuple as returned by
+        sys.exc_info().  If ignore_errors is false and both onexc and
+        onerror are None, the exception is reraised.
+    
+        onerror is deprecated and only remains for backwards compatibility.
+        If both onerror and onexc are set, onerror is ignored and onexc is used.
+        """
+    
+        sys.audit("shutil.rmtree", path, dir_fd)
+        if ignore_errors:
+            def onexc(*args):
+                pass
+        elif onerror is None and onexc is None:
+            def onexc(*args):
+                raise
+        elif onexc is None:
+            if onerror is None:
+                def onexc(*args):
+                    raise
+            else:
+                # delegate to onerror
+                def onexc(*args):
+                    func, path, exc = args
+                    if exc is None:
+                        exc_info = None, None, None
+                    else:
+                        exc_info = type(exc), exc, exc.__traceback__
+                    return onerror(func, path, exc_info)
+    
+        if _use_fd_functions:
+            # While the unsafe rmtree works fine on bytes, the fd based does not.
+            if isinstance(path, bytes):
+                path = os.fsdecode(path)
+            stack = [(os.lstat, dir_fd, path, None)]
+            try:
+                while stack:
+                    _rmtree_safe_fd(stack, onexc)
+            finally:
+                # Close any file descriptors still on the stack.
+                while stack:
+                    func, fd, path, entry = stack.pop()
+                    if func is not os.close:
+                        continue
+                    try:
+                        os.close(fd)
+                    except OSError as err:
+                        onexc(os.close, path, err)
+        else:
+            if dir_fd is not None:
+                raise NotImplementedError("dir_fd unavailable on this platform")
+            try:
+                if _rmtree_islink(path):
+                    # symlinks to directories are forbidden, see bug #1669
+                    raise OSError("Cannot call rmtree on a symbolic link")
+            except OSError as err:
+                onexc(os.path.islink, path, err)
+                # can't continue even if onexc hook returns
+                return
+&gt;           return _rmtree_unsafe(path, onexc)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:781: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+            os.rmdir(path)
+        except OSError as err:
+&gt;           onexc(os.rmdir, path, err)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:639: PermissionError</error></testcase><testcase classname="tests.test_upgrade_revisions" name="test_source_changes_or_candidate_corruption_block_activation" time="0.002"><error message="failed on setup with &quot;PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'&quot;">path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+&gt;           os.rmdir(path)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:637: PermissionError
+
+During handling of the above exception, another exception occurred:
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+ignore_errors = False, onerror = None
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+dir_fd = None
+
+    def rmtree(path, ignore_errors=False, onerror=None, *, onexc=None, dir_fd=None):
+        """Recursively delete a directory tree.
+    
+        If dir_fd is not None, it should be a file descriptor open to a directory;
+        path will then be relative to that directory.
+        dir_fd may not be implemented on your platform.
+        If it is unavailable, using it will raise a NotImplementedError.
+    
+        If ignore_errors is set, errors are ignored; otherwise, if onexc or
+        onerror is set, it is called to handle the error with arguments (func,
+        path, exc_info) where func is platform and implementation dependent;
+        path is the argument to that function that caused it to fail; and
+        the value of exc_info describes the exception. For onexc it is the
+        exception instance, and for onerror it is a tuple as returned by
+        sys.exc_info().  If ignore_errors is false and both onexc and
+        onerror are None, the exception is reraised.
+    
+        onerror is deprecated and only remains for backwards compatibility.
+        If both onerror and onexc are set, onerror is ignored and onexc is used.
+        """
+    
+        sys.audit("shutil.rmtree", path, dir_fd)
+        if ignore_errors:
+            def onexc(*args):
+                pass
+        elif onerror is None and onexc is None:
+            def onexc(*args):
+                raise
+        elif onexc is None:
+            if onerror is None:
+                def onexc(*args):
+                    raise
+            else:
+                # delegate to onerror
+                def onexc(*args):
+                    func, path, exc = args
+                    if exc is None:
+                        exc_info = None, None, None
+                    else:
+                        exc_info = type(exc), exc, exc.__traceback__
+                    return onerror(func, path, exc_info)
+    
+        if _use_fd_functions:
+            # While the unsafe rmtree works fine on bytes, the fd based does not.
+            if isinstance(path, bytes):
+                path = os.fsdecode(path)
+            stack = [(os.lstat, dir_fd, path, None)]
+            try:
+                while stack:
+                    _rmtree_safe_fd(stack, onexc)
+            finally:
+                # Close any file descriptors still on the stack.
+                while stack:
+                    func, fd, path, entry = stack.pop()
+                    if func is not os.close:
+                        continue
+                    try:
+                        os.close(fd)
+                    except OSError as err:
+                        onexc(os.close, path, err)
+        else:
+            if dir_fd is not None:
+                raise NotImplementedError("dir_fd unavailable on this platform")
+            try:
+                if _rmtree_islink(path):
+                    # symlinks to directories are forbidden, see bug #1669
+                    raise OSError("Cannot call rmtree on a symbolic link")
+            except OSError as err:
+                onexc(os.path.islink, path, err)
+                # can't continue even if onexc hook returns
+                return
+&gt;           return _rmtree_unsafe(path, onexc)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:781: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+            os.rmdir(path)
+        except OSError as err:
+&gt;           onexc(os.rmdir, path, err)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:639: PermissionError</error></testcase><testcase classname="tests.test_upgrade_revisions" name="test_new_write_after_activation_blocks_automatic_rollback" time="0.002"><error message="failed on setup with &quot;PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'&quot;">path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+&gt;           os.rmdir(path)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:637: PermissionError
+
+During handling of the above exception, another exception occurred:
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+ignore_errors = False, onerror = None
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+dir_fd = None
+
+    def rmtree(path, ignore_errors=False, onerror=None, *, onexc=None, dir_fd=None):
+        """Recursively delete a directory tree.
+    
+        If dir_fd is not None, it should be a file descriptor open to a directory;
+        path will then be relative to that directory.
+        dir_fd may not be implemented on your platform.
+        If it is unavailable, using it will raise a NotImplementedError.
+    
+        If ignore_errors is set, errors are ignored; otherwise, if onexc or
+        onerror is set, it is called to handle the error with arguments (func,
+        path, exc_info) where func is platform and implementation dependent;
+        path is the argument to that function that caused it to fail; and
+        the value of exc_info describes the exception. For onexc it is the
+        exception instance, and for onerror it is a tuple as returned by
+        sys.exc_info().  If ignore_errors is false and both onexc and
+        onerror are None, the exception is reraised.
+    
+        onerror is deprecated and only remains for backwards compatibility.
+        If both onerror and onexc are set, onerror is ignored and onexc is used.
+        """
+    
+        sys.audit("shutil.rmtree", path, dir_fd)
+        if ignore_errors:
+            def onexc(*args):
+                pass
+        elif onerror is None and onexc is None:
+            def onexc(*args):
+                raise
+        elif onexc is None:
+            if onerror is None:
+                def onexc(*args):
+                    raise
+            else:
+                # delegate to onerror
+                def onexc(*args):
+                    func, path, exc = args
+                    if exc is None:
+                        exc_info = None, None, None
+                    else:
+                        exc_info = type(exc), exc, exc.__traceback__
+                    return onerror(func, path, exc_info)
+    
+        if _use_fd_functions:
+            # While the unsafe rmtree works fine on bytes, the fd based does not.
+            if isinstance(path, bytes):
+                path = os.fsdecode(path)
+            stack = [(os.lstat, dir_fd, path, None)]
+            try:
+                while stack:
+                    _rmtree_safe_fd(stack, onexc)
+            finally:
+                # Close any file descriptors still on the stack.
+                while stack:
+                    func, fd, path, entry = stack.pop()
+                    if func is not os.close:
+                        continue
+                    try:
+                        os.close(fd)
+                    except OSError as err:
+                        onexc(os.close, path, err)
+        else:
+            if dir_fd is not None:
+                raise NotImplementedError("dir_fd unavailable on this platform")
+            try:
+                if _rmtree_islink(path):
+                    # symlinks to directories are forbidden, see bug #1669
+                    raise OSError("Cannot call rmtree on a symbolic link")
+            except OSError as err:
+                onexc(os.path.islink, path, err)
+                # can't continue even if onexc hook returns
+                return
+&gt;           return _rmtree_unsafe(path, onexc)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:781: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+            os.rmdir(path)
+        except OSError as err:
+&gt;           onexc(os.rmdir, path, err)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:639: PermissionError</error></testcase><testcase classname="tests.test_upgrade_revisions" name="test_invalid_schema_or_existing_output_fails_before_copy" time="0.002"><error message="failed on setup with &quot;PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'&quot;">path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+&gt;           os.rmdir(path)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:637: PermissionError
+
+During handling of the above exception, another exception occurred:
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+ignore_errors = False, onerror = None
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+dir_fd = None
+
+    def rmtree(path, ignore_errors=False, onerror=None, *, onexc=None, dir_fd=None):
+        """Recursively delete a directory tree.
+    
+        If dir_fd is not None, it should be a file descriptor open to a directory;
+        path will then be relative to that directory.
+        dir_fd may not be implemented on your platform.
+        If it is unavailable, using it will raise a NotImplementedError.
+    
+        If ignore_errors is set, errors are ignored; otherwise, if onexc or
+        onerror is set, it is called to handle the error with arguments (func,
+        path, exc_info) where func is platform and implementation dependent;
+        path is the argument to that function that caused it to fail; and
+        the value of exc_info describes the exception. For onexc it is the
+        exception instance, and for onerror it is a tuple as returned by
+        sys.exc_info().  If ignore_errors is false and both onexc and
+        onerror are None, the exception is reraised.
+    
+        onerror is deprecated and only remains for backwards compatibility.
+        If both onerror and onexc are set, onerror is ignored and onexc is used.
+        """
+    
+        sys.audit("shutil.rmtree", path, dir_fd)
+        if ignore_errors:
+            def onexc(*args):
+                pass
+        elif onerror is None and onexc is None:
+            def onexc(*args):
+                raise
+        elif onexc is None:
+            if onerror is None:
+                def onexc(*args):
+                    raise
+            else:
+                # delegate to onerror
+                def onexc(*args):
+                    func, path, exc = args
+                    if exc is None:
+                        exc_info = None, None, None
+                    else:
+                        exc_info = type(exc), exc, exc.__traceback__
+                    return onerror(func, path, exc_info)
+    
+        if _use_fd_functions:
+            # While the unsafe rmtree works fine on bytes, the fd based does not.
+            if isinstance(path, bytes):
+                path = os.fsdecode(path)
+            stack = [(os.lstat, dir_fd, path, None)]
+            try:
+                while stack:
+                    _rmtree_safe_fd(stack, onexc)
+            finally:
+                # Close any file descriptors still on the stack.
+                while stack:
+                    func, fd, path, entry = stack.pop()
+                    if func is not os.close:
+                        continue
+                    try:
+                        os.close(fd)
+                    except OSError as err:
+                        onexc(os.close, path, err)
+        else:
+            if dir_fd is not None:
+                raise NotImplementedError("dir_fd unavailable on this platform")
+            try:
+                if _rmtree_islink(path):
+                    # symlinks to directories are forbidden, see bug #1669
+                    raise OSError("Cannot call rmtree on a symbolic link")
+            except OSError as err:
+                onexc(os.path.islink, path, err)
+                # can't continue even if onexc hook returns
+                return
+&gt;           return _rmtree_unsafe(path, onexc)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:781: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+onexc = functools.partial(&lt;function on_rm_rf_error at 0x000002BB984E53A0&gt;, start_path=WindowsPath('//?/D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261012.2/work/tmp/library-timeout/upgrade-tests-03'))
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.unlink(fullname)
+                except OSError as err:
+                    onexc(os.unlink, fullname, err)
+        try:
+            os.rmdir(path)
+        except OSError as err:
+&gt;           onexc(os.rmdir, path, err)
+E           PermissionError: [WinError 32] 另一个程序正在使用此文件，进程无法访问。: '\\\\?\\D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261012.2\\work\\tmp\\library-timeout\\upgrade-tests-03'
+
+..\..\..\.devtools\python\cpython-3.12-windows-x86_64-none\Lib\shutil.py:639: PermissionError</error></testcase></testsuite></testsuites>

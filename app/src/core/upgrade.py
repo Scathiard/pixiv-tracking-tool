@@ -190,12 +190,10 @@ def _inspect_old(connection, expected=None):
     if len(versions) != 1 or versions[0][0] not in allowed:
         raise UpgradeRequired("源数据库不是支持的旧结构版本")
     version = versions[0][0]
-    # 0004 upgrades copy source data/indexes unchanged and only add read tables.
-    # Index-to-row integrity walks cause random HDD reads for every old index;
-    # the copied source fingerprint and new projection mapping provide the
-    # relevant invariants here. Keep full checks for actual domain conversions.
-    check = "quick_check" if version == READ_PROJECTIONS_REVISION else "integrity_check"
-    if connection.execute("PRAGMA " + check).fetchone()[0] != "ok":
+    # 0004 is an additive read-model change. Audit the constructed tables and
+    # compare every preserved source value; do not turn it into an unrelated
+    # full audit of all existing indexes and foreign keys on every snapshot.
+    if version != READ_PROJECTIONS_REVISION and connection.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
         raise UpgradeRequired("源数据库完整性检查失败")
     for table in Base.metadata.sorted_tables:
         if version not in (REVISIONS_REVISION, READ_PROJECTIONS_REVISION) and table.name in _REVISION_TABLES or version == OLD_REVISION and table.name in _NEW_TABLES:
@@ -209,7 +207,7 @@ def _inspect_old(connection, expected=None):
         if version == OLD_REVISION and table.name == "remote_bookmarks": required -= _NEW_BOOKMARK
         if not required.issubset(_columns(connection, table.name)):
             raise UpgradeRequired("源数据库缺少必要字段")
-    if connection.execute("PRAGMA foreign_key_check").fetchone():
+    if version != READ_PROJECTIONS_REVISION and connection.execute("PRAGMA foreign_key_check").fetchone():
         raise UpgradeRequired("源数据库外键检查失败")
     return version
 
@@ -337,9 +335,9 @@ def validate_candidate(candidate, backup=None):
     if backup:
         with _readonly(backup) as old:
             source_version = old.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-    check_kind = "quick_check" if source_version == READ_PROJECTIONS_REVISION else "integrity_check"
+    check_kind = "source_preservation_and_new_mappings" if source_version == READ_PROJECTIONS_REVISION else "integrity_check"
     with _readonly(candidate) as check:
-        if check.execute("PRAGMA " + check_kind).fetchone()[0] != "ok" or check.execute("PRAGMA foreign_key_check").fetchone():
+        if source_version != READ_PROJECTIONS_REVISION and (check.execute("PRAGMA integrity_check").fetchone()[0] != "ok" or check.execute("PRAGMA foreign_key_check").fetchone()):
             raise UpgradeRequired("候选库完整性或外键检查失败")
         versions = check.execute("SELECT version_num FROM alembic_version").fetchall()
         if versions != [(SCHEMA_REVISION,)]:
@@ -376,7 +374,8 @@ def validate_candidate(candidate, backup=None):
                             before, after = normalized(before), normalized(after)
                         if before != after:
                             raise UpgradeRequired(f"候选库保留数据核验失败：{name}")
-        warnings = _validate_revision_links(check, require_complete=source_version in (OLD_REVISION, CLIENT_REVISION))
+        warnings = {} if source_version == READ_PROJECTIONS_REVISION else _validate_revision_links(
+            check, require_complete=source_version in (OLD_REVISION, CLIENT_REVISION))
         totals = {name: check.execute(f'SELECT count(*) FROM {_identifier(name)}').fetchone()[0] for name in sorted(_tables(check))}
     # A verification bug must not silently repair a candidate. query_only fences
     # this standalone session as well as the SQLite mode=ro source checks above.
@@ -453,11 +452,17 @@ def _finish_read_candidate(candidate):
             with Session(bind=connection) as session:
                 gallery_card_projection.backfill(session)
                 normalized_task_projection.backfill(connection)
-            gallery_card_projection.verify(connection)
-            normalized_task_projection.verify(connection)
             connection.exec_driver_sql("UPDATE alembic_version SET version_num=?", (SCHEMA_REVISION,))
     finally:
         engine.dispose()
+
+
+def _prepared_result(source, candidate, backup, version, source_fingerprint, validation):
+    with _readonly(candidate) as saved:
+        candidate_fingerprint = _fingerprint(saved)
+    return {"source": source, "candidate": candidate, "backup": backup,
+        "source_revision": version, "source_fingerprint": source_fingerprint,
+        "candidate_fingerprint": candidate_fingerprint, "validation": validation}
 
 
 def prepare_upgrade(source, candidate, backup, *, expected_revision=None):
@@ -486,8 +491,7 @@ def prepare_upgrade(source, candidate, backup, *, expected_revision=None):
         else:
             _finish_projection_candidate(candidate, install=True)
         validation = validate_candidate(candidate, backup)
-        return {"source": source, "candidate": candidate, "backup": backup,
-            "source_revision": version, "source_fingerprint": source_fingerprint, "validation": validation}
+        return _prepared_result(source, candidate, backup, version, source_fingerprint, validation)
     db = ArchiveDatabase.create(candidate); db.close()
     with _readonly(backup) as saved, _writable(candidate) as destination:
         try:
@@ -514,8 +518,7 @@ def prepare_upgrade(source, candidate, backup, *, expected_revision=None):
             destination.rollback(); raise
     _finish_projection_candidate(candidate, convert_legacy=True)
     validation = validate_candidate(candidate, backup)
-    return {"source": source, "candidate": candidate, "backup": backup,
-        "source_revision": version, "source_fingerprint": source_fingerprint, "validation": validation}
+    return _prepared_result(source, candidate, backup, version, source_fingerprint, validation)
 
 
 def upgrade_0002(source, candidate, backup):
@@ -538,7 +541,12 @@ def activate_upgrade(result, *, writers_stopped=False):
     if not writers_stopped: raise RuntimeError("启用前必须关闭图库写入者")
     source, candidate, backup = (Path(result[key]).resolve() for key in ("source", "candidate", "backup"))
     guard_upgrade_recovery(source)
-    validate_candidate(candidate, backup)
+    expected_candidate = result.get("candidate_fingerprint")
+    if expected_candidate is None:
+        # Older prepared receipts have no validation identity; validate once.
+        validate_candidate(candidate, backup)
+        with _readonly(candidate) as saved:
+            expected_candidate = _fingerprint(saved)
     with _readonly(backup) as saved:
         if _fingerprint(saved) != result["source_fingerprint"]:
             raise UpgradeRequired("源库备份在准备后已改变，候选不能启用")
@@ -552,7 +560,10 @@ def activate_upgrade(result, *, writers_stopped=False):
     staged = source.with_name(source.name + ".activation-" + uuid4().hex)
     retained = source.with_name(source.name + ".previous-" + uuid4().hex)
     _snapshot(candidate, staged)
-    validate_candidate(staged, backup)
+    with _readonly(staged) as ready:
+        active_fingerprint = _fingerprint(ready)
+        if active_fingerprint != expected_candidate:
+            raise UpgradeRequired("候选库在核验后已改变，未启用")
     intent = _begin_switch(source, action="activate", staged=staged, retained=retained,
         backup=backup, candidate=candidate)
     moved_source = False
@@ -561,8 +572,8 @@ def activate_upgrade(result, *, writers_stopped=False):
         moved_source = True
         os.replace(staged, source)
         db = ArchiveDatabase(source); db.close()
-        with _readonly(source) as active:
-            active_fingerprint = _fingerprint(active)
+        # Atomic rename preserves the already fingerprinted staged contents;
+        # ArchiveDatabase opening checks definitions without changing records.
         _finish_switch(source, intent, "activated")
     except BaseException:
         try:

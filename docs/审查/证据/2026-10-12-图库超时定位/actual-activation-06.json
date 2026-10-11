@@ -1,0 +1,33 @@
+{
+  "recorded_at": "2026-10-12T06:11:12.4150178+08:00",
+  "authorized_upgrade_requested": true,
+  "error_type": "HttpRequestException",
+  "launch_pid": 8400,
+  "normal_mode": true,
+  "startup": {
+    "state": "preparing",
+    "stage": "备份旧库并验证升级候选",
+    "message": null,
+    "can_start": false,
+    "activated": false,
+    "backup": "D:\\PixivTracker\\data\\upgrade\\20261012-061116-b45d8c49e38b\\backup.db",
+    "candidate": "D:\\PixivTracker\\data\\upgrade\\20261012-061116-b45d8c49e38b\\candidate.db",
+    "recovery_required": false
+  },
+  "startup_states": [
+    {
+      "state": "preparing",
+      "stage": "旧图库需要升级",
+      "elapsed_ms": 3624
+    },
+    {
+      "state": "preparing",
+      "stage": "备份旧库并验证升级候选",
+      "elapsed_ms": 13654
+    }
+  ],
+  "initial_state": "required",
+  "error": "由于目标计算机积极拒绝，无法连接。 (127.0.0.1:1919)",
+  "manual_remote_tasks_submitted": 0,
+  "build": "20261012.6"
+}

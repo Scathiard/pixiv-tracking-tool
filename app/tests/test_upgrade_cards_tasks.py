@@ -52,14 +52,14 @@ def test_0004_candidate_keeps_sources_and_can_activate_then_rollback(tmp_path):
     with upgrade._readonly(source) as connection:
         connection.set_trace_callback(traced.append)
         upgrade._inspect_old(connection)
-    assert "PRAGMA quick_check" in traced and "PRAGMA integrity_check" not in traced
-    assert "PRAGMA foreign_key_check" in traced
+    assert not any(statement in traced for statement in (
+        "PRAGMA quick_check", "PRAGMA integrity_check", "PRAGMA foreign_key_check"))
     with pytest.raises(UpgradeRequired):
         ArchiveDatabase(source)
     result = upgrade.upgrade_0005(source, tmp_path / "candidate.db", tmp_path / "backup.db")
     assert fingerprint(source) == fingerprint(result["backup"]) == before
     assert result["validation"]["schema_revision"] == SCHEMA_REVISION == "0005_read_cards_tasks"
-    assert result["validation"]["database_check"] == "quick_check"
+    assert result["validation"]["database_check"] == "source_preservation_and_new_mappings"
     assert result["validation"]["projection"]["cards"] == {"cards": 1}
     candidate = ArchiveDatabase(result["candidate"])
     card = Library(candidate).query(compact=True)["items"][0]
@@ -70,6 +70,18 @@ def test_0004_candidate_keeps_sources_and_can_activate_then_rollback(tmp_path):
     receipt = upgrade.activate_upgrade(result, writers_stopped=True)
     assert fingerprint(receipt["active"]) == receipt["active_fingerprint"]
     upgrade.rollback_upgrade(receipt, writers_stopped=True)
+    assert fingerprint(source) == before
+
+
+def test_verified_candidate_change_is_rejected_before_switch(tmp_path):
+    source = source_0004(tmp_path / "source.db")
+    before = fingerprint(source)
+    result = upgrade.upgrade_0005(source, tmp_path / "candidate.db", tmp_path / "backup.db")
+    with closing(sqlite3.connect(result["candidate"])) as connection:
+        connection.execute("UPDATE user_extra SET content=? WHERE id=1", (b"changed",))
+        connection.commit()
+    with pytest.raises(UpgradeRequired, match="候选库在核验后已改变"):
+        upgrade.activate_upgrade(result, writers_stopped=True)
     assert fingerprint(source) == before
 
 

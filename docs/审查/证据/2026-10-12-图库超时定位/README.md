@@ -29,3 +29,7 @@
 - `actual-activation-05.json`、`read-structure-check-exit.json`、`read-structure-check-exit-followup.json`：`.5`获批升级停在备份前只读核验，正常退出等待后仅结束本轮进程；未产生备份/候选文件、未转换原库。
 - `cards-tasks-upgrade-checks-02.xml`：`.6`仅0004新增读取结构路径采用快速检查，外键、源事实、结构和映射核验仍保留；3项通过（12.81秒），不等同全索引审计。
 - `third-repair-exit.json`：`.4`正常退出，保存结果时旧PowerShell编码失败；耗时只记录工具返回的上界，不伪造精确退出计时。
+- `read-upgrade-stall-05.json`、`read-upgrade-stall-06.json`：两种额外旧库审计停留的线程位置与读取量，不含作品或凭据。
+- `packaged-result-06.json`、`actual-activation-06.json`、`read-structure-check-exit-06.json`、`read-structure-check-exit-followup-06.json`：`.6`隔离包通过，真实升级仍停在备份前；只结束本轮自有只读进程、未转换原库。
+- `cards-tasks-upgrade-checks-03.xml`：测试临时路径同时作为系统临时目录和pytest清理目标，8项均在fixture建立前遇到目录占用；不是业务验证结果。改为两个独立临时路径后用新证据验证，旧失败不覆盖。
+- `cards-tasks-upgrade-checks-04.xml`：8项升级与切换定向回归通过（59.54秒），包含新增读取结构、篡改候选拒绝、失败源保留、旧转换路径、源改变和回退边界；没有跑全量或长测。

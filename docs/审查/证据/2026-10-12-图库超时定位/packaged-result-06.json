@@ -1,0 +1,20 @@
+{
+  "success": true,
+  "normal_exit_ms": 1599,
+  "logged_in": false,
+  "launch_pid": 34868,
+  "startup_ready": true,
+  "process_ids": [
+    34868,
+    46416
+  ],
+  "gallery_count": 0,
+  "build": "20261012.6",
+  "mode": "isolated-offline",
+  "tray_stop_sent": 2,
+  "served_js_sha256": "bac9a095b70d372eeb74162d3b19dfeb141b224e4c36962e9f532ab30b8f51de",
+  "recorded_at": "2026-10-12T06:10:57.6498558+08:00",
+  "gallery_ms": 7,
+  "remaining": [],
+  "real_library_used": false
+}
