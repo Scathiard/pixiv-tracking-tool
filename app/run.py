@@ -17,10 +17,18 @@ if __name__ == "__main__":
             webbrowser.open_new(instance.existing_url())
         else:
             try:
+                from src.core import diagnostics
+                from src.version import DIAGNOSTIC_BUILD, __build__, __version__
+                if DIAGNOSTIC_BUILD or "--diagnostic" in sys.argv:
+                    from src.config import DATA_DIR
+                    diagnostics.start(DATA_DIR, build=__build__, version=__version__)
                 from src.tray import run_tray
-                run_tray(offline="--offline" in sys.argv, instance=instance)
+                with diagnostics.span("application.run", offline="--offline" in sys.argv):
+                    run_tray(offline="--offline" in sys.argv, instance=instance)
             finally:
                 instance.close()
+                from src.core import diagnostics
+                diagnostics.stop()
     except Exception:
         print("\n启动失败：")
         traceback.print_exc()

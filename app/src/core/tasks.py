@@ -10,7 +10,7 @@ import time
 from collections import Counter, deque
 from dataclasses import dataclass, field
 from typing import Protocol
-from datetime import timedelta
+from datetime import datetime, timedelta
 from contextlib import ExitStack, contextmanager
 
 from sqlalchemy import and_, case, event, exists, func, literal_column, or_, select, true, tuple_, union_all
@@ -23,11 +23,36 @@ from ..version import __build__
 from ..request_policy import AccountChanged, RequestDeferred, TaskRemoteRetry
 from .read_control import LocalReadError
 from . import task_read_projection as task_reads
+from . import diagnostics
 
 log = logging.getLogger(__name__)
 SETTLED = ("succeeded", "failed", "skipped", "not_executed")
 ACTIVE = ("queued", "planning", "ready", "running", "interrupted")
 _SOURCE_RESULT = object()
+
+
+def _task_event(event, operation_id=None, item_id=None, **fields):
+    if diagnostics.enabled():
+        diagnostics.emit(event, operation_ref=diagnostics.ref(operation_id) if operation_id is not None else None,
+            item_ref=diagnostics.ref(item_id) if item_id is not None else None, **fields)
+
+
+@contextmanager
+def _task_span(event, operation_id, item_id=None, **fields):
+    if not diagnostics.enabled():
+        yield
+        return
+    with diagnostics.span(event, operation_ref=diagnostics.ref(operation_id),
+            item_ref=diagnostics.ref(item_id) if item_id is not None else None, **fields):
+        yield
+
+
+def _planning_wait(value):
+    # Diagnostic decoding must never change how an existing deferred plan runs.
+    try:
+        return max(0, (datetime.fromisoformat(value) - utcnow()).total_seconds())
+    except (TypeError, ValueError):
+        return None
 
 
 @dataclass(frozen=True)
@@ -103,6 +128,7 @@ class TaskContext:
 
     def mark_remote_attempt(self):
         self.requests_sent += 1
+        _task_event("task.remote_attempt", self.operation_id, self.item_id, requests_sent=self.requests_sent)
 
     def report(self, phase: str, done: int, total: int | None, unit: str, detail: str):
         self.checkpoint()
@@ -454,11 +480,15 @@ class TaskQueue:
         # Parent time records lifecycle events, never per-item display progress.
         # Repeated claims of an already-running parent must not fan out recency.
         first_start = start and operation.started_at is None
+        previous_state = operation.state
         if operation.state != state or first_start:
             operation.updated_at = utcnow()
             if first_start:
                 operation.started_at = operation.updated_at
         operation.state = state
+        if previous_state != state or first_start:
+            _task_event("task.parent_state", operation.id, old_state=previous_state, new_state=state,
+                phase=operation.phase, first_start=first_start, persistence="transaction")
 
     def set_manual_paused(self, operation_id, paused):
         if type(paused) is not bool:
@@ -531,6 +561,9 @@ class TaskQueue:
         if created or promoted or inherited_round:
             self._publish_controls_after_commit(session)
         self._wake.set()
+        _task_event("task.submit", operation.id, kind=kind, source=source, created=created,
+            promoted=promoted, state=operation.state, persistence="transaction",
+            parent_ref=diagnostics.ref(parent_id) if diagnostics.enabled() and parent_id is not None else None)
         return {"operation_id": operation.id, "created": created, "state": operation.state, "round_id": operation.round_id}
 
     def materialize_in_transaction(self, session, operation_id, specs):
@@ -571,6 +604,8 @@ class TaskQueue:
                 progress[key] = {**progress[key], "total": progress[key]["total"] + count}
         if progress:
             operation.result = {**operation.result, "step_progress": progress}
+        _task_event("task.materialize", operation_id, added_count=sum(added.values()),
+            spec_count=len(specs), persistence="transaction")
         self._wake.set()
 
     @classmethod
@@ -616,6 +651,8 @@ class TaskQueue:
             running_ids = select(row_id).select_from(OperationItem).where(OperationItem.state == "running")
             for item in session.scalars(select(OperationItem).where(row_id.in_(running_ids))):
                 item.state = "pending"
+                _task_event("task.item_state", item.operation_id, item.id, old_state="running",
+                    new_state="pending", reason="recovery", attempts=item.attempts, persistence="transaction")
             for operation in session.scalars(self._allowed_query(select(Operation).where(Operation.state.in_(("planning", "running", "interrupted"))))):
                 round_record = session.get(TaskRound, operation.round_id) if operation.round_id else None
                 self._set_operation_state(operation, "planning" if operation.result.get("planning_complete") is False else "ready" if round_record and round_record.frozen_at else "planning")
@@ -632,6 +669,7 @@ class TaskQueue:
         self._thread = self._threads[0]  # Compatibility for older callers.
         for thread in self._threads:
             thread.start()
+        _task_event("task.workers_started", worker_count=len(self._threads), check_workers=self.check_workers)
         self._wake.set()
 
     def request_stop(self):
@@ -640,16 +678,20 @@ class TaskQueue:
         self._stop.set()
         self._clear_byte_attempts()
         self._wake.set()
+        _task_event("task.stop_requested", worker_count=len(self._threads))
 
     def stop(self, timeout=5):
         self.request_stop()
         deadline = None if timeout is None else time.monotonic() + timeout
         for thread in self._threads:
-            thread.join(timeout=None if deadline is None else max(0, deadline - time.monotonic()))
+            with _task_span("task.worker_join", None, worker=thread.name, timeout_seconds=timeout):
+                thread.join(timeout=None if deadline is None else max(0, deadline - time.monotonic()))
+        _task_event("task.stop_result", alive_count=sum(thread.is_alive() for thread in self._threads))
         return not any(thread.is_alive() for thread in self._threads)
 
     def _worker(self, lane):
         from ..request_policy import ShutdownRequested
+        _task_event("task.worker_enter", lane=lane)
         while not self._stop.is_set():
             try:
                 if not self.database.background_can_advance():
@@ -670,15 +712,18 @@ class TaskQueue:
                 self._wake.wait(0.1)
                 self._wake.clear()
             except ShutdownRequested:
+                _task_event("task.worker_exit", lane=lane, reason="shutdown")
                 return
             except LocalReadError:
                 # Local capacity/budget is expected pressure, not corrupt state.
                 self._wake.wait(0.1)
             except Exception as exc:
+                _task_event("task.worker_error", lane=lane, exception_type=type(exc).__name__)
                 self.worker_error = type(exc).__name__
                 log.error("任务执行器中断，未完成记录已保留", exc_info=False)
                 self._stop.set()
                 self._clear_byte_attempts()
+        _task_event("task.worker_exit", lane=lane, reason="stop")
 
     @staticmethod
     def _lane(item):
@@ -745,7 +790,8 @@ class TaskQueue:
     def _step(self, lane, round_id=None):
         background_tokens = []
         try:
-            return self._step_candidate(lane, round_id, background_tokens)
+            with _task_span("task.scheduler_step", None, lane=lane):
+                return self._step_candidate(lane, round_id, background_tokens)
         finally:
             for token in background_tokens:
                 self.database.finish_background_step(token)
@@ -815,6 +861,9 @@ class TaskQueue:
                 if lane == "check" and operation.id in planning | checking:
                     continue
                 not_before = operation.result.get("planning_not_before")
+                if diagnostics.enabled() and not_before and not_before > utcnow().isoformat():
+                    _task_event("task.plan_not_before", operation.id, lane=lane, state=operation.state,
+                        reason="planning_deferred", wait_seconds=_planning_wait(not_before))
                 plan_ready = (lane == "check" and operation.round_id is not None and self._needs_planning(operation)
                     and not (not_before and not_before > utcnow().isoformat()))
                 if plan_ready:
@@ -846,6 +895,12 @@ class TaskQueue:
                     after = items[-1].position
                     epoch = self._advance_candidate_cursor(cursor_key, epoch, after)
                     now = utcnow()
+                    if diagnostics.enabled():
+                        delayed = [item for item in items if item.not_before is not None and item.not_before > now]
+                        if delayed:
+                            _task_event("task.item_not_before", operation.id, lane=lane,
+                                delayed_count=len(delayed), window_count=len(items),
+                                wait_seconds=min((item.not_before - now).total_seconds() for item in delayed))
                     eligible = [item for item in items if (item.lane == lane or item.lane is None and self._lane(item) == lane)
                         and (item.not_before is None or item.not_before <= now)]
                     keys = list({key for item in eligible for key in item.depends_on})
@@ -952,6 +1007,9 @@ class TaskQueue:
                             self._candidate_after.pop((operation.id, lane), None)
                             self._candidate_epochs[operation.id, lane] = self._candidate_epochs.get((operation.id, lane), 0) + 1
                         item.state, item.attempts = "running", item.attempts + 1
+                        _task_event("task.item_state", operation.id, item.id, old_state="pending",
+                            new_state="running", lane=lane, phase=item.phase, attempts=item.attempts,
+                            persistence="transaction")
                         self._set_operation_state(operation, "running", start=True)
                         operation.result = {**operation.result, "lane": lane}
                         claim = ("item", operation.id, item, resource, any(states.get(key) != "succeeded" for key in item.depends_on))
@@ -963,7 +1021,9 @@ class TaskQueue:
                     if candidate[0] != "plan":
                         operation.last_claim_seq = sequence
                     break
-        except BaseException:
+        except BaseException as exc:
+            _task_event("task.claim_rollback", claim[1] if claim else None, lane=lane,
+                exception_type=type(exc).__name__)
             if claim is not None:
                 with self._scheduler_lock:
                     if claim[0] == "plan":
@@ -987,10 +1047,17 @@ class TaskQueue:
             (time.monotonic() - started) * 1000, (time.monotonic() - write_started) * 1000)
         if claim is None:
             return False
+        _task_event("task.claim_committed", claim[1], claim[2].id if claim[0] == "item" else None,
+            lane=lane, claim_type=claim[0], attempts=claim[2].attempts if claim[0] == "item" else None,
+            phase=claim[2].phase if claim[0] == "item" else "checking",
+            elapsed_ms=(time.monotonic() - started) * 1000,
+            write_ms=(time.monotonic() - write_started) * 1000)
         if claim[0] == "plan":
             try:
                 self._plan(claim[1])
-            except LocalReadError:
+            except LocalReadError as exc:
+                _task_event("task.plan_deferred", claim[1], reason=type(exc).__name__,
+                    expected_delay_seconds=0.2)
                 self._defer_plan(claim[1], 0.2, "等待本地读取容量")
             finally:
                 with self._scheduler_lock:
@@ -999,7 +1066,9 @@ class TaskQueue:
         _, operation_id, item, resource, dependency_failed = claim
         try:
             self._execute_item(operation_id, item, dependency_failed, progress_prepared=True)
-        except LocalReadError:
+        except LocalReadError as exc:
+            _task_event("task.item_deferred", operation_id, item.id, reason=type(exc).__name__,
+                expected_delay_seconds=0.2, refund_attempt=True)
             self._defer_item(item.id, operation_id, 0.2, "等待本地读取容量", refund_attempt=True)
         finally:
             with self._scheduler_lock:
@@ -1080,7 +1149,7 @@ class TaskQueue:
         try:
             context.checkpoint()
             handler = self.handlers[kind]
-            with self._handler_scope(handler, context):
+            with _task_span("task.plan_handler", operation_id, lane="check", kind=kind), self._handler_scope(handler, context):
                 if callable(getattr(handler, "plan_batch", None)):
                     with self.database.read() as session:
                         cursor = dict(session.get(Operation, operation_id).result.get("planning_cursor", {}))
@@ -1094,10 +1163,13 @@ class TaskQueue:
                     raise ValueError("清单重复或依赖顺序不合法")
                 seen.add(spec.key)
         except (AccountChanged, RequestDeferred, LocalReadError) as exc:
+            _task_event("task.plan_deferred", operation_id, reason=type(exc).__name__,
+                expected_delay_seconds=getattr(exc, "retry_after", 0.2), requests_sent=context.requests_sent)
             self._defer_plan(operation_id, getattr(exc, "retry_after", 0.2),
                 getattr(exc, "user_message", "等待本地容量或新的账号连接"))
             return False
-        except (ShutdownRequested, ManualPauseRequested, ConnectionRequired):
+        except (ShutdownRequested, ManualPauseRequested, ConnectionRequired) as exc:
+            _task_event("task.plan_interrupted", operation_id, reason=type(exc).__name__, requests_sent=context.requests_sent)
             with self.database.write() as session:
                 operation = session.get(Operation, operation_id)
                 self._set_operation_state(operation, "interrupted" if self._stop.is_set() else "planning")
@@ -1108,12 +1180,16 @@ class TaskQueue:
                 return False
             if isinstance(exc, TaskRemoteRetry):
                 exc = exc.error
+            _task_event("task.plan_error", operation_id, exception_type=type(exc).__name__, requests_sent=context.requests_sent)
             failure = safe_failure(exc)
             if failure.get("retryable"):
                 with self.database.read() as session:
                     attempts = session.get(Operation, operation_id).result.get("planning_retry_attempts", 0)
                 unsent = failure.get("status") is None and failure.get("failure_code") in ("api_rate_limit", "image_rate_limit")
                 if unsent or attempts < 2:
+                    _task_event("task.plan_retry_scheduled", operation_id, attempts=attempts,
+                        status_code=failure.get("status"), unsent=unsent,
+                        expected_delay_seconds=failure.get("retry_after") or 2 ** (attempts + 1))
                     self._defer_plan(operation_id, failure.get("retry_after") or 2 ** (attempts + 1),
                         "远端暂时未响应，清单进度已保存", retry_attempts=attempts + int(not unsent))
                     return False
@@ -1136,6 +1212,8 @@ class TaskQueue:
                 with self._scheduler_lock:
                     operation.last_claim_seq = self._claim_sequence
             self._finalize(session, [operation_id])
+        _task_event("task.plan_committed", operation_id, spec_count=len(specs), complete=complete,
+            failed=failure is not None, requests_sent=context.requests_sent)
         return True
 
     def run_round(self) -> bool:
@@ -1225,8 +1303,10 @@ class TaskQueue:
     def _execute_item(self, operation_id, item, dependency_failed=False, *, progress_prepared=False):
         token = self._begin_byte_attempt(operation_id, item)
         try:
-            return self._execute_item_attempt(operation_id, item, dependency_failed,
-                progress_prepared=progress_prepared, byte_token=token)
+            with _task_span("task.item_execute", operation_id, item.id, lane=self._lane(item),
+                    phase=item.phase, item_kind=item.kind, attempts=item.attempts, dependency_failed=dependency_failed):
+                return self._execute_item_attempt(operation_id, item, dependency_failed,
+                    progress_prepared=progress_prepared, byte_token=token)
         finally:
             self._end_byte_attempt(item.id, token)
 
@@ -1245,6 +1325,7 @@ class TaskQueue:
             else:
                 context.report_step(item.phase, item.unit)
         except (ShutdownRequested, ManualPauseRequested, ConnectionRequired) as exc:
+            _task_event("task.item_interrupted", operation_id, item.id, reason=type(exc).__name__, requests_sent=context.requests_sent)
             self._interrupt_item(item.id, operation_id, refund_attempt=isinstance(exc, ConnectionRequired))
             return
         if dependency_failed:
@@ -1257,14 +1338,19 @@ class TaskQueue:
             try:
                 spec = ItemSpec(item.item_key, item.kind, item.target, item.phase, item.unit, tuple(item.depends_on))
                 handler = self.handlers[kind]
-                with self._handler_scope(handler, context):
+                with _task_span("task.item_handler", operation_id, item.id, lane=self._lane(item),
+                        phase=item.phase, item_kind=item.kind, attempts=item.attempts), self._handler_scope(handler, context):
                     result = handler.execute(spec, context)
                 if not isinstance(result, ItemResult) or result.state not in SETTLED and not (item.kind == "bookmark_artist" and result.state == "yielded"):
                     raise TypeError("任务必须返回明确的处理结果")
             except (ShutdownRequested, ManualPauseRequested, ConnectionRequired) as exc:
+                _task_event("task.item_interrupted", operation_id, item.id, reason=type(exc).__name__, requests_sent=context.requests_sent)
                 self._interrupt_item(item.id, operation_id, refund_attempt=isinstance(exc, ConnectionRequired))
                 return
             except (AccountChanged, RequestDeferred, LocalReadError) as exc:
+                _task_event("task.item_deferred", operation_id, item.id, reason=type(exc).__name__,
+                    expected_delay_seconds=getattr(exc, "retry_after", 0.2), requests_sent=context.requests_sent,
+                    attempts=item.attempts, refund_attempt=isinstance(exc, AccountChanged) or context.requests_sent == 0)
                 self._defer_item(item.id, operation_id, getattr(exc, "retry_after", 0.2),
                     getattr(exc, "user_message", "等待本地容量或新的账号连接"),
                     refund_attempt=isinstance(exc, AccountChanged) or context.requests_sent == 0,
@@ -1273,12 +1359,17 @@ class TaskQueue:
             except (Exception, TaskRemoteRetry) as exc:
                 if isinstance(exc, TaskRemoteRetry):
                     exc = exc.error
+                _task_event("task.item_error", operation_id, item.id, exception_type=type(exc).__name__,
+                    requests_sent=context.requests_sent, attempts=item.attempts)
                 if not self.kind_allowed(kind):
                     self._interrupt_item(item.id, operation_id, refund_attempt=True)
                     return
                 detail = safe_failure(exc)
                 unsent = detail.get("status") is None and detail.get("failure_code") in ("api_rate_limit", "image_rate_limit")
                 if detail.get("retryable") and (unsent or item.attempts < 3):
+                    _task_event("task.item_retry_scheduled", operation_id, item.id, attempts=item.attempts,
+                        status_code=detail.get("status"), unsent=unsent,
+                        expected_delay_seconds=detail.get("retry_after") or 2 ** item.attempts)
                     self._defer_item(item.id, operation_id, detail.get("retry_after") or 2 ** item.attempts,
                         "远端暂时未响应，已保存进度，等待重试", refund_attempt=unsent, detail=detail)
                     return
@@ -1289,6 +1380,7 @@ class TaskQueue:
                 stored.state, stored.result = "pending", result.detail
                 stored.attempts = 0  # Retry budget belongs to the next persisted page.
                 stored.not_before = None
+            _task_event("task.item_yielded", operation_id, item.id, new_state="pending", attempts=0)
             return
         with self.database.write() as session:
             stored = session.get(OperationItem, item.id)
@@ -1311,6 +1403,9 @@ class TaskQueue:
             operation.result = {**{k: v for k, v in operation.result.items() if k != "current_item"}, "current_items": current_items, "phase_snapshots": snapshots}
             if current_items:
                 operation.result = {**operation.result, "current_item": next(iter(current_items.values()))}
+        _task_event("task.item_settled", operation_id, item.id, old_state=previous_state,
+            new_state=result.state, lane=self._lane(item), phase=item.phase, attempts=item.attempts,
+            requests_sent=context.requests_sent)
 
     def _defer_plan(self, operation_id, seconds, message, *, retry_attempts=None):
         with self.database.write() as session:
@@ -1321,6 +1416,8 @@ class TaskQueue:
             if retry_attempts is not None:
                 result["planning_retry_attempts"] = retry_attempts
             operation.result = result
+        _task_event("task.plan_delay_committed", operation_id, expected_delay_seconds=seconds,
+            retry_attempts=retry_attempts)
 
     def _defer_item(self, item_id, operation_id, seconds, message, *, refund_attempt=False, detail=None):
         self._interrupt_item(item_id, operation_id, refund_attempt=refund_attempt,
@@ -1329,6 +1426,7 @@ class TaskQueue:
     def _interrupt_item(self, item_id, operation_id, *, refund_attempt=False, not_before=None, message=None, detail=None):
         with self.database.write() as session:
             item = session.get(OperationItem, item_id)
+            previous_state, previous_attempts = item.state, item.attempts
             item.state, item.not_before = "pending", not_before
             if detail is not None:
                 item.result = {**item.result, **detail}
@@ -1343,6 +1441,11 @@ class TaskQueue:
             current_items.pop(item_id, None)
             operation.result = {**{key: value for key, value in operation.result.items() if key != "current_item"},
                                 "current_items": current_items}
+        _task_event("task.item_delay_committed" if not_before is not None else "task.item_interrupt_committed",
+            operation_id, item_id, old_state=previous_state, new_state="pending",
+            previous_attempts=previous_attempts, attempts=item.attempts, refund_attempt=refund_attempt,
+            parent_state=operation.state, phase=item.phase, lane=self._lane(item),
+            wait_seconds=max(0, (not_before - utcnow()).total_seconds()) if not_before is not None else None)
 
     def _finalize(self, session, operation_ids):
         session.flush()
@@ -1388,6 +1491,10 @@ class TaskQueue:
             operation.needs_attention = result in ("partial_failure", "failed")
             self._set_operation_state(operation, "finished")
             operation.finished_at = operation.updated_at
+            _task_event("task.parent_settled", operation_id, outcome=result,
+                succeeded_count=combined.get("succeeded", 0), failed_count=combined.get("failed", 0),
+                skipped_count=combined.get("skipped", 0), not_executed_count=combined.get("not_executed", 0),
+                persistence="transaction")
             phase_keys = tuple(operation.result.get("step_progress", {}))
             with self._scheduler_lock:
                 self._check_turns.pop(operation_id, None)

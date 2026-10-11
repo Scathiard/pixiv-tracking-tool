@@ -10,6 +10,8 @@ its direct candidate and changed fallback facts.
 """
 from __future__ import annotations
 
+from . import diagnostics
+
 import json
 import math
 import re
@@ -293,15 +295,17 @@ def _direct_candidate(connection, row, operation, *, dry_run=False):
 
 
 def reconcile_item(connection, item_id):
-    affected = _remove_candidates(connection, item_id=item_id)
-    row = connection.exec_driver_sql(_DIRECT_SQL.format(predicate="i.id=?"), (item_id,)).mappings().first()
-    if row is not None:
-        operation = _operation(connection, row["operation_id"])
-        if operation is not None and operation["kind"] in LOCAL_KINDS:
-            identity = _direct_candidate(connection, row, operation)
-            if identity is not None:
-                affected.add(identity)
-    return affected
+    with diagnostics.span("projection.item.reconcile", item=diagnostics.ref(item_id)) as detail:
+        affected = _remove_candidates(connection, item_id=item_id)
+        row = connection.exec_driver_sql(_DIRECT_SQL.format(predicate="i.id=?"), (item_id,)).mappings().first()
+        if row is not None:
+            operation = _operation(connection, row["operation_id"])
+            if operation is not None and operation["kind"] in LOCAL_KINDS:
+                identity = _direct_candidate(connection, row, operation)
+                if identity is not None:
+                    affected.add(identity)
+        detail['affected_count'] = len(affected)
+        return affected
 
 
 def _scope_values(connection, operation_id, *, members=None):
@@ -331,45 +335,53 @@ def _scope_values(connection, operation_id, *, members=None):
 
 
 def reconcile_scope(connection, operation_id, *, membership_unchanged=False):
-    previous = set(connection.exec_driver_sql('SELECT work_id FROM read_operation_scope WHERE operation_id=?', (operation_id,)).scalars())
-    candidate_id = 'scope:' + operation_id
-    old = {row[0]: tuple(row[1:]) for row in connection.exec_driver_sql("""SELECT c.work_id,c.priority,c.created_at,c.updated_at,
+    with diagnostics.span("projection.scope.reconcile", operation=diagnostics.ref(operation_id), membership_unchanged=membership_unchanged) as detail:
+        previous = set(connection.exec_driver_sql('SELECT work_id FROM read_operation_scope WHERE operation_id=?', (operation_id,)).scalars())
+        candidate_id = 'scope:' + operation_id
+        old = {row[0]: tuple(row[1:]) for row in connection.exec_driver_sql("""SELECT c.work_id,c.priority,c.created_at,c.updated_at,
         c.failure_priority,c.position,c.operation_id,c.item_id,c.payload
         FROM read_operation_scope s CROSS JOIN read_task_candidates c
         WHERE s.operation_id=? AND c.work_id=s.work_id AND c.candidate_id=?""", (operation_id, candidate_id))}
-    members, values = _scope_values(connection, operation_id,
-        members=previous if membership_unchanged else None)
-    removed, added = previous - members, members - previous
-    if removed:
-        connection.exec_driver_sql('DELETE FROM read_operation_scope WHERE operation_id=? AND work_id=?',
-            [(operation_id, value) for value in sorted(removed)])
-    if added:
-        connection.exec_driver_sql('INSERT INTO read_operation_scope VALUES(?,?)',
-            [(operation_id, value) for value in sorted(added)])
-    expected = None if values is None else tuple(values[key] for key in
-        ('priority', 'created_at', 'updated_at', 'failure_priority', 'position', 'operation_id', 'item_id')) + (json.dumps(values['payload'], ensure_ascii=False),)
-    affected = set()
-    for work_id in set(old) | (members if values is not None else set()):
-        new = expected if work_id in members else None
-        if old.get(work_id) == new:
-            continue
-        if new is None:
-            connection.exec_driver_sql('DELETE FROM read_task_candidates WHERE work_id=? AND candidate_id=?', (work_id, candidate_id))
-        else:
-            store.task_fact(connection, work_id, candidate_id, **values)
-        affected.add(work_id)
-    return affected
+        members, values = _scope_values(connection, operation_id,
+            members=previous if membership_unchanged else None)
+        removed, added = previous - members, members - previous
+        detail.update(previous_count=len(previous), member_count=len(members),
+            candidate_count=len(old), removed_count=len(removed), added_count=len(added))
+        if removed:
+            connection.exec_driver_sql('DELETE FROM read_operation_scope WHERE operation_id=? AND work_id=?',
+                [(operation_id, value) for value in sorted(removed)])
+        if added:
+            connection.exec_driver_sql('INSERT INTO read_operation_scope VALUES(?,?)',
+                [(operation_id, value) for value in sorted(added)])
+        expected = None if values is None else tuple(values[key] for key in
+            ('priority', 'created_at', 'updated_at', 'failure_priority', 'position', 'operation_id', 'item_id')) + (json.dumps(values['payload'], ensure_ascii=False),)
+        affected = set()
+        for work_id in set(old) | (members if values is not None else set()):
+            new = expected if work_id in members else None
+            if old.get(work_id) == new:
+                continue
+            if new is None:
+                connection.exec_driver_sql('DELETE FROM read_task_candidates WHERE work_id=? AND candidate_id=?', (work_id, candidate_id))
+            else:
+                store.task_fact(connection, work_id, candidate_id, **values)
+            affected.add(work_id)
+        detail['affected_count'] = len(affected)
+        return affected
 
 
 def reconcile_operation(connection, operation_id):
-    affected = _remove_candidates(connection, operation_id=operation_id)
-    operation = _operation(connection, operation_id)
-    if operation is not None and operation["kind"] in LOCAL_KINDS:
-        for row in connection.exec_driver_sql(_DIRECT_SQL.format(predicate="i.operation_id=?"), (operation_id,)).mappings():
-            identity = _direct_candidate(connection, row, operation)
-            if identity is not None:
-                affected.add(identity)
-    return affected | reconcile_scope(connection, operation_id)
+    with diagnostics.span("projection.operation.reconcile", operation=diagnostics.ref(operation_id)) as detail:
+        affected = _remove_candidates(connection, operation_id=operation_id)
+        operation = _operation(connection, operation_id)
+        if operation is not None and operation["kind"] in LOCAL_KINDS:
+            for row in connection.exec_driver_sql(_DIRECT_SQL.format(predicate="i.operation_id=?"), (operation_id,)).mappings():
+                identity = _direct_candidate(connection, row, operation)
+                if identity is not None:
+                    affected.add(identity)
+        detail['direct_affected_count'] = len(affected)
+        result = affected | reconcile_scope(connection, operation_id)
+        detail['affected_count'] = len(result)
+        return result
 
 
 def _histories(connection, work_ids):
@@ -598,79 +610,92 @@ def reconcile_works(session, work_ids, *, resource_ids=None, display_ids=None, r
     Task and ledger changes use persistent totals and indexed winners. Explicit
     rebuild callers leave resource_ids unspecified to refresh all current scopes.
     """
-    ids = sorted(set(work_ids))
-    if not ids:
-        return
-    if len(ids) > 200:
-        for start in range(0, len(ids), 200):
-            reconcile_works(session, ids[start:start + 200], resource_ids=resource_ids, display_ids=display_ids, raw_state_reader=raw_state_reader)
-        return
-    resources = set(ids) if resource_ids is None else resource_ids
-    displays = set(ids) if display_ids is None else set(display_ids)
-    connection = session.connection()
-    fields = (Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title, Work.type, Work.page_count,
-        Work.posted_at, Work.downloaded_at, Work.default_revision_id, Work.latest_revision_id)
-    works = {work.id: work for work in session.scalars(select(Work).where(Work.id.in_(ids))
-        .options(load_only(*fields, raiseload=True)).execution_options(populate_existing=True))}
-    selected_source_ids = sorted(set(works) & displays)
-    if selected_source_ids:
-        for work_id, metadata in session.execute(select(Work.id, Work.source_metadata).where(Work.id.in_(selected_source_ids))):
-            set_committed_value(works[work_id], 'source_metadata', metadata)
-    hidden = set(session.scalars(select(LocalPreference.work_id).where(LocalPreference.work_id.in_(ids), LocalPreference.is_hidden.is_(True))))
-    favorites = set(session.scalars(select(RemoteBookmark.work_id).where(RemoteBookmark.work_id.in_(ids), RemoteBookmark.value.is_(True))))
-    suppressed = set(session.scalars(select(Work.id).join(ArchiveIntent, ArchiveIntent.pixiv_illust_id == Work.pixiv_illust_id).where(Work.id.in_(ids), ArchiveIntent.mode == 'suppressed')))
-    for work in works.values():
-        if work.id in resources:
-            _work_resources(connection, work)
-    states = _current_states(session, works, source_ids=displays)
-    for work_id in ids:
-        work = works.get(work_id)
-        if work is None:
-            store.work_fact(connection, work_id)
-            connection.exec_driver_sql('DELETE FROM read_work_state WHERE work_id=?', (work_id,))
-            _drop_scope(connection, f"work:{work_id}")
-            continue
-        store.work_fact(connection, work.id, order_key=work.posted_at.isoformat() if work.posted_at else '',
-            visible=work.id not in hidden and work.id not in suppressed, artist_id=work.artist_id,
-            work_type=work.type, favorite=work.id in favorites, title=work.title,
-            added_key=work.downloaded_at.isoformat())
-        connection.exec_driver_sql('INSERT INTO read_work_state VALUES(?,?) ON CONFLICT(work_id) DO UPDATE SET value=excluded.value',
-            (work.id, json.dumps(states[work.id], ensure_ascii=False)))
+    with diagnostics.span("projection.work.batch") as detail:
+        ids = sorted(set(work_ids))
+        detail['count'] = len(ids)
+        if not ids:
+            return
+        if len(ids) > 200:
+            for start in range(0, len(ids), 200):
+                reconcile_works(session, ids[start:start + 200], resource_ids=resource_ids, display_ids=display_ids, raw_state_reader=raw_state_reader)
+            return
+        resources = set(ids) if resource_ids is None else resource_ids
+        displays = set(ids) if display_ids is None else set(display_ids)
+        detail.update(resource_count=len(resources), display_count=len(displays))
+        connection = session.connection()
+        fields = (Work.id, Work.pixiv_illust_id, Work.artist_id, Work.title, Work.type, Work.page_count,
+            Work.posted_at, Work.downloaded_at, Work.default_revision_id, Work.latest_revision_id)
+        works = {work.id: work for work in session.scalars(select(Work).where(Work.id.in_(ids))
+            .options(load_only(*fields, raiseload=True)).execution_options(populate_existing=True))}
+        selected_source_ids = sorted(set(works) & displays)
+        if selected_source_ids:
+            with diagnostics.span("projection.work.display", count=len(selected_source_ids)):
+                for work_id, metadata in session.execute(select(Work.id, Work.source_metadata).where(Work.id.in_(selected_source_ids))):
+                    set_committed_value(works[work_id], 'source_metadata', metadata)
+        hidden = set(session.scalars(select(LocalPreference.work_id).where(LocalPreference.work_id.in_(ids), LocalPreference.is_hidden.is_(True))))
+        favorites = set(session.scalars(select(RemoteBookmark.work_id).where(RemoteBookmark.work_id.in_(ids), RemoteBookmark.value.is_(True))))
+        suppressed = set(session.scalars(select(Work.id).join(ArchiveIntent, ArchiveIntent.pixiv_illust_id == Work.pixiv_illust_id).where(Work.id.in_(ids), ArchiveIntent.mode == 'suppressed')))
+        for work in works.values():
+            if work.id in resources:
+                with diagnostics.span("projection.work.resources", work=diagnostics.ref(work.id)):
+                    _work_resources(connection, work)
+        with diagnostics.span("projection.work.states", count=len(works)):
+            states = _current_states(session, works, source_ids=displays)
+        for work_id in ids:
+            work = works.get(work_id)
+            if work is None:
+                store.work_fact(connection, work_id)
+                connection.exec_driver_sql('DELETE FROM read_work_state WHERE work_id=?', (work_id,))
+                _drop_scope(connection, f"work:{work_id}")
+                continue
+            store.work_fact(connection, work.id, order_key=work.posted_at.isoformat() if work.posted_at else '',
+                visible=work.id not in hidden and work.id not in suppressed, artist_id=work.artist_id,
+                work_type=work.type, favorite=work.id in favorites, title=work.title,
+                added_key=work.downloaded_at.isoformat())
+            connection.exec_driver_sql('INSERT INTO read_work_state VALUES(?,?) ON CONFLICT(work_id) DO UPDATE SET value=excluded.value',
+                (work.id, json.dumps(states[work.id], ensure_ascii=False)))
 
 def reconcile_revisions(session, revision_ids, *, resource_ids=None, raw_revision_reader=None):
-    connection = session.connection()
-    resources = None if resource_ids is None else set(resource_ids)
-    for revision_id in sorted(set(revision_ids)):
-        statement = select(WorkRevision).where(WorkRevision.id == revision_id)
-        if raw_revision_reader is None:
-            statement = statement.options(load_only(WorkRevision.id, WorkRevision.work_id,
-                WorkRevision.type, WorkRevision.page_count, raiseload=True))
-        revision = session.scalar(statement.execution_options(populate_existing=True))
-        if revision is None:
-            connection.exec_driver_sql('DELETE FROM read_revision_state WHERE revision_id=?', (revision_id,))
-            _drop_scope(connection, "revision:" + revision_id)
-            continue
-        if resources is None or revision.id in resources:
-            _revision_resources(connection, revision)
-        row = connection.exec_driver_sql('SELECT recorded,verified,missing FROM read_resource_totals WHERE scope=?', ('revision:' + revision.id,)).first()
-        recorded, verified, bad = tuple(row) if row else (0, 0, 0)
-        total = 2 if revision.type == 'ugoira' else revision.page_count
-        missing = bad + max(0, total - recorded)
-        unknown = max(0, total - verified - missing)
-        value = {'state': 'partial' if missing else 'unknown' if unknown else 'complete',
-            'total': total, 'verified': verified, 'missing': missing, 'unknown': unknown}
-        if raw_revision_reader is not None:
-            value = raw_revision_reader(session, revision)
-        connection.exec_driver_sql('INSERT INTO read_revision_state VALUES(?,?) ON CONFLICT(revision_id) DO UPDATE SET value=excluded.value',
-            (revision.id, json.dumps(value, ensure_ascii=False)))
+    with diagnostics.span("projection.revision.batch") as detail:
+        connection = session.connection()
+        resources = None if resource_ids is None else set(resource_ids)
+        ids = sorted(set(revision_ids))
+        detail.update(count=len(ids), resource_count=None if resources is None else len(resources))
+        for revision_id in ids:
+            statement = select(WorkRevision).where(WorkRevision.id == revision_id)
+            if raw_revision_reader is None:
+                statement = statement.options(load_only(WorkRevision.id, WorkRevision.work_id,
+                    WorkRevision.type, WorkRevision.page_count, raiseload=True))
+            revision = session.scalar(statement.execution_options(populate_existing=True))
+            if revision is None:
+                connection.exec_driver_sql('DELETE FROM read_revision_state WHERE revision_id=?', (revision_id,))
+                _drop_scope(connection, "revision:" + revision_id)
+                continue
+            if resources is None or revision.id in resources:
+                with diagnostics.span("projection.revision.resources", revision=diagnostics.ref(revision.id)):
+                    _revision_resources(connection, revision)
+            row = connection.exec_driver_sql('SELECT recorded,verified,missing FROM read_resource_totals WHERE scope=?', ('revision:' + revision.id,)).first()
+            recorded, verified, bad = tuple(row) if row else (0, 0, 0)
+            total = 2 if revision.type == 'ugoira' else revision.page_count
+            missing = bad + max(0, total - recorded)
+            unknown = max(0, total - verified - missing)
+            value = {'state': 'partial' if missing else 'unknown' if unknown else 'complete',
+                'total': total, 'verified': verified, 'missing': missing, 'unknown': unknown}
+            if raw_revision_reader is not None:
+                value = raw_revision_reader(session, revision)
+            connection.exec_driver_sql('INSERT INTO read_revision_state VALUES(?,?) ON CONFLICT(revision_id) DO UPDATE SET value=excluded.value',
+                (revision.id, json.dumps(value, ensure_ascii=False)))
 
 
 
 def maintain_projections(session):
     """Consume this writer's trigger queue before commit; never commits itself."""
-    session.flush()
+    with diagnostics.span("projection.flush"):
+        session.flush()
     connection = session.connection()
-    dirty = connection.exec_driver_sql('SELECT entity,identity FROM read_model_dirty').all()
+    with diagnostics.span("projection.dirty") as detail:
+        dirty = connection.exec_driver_sql('SELECT entity,identity FROM read_model_dirty').all()
+        detail['count'] = len(dirty)
     if not dirty:
         return {"works": 0, "revisions": 0, "operations": 0, "items": 0}
     entities = {}
@@ -681,34 +706,47 @@ def maintain_projections(session):
         raise store.ProjectionUnavailable('unrecognized dirty source identity; explicit repair is required')
     works = {int(value) for value in entities.get("work", ())}
     operations = entities.get("operation", set())
-    for operation_id in sorted(operations):
-        works.update(reconcile_operation(connection, operation_id))
-    for item_id in sorted(entities.get("item", ())):
-        works.update(reconcile_item(connection, item_id))
-    for operation_id in sorted(entities.get("scope", set()) - operations):
-        works.update(reconcile_scope(connection, operation_id, membership_unchanged=True))
+    with diagnostics.span("projection.operations", count=len(operations)) as detail:
+        for operation_id in sorted(operations):
+            works.update(reconcile_operation(connection, operation_id))
+        detail['affected_count'] = len(works)
+    with diagnostics.span("projection.items", count=len(entities.get("item", ()))):
+        for item_id in sorted(entities.get("item", ())):
+            works.update(reconcile_item(connection, item_id))
+    with diagnostics.span("projection.scopes", count=len(entities.get("scope", set()) - operations)):
+        for operation_id in sorted(entities.get("scope", set()) - operations):
+            works.update(reconcile_scope(connection, operation_id, membership_unchanged=True))
     resources = {int(value) for value in entities.get("resource_work", ())}
-    physical_works, physical_revisions = reconcile_physical_resources(connection,
-        entities.get('physical_asset', ()), entities.get('physical_derivative', ()))
+    with diagnostics.span("projection.physical", asset_count=len(entities.get('physical_asset', ())),
+            derivative_count=len(entities.get('physical_derivative', ()))) as detail:
+        physical_works, physical_revisions = reconcile_physical_resources(connection,
+            entities.get('physical_asset', ()), entities.get('physical_derivative', ()))
+        detail.update(work_count=len(physical_works), revision_count=len(physical_revisions))
     works.update(physical_works)
     displays = resources | {int(value) for value in entities.get('source_work', ())} | {int(value) for value in entities.get('display_work', ())}
     works.update(resources)
     works.update(displays)
-    reconcile_works(session, works, resource_ids=resources, display_ids=displays)
+    with diagnostics.span("projection.works", count=len(works), resource_count=len(resources), display_count=len(displays)):
+        reconcile_works(session, works, resource_ids=resources, display_ids=displays)
     revision_resources = entities.get("revision", set())
     revisions = revision_resources | physical_revisions
-    reconcile_revisions(session, revisions, resource_ids=revision_resources)
-    for revision_id in entities.get('lifecycle_revision', set()) - revision_resources:
-        revision = session.scalar(select(WorkRevision).where(WorkRevision.id == revision_id).options(load_only(WorkRevision.id, WorkRevision.type, WorkRevision.page_count, raiseload=True)))
-        if revision is not None:
-            _lifecycle_resources(connection, revision)
+    with diagnostics.span("projection.revisions", count=len(revisions), resource_count=len(revision_resources)):
+        reconcile_revisions(session, revisions, resource_ids=revision_resources)
+    with diagnostics.span("projection.lifecycle", count=len(entities.get('lifecycle_revision', set()) - revision_resources)):
+        for revision_id in entities.get('lifecycle_revision', set()) - revision_resources:
+            revision = session.scalar(select(WorkRevision).where(WorkRevision.id == revision_id).options(load_only(WorkRevision.id, WorkRevision.type, WorkRevision.page_count, raiseload=True)))
+            if revision is not None:
+                _lifecycle_resources(connection, revision)
     from .source_read_projection import maintain as maintain_source_projection
-    maintain_source_projection(connection, work_ids=resources)
+    with diagnostics.span("projection.source", resource_count=len(resources)):
+        maintain_source_projection(connection, work_ids=resources)
     from .display_metadata import maintain as maintain_display_metadata
-    maintain_display_metadata(connection)
+    with diagnostics.span("projection.display"):
+        maintain_display_metadata(connection)
     # Delete precisely the captured identities after every reconciler succeeds.
-    connection.exec_driver_sql('DELETE FROM read_model_dirty')
-    store.finish_verified_batch(connection, advance_generation="generation" in entities)
+    with diagnostics.span("projection.finalize", count=len(dirty)):
+        connection.exec_driver_sql('DELETE FROM read_model_dirty')
+        store.finish_verified_batch(connection, advance_generation="generation" in entities)
     return {"works": len(works), "revisions": len(revisions),
         "operations": len(operations), "items": len(entities.get("item", ()))}
 

@@ -1,0 +1,70 @@
+{
+  "build": "20261011.10",
+  "mode": "normal",
+  "reads": [
+    {
+      "path": "/api/startup",
+      "status": 200,
+      "bytes": 154,
+      "startup": {
+        "state": "ready"
+      },
+      "milliseconds": 26.04
+    },
+    {
+      "path": "/",
+      "status": 200,
+      "bytes": 453,
+      "milliseconds": 1.98
+    },
+    {
+      "path": "/api/status",
+      "status": 200,
+      "bytes": 162,
+      "milliseconds": 20.44
+    },
+    {
+      "path": "/api/library/cursor?limit=20&compact=1",
+      "status": 200,
+      "bytes": 37276,
+      "items": 20,
+      "milliseconds": 61.93
+    },
+    {
+      "path": "/api/progress",
+      "status": 200,
+      "bytes": 21390,
+      "active": 1,
+      "queued": 1,
+      "current": [
+        {
+          "kind": "check",
+          "state": "ready",
+          "phase": {
+            "name": "checking",
+            "unit": "works",
+            "done": 33,
+            "total": null,
+            "detail": "等待远端冷却或请求间隔"
+          },
+          "done": null,
+          "total": null
+        }
+      ],
+      "milliseconds": 21.85
+    },
+    {
+      "path": "/api/settings",
+      "status": 504,
+      "milliseconds": 4544.74
+    },
+    {
+      "path": "/api/logs",
+      "status": 200,
+      "bytes": 20511,
+      "items": 0,
+      "milliseconds": 15.38
+    }
+  ],
+  "account_write_tests": false
+}

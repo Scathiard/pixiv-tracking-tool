@@ -12,10 +12,30 @@ from time import monotonic
 from uuid import uuid4
 
 from fastapi import HTTPException, Request
+from . import diagnostics
 
 
 log = logging.getLogger(__name__)
 _READ_STAGES = frozenset(("progress_active_hydrate", "progress_history_hydrate"))
+
+
+def _read_fields(budget):
+    return {"read_ref": diagnostics.ref(budget.request_id), "lane": budget.lane,
+        "endpoint": budget.label}
+
+
+def _read_event(event, budget, **fields):
+    if diagnostics.enabled():
+        diagnostics.emit(event, **_read_fields(budget), **fields)
+
+
+@contextmanager
+def _read_span(event, budget, **fields):
+    if not diagnostics.enabled():
+        yield
+        return
+    with diagnostics.span(event, **_read_fields(budget), **fields):
+        yield
 
 
 class LocalReadError(RuntimeError):
@@ -54,9 +74,15 @@ class ReadBudget:
         self.cancelled_by_deadline = False
         self._lock = Lock()
         self._connections = set()
+        _read_event("read.budget_created", self, timeout_seconds=timeout)
 
     def report(self, outcome):
         elapsed = monotonic() - self.started
+        _read_event("read.completed", self, outcome=outcome, total_ms=elapsed * 1000,
+            queue_ms=((self.admitted - self.started) if self.admitted is not None else elapsed) * 1000,
+            pool_ms=self.pool_seconds * 1000, database_ms=self.database_seconds * 1000,
+            execute_ms=self.sql_seconds * 1000, statement_count=self.statement_count,
+            last_read_stage=self.last_read_stage, last_stage_ms=self.last_stage_seconds * 1000)
         if (outcome == "ok" and elapsed < 1.0) or outcome == "read_cancelled":
             return
         wait = (self.admitted - self.started) if self.admitted is not None else elapsed
@@ -76,10 +102,13 @@ class ReadBudget:
 
     def checkpoint(self):
         if self.cancelled.is_set():
+            _read_event("read.checkpoint_rejected", self,
+                reason="deadline_cancelled" if self.cancelled_by_deadline else "cancelled")
             if self.cancelled_by_deadline:
                 raise ReadDeadline("本地读取超时，请重试")
             raise ReadCancelled("本地读取已取消")
         if monotonic() >= self.deadline:
+            _read_event("read.checkpoint_rejected", self, reason="deadline")
             raise ReadDeadline("本地读取超时，请重试")
 
     def stopped(self):
@@ -91,6 +120,8 @@ class ReadBudget:
         with self._lock:
             self.cancelled_by_deadline |= timed_out
             self.cancelled.set()
+            _read_event("read.cancel", self, reason="deadline" if timed_out else "consumer_gone",
+                connection_count=len(self._connections))
             for connection in self._connections:
                 connection.interrupt()
 
@@ -99,11 +130,13 @@ class ReadBudget:
             self.checkpoint()
             connection.set_progress_handler(lambda: int(self.stopped()), 1000)
             self._connections.add(connection)
+            _read_event("read.connection_attached", self, connection_count=len(self._connections))
 
     def detach(self, connection):
         with self._lock:
             connection.set_progress_handler(None, 0)
             self._connections.discard(connection)
+            _read_event("read.connection_detached", self, connection_count=len(self._connections))
 
 
 current_read: ContextVar[ReadBudget | None] = ContextVar("archive_read_budget", default=None)
@@ -118,7 +151,8 @@ def track_read_stage(stage):
         return
     began = monotonic()
     try:
-        yield
+        with _read_span("read.stage", budget, stage=stage):
+            yield
     finally:
         elapsed = monotonic() - began
         budget.last_read_stage, budget.last_stage_seconds = stage, elapsed
@@ -149,8 +183,14 @@ class ReadController:
     def _enqueue(self, lane):
         with self._condition:
             if self.pending[lane] >= self.queue_bounds[lane]:
+                if diagnostics.enabled():
+                    diagnostics.emit("read.queue_rejected", lane=lane, pending_count=self.pending[lane],
+                        active_count=self.active[lane], capacity=self.capacities[lane], queue_bound=self.queue_bounds[lane])
                 raise LocalReadBusy("本地读取繁忙，请稍后重试")
             self.pending[lane] += 1
+            if diagnostics.enabled():
+                diagnostics.emit("read.queue_enqueued", lane=lane, pending_count=self.pending[lane],
+                    active_count=self.active[lane], capacity=self.capacities[lane])
 
     def _try_acquire(self, lane):
         with self._condition:
@@ -162,30 +202,39 @@ class ReadController:
     def _dequeue(self, lane):
         with self._condition:
             self.pending[lane] -= 1
+            if diagnostics.enabled():
+                diagnostics.emit("read.queue_dequeued", lane=lane, pending_count=self.pending[lane],
+                    active_count=self.active[lane])
 
     def release(self, lane):
         with self._condition:
             self.active[lane] -= 1
+            if diagnostics.enabled():
+                diagnostics.emit("read.admission_released", lane=lane, active_count=self.active[lane], pending_count=self.pending[lane])
             self._condition.notify_all()
 
     def acquire_sync(self, budget):
         lane = budget.lane
         self._enqueue(lane)
         try:
-            while True:
-                budget.checkpoint()
-                if self._try_acquire(lane):
-                    budget.admitted = monotonic()
-                    return
-                with self._condition:
-                    self._condition.wait(min(.02, max(0, budget.deadline - monotonic())))
+            with _read_span("read.admission_wait", budget, mode="sync"):
+                while True:
+                    budget.checkpoint()
+                    if self._try_acquire(lane):
+                        budget.admitted = monotonic()
+                        _read_event("read.admitted", budget, queue_ms=(budget.admitted - budget.started) * 1000,
+                            active_count=self.active[lane], pending_count=self.pending[lane], capacity=self.capacities[lane])
+                        return
+                    with self._condition:
+                        self._condition.wait(min(.02, max(0, budget.deadline - monotonic())))
         finally:
             self._dequeue(lane)
 
     async def _execute(self, budget, function):
         outcome = "ok"
         try:
-            return await self._execute_admitted(budget, function)
+            with _read_span("read.execute", budget):
+                return await self._execute_admitted(budget, function)
         except ReadDeadline:
             outcome = "read_timeout"
             raise
@@ -208,29 +257,37 @@ class ReadController:
         lane = budget.lane
         self._enqueue(lane)
         try:
-            while True:
-                budget.checkpoint()
-                if self._try_acquire(lane):
-                    budget.admitted = monotonic()
-                    break
-                await asyncio.sleep(.01)
+            with _read_span("read.admission_wait", budget, mode="async"):
+                while True:
+                    budget.checkpoint()
+                    if self._try_acquire(lane):
+                        budget.admitted = monotonic()
+                        _read_event("read.admitted", budget, queue_ms=(budget.admitted - budget.started) * 1000,
+                            active_count=self.active[lane], pending_count=self.pending[lane], capacity=self.capacities[lane])
+                        break
+                    await asyncio.sleep(.01)
         finally:
             self._dequeue(lane)
 
         def worker():
             token = current_read.set(budget)
             try:
-                budget.checkpoint()
-                result = function()
-                budget.checkpoint()
-                return result
+                _read_event("read.worker_started", budget,
+                    dispatch_wait_ms=(monotonic() - budget.admitted) * 1000)
+                with _read_span("read.worker", budget):
+                    budget.checkpoint()
+                    result = function()
+                    budget.checkpoint()
+                    return result
             finally:
+                _read_event("read.worker_cleanup", budget, cancelled=budget.cancelled.is_set())
                 current_read.reset(token)
                 self.release(lane)
 
         # The lease belongs to the worker until it has actually finished. A
         # disk syscall that cannot be interrupted must not open another slot.
-        return await asyncio.to_thread(worker)
+        with _read_span("read.thread_wait", budget):
+            return await asyncio.to_thread(worker)
 
     async def run(self, request, function, *, lane="frontend", key=None, timeout=4.5, label="local_read"):
         loop = asyncio.get_running_loop()
@@ -244,32 +301,44 @@ class ReadController:
             task.add_done_callback(lambda completed: completed.exception() if not completed.cancelled() else None)
             if shared_key is not None:
                 self._shared[shared_key] = job
+            _read_event("read.shared_created", budget, shared=shared_key is not None)
+        else:
+            _read_event("read.shared_reused", job[1], existing_consumer_count=job[2])
         task, budget, _ = job
         job[2] += 1
+        _read_event("read.consumer_joined", budget, consumer_count=job[2],
+            http_request_id=getattr(getattr(request, "state", None), "diagnostic_request_id", None))
         consumer_deadline = monotonic() + timeout
         consumer_timed_out = False
         try:
-            while not task.done():
-                if request is not None and await request.is_disconnected():
-                    raise ReadCancelled("本地读取已取消")
-                if monotonic() >= consumer_deadline:
-                    raise ReadDeadline("本地读取超时，请重试")
-                await asyncio.wait({task}, timeout=min(.02, max(0, consumer_deadline - monotonic())))
-            return task.result()
+            with _read_span("read.consumer_wait", budget):
+                while not task.done():
+                    if request is not None and await request.is_disconnected():
+                        _read_event("read.consumer_disconnected", budget, consumer_count=job[2])
+                        raise ReadCancelled("本地读取已取消")
+                    if monotonic() >= consumer_deadline:
+                        _read_event("read.consumer_deadline", budget, consumer_count=job[2])
+                        raise ReadDeadline("本地读取超时，请重试")
+                    await asyncio.wait({task}, timeout=min(.02, max(0, consumer_deadline - monotonic())))
+                return task.result()
         except ReadDeadline:
             consumer_timed_out = True
             raise
         finally:
             job[2] -= 1
+            _read_event("read.consumer_left", budget, consumer_count=job[2], task_done=task.done(), timed_out=consumer_timed_out)
             if job[2] == 0:
                 if self._shared.get(shared_key) is job:
                     self._shared.pop(shared_key)
+                    _read_event("read.shared_removed", budget, task_done=task.done())
                 if not task.done():
                     budget.cancel(timed_out=consumer_timed_out)
                     # Await interruptible SQL cleanup, but do not pretend that
                     # an arbitrary disk wait has finished after this bound.
                     try:
-                        await asyncio.wait({task}, timeout=.9)
+                        with _read_span("read.cancel_cleanup_wait", budget, timeout_seconds=.9):
+                            await asyncio.wait({task}, timeout=.9)
+                        _read_event("read.cancel_cleanup_result", budget, task_done=task.done())
                     except asyncio.CancelledError:
                         pass
 

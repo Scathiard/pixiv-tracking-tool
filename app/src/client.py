@@ -2,9 +2,67 @@ import threading
 import time
 import requests
 from contextlib import contextmanager
+from functools import wraps
 from . import config as _cfg
 from .request_policy import AccountChanged, RequestDeferred, ShutdownRequested, is_rate_limit, retry_after_seconds
 from .core.tag_translations import REQUESTED_LOCALE, parse_tag_details
+from .core import diagnostics
+
+
+_REQUEST_ACTIONS = {
+    "/v1/search/user": "artist_search", "/v1/user/detail": "artist_detail",
+    "/v1/user/illusts": "artist_inventory", "/v1/illust/detail": "work_detail",
+    "/v1/ugoira/metadata": "ugoira_metadata", "/v2/illust/bookmark/add": "bookmark_add",
+    "/v1/illust/bookmark/delete": "bookmark_delete",
+}
+
+
+def _remote_fields(context):
+    operation_id, item_id = getattr(context, "operation_id", None), getattr(context, "item_id", None)
+    return {"operation_ref": diagnostics.ref(operation_id) if operation_id is not None else None,
+        "item_ref": diagnostics.ref(item_id) if item_id is not None else None}
+
+
+def _remote_event(event, context=None, **fields):
+    if diagnostics.enabled():
+        diagnostics.emit(event, **_remote_fields(context), **fields)
+
+
+@contextmanager
+def _remote_span(event, context=None, **fields):
+    if not diagnostics.enabled():
+        yield {}
+        return
+    with diagnostics.span(event, **_remote_fields(context), **fields) as state:
+        yield state
+
+
+@contextmanager
+def _remote_lock(lock, context=None, *, reason):
+    if not diagnostics.enabled():
+        with lock:
+            yield
+        return
+    with _remote_span("remote.client_lock_wait", context, reason=reason):
+        lock.acquire()
+    try:
+        yield
+    finally:
+        lock.release()
+
+
+def _trace_request(method):
+    def decorate(function):
+        @wraps(function)
+        def wrapped(self, endpoint, *args, **kwargs):
+            if not diagnostics.enabled():
+                return function(self, endpoint, *args, **kwargs)
+            context = getattr(getattr(self, "_task_context", None), "context", None)
+            with _remote_span("remote.request", context, method=method,
+                    action=_REQUEST_ACTIONS.get(endpoint, "other")):
+                return function(self, endpoint, *args, **kwargs)
+        return wrapped
+    return decorate
 
 
 def _token_file():
@@ -111,6 +169,7 @@ class PixivClient:
 
     def request_stop(self):
         self._stopping.set()
+        _remote_event("remote.stop_requested")
 
     def _checkpoint(self):
         if self._stopping.is_set():
@@ -148,27 +207,39 @@ class PixivClient:
             if context is not None:
                 context.mark_remote_attempt()
             try:
-                r = requests.get(
-                    f"{API_HOST}{endpoint}",
-                    headers=headers,
-                    params=params or {},
-                    timeout=30,
-                )
+                with _remote_span("remote.transport", context, method="GET",
+                        action=_REQUEST_ACTIONS.get(endpoint, "other"), attempt=attempt + 1) as trace:
+                    r = requests.get(
+                        f"{API_HOST}{endpoint}",
+                        headers=headers,
+                        params=params or {},
+                        timeout=30,
+                    )
+                    if diagnostics.enabled():
+                        trace["status_code"] = r.status_code
                 return r
             except (requests.exceptions.SSLError, requests.exceptions.ConnectionError):
                 self._checkpoint()
                 if attempt == attempts - 1:
                     raise
-                if self._stopping.wait(2 * (attempt + 1)):
-                    raise ShutdownRequested()
+                with _remote_span("remote.transport_retry_wait", context, expected_delay_seconds=2 * (attempt + 1)):
+                    if self._stopping.wait(2 * (attempt + 1)):
+                        raise ShutdownRequested()
 
     def _do_post(self, endpoint, headers, data):
         """A remote write may commit before a transport error, so send it once."""
         self._checkpoint()
-        return requests.post(
-            f"{API_HOST}{endpoint}", headers=headers, data=data or {}, timeout=30,
-        )
+        context = getattr(self._task_context, "context", None)
+        with _remote_span("remote.transport", context, method="POST",
+                action=_REQUEST_ACTIONS.get(endpoint, "other"), attempt=1) as trace:
+            response = requests.post(
+                f"{API_HOST}{endpoint}", headers=headers, data=data or {}, timeout=30,
+            )
+            if diagnostics.enabled():
+                trace["status_code"] = response.status_code
+            return response
 
+    @_trace_request("GET")
     def _request(self, endpoint, params, retry_token):
         self._checkpoint()
         self._task_throttle()
@@ -197,7 +268,7 @@ class PixivClient:
         if retry_token and _token_expired(r) and (task is None or getattr(task, "allow_token_refresh", True)):
             self._checkpoint()
             from .auth import _try_refresh_token
-            with refresh_scope(generation):
+            with _remote_span("remote.auth_refresh", task), refresh_scope(generation):
                 refreshed = _try_refresh_token()
             self._check_identity(identity)
             if refreshed:
@@ -220,6 +291,7 @@ class PixivClient:
         raise PixivRequestError(r.status_code, "Pixiv 拒绝了此次请求，原因待核查",
             retryable=False, failure_code="api_response_error")
 
+    @_trace_request("POST")
     def _post(self, endpoint, data=None, retry_token=True):
         """Send a remote write once; its outcome may be uncertain on failure."""
         self._checkpoint()
@@ -327,8 +399,12 @@ class PixivClient:
         self._check_identity(identity)
         self._checkpoint()
         try:
-            response = requests.get(f"{API_HOST}/v1/illust/detail", headers=headers,
-                                    params={"illust_id": illust_id}, timeout=30)
+            with _remote_span("remote.transport", getattr(self._task_context, "context", None),
+                    method="GET", action="bookmark_readback", attempt=1) as trace:
+                response = requests.get(f"{API_HOST}/v1/illust/detail", headers=headers,
+                                        params={"illust_id": illust_id}, timeout=30)
+                if diagnostics.enabled():
+                    trace["status_code"] = response.status_code
         except requests.RequestException as exc:
             raise PixivRequestError(None, "Pixiv 收藏核对连接失败，请稍后重试",
                 retryable=True, failure_code="api_network") from exc
@@ -356,8 +432,11 @@ class PixivClient:
         return value if type(value) is bool else None
 
     def _bookmark_throttle(self):
-        with type(self)._lock:
+        context = getattr(self._task_context, "context", None)
+        with _remote_lock(type(self)._lock, context, reason="bookmark_admission"):
             if time.monotonic() < type(self)._bookmark_cooldown_until:
+                _remote_event("remote.admission_deferred", context, reason="bookmark_cooldown",
+                    wait_seconds=max(0, type(self)._bookmark_cooldown_until - time.monotonic()))
                 raise PixivRequestError(None, "Pixiv 收藏请求受限，请稍后手动核对",
                     retry_after=max(0, int(type(self)._bookmark_cooldown_until - time.monotonic() + 0.999)),
                     retryable=True, failure_code="api_rate_limit")
@@ -368,9 +447,10 @@ class PixivClient:
         if response.status_code != 429:
             return
         seconds = max(60, retry_after_seconds(getattr(response, "headers", None)) or 0)
-        with cls._lock:
+        with _remote_lock(cls._lock, reason="bookmark_cooldown_update"):
             cls._bookmark_cooldown_until = max(
                 cls._bookmark_cooldown_until, time.monotonic() + seconds)
+            _remote_event("remote.cooldown_updated", reason="bookmark_rate_limit", expected_delay_seconds=seconds)
 
     @classmethod
     def _note_api_limit(cls, response, body=None):
@@ -378,9 +458,10 @@ class PixivClient:
             return
         seconds = max(60, retry_after_seconds(getattr(response, "headers", None)) or 0)
         # Local recovery timing is an engineering default, not a Pixiv quota.
-        with cls._lock:
+        with _remote_lock(cls._lock, reason="api_cooldown_update"):
             cls._api_cooldown_until = max(cls._api_cooldown_until,
                                           time.monotonic() + seconds)
+            _remote_event("remote.cooldown_updated", reason="api_rate_limit", expected_delay_seconds=seconds)
 
     def add_bookmark(self, illust_id, restrict="public"):
         """收藏作品。restrict: 'public'=公开, 'private'=私有。"""
@@ -395,9 +476,11 @@ class PixivClient:
     @classmethod
     def _throttle(cls):
         """线程安全的请求节流——确保两次请求至少间隔 _MIN_INTERVAL 秒。"""
-        with cls._lock:
+        with _remote_lock(cls._lock, reason="ordinary_admission"):
             now = time.monotonic()
             if now < cls._api_cooldown_until:
+                _remote_event("remote.admission_deferred", reason="api_cooldown",
+                    wait_seconds=max(0, cls._api_cooldown_until - now))
                 raise PixivRequestError(None, "Pixiv 请求受限，请稍后重试",
                     retry_after=max(0, int(cls._api_cooldown_until - now + 0.999)),
                     retryable=True, failure_code="api_rate_limit")
@@ -406,18 +489,25 @@ class PixivClient:
             # shared lock, so cooldown observations and other lanes can proceed.
             cls._last_request = max(now, cls._last_request + _MIN_INTERVAL)
         if wait > 0:
-            time.sleep(wait)
+            with _remote_span("remote.interval_wait", expected_delay_seconds=wait):
+                time.sleep(wait)
 
     def _task_throttle(self):
         if getattr(self._task_context, "context", None) is None:
             return self._throttle()
         cls = type(self)
-        with cls._lock:
+        context = getattr(self._task_context, "context", None)
+        with _remote_lock(cls._lock, context, reason="task_admission"):
             now = time.monotonic()
             wait = max(cls._api_cooldown_until, cls._last_request + _MIN_INTERVAL) - now
             if wait > 0:
+                _remote_event("remote.admission_deferred", context,
+                    reason="api_cooldown" if cls._api_cooldown_until >= cls._last_request + _MIN_INTERVAL else "request_interval",
+                    wait_seconds=wait, cooldown_seconds=max(0, cls._api_cooldown_until - now),
+                    interval_seconds=max(0, cls._last_request + _MIN_INTERVAL - now))
                 raise RequestDeferred(wait, "等待远端冷却或请求间隔")
             cls._last_request = now
+            _remote_event("remote.admission_granted", context, reason="task_admission")
 
     def search_artist(self, keyword):
         """搜索画师。"""

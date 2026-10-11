@@ -17,6 +17,7 @@ from .client import PixivClient
 from .core.database import UpgradeRequired
 from .core.upgrade import UpgradeRecoveryRequired
 from .core.runtime import Runtime
+from .core import diagnostics
 from .scheduler import start_scheduler, stop_scheduler
 from .security import RequestBoundaryMiddleware
 from .networking import access_urls
@@ -91,8 +92,10 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
     @asynccontextmanager
     async def lifespan(application):
         current = None
+        diagnostic_heartbeat = asyncio.create_task(diagnostics.loop_heartbeat()) if diagnostics.enabled() else None
         try:
-            current = await asyncio.to_thread(runtime_factory or default_runtime)
+            with diagnostics.span("runtime.open"):
+                current = await asyncio.to_thread(runtime_factory or default_runtime)
             application.state.runtime = current
             # Exit can arrive while the factory is opening the library. Do not
             # start workers or acquire a new page after that remembered intent.
@@ -100,7 +103,8 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
                 application.state.stopping = True
                 current.request_stop(cancel_remote=True)
             else:
-                await asyncio.to_thread(current.start)
+                with diagnostics.span("runtime.start"):
+                    await asyncio.to_thread(current.start)
             if _shutdown_requested.is_set():
                 application.state.stopping = True
                 current.request_stop(cancel_remote=True)
@@ -117,7 +121,11 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
             application.state.startup_upgrade.require()
         except BaseException:
             if current is not None:
-                await asyncio.to_thread(current.close, timeout=None)
+                with diagnostics.span("runtime.failed_start_close"):
+                    await asyncio.to_thread(current.close, timeout=None)
+            if diagnostic_heartbeat is not None:
+                diagnostic_heartbeat.cancel()
+                await asyncio.gather(diagnostic_heartbeat, return_exceptions=True)
             application.state.runtime = None
             raise
         try:
@@ -141,8 +149,12 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
                     # actual thread. Wait until auth cannot install/use runtime.
                     await asyncio.gather(application.state.auth_task, return_exceptions=True)
             if current is not None:
-                await asyncio.to_thread(current.close, timeout=None)
+                with diagnostics.span("runtime.close"):
+                    await asyncio.to_thread(current.close, timeout=None)
             application.state.runtime = None
+            if diagnostic_heartbeat is not None:
+                diagnostic_heartbeat.cancel()
+                await asyncio.gather(diagnostic_heartbeat, return_exceptions=True)
 
     release = getattr(sys, "frozen", False)
     application = FastAPI(title="Pixiv Tracking Tool", lifespan=lifespan,
@@ -156,6 +168,7 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
     application.state.startup_upgrade = StartupUpgrade(_cfg.DATA_DIR / "pixiv_tracker.db", _cfg.IMAGES_DIR,
         runtime_factory or default_runtime, stopping=lambda:application.state.stopping or _shutdown_requested.is_set())
     application.add_middleware(RequestBoundaryMiddleware)
+    application.add_middleware(diagnostics.DiagnosticHTTPMiddleware)
     application.mount("/static", StaticFiles(directory=resource_path("static")), name="static")
     if reading_ui:
         frontend = Path(resource_path("frontend/dist"))
@@ -374,6 +387,7 @@ def main(*, offline=False, ready_callback=None):
 
 def request_shutdown():
     """请求 Web 服务走 Uvicorn lifespan 正常退出。"""
+    diagnostics.emit("shutdown.requested", server_exists=_server is not None)
     _shutdown_requested.set()
     cancel_auth()
     if _server is not None:

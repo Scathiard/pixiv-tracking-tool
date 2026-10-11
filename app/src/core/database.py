@@ -13,6 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError, TimeoutError as PoolTimeout
 
 from .models import Base
+from . import diagnostics
 from .read_control import LocalReadBusy, ReadBudget, ReadController, current_read
 
 SCHEMA_REVISION = "0004_read_projections"
@@ -38,7 +39,7 @@ class ArchiveDatabase:
         self.reads = ReadController()
         self.engine = self._engine(self.path)
         try:
-            with self.engine.connect() as connection:
+            with diagnostics.span("db.open.validate"), self.engine.connect() as connection:
                 if "alembic_version" not in inspect(connection).get_table_names():
                     raise UpgradeRequired("此数据库需要先完成显式升级，原库未转换")
                 revisions = connection.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
@@ -102,28 +103,37 @@ class ArchiveDatabase:
                 connection.execute("PRAGMA synchronous=FULL")
                 connection.execute(f"PRAGMA wal_autocheckpoint={writer_policy() if writer_policy else 1000}")
 
-        if not writer:
-            @event.listens_for(engine, "before_cursor_execute")
-            def begin_statement(connection, cursor, statement, parameters, context, executemany):
+        @event.listens_for(engine, "before_cursor_execute")
+        def begin_statement(connection, cursor, statement, parameters, context, executemany):
+            if diagnostics.enabled():
+                context._diagnostic_sql = diagnostics.sql_start(connection, statement, executemany=executemany)
+            if not writer:
                 budget = current_read.get()
                 if budget is not None:
                     context._read_timing = (budget, monotonic())
                     budget.statement_count += 1
 
-            def finish_statement(context):
+        def finish_statement(context, error=None, rowcount=None):
+            if context is None:
+                return
+            if not writer:
                 timing = getattr(context, "_read_timing", None)
                 if timing is not None:
                     budget, began = timing
                     budget.sql_seconds += monotonic() - began
                     context._read_timing = None
+            token = getattr(context, "_diagnostic_sql", None)
+            if token is not None:
+                context._diagnostic_sql = None
+                diagnostics.sql_finish(token, error=error, rowcount=rowcount)
 
-            @event.listens_for(engine, "after_cursor_execute")
-            def end_statement(connection, cursor, statement, parameters, context, executemany):
-                finish_statement(context)
+        @event.listens_for(engine, "after_cursor_execute")
+        def end_statement(connection, cursor, statement, parameters, context, executemany):
+            finish_statement(context, rowcount=cursor.rowcount)
 
-            @event.listens_for(engine, "handle_error")
-            def failed_statement(context):
-                finish_statement(context.execution_context)
+        @event.listens_for(engine, "handle_error")
+        def failed_statement(context):
+            finish_statement(context.execution_context, error=context.original_exception)
 
         return engine
 
@@ -182,77 +192,96 @@ class ArchiveDatabase:
 
     @contextmanager
     def read(self):
-        if self._closed:
-            raise RuntimeError("数据库已关闭")
-        budget = current_read.get()
-        owned = budget is None
-        token = None
-        if owned:
-            budget = ReadBudget()
-            self.reads.acquire_sync(budget)
-            token = current_read.set(budget)
-        connection = None
-        driver = None
-        database_started = None
-        try:
-            budget.checkpoint()
+        with diagnostics.span("db.read.transaction"):
             if self._closed:
                 raise RuntimeError("数据库已关闭")
-            pool_started = monotonic()
-            try:
-                connection = self.engine.connect()
-            finally:
-                budget.pool_seconds += monotonic() - pool_started
-            database_started = monotonic()
-            driver = connection.connection.driver_connection
-            budget.attach(driver)
-            # SQLite lock waiting does not call the progress handler. Keep each
-            # lock wait finite as well; WAL readers normally do not wait at all.
-            driver.execute("PRAGMA busy_timeout=100")
-            with self.session(bind=connection) as session:
-                session.connection().exec_driver_sql("BEGIN")
-                from .read_projection import require_ready
-                self._check_schema(session.connection())
-                session.info['read_projection_generation'] = require_ready(session.connection())
-                try:
-                    yield session
-                    budget.checkpoint()
-                finally:
-                    # A Session may be retained/reused by a caller after this
-                    # context; never carry readiness to a different snapshot.
-                    session.info.pop('read_projection_generation', None)
-        except PoolTimeout as exc:
-            budget.checkpoint()
-            raise LocalReadBusy("本地读取繁忙，请稍后重试") from exc
-        except OperationalError as exc:
-            budget.checkpoint()
-            if "locked" in str(exc.orig).lower() or "busy" in str(exc.orig).lower():
-                raise LocalReadBusy("本地读取繁忙，请稍后重试") from exc
-            raise
-        finally:
-            if connection is not None:
-                try:
-                    connection.rollback()
-                finally:
-                    if driver is not None:
-                        budget.detach(driver)
-                    connection.close()
-            if database_started is not None:
-                budget.database_seconds += monotonic() - database_started
+            budget = current_read.get()
+            owned = budget is None
+            token = None
             if owned:
-                current_read.reset(token)
-                self.reads.release(budget.lane)
+                budget = ReadBudget()
+                with diagnostics.span("db.read.admission", lane=budget.lane):
+                    self.reads.acquire_sync(budget)
+                token = current_read.set(budget)
+            connection = None
+            driver = None
+            database_started = None
+            try:
+                budget.checkpoint()
+                if self._closed:
+                    raise RuntimeError("数据库已关闭")
+                pool_started = monotonic()
+                try:
+                    with diagnostics.span("db.read.connection"):
+                        connection = self.engine.connect()
+                finally:
+                    budget.pool_seconds += monotonic() - pool_started
+                database_started = monotonic()
+                driver = connection.connection.driver_connection
+                budget.attach(driver)
+                # SQLite lock waiting does not call the progress handler. Keep each
+                # lock wait finite as well; WAL readers normally do not wait at all.
+                driver.execute("PRAGMA busy_timeout=100")
+                with self.session(bind=connection) as session:
+                    with diagnostics.span("db.read.begin"):
+                        session.connection().exec_driver_sql("BEGIN")
+                    from .read_projection import require_ready
+                    self._check_schema(session.connection())
+                    session.info['read_projection_generation'] = require_ready(session.connection())
+                    try:
+                        with diagnostics.span("db.read.body"):
+                            yield session
+                            budget.checkpoint()
+                    finally:
+                        # A Session may be retained/reused by a caller after this
+                        # context; never carry readiness to a different snapshot.
+                        session.info.pop('read_projection_generation', None)
+            except PoolTimeout as exc:
+                budget.checkpoint()
+                raise LocalReadBusy("本地读取繁忙，请稍后重试") from exc
+            except OperationalError as exc:
+                budget.checkpoint()
+                if "locked" in str(exc.orig).lower() or "busy" in str(exc.orig).lower():
+                    raise LocalReadBusy("本地读取繁忙，请稍后重试") from exc
+                raise
+            finally:
+                if connection is not None:
+                    try:
+                        with diagnostics.span("db.read.rollback"):
+                            connection.rollback()
+                    finally:
+                        if driver is not None:
+                            budget.detach(driver)
+                        with diagnostics.span("db.read.close"):
+                            connection.close()
+                if database_started is not None:
+                    budget.database_seconds += monotonic() - database_started
+                if owned:
+                    current_read.reset(token)
+                    self.reads.release(budget.lane)
+
+    @contextmanager
+    def _write_gate(self):
+        with diagnostics.span("db.write.lock_wait"):
+            self._write_lock.acquire()
+        try:
+            yield
+        finally:
+            self._write_lock.release()
 
     @contextmanager
     def write(self):
         if getattr(self._writer_state, "active", False):
             raise RuntimeError("嵌套写事务必须传递已有会话")
-        with self._write_lock, self.writer_session() as session:
+        with diagnostics.span("db.write.transaction"), self._write_gate(), self.writer_session() as session:
             if self._closed:
                 raise RuntimeError("数据库已关闭")
             try:
                 self._writer_state.active = True
-                session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+                with diagnostics.span("db.write.connection"):
+                    connection = session.connection()
+                with diagnostics.span("db.write.begin"):
+                    connection.exec_driver_sql("BEGIN IMMEDIATE")
                 from .read_projection import require_ready
                 from .projection_maintenance import maintain_projections
                 self._check_schema(session.connection())
@@ -260,17 +289,22 @@ class ArchiveDatabase:
                 # not turn an ordinary transaction into an implicit repair.
                 require_ready(session.connection())
                 session.info['read_projection_writer'] = True
-                yield session
-                session.flush()
-                maintain_projections(session)
-                session.commit()
+                with diagnostics.span("db.write.body"):
+                    yield session
+                with diagnostics.span("db.write.flush"):
+                    session.flush()
+                with diagnostics.span("db.write.projections"):
+                    maintain_projections(session)
+                with diagnostics.span("db.write.commit"):
+                    session.commit()
                 # Even an empty successful transaction may conservatively
                 # fence snapshots; detecting DML must not borrow/read SQL here.
                 self.reads.advance_generation()
                 if self._wal_owner is not None:
                     self._wal_owner.notify_commit()
             except BaseException:
-                session.rollback()
+                with diagnostics.span("db.write.rollback"):
+                    session.rollback()
                 raise
             finally:
                 session.info.pop('read_projection_writer', None)
@@ -302,7 +336,11 @@ class ArchiveDatabase:
         return self._wal_owner is not None and self._wal_owner.pressured()
 
     def background_can_advance(self):
-        return not self.background_pressured() or (self._wal_owner is not None and self._wal_owner.can_probe())
+        pressure = self.background_pressured()
+        allowed = not pressure or (self._wal_owner is not None and self._wal_owner.can_probe())
+        if pressure:
+            diagnostics.emit("db.background.eligibility", pressure=pressure, allowed=allowed)
+        return allowed
 
     def begin_background_step(self):
         if not getattr(self._writer_state, "active", False):
@@ -317,5 +355,7 @@ class ArchiveDatabase:
         if self._wal_owner is not None and self._wal_owner.alive():
             raise RuntimeError("数据库整理连接仍在活动，不能关闭数据库")
         self._closed = True
-        self.engine.dispose()
-        self.writer_engine.dispose()
+        with diagnostics.span("db.close.read_engine"):
+            self.engine.dispose()
+        with diagnostics.span("db.close.write_engine"):
+            self.writer_engine.dispose()

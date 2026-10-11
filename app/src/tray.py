@@ -5,6 +5,7 @@ import webbrowser
 from pathlib import Path
 from PIL import Image
 import pystray
+from .core import diagnostics
 
 
 def _resource_path(relative_path):
@@ -42,6 +43,7 @@ def _open_settings():
 def _quit_app(icon: pystray.Icon):
     if getattr(icon, "_quit_requested", False):
         return
+    diagnostics.emit("tray.quit_requested")
     icon._quit_requested = True
     icon.title = "PixivTracker · 正在退出"
     try:
@@ -56,7 +58,8 @@ def _quit_app(icon: pystray.Icon):
         return
 
     def finish():
-        done.wait()
+        with diagnostics.span("tray.wait_service_exit"):
+            done.wait()
         icon.stop()
 
     threading.Thread(target=finish, name="tray-shutdown", daemon=True).start()
@@ -123,4 +126,5 @@ def run_tray(*, offline=False, instance=None):
     icon.run()
     from src.web import request_shutdown
     request_shutdown()
-    web_thread.join()
+    with diagnostics.span("tray.join_web_thread"):
+        web_thread.join()

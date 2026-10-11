@@ -8,6 +8,8 @@ import sqlite3
 import threading
 import time
 
+from . import diagnostics
+
 log = logging.getLogger(__name__)
 
 
@@ -55,6 +57,8 @@ class WalMaintenance:
             self._last_commit = time.monotonic()
             self._commit_generation += 1
             self._probe_generation = None
+            generation = self._commit_generation
+        diagnostics.emit("wal.queued", generation=generation, already_queued=self._wake.is_set())
         self._wake.set()
 
     def can_probe(self):
@@ -66,44 +70,55 @@ class WalMaintenance:
         """Called only in the business writer critical section, after eligibility."""
         with self._lock:
             if not self._state["pressure"] and not (self._ready.is_set() and not self.alive()):
+                diagnostics.emit("wal.backpressure.allow", probe=False, generation=self._commit_generation)
                 return True, None
             if (self._stop.is_set() or self._state["status"] != "ready" or
                     self._probe_generation != self._commit_generation or self._probe_inflight is not None):
+                diagnostics.emit("wal.backpressure.deny", status=self._state["status"],
+                    stop_requested=self._stop.is_set(), generation=self._commit_generation,
+                    probe_ready=self._probe_generation == self._commit_generation,
+                    probe_inflight=self._probe_inflight is not None)
                 return False, None
             token = object()
             self._probe_generation = None
             self._probe_inflight = token
             self._state["probe_count"] += 1
+            diagnostics.emit("wal.backpressure.allow", probe=True, generation=self._commit_generation)
             return True, token
 
     def finish_step(self, token):
         with self._lock:
             if token is self._probe_inflight:
                 self._probe_inflight = None
+                diagnostics.emit("wal.backpressure.finished", generation=self._commit_generation)
         self._wake.set()
 
     def start(self, timeout=5):
-        with self._lifecycle_lock:
-            if self._stop.is_set():
-                raise RuntimeError("已停止的整理执行者不能重新启动")
-            if self._thread is None:
-                self._thread = threading.Thread(target=self._run, name="archive-wal-maintenance", daemon=False)
-                self._thread.start()
-        if not self._ready.wait(timeout):
-            raise TimeoutError("数据库整理连接尚未就绪，业务未启动")
-        if self._startup_error is not None:
-            raise RuntimeError("数据库整理连接启用失败") from self._startup_error
-        if not self._thread.is_alive():
-            raise RuntimeError("数据库整理执行者已结束")
+        with diagnostics.span("wal.start", timeout_seconds=timeout):
+            with self._lifecycle_lock:
+                if self._stop.is_set():
+                    raise RuntimeError("已停止的整理执行者不能重新启动")
+                if self._thread is None:
+                    self._thread = threading.Thread(target=self._run, name="archive-wal-maintenance", daemon=False)
+                    self._thread.start()
+            if not self._ready.wait(timeout):
+                raise TimeoutError("数据库整理连接尚未就绪，业务未启动")
+            if self._startup_error is not None:
+                raise RuntimeError("数据库整理连接启用失败") from self._startup_error
+            if not self._thread.is_alive():
+                raise RuntimeError("数据库整理执行者已结束")
 
     def stop(self, timeout=5):
-        self._stop.set()
-        with self._lock:
-            self._probe_generation = None
-        self._wake.set()
-        if self._thread is not None and self._thread.ident is not None:
-            self._thread.join(timeout)
-        return self._thread is None or not self._thread.is_alive()
+        with diagnostics.span("wal.stop", timeout_seconds=timeout) as detail:
+            self._stop.set()
+            with self._lock:
+                self._probe_generation = None
+            self._wake.set()
+            if self._thread is not None and self._thread.ident is not None:
+                self._thread.join(timeout)
+            stopped = self._thread is None or not self._thread.is_alive()
+            detail['stopped'] = stopped
+            return stopped
 
     def alive(self):
         return self._thread is not None and self._thread.is_alive()
@@ -133,52 +148,58 @@ class WalMaintenance:
             raise
 
     def _checkpoint(self, connection, mode):
-        if mode not in ("NOOP", "PASSIVE"):
-            raise ValueError("不支持的整理模式")
-        started = time.monotonic()
-        with self._lock:
-            self._state.update(last_mode=mode, last_started=started)
-            self._state["attempts"] += 1
-            generation = self._commit_generation
-        try:
-            row = connection.execute(f"PRAGMA main.wal_checkpoint({mode})").fetchone()
-            if row is None or len(row) != 3:
-                raise RuntimeError("SQLite 未返回有效整理状态")
-            busy, log, checkpointed = row
-            if any(type(value) is not int for value in row):
-                raise RuntimeError("SQLite 整理计数格式错误")
+        with diagnostics.span("wal.checkpoint", mode=mode) as detail:
+            if mode not in ("NOOP", "PASSIVE"):
+                raise ValueError("不支持的整理模式")
+            started = time.monotonic()
             with self._lock:
-                self._state["last_seconds"] = time.monotonic() - started
-                self._state["max_seconds"] = max(self._state["max_seconds"], self._state["last_seconds"])
-                if busy or log < 0 or checkpointed < 0 or checkpointed > log:
-                    self._state["status"] = "busy" if busy else "unknown"
-                    self._state["busy_count"] += int(bool(busy))
-                    # Unknown observations never clear an existing pressure.
-                    self._state["pressure"] = True
+                self._state.update(last_mode=mode, last_started=started)
+                self._state["attempts"] += 1
+                generation = self._commit_generation
+            try:
+                row = connection.execute(f"PRAGMA main.wal_checkpoint({mode})").fetchone()
+                if row is None or len(row) != 3:
+                    raise RuntimeError("SQLite 未返回有效整理状态")
+                busy, log, checkpointed = row
+                if any(type(value) is not int for value in row):
+                    raise RuntimeError("SQLite 整理计数格式错误")
+                with self._lock:
+                    detail.update(busy=busy, log_frames=log, checkpointed_frames=checkpointed,
+                        generation=generation)
+                    self._state["last_seconds"] = time.monotonic() - started
+                    self._state["max_seconds"] = max(self._state["max_seconds"], self._state["last_seconds"])
+                    if busy or log < 0 or checkpointed < 0 or checkpointed > log:
+                        self._state["status"] = "busy" if busy else "unknown"
+                        self._state["busy_count"] += int(bool(busy))
+                        # Unknown observations never clear an existing pressure.
+                        self._state["pressure"] = True
+                        self._probe_generation = None
+                        self._observation_generation = None
+                        detail.update(pressure=True, status=self._state['status'])
+                        return False
+                    self._state.update(status="ready", log_frames=log,
+                        checkpointed_frames=checkpointed, pending_frames=log - checkpointed)
+                    self._observation_generation = generation if generation == self._commit_generation else None
+                    if log >= self._state["high_frames"]:
+                        self._state["pressure"] = True
+                    elif log <= self._state["low_frames"]:
+                        self._state["pressure"] = False
+                        self._probe_generation = None
+                    detail.update(pressure=self._state['pressure'], status=self._state['status'],
+                        pending_frames=self._state['pending_frames'])
+                return True
+            except Exception as exc:
+                with self._lock:
+                    self._state.update(status="error", pressure=True,
+                        last_error=type(exc).__name__, last_seconds=time.monotonic() - started)
+                    self._state["error_count"] += 1
+                    self._state["max_seconds"] = max(self._state["max_seconds"], self._state["last_seconds"])
                     self._probe_generation = None
                     self._observation_generation = None
-                    return False
-                self._state.update(status="ready", log_frames=log,
-                    checkpointed_frames=checkpointed, pending_frames=log - checkpointed)
-                self._observation_generation = generation if generation == self._commit_generation else None
-                if log >= self._state["high_frames"]:
-                    self._state["pressure"] = True
-                elif log <= self._state["low_frames"]:
-                    self._state["pressure"] = False
-                    self._probe_generation = None
-            return True
-        except Exception as exc:
-            with self._lock:
-                self._state.update(status="error", pressure=True,
-                    last_error=type(exc).__name__, last_seconds=time.monotonic() - started)
-                self._state["error_count"] += 1
-                self._state["max_seconds"] = max(self._state["max_seconds"], self._state["last_seconds"])
-                self._probe_generation = None
-                self._observation_generation = None
-            if self._reported_error != type(exc).__name__:
-                logging.getLogger(__name__).warning("数据库后台整理暂缓后台新步骤：%s", type(exc).__name__)
-                self._reported_error = type(exc).__name__
-            raise
+                if self._reported_error != type(exc).__name__:
+                    logging.getLogger(__name__).warning("数据库后台整理暂缓后台新步骤：%s", type(exc).__name__)
+                    self._reported_error = type(exc).__name__
+                raise
 
     def _cycle(self, connection):
         if not self._checkpoint(connection, "NOOP"):
@@ -198,6 +219,7 @@ class WalMaintenance:
                 # the next SQLite write, which naturally attempts WAL reuse.
                 self._probe_generation = self._commit_generation
                 self._last_probe = time.monotonic()
+                diagnostics.emit("wal.backpressure.probe_ready", generation=self._commit_generation)
         if self._reported_error is not None:
             log.info("数据库后台整理已恢复，后台按压力继续推进")
             self._reported_error = None
@@ -207,7 +229,8 @@ class WalMaintenance:
         connection = None
         try:
             try:
-                connection = self._connect()
+                with diagnostics.span("wal.connection"):
+                    connection = self._connect()
             except BaseException as exc:
                 self._startup_error = exc
                 with self._lock:
@@ -221,24 +244,30 @@ class WalMaintenance:
                 # Time is measured after the preceding SQL ends. Notifications
                 # wake monitoring but cannot turn the minimum gap into a spin.
                 deadline = time.monotonic() + delay
-                while not self._stop.is_set() and time.monotonic() < deadline:
-                    self._wake.wait(max(0, deadline - time.monotonic()))
-                    self._wake.clear()
+                with diagnostics.span("wal.wait", delay_seconds=delay):
+                    while not self._stop.is_set() and time.monotonic() < deadline:
+                        self._wake.wait(max(0, deadline - time.monotonic()))
+                        self._wake.clear()
                 if self._stop.is_set():
                     break
                 try:
-                    success = self._cycle(connection)
+                    with diagnostics.span("wal.cycle") as detail:
+                        success = self._cycle(connection)
+                        detail['success'] = success
                 except Exception:
                     success = False
                 delay = self.interval if success else min(5., max(self.interval, delay * 2))
             try:
-                self._checkpoint(connection, "PASSIVE")
+                with diagnostics.span("wal.exit.checkpoint"):
+                    self._checkpoint(connection, "PASSIVE")
             except Exception:
                 pass  # Retained RAM error; WAL durability does not require drain.
         finally:
             try:
                 if connection is not None:
-                    connection.close()
+                    with diagnostics.span("wal.exit.close"):
+                        connection.close()
             finally:
                 with self._lock:
                     self._state["status"] = "stopped" if connection is not None else "failed"
+                diagnostics.emit("wal.exited", status=self._state['status'])
