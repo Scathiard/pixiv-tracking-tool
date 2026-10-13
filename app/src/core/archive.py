@@ -102,7 +102,7 @@ class ArchiveHandler:
 
     def _save_work_observation(self, artist_id, data, *, work_id, revision, bookmark_version,
             source_version, account, account_context, metadata=None, compare_content=False,
-            source_account=..., context=None, metadata_error=None):
+            source_account=..., context=None, metadata_error=None, incremental=False):
         # Credential resolution may wait or contact Pixiv: finish it before the
         # writer. Inside the transaction only the existing memory context is read.
         if self._bookmark_account() != account:
@@ -115,6 +115,14 @@ class ArchiveHandler:
         with self.database.write() as session:
             if self.bookmarks and self.bookmarks._account_context() != account_context:
                 return None
+            if incremental:
+                # A manual import or recovery may have registered this candidate
+                # after page capture. Do not refresh it or count it twice.
+                existing_id = session.scalar(select(Work.id).where(Work.pixiv_illust_id == str(data["illust_id"])))
+                if existing_id is not None:
+                    return existing_id
+                from .incremental_check import freeze_bootstrap
+                freeze_bootstrap(session, artist_id, data.get("type"))
             result = self._save_remote_work_in_session(session, artist_id, data, metadata=metadata,
                 context=context, metadata_error=metadata_error,
                 expected_work_id=work_id, expected_revision=revision,
@@ -129,6 +137,9 @@ class ArchiveHandler:
             if self.bookmarks and account is not None:
                 fresh = self.bookmarks._apply_observation(session, result,
                     data.get("is_bookmarked"), account, bookmark_version)
+            if incremental:
+                from .incremental_check import registered
+                registered(session, context)
         # Never publish a fact from a rolled-back transaction or another account
         # epoch. A newer bookmark version remains protected by _mark_fresh.
         if fresh:

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { catalogueChanged, completionStatus, elapsedStatus, hasProgressTrack, knownStages, nextFocus, PhaseEstimate, phaseStatus, progressPercent, remainingStatus, selectPrimary, shouldNotifyFailure, type Operation } from '../src/state/taskProgress.ts'
+import { catalogueChanged, completionStatus, elapsedStatus, hasProgressTrack, knownStages, nextFocus, PhaseEstimate, phaseStatus, progressPercent, progressPhase, remainingStatus, selectPrimary, shouldNotifyFailure, type Operation } from '../src/state/taskProgress.ts'
 
 function operation(id: string, state: string, done = 0, total: number | null = null): Operation {
   return {id, label: id, state, source: 'manual', phase: {name: 'verifying', done, total, unit: 'files', detail: ''}, result: {}}
@@ -142,7 +142,7 @@ test('phase estimates require measured progress and reset on totals, waiting, st
   assert.equal(progressPercent(task), null)
   assert.equal(remainingStatus(task, null), '清单仍在增加，剩余时间待定')
   task.result.step_progress = {'verifying:files': {done: 30, total: 120}}
-  assert.equal(phaseStatus(task), '核验 · 30 / 已发现 120 个文件')
+  assert.equal(phaseStatus(task), '核验 · 30 / 当前清单 120 个文件')
   task.phase.total = 120; task.phase.detail = '等待主站冷却'
   assert.equal(estimate.observe(task, 100000), null)
   assert.equal(remainingStatus(task, null), '等待主站冷却')
@@ -167,4 +167,28 @@ test('elapsed duration treats legacy server timestamps as UTC and does not imply
   assert.equal(elapsedStatus(task, Date.parse('2026-10-11T05:05:00Z')), '历时 1 小时 5 分钟')
   task.created_at = 'invalid'
   assert.equal(elapsedStatus(task, Date.now()), '')
+})
+
+test('automatic new-work checks show artist coverage and actual new registrations, never historical item counts', () => {
+  const task = {...operation('定时检查更新', 'running', 4372), kind: 'check', source: 'automatic' as const}
+  task.result = {incremental_check: {mode: 'incremental-v1', artists_done: 12, artists_total: 86, new_works: 2, scan_complete: false},
+    step_progress: {'checking:works': {done: 4372, total: 4389}}}
+  assert.equal(phaseStatus(task), '画师 12/86 · 新增 2 件')
+  assert.equal(progressPercent(task), 13)
+  assert.equal(hasProgressTrack(task), true)
+  assert.equal(progressPhase(task).total, 86)
+  assert.equal(knownStages(task), '')
+  assert.equal(new PhaseEstimate().observe(task, 0), null)
+  assert.equal(remainingStatus(task, null), '')
+  task.state = 'ready'; task.result.incremental_check!.scan_complete = true
+  assert.equal(remainingStatus(task, null), '检查完成，等待保存结案')
+  task.state = 'finished'; task.result.outcome = 'partial_failure'; task.result.counts = {succeeded: 5000, failed: 1}
+  assert.equal(completionStatus(task), '定时检查更新：部分完成（检查 12/86 位画师，新增 2 件作品）')
+  task.result.incremental_check!.new_works = 0; task.result.incremental_check!.artists_done = 86
+  task.result.outcome = 'succeeded'
+  assert.equal(completionStatus(task), '定时检查更新：已完成（检查 86/86 位画师，新增 0 件作品）')
+  task.state = 'queued'
+  assert.equal(phaseStatus(task, true), '等待恢复自动检查')
+  task.phase.name = 'waiting_connection'
+  assert.equal(phaseStatus(task), '等待连接 Pixiv，任务进度已保留')
 })

@@ -7,12 +7,24 @@ export interface Operation {
   created_at?: string
   finished_at?: string | null
   result: {outcome?: string; planning_complete?: boolean; counts?: Record<string, number>;
+    incremental_check?: {mode: 'incremental-v1'; artists_done: number; artists_total: number; new_works: number; scan_complete: boolean};
     step_progress?: Record<string, {done: number; total: number}>}
 }
 
 export const activeStates = new Set(['queued', 'planning', 'ready', 'running', 'interrupted', 'paused', 'pausing'])
 const phases: Record<string, string> = {waiting: '等待', checking: '检查', inventory: '清点', metadata: '画师信息', captions: '作品信息', bookmarks: '收藏状态', downloading: '下载', converting: '生成预览', verifying: '核验', reconciling: '整理缺项', repairing: '补齐', thumbnails: '缩略图', deleting: '删除'}
 const units: Record<string, string> = {artists: '位画师', works: '件作品', pages: '页', assets: '项原件', previews: '件预览', files: '个文件', items: '项'}
+
+function incrementalCheck(op: Operation) {
+  const check = op.result.incremental_check
+  return op.kind === 'check' && op.source === 'automatic' && check?.mode === 'incremental-v1' ? check : null
+}
+
+/** Discovery steps/pages are implementation units, not newly found works. */
+export function progressPhase(op: Operation): Operation['phase'] {
+  const check = incrementalCheck(op)
+  return check ? {...op.phase, name: 'checking', unit: 'artists', done: check.artists_done, total: check.artists_total} : op.phase
+}
 
 export function selectPrimary(operations: Operation[], focusedId: string | null, runningId: string | null = null, requestedIds: string[] = []): Operation | null {
   const active = operations.filter(op => activeStates.has(op.state))
@@ -40,7 +52,7 @@ export function shouldNotifyFailure(op: Operation, previousState: string | undef
 
 export function hasProgressTrack(op: Operation | null, stale = false, workerError = false): boolean {
   return !!op && !stale && !workerError && (op.state === 'running' || op.state === 'planning')
-    && op.phase.total !== null && op.phase.total > 0
+    && progressPhase(op).total !== null && progressPhase(op).total! > 0
 }
 
 /** The first revision is only a baseline; duplicate and older snapshots cannot refresh a view. */
@@ -57,13 +69,15 @@ export function phaseStatus(op: Operation, automaticPaused = false, workerError 
   if (op.state === 'interrupted') return '已中断，等待恢复'
   if (op.phase.name === 'waiting_connection') return '等待连接 Pixiv，任务进度已保留'
   if (op.state === 'queued') return automaticPaused && op.source === 'automatic' ? '等待恢复自动检查' : '已排队，等待处理'
+  const check = incrementalCheck(op)
+  if (check) return `画师 ${check.artists_done}/${check.artists_total} · 新增 ${check.new_works} 件`
   if (op.state === 'ready') return '已清点，等待执行'
   const checkingArtists = ['reconcile', 'compare'].includes(op.kind || '') && op.phase.name === 'checking' && op.phase.unit === 'artists'
   const phase = checkingArtists ? '核对画师' : phases[op.phase.name] || op.phase.name || '处理'
   const unit = units[op.phase.unit] || op.phase.unit || '项'
   const done = Number.isFinite(op.phase.done) ? op.phase.done : 0
   const known = op.result.step_progress?.[`${op.phase.name}:${op.phase.unit}`]?.total
-  if (op.phase.total === null && known !== undefined && known >= done && known > 0) return `${phase} · ${done} / 已发现 ${known} ${unit}`
+  if (op.phase.total === null && known !== undefined && known >= done && known > 0) return `${phase} · ${done} / 当前清单 ${known} ${unit}`
   return op.phase.total === null ? `${phase} · 已处理 ${done} ${unit}` : `${phase} · ${done} / ${op.phase.total} ${unit}`
 }
 
@@ -79,19 +93,23 @@ export function elapsedStatus(op: Operation, now: number): string {
 }
 
 export function progressPercent(op: Operation | null): number | null {
-  if (!op || op.phase.total === null || op.phase.total <= 0) return null
-  return Math.floor(Math.max(0, Math.min(100, op.phase.done / op.phase.total * 100)))
+  const phase = op && progressPhase(op)
+  if (!phase || phase.total === null || phase.total <= 0) return null
+  return Math.floor(Math.max(0, Math.min(100, phase.done / phase.total * 100)))
 }
 
 export function completionStatus(op: Operation): string {
   const counts = op.result.counts || {}
   const result = {succeeded: '已完成', partial_failure: '部分完成', failed: '未完成', empty: '无需处理'}[op.result.outcome || ''] || '处理结束'
+  const check = incrementalCheck(op)
+  if (check) return `${op.label}：${result}（检查 ${check.artists_done}/${check.artists_total} 位画师，新增 ${check.new_works} 件作品）`
   const parts = [['succeeded', '成功'], ['failed', '失败'], ['skipped', '跳过'], ['not_executed', '未执行']]
     .filter(([key]) => (counts[key!] || 0) > 0).map(([key, label]) => `${label} ${counts[key!]}`)
   return `${op.label}：${result}${parts.length ? `（${parts.join('，')}）` : ''}`
 }
 
 export function knownStages(op: Operation): string {
+  if (incrementalCheck(op)) return ''
   return Object.entries(op.result.step_progress || {}).filter(([key]) => key !== `${op.phase.name}:${op.phase.unit}`)
     .slice(0, 3).map(([key, progress]) => {
       const [phase, unit] = key.split(':')
@@ -111,7 +129,7 @@ export class PhaseEstimate {
   private lastAdvance = 0
   reset() { this.key = ''; this.samples = []; this.lastAdvance = 0 }
   observe(op: Operation | null, now: number, stale = false): number | null {
-    if (!op || stale || op.state !== 'running' || op.phase.total === null || op.phase.total <= 0
+    if (!op || incrementalCheck(op) || stale || op.state !== 'running' || op.phase.total === null || op.phase.total <= 0
         || op.phase.name === 'waiting_connection' || waitingDetail(op)) { this.reset(); return null }
     const key = `${op.id}:${op.phase.name}:${op.phase.unit}:${op.phase.total}`
     const last = this.samples.at(-1)
@@ -131,6 +149,8 @@ export class PhaseEstimate {
 
 export function remainingStatus(op: Operation, seconds: number | null): string {
   if (waitingDetail(op)) return waitingDetail(op)
+  const check = incrementalCheck(op)
+  if (check) return op.state === 'ready' && check.scan_complete ? '检查完成，等待保存结案' : ''
   if (op.state !== 'running' && op.state !== 'planning') return ''
   if (op.phase.total === null) return '清单仍在增加，剩余时间待定'
   if (op.phase.total === 0) return '正在清点处理范围'

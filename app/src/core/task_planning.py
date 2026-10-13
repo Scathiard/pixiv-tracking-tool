@@ -64,6 +64,11 @@ def plan_batch(handler, parameters, context, cursor):
     if handler.kind == "reconcile":
         return _reconcile_plan_batch(handler, parameters, context, cursor)
     if handler.kind == "check":
+        from .incremental_check import automatic, plan_batch as incremental_plan
+        with handler.database.read() as session:
+            incremental = automatic(session, context.operation_id)
+        if incremental:
+            return incremental_plan(handler, parameters, context, cursor)
         ids = handler._artist_ids(parameters, context)
         reserved = _reserve_observations(handler, ids, context, cursor)
         if reserved is not None:
@@ -335,6 +340,19 @@ def _remote_generation(handler):
 
 
 def execute(handler, item, context):
+    if handler.kind == "check" and item.kind in ("discover_page", "discover_work"):
+        from .incremental_check import MODE, automatic, execute_page, skip_known_work
+        with handler.database.read() as session:
+            incremental = automatic(session, context.operation_id)
+        if incremental:
+            if item.kind == "discover_page":
+                return execute_page(handler, item, context) if item.target.get("incremental") == MODE else ItemResult(
+                    "skipped", {"message": "旧全历史分页已改由增量检查接续"})
+            skipped = skip_known_work(handler, item)
+            if skipped:
+                return skipped
+    else:
+        incremental = False
     if item.kind == "bookmark_artist":
         # Existing 0002 items keep their identity and dependency barrier while
         # their cursor advances by at most one catalogue batch or remote page.
@@ -490,8 +508,16 @@ def execute(handler, item, context):
                 if isinstance(exc, LocalReadError):
                     raise
                 metadata_error = safe_failure(exc)
-    handler._save_work_observation(artist_id, data, context=context, metadata=metadata,
+    saved = handler._save_work_observation(artist_id, data, context=context, metadata=metadata,
         metadata_error=metadata_error, work_id=work_id, revision=deletion_revision,
         source_version=source_version, source_account=source_account,
-        bookmark_version=versions.get(work_id, 0), account=account, account_context=account_context)
+        bookmark_version=versions.get(work_id, 0), account=account, account_context=account_context,
+        incremental=incremental)
+    if incremental and saved is None:
+        from .incremental_check import skip_known_work
+        skipped = skip_known_work(handler, item)
+        if skipped:
+            return skipped
+        from ..request_policy import AccountChanged
+        raise AccountChanged()
     return ItemResult()

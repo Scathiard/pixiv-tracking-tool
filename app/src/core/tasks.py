@@ -657,6 +657,10 @@ class TaskQueue:
                 round_record = session.get(TaskRound, operation.round_id) if operation.round_id else None
                 self._set_operation_state(operation, "planning" if operation.result.get("planning_complete") is False else "ready" if round_record and round_record.frozen_at else "planning")
                 operation.detail = "上次运行中断，正在核对并继续"
+            from .incremental_check import resume_legacy
+            for operation in session.scalars(select(Operation).where(Operation.kind == "check",
+                    Operation.source == "automatic", Operation.state.in_(ACTIVE))):
+                resume_legacy(session, operation)
         self.worker_error = None
 
     def start(self):
@@ -1333,6 +1337,9 @@ class TaskQueue:
                 dependency_states = dict(session.execute(select(OperationItem.item_key, OperationItem.state).where(
                     OperationItem.operation_id == operation_id, OperationItem.item_key.in_(item.depends_on))).all())
             superseded = all(dependency_states.get(key) in ("succeeded", "skipped") for key in item.depends_on)
+            if superseded and item.kind == "discover_page" and item.target.get("incremental") == "incremental-v1":
+                dependency_failed = False
+        if dependency_failed:
             result = ItemResult("skipped" if superseded else "not_executed", {"message": "前置保存决定已改变，此项不再执行" if superseded else "前置步骤未成功，此项尚未执行"})
         else:
             try:
@@ -1341,7 +1348,8 @@ class TaskQueue:
                 with _task_span("task.item_handler", operation_id, item.id, lane=self._lane(item),
                         phase=item.phase, item_kind=item.kind, attempts=item.attempts), self._handler_scope(handler, context):
                     result = handler.execute(spec, context)
-                if not isinstance(result, ItemResult) or result.state not in SETTLED and not (item.kind == "bookmark_artist" and result.state == "yielded"):
+                can_yield = item.kind == "bookmark_artist" or (item.kind == "discover_page" and item.target.get("incremental") == "incremental-v1")
+                if not isinstance(result, ItemResult) or result.state not in SETTLED and not (can_yield and result.state == "yielded"):
                     raise TypeError("任务必须返回明确的处理结果")
             except (ShutdownRequested, ManualPauseRequested, ConnectionRequired) as exc:
                 _task_event("task.item_interrupted", operation_id, item.id, reason=type(exc).__name__, requests_sent=context.requests_sent)
@@ -1389,6 +1397,9 @@ class TaskQueue:
             self.record_settlement_in_transaction(session, stored, previous_state)
             session.flush()
             operation = session.get(Operation, operation_id)
+            if operation.source == "automatic" and operation.kind == "check":
+                from .incremental_check import record_settlement
+                record_settlement(session, operation, stored, result)
             if result.state == "failed" and (item.kind in ("discover_page", "bookmark_page") or
                     item.kind == "bookmark_artist" and "unconfirmed_works" not in result.detail):
                 operation.result = {**operation.result, "inventory_failed": True, "inventory_complete": False}

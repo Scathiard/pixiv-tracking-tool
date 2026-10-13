@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { api } from './api'
-import { activeStates, completionStatus, elapsedStatus, hasProgressTrack, knownStages, PhaseEstimate, phaseStatus, progressPercent, remainingStatus, selectPrimary, type Operation } from './state/taskProgress'
+import { activeStates, completionStatus, elapsedStatus, hasProgressTrack, knownStages, PhaseEstimate, phaseStatus, progressPercent, progressPhase, remainingStatus, selectPrimary, type Operation } from './state/taskProgress'
 import { catalogueUpdates } from './state/catalogue'
 import Icon from './components/Icon.vue'
 interface Snapshot {
@@ -32,6 +32,7 @@ const stages = computed(() => primary.value ? knownStages(primary.value) : '')
 const completionText = computed(() => completion.value ? completionStatus(completion.value) : '')
 const completionFailed = computed(() => ['failed', 'partial_failure'].includes(completion.value?.result.outcome || ''))
 const measurable = computed(() => hasProgressTrack(primary.value, stale.value, !!snapshot.value?.worker_error))
+const measuredPhase = computed(() => primary.value ? progressPhase(primary.value) : null)
 const phaseText = computed(() => {
   const op = primary.value
   if (!op) return ''
@@ -39,7 +40,7 @@ const phaseText = computed(() => {
   return phaseStatus(op, snapshot.value?.automatic_paused, !!snapshot.value?.worker_error)
 })
 const trackWidth = computed(() => {
-  const phase = primary.value?.phase
+  const phase = measuredPhase.value
   return phase?.total && phase.total > 0 ? `${Math.max(0, Math.min(100, phase.done / phase.total * 100))}%` : '0%'
 })
 const otherText = computed(() => {
@@ -145,7 +146,7 @@ defineExpose({showTask})
         </div>
         <button v-if="!snapshot?.worker_error && (primary.control?.can_pause || primary.control?.can_resume)" class="task-control" :disabled="controlling || stale" :aria-label="controlling ? '正在提交' : primary.pause_requested ? '继续' : '暂停'" :title="primary.pause_requested ? '继续当前任务' : '暂停当前任务'" @click="controlTask(primary)"><Icon :name="controlling ? 'clock' : primary.pause_requested ? 'play' : 'pause'" /><span class="task-control-label">{{ controlling ? '正在提交' : primary.pause_requested ? '继续' : '暂停' }}</span></button>
       </div>
-      <div v-if="measurable" class="task-track" role="progressbar" :aria-label="`${primary.label}：${phaseText}`" :aria-valuenow="primary.phase.done" aria-valuemin="0" :aria-valuemax="primary.phase.total ?? undefined"><span :style="{width: trackWidth}" /></div>
+      <div v-if="measurable" class="task-track" role="progressbar" :aria-label="`${primary.label}：${phaseText}`" :aria-valuenow="measuredPhase?.done" aria-valuemin="0" :aria-valuemax="measuredPhase?.total ?? undefined"><span :style="{width: trackWidth}" /></div>
       <p v-if="elapsed || remaining" class="task-timing"><span :title="'从提交起计算，包括排队和暂停'">{{ elapsed }}</span><span class="task-eta">{{ remaining }}</span></p>
       <p v-if="stages && !stale" class="task-stages" :title="stages">已知阶段：{{ stages }}</p>
       <p v-if="(othersCount || focusedId && !active.some(op => op.id === focusedId)) && !stale" class="task-secondary" :title="otherText">{{ othersCount ? `另有 ${othersCount} 项：` : '' }}{{ otherText }}</p>
