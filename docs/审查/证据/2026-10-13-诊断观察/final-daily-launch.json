@@ -1,0 +1,9 @@
+{
+  "pid": 39388,
+  "data_root": "D:\\PixivTracker",
+  "runtime": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261013.1\\work\\tmp\\diagnostic-observation\\package\\enabled-runtime",
+  "exe": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261013.3.exe",
+  "reason": "one normal activation retry after login remained unavailable",
+  "mode": "normal",
+  "started": "2026-10-13T19:21:11.3217837+08:00"
+}

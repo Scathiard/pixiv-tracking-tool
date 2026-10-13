@@ -1,0 +1,34 @@
+{
+  "version": "0.2.0",
+  "build": "20261013.2",
+  "exe_file": "PixivTracker_v0.2.0_build20261013.2.exe",
+  "exe_size_bytes": 75478070,
+  "exe_sha256": "edaaafe65f20588adba7aa106aab2527830b1b1cfb43436ac792d8d767df101b",
+  "source_commit": "d18f6db64cef4907cde3c422b58dcdd666248e25",
+  "source_branch": "codex/diagnostic-observation-20261013",
+  "source_dirty": false,
+  "frontend_dist": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261013.1\\app\\frontend\\dist",
+  "database_schema": "0005_read_cards_tasks",
+  "database_upgrade_required": false,
+  "database_compatible_from": "0005_read_cards_tasks",
+  "explicit_upgrade_supported_from": [
+    "0001_archive",
+    "0002_client",
+    "0003_revisions",
+    "0004_read_projections"
+  ],
+  "older_database_upgrade_required": true,
+  "database_upgrade_entry": "startup-confirmed backup / validate / activate",
+  "build_environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "pyinstaller": "6.20.0"
+  },
+  "published": false,
+  "user_acceptance": false,
+  "validation": "isolated EXE and normal daily checked; superseded by 20261013.3 to correct diagnostic span parent; real gallery 504 retained",
+  "business_fixes_included": false,
+  "real_gallery_acceptance": false,
+  "frontend_bundle": "index-DQVmUluQ.js",
+  "frontend_bundle_sha256": "318c21d482407e056306b5fd8618a1a7ee4e61fcb185af1c27563301b361db87"
+}

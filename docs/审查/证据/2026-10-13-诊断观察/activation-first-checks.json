@@ -1,0 +1,36 @@
+{
+  "observed_at": "2026-10-13T19:18:56+0800",
+  "mode": "normal daily, original library",
+  "checks": [
+    {
+      "path": "/api/startup",
+      "status": 200,
+      "ms": 16.121,
+      "state": "ready"
+    },
+    {
+      "path": "/api/status",
+      "status": 200,
+      "ms": 18.637,
+      "logged_in": false,
+      "upgrade_required": false,
+      "listening_port": 1919,
+      "saved_port": 1919,
+      "has_login_error": false
+    },
+    {
+      "path": "/api/diagnostics",
+      "status": 200,
+      "ms": 14.678,
+      "enabled": true,
+      "run_id": "6d41c08aca6e",
+      "build": "20261013.3"
+    },
+    {
+      "path": "/api/progress",
+      "status": 200,
+      "ms": 23.928,
+      "automatic_paused": false
+    }
+  ]
+}

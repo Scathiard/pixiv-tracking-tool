@@ -1,0 +1,90 @@
+{
+  "run_id": "6d41c08aca6e",
+  "active": [
+    {
+      "event": "watch.active",
+      "utc": "2026-10-13T11:19:33.827+00:00",
+      "elapsed_ms": 90781.0,
+      "thread": 54344,
+      "trace": "",
+      "parent": "",
+      "spans": [
+        {
+          "span": "173004909a43",
+          "event": "application.run",
+          "trace": "173004909a43",
+          "parent": "",
+          "thread": 53172,
+          "offline": false,
+          "age_ms": 90766.0
+        },
+        {
+          "span": "5553095046c3",
+          "event": "wal.wait",
+          "trace": "5553095046c3",
+          "parent": "",
+          "thread": 27700,
+          "delay_seconds": 0.25,
+          "age_ms": 172.0
+        },
+        {
+          "span": "080f9d7e61c0",
+          "event": "task.scheduler_step",
+          "trace": "080f9d7e61c0",
+          "parent": "",
+          "thread": 29564,
+          "operation_ref": "",
+          "item_ref": null,
+          "lane": "local",
+          "age_ms": 0.0
+        },
+        {
+          "span": "aff8cd7e6be5",
+          "event": "db.read.transaction",
+          "trace": "080f9d7e61c0",
+          "parent": "080f9d7e61c0",
+          "thread": 29564,
+          "age_ms": 0.0
+        }
+      ],
+      "total": 4,
+      "seq": 31351
+    }
+  ],
+  "health": [
+    {
+      "event": "process.sample",
+      "utc": "2026-10-13T11:19:33.835+00:00",
+      "elapsed_ms": 90797.0,
+      "thread": 54344,
+      "trace": "",
+      "parent": "",
+      "active_spans": 4,
+      "queue_size": 54,
+      "dropped_records": 0,
+      "probe_errors": 0,
+      "aggregate_overflow": 0,
+      "queue_peak": 100,
+      "log_bytes": 8412555,
+      "log_records": 31316,
+      "log_bytes_per_second": 90625.5,
+      "log_records_per_second": 337.8,
+      "log_write_ms": 24.774,
+      "log_flush_ms": 127.153,
+      "log_flush_count": 416,
+      "writer_cpu_ms": 421.875,
+      "watch_cpu_ms": 468.75,
+      "writer_alive": true,
+      "event_loop_gap_ms": 0.0,
+      "rss_bytes": 151588864,
+      "read_bytes": 62122306,
+      "write_bytes": 8459158,
+      "cpu_user": 7.40625,
+      "cpu_system": 1.953125,
+      "threads": 17,
+      "seq": 31400
+    }
+  ],
+  "browser_events": 42,
+  "scope": "last 1 MiB of current part"
+}

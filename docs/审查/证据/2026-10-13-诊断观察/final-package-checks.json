@@ -1,0 +1,67 @@
+{
+  "mode": "installed EXE, isolated offline empty library",
+  "session": "393a21db634e4b02bac3d6d3c9381174",
+  "checks": [
+    {
+      "path": "/api/startup",
+      "status": 200,
+      "ms": 2480.808,
+      "trace": "e6c9f888fc87",
+      "run": "32e6a9921443",
+      "state": "ready"
+    },
+    {
+      "path": "/api/status",
+      "status": 200,
+      "ms": 37.823,
+      "trace": "00cec1cab678",
+      "run": "32e6a9921443",
+      "logged_in": false
+    },
+    {
+      "path": "/api/diagnostics",
+      "status": 200,
+      "ms": 25.479,
+      "trace": null,
+      "run": null,
+      "enabled": true,
+      "run_id": "32e6a9921443",
+      "build": "20261013.3"
+    },
+    {
+      "path": "/",
+      "status": 200,
+      "ms": 83.303,
+      "trace": "7eec67123a6a",
+      "run": "32e6a9921443",
+      "final_bundle": true
+    },
+    {
+      "path": "/api/library/cursor?limit=1",
+      "status": 200,
+      "ms": 44.886,
+      "trace": "4489b7d3d972",
+      "run": "32e6a9921443"
+    },
+    {
+      "path": "/api/settings",
+      "status": 200,
+      "ms": 109.334,
+      "trace": "2d1901b1b65a",
+      "run": "32e6a9921443",
+      "stats": {
+        "artists": 0,
+        "works": 0,
+        "downloaded_pages": 0,
+        "registered_originals": 0,
+        "verified_originals": 0,
+        "missing_originals": 0,
+        "unverified_originals": 0
+      }
+    },
+    {
+      "path": "/api/diagnostics/events",
+      "status": 204
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "removed_junction": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261013.1\\app\\frontend\\node_modules",
+  "removed": [
+    "diagnostic-observation\\observer",
+    "diagnostic-observation\\package\\b20261013.2-package",
+    "diagnostic-observation\\package\\b20261013.3-package",
+    "diagnostic-observation\\package\\isolated-root",
+    "diagnostic-observation\\package\\isolated-runtime",
+    "diagnostic-observation\\package\\daily-runtime",
+    "diagnostic-observation\\package\\final-isolated-root",
+    "diagnostic-observation\\package\\final-isolated-runtime",
+    "diagnostic-observation\\package\\final-daily-runtime",
+    "incremental-check"
+  ],
+  "shared_target_preserved": true,
+  "retained_runtime": "work/tmp/diagnostic-observation/package/enabled-runtime",
+  "removed_helpers": [
+    "work/tmp/diagnostic-observation/package/check-installed.py",
+    "work/tmp/diagnostic-observation/package/stop-owned-tray.ps1"
+  ]
+}
