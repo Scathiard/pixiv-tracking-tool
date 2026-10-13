@@ -259,7 +259,7 @@ class ArchiveDatabase:
                     budget.database_seconds += monotonic() - database_started
                 if owned:
                     current_read.reset(token)
-                    self.reads.release(budget.lane)
+                    self.reads.release(budget.lane, budget)
 
     @contextmanager
     def _write_gate(self):

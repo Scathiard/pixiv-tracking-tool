@@ -96,7 +96,7 @@ async function poll() {
     const tracking = [...new Set([...requestedIds, ...(runningId.value ? [runningId.value] : [])])]
       .filter(id => !data.operations.some(op => op.id === id)).slice(-4)
     const details = await Promise.allSettled(tracking.map(id => api<Operation>(`/api/tasks/${encodeURIComponent(id)}?limit=1`,
-      {signal: AbortSignal.any([controller.signal, AbortSignal.timeout(4000)])})))
+      {signal: controller.signal})))
     if (stopped) return
     for (const result of details) if (result.status === 'fulfilled') data.operations.push(result.value)
     snapshot.value = data

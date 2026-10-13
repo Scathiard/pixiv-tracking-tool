@@ -85,7 +85,7 @@ function pollSourceChecks() {
   sourceOffset = (sourceOffset + batch.length) % tracked.length
   type SourceOperation = Operation & {items?: {result?: {message?: string}}[]}
   return sourceReads.run(batch.map(([, id]) => id).join(','), signal => Promise.all(batch.map(async ([artistId, id]) => {
-    try { return {artistId, id, operation: await api<SourceOperation>(`/api/tasks/${encodeURIComponent(id)}?limit=1`, {signal: AbortSignal.any([signal, AbortSignal.timeout(4000)])})} }
+    try { return {artistId, id, operation: await api<SourceOperation>(`/api/tasks/${encodeURIComponent(id)}?limit=1`, {signal})} }
     catch (failure) { return {artistId, id, failure} }
   })), results => {
     for (const result of results) {

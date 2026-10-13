@@ -21,8 +21,7 @@ export function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
 }
 
 async function request<T>(path: string, options: RequestInit, observation?: RequestObservation): Promise<T> {
-  const signal = options.signal
-    ? AbortSignal.any([options.signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000)
+  const signal = options.signal || new AbortController().signal
   const canRetry = (options.method || 'GET').toUpperCase() === 'GET'
   let busyRetried = false
   try {
@@ -128,7 +127,7 @@ async function request<T>(path: string, options: RequestInit, observation?: Requ
       return value as T
       } catch (error) {
         failureType = errorType(error)
-        if (signal.aborted) { outcome = options.signal?.aborted ? 'cancelled' : 'timeout'; reason = options.signal?.aborted ? 'caller' : 'timeout' }
+        if (signal.aborted) { outcome = 'cancelled'; reason = 'caller' }
         else if (failureType === 'TimeoutError') { outcome = 'timeout'; reason = 'timeout' }
         else if (failureType === 'AbortError') { outcome = 'cancelled'; reason = 'caller' }
         else if (failureType === 'TypeError' && reason !== 'parse') reason = 'network'
@@ -138,8 +137,7 @@ async function request<T>(path: string, options: RequestInit, observation?: Requ
       }
     }
   } catch (error) {
-    if (options.signal?.aborted) throw options.signal.reason
-    if (signal.aborted) throw new DOMException(canRetry ? '读取超时，请稍后重试' : '请求超时，操作结果尚未确认，请查询状态后再试', 'TimeoutError')
+    if (signal.aborted) throw signal.reason
     if (error instanceof TypeError) throw new TypeError(canRetry ? '无法连接本地服务，请检查程序是否仍在运行' : '无法连接本地服务，操作结果尚未确认，请查询状态后再试')
     throw error
   }
@@ -192,19 +190,18 @@ export function prepareImage(src: string | null, signal: AbortSignal): Promise<v
     const image = new Image()
     const observation = mediaObservation(src)
     let settled = false
-    const cleanup = () => { clearTimeout(timer); image.onload = null; image.onerror = null; signal.removeEventListener('abort', abort) }
+    const cleanup = () => { image.onload = null; image.onerror = null; signal.removeEventListener('abort', abort) }
     const finish = (failure?: Error) => {
       if (settled) return
       settled = true; cleanup()
       if (failure) {
-        if (failure.name === 'AbortError' || failure.name === 'TimeoutError') observation?.cancel(failure.name === 'TimeoutError' ? 'timeout' : 'caller')
+        if (failure.name === 'AbortError') observation?.cancel('caller')
         else observation?.error(failure)
         image.removeAttribute('src'); reject(failure)
       }
       else resolve()
     }
     const abort = () => finish(new DOMException('Aborted', 'AbortError'))
-    const timer = setTimeout(() => finish(new DOMException('目标图片等待超时，当前画面已保留，请重试', 'TimeoutError')), 10000)
     image.onload = async () => {
       observation?.loaded(image)
       try { await image.decode(); observation?.decoded('ok') } catch (error) { observation?.decoded('error', error) /* onload already confirms a renderable image */ }

@@ -1,0 +1,7 @@
+failed to load config from D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261013.1\app\frontend\vite.config.ts
+error during build:
+ReferenceError: require is not defined
+    at eval (D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261003.7/app/frontend/node_modules/picomatch/index.js:6:14)
+    at ESModulesEvaluator.runInlinedModule (file:///D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261003.7/app/frontend/node_modules/vite/dist/node/module-runner.js:811:163)
+    at ModuleRunner.directRequest (file:///D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261003.7/app/frontend/node_modules/vite/dist/node/module-runner.js:1272:80)
+    at async ModuleRunner.cachedRequest (file:///D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261003.7/app/frontend/node_modules/vite/dist/node/module-runner.js:1179:73)

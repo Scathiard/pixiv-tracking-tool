@@ -290,6 +290,7 @@ class Runtime:
         self._closing.set()
         self.queue.request_stop()
         self.bookmarks.request_stop()
+        self.database.reads.request_stop()
         # A replacement runtime can reuse the client's connection. Only actual
         # application exit cancels that client's request/retry boundaries.
         if cancel_remote and self.client is not None:

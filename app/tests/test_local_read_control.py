@@ -263,6 +263,69 @@ def test_shared_read_survives_one_consumer_and_cancels_after_last(database):
     asyncio.run(exercise())
 
 
+def test_default_http_read_can_finish_after_the_former_deadline(database):
+    app = FastAPI()
+
+    @app.get("/slow")
+    async def slow(request: Request):
+        def work():
+            with database.read() as session:
+                driver = session.connection().connection.driver_connection
+                driver.create_function("isolated_delay", 0, lambda: (sleep(4.7), 42)[1])
+                return {"value": session.scalar(text("SELECT isolated_delay()"))}
+        return await run_read(request, database, work)
+
+    with server_for(app) as port:
+        began = monotonic()
+        response = httpx.get(f"http://127.0.0.1:{port}/slow", timeout=10)
+        assert response.status_code == 200 and response.json() == {"value": 42}
+        assert monotonic() - began >= 4.5
+    assert database.engine.pool.checkedout() == 0
+    assert not database.reads._budgets
+
+
+def test_shutdown_cancels_unbounded_active_and_queued_reads_but_not_writes(database):
+    async def exercise():
+        frontend_started, background_started = Event(), Event()
+        database.reads.capacities["frontend"] = 1
+        active = asyncio.create_task(database.reads.run(None,
+            lambda: long_read(database, frontend_started)))
+        background = asyncio.create_task(asyncio.to_thread(long_read, database, background_started))
+        queued = None
+        try:
+            async def started():
+                while not (frontend_started.is_set() and background_started.is_set()):
+                    await asyncio.sleep(.005)
+            await asyncio.wait_for(started(), timeout=2)
+            queued = asyncio.create_task(database.reads.run(None,
+                lambda: pytest.fail("shutdown must not start queued work")))
+            while not database.reads.pending["frontend"]:
+                await asyncio.sleep(.005)
+            # The accepted writer owns a separate connection and must still finish.
+            with database.write() as session:
+                assert session.scalar(text("SELECT 1")) == 1
+                database.reads.request_stop()
+                assert session.scalar(text("SELECT 42")) == 42
+            results = await asyncio.wait_for(asyncio.gather(active, background, queued,
+                return_exceptions=True), timeout=2)
+            assert all(isinstance(result, ReadCancelled) for result in results)
+            with pytest.raises(ReadCancelled):
+                await database.reads.run(None, lambda: 42)
+            with pytest.raises(ReadCancelled):
+                with database.read():
+                    pytest.fail("shutdown must not admit another background reader")
+        finally:
+            database.reads.request_stop()
+            await asyncio.gather(*[task for task in (active, background, queued) if task],
+                return_exceptions=True)
+        assert database.engine.pool.checkedout() == 0
+        assert all(value == 0 for value in database.reads.active.values())
+        assert all(value == 0 for value in database.reads.pending.values())
+        assert not database.reads._budgets
+
+    asyncio.run(exercise())
+
+
 @contextmanager
 def server_for(app):
     listener = socket.socket()

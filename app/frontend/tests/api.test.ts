@@ -1,7 +1,16 @@
-import { test } from 'node:test'
+import { test, type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { setImmediate as nextTurn } from 'node:timers/promises'
 import { api, ApiReadError, prepareImage, write } from '../src/api.ts'
+
+function simulatedDeadlines(t: TestContext) {
+  t.mock.timers.enable({apis: ['setTimeout']})
+  return t.mock.method(AbortSignal, 'timeout', (duration: number) => {
+    const controller = new AbortController()
+    setTimeout(() => controller.abort(new DOMException('Timed out', 'TimeoutError')), duration)
+    return controller.signal
+  })
+}
 
 test('a plain-text 503 reports a safe HTTP error instead of a JSON parse failure', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => new Response('Service Unavailable', {
@@ -48,7 +57,7 @@ test('a failed POST is sent only once', async (t) => {
   assert.equal(fetchMock.mock.calls[0]?.arguments[1]?.method, 'POST')
 })
 
-test('a GET recovers after a transient 503 and shares one timeout signal', async (t) => {
+test('a GET recovers after a transient 503 and shares one cancellation signal', async (t) => {
   const signals: (AbortSignal | null | undefined)[] = []
   const fetchMock = t.mock.method(globalThis, 'fetch', async (_path: unknown, options: RequestInit) => {
     signals.push(options.signal)
@@ -172,19 +181,21 @@ test('a GET also retries transient 502 and 504 responses', async (t) => {
   assert.equal(fetchMock.mock.callCount(), 3)
 })
 
-test('the shared timeout ends a retry wait instead of starting another request', async (t) => {
-  const controller = new AbortController()
-  const timeoutMock = t.mock.method(AbortSignal, 'timeout', (duration: number) => {
-    assert.equal(duration, 30000)
-    return controller.signal
-  })
-  const fetchMock = t.mock.method(globalThis, 'fetch', async () => new Response('Service Unavailable', {status: 503}))
-  const rejected = assert.rejects(api('/api/archive/gallery'), {name: 'TimeoutError'})
+test('a GET remains pending after 30 seconds and accepts a later response', async (t) => {
+  const timeoutMock = simulatedDeadlines(t)
+  let respond!: (response: Response) => void
+  let settled = false
+  const fetchMock = t.mock.method(globalThis, 'fetch', () => new Promise<Response>(resolve => { respond = resolve }))
+  const request = api('/api/slow-fetch')
+  request.then(() => { settled = true }, () => { settled = true })
   await nextTurn()
-  controller.abort(new DOMException('Timed out', 'TimeoutError'))
-  await rejected
+  t.mock.timers.tick(30001)
+  await nextTurn()
+  assert.equal(settled, false)
+  assert.equal(timeoutMock.mock.callCount(), 0)
+  respond(Response.json({value: 'late response'}))
+  assert.deepEqual(await request, {value: 'late response'})
   assert.equal(fetchMock.mock.callCount(), 1)
-  assert.equal(timeoutMock.mock.callCount(), 1)
 })
 
 test('an errored 503 response body cannot stop retries or replace the HTTP error', async (t) => {
@@ -258,40 +269,56 @@ test('request identity includes headers and cache generations', async (t) => {
   assert.equal(fetchMock.mock.callCount(), 3)
 })
 
-test('a slow response body has the same deadline and a Chinese timeout message', async (t) => {
-  const timeout = new AbortController()
-  t.mock.method(AbortSignal, 'timeout', () => timeout.signal)
+test('a slow response body remains pending after 30 seconds and can finish later', async (t) => {
+  simulatedDeadlines(t)
+  let finishBody!: (value: unknown) => void
+  let settled = false
   let bodyStarted = false
   t.mock.method(globalThis, 'fetch', async () => ({ok: true, status: 200,
-    json() { bodyStarted = true; return new Promise(() => {}) },
+    headers: new Headers(),
+    json() { bodyStarted = true; return new Promise(resolve => { finishBody = resolve }) },
   }) as Response)
-  const rejected = assert.rejects(api('/api/slow-body'), {name: 'TimeoutError', message: '读取超时，请稍后重试'})
+  const request = api('/api/slow-body')
+  request.then(() => { settled = true }, () => { settled = true })
   await nextTurn()
   assert.equal(bodyStarted, true)
-  timeout.abort(new DOMException('signal timed out', 'TimeoutError'))
-  await rejected
+  t.mock.timers.tick(30001)
+  await nextTurn()
+  assert.equal(settled, false)
+  finishBody({value: 'late body'})
+  assert.deepEqual(await request, {value: 'late body'})
 })
 
 test('cancellation can release a slow body without waiting for a mocked body to cooperate', async (t) => {
+  simulatedDeadlines(t)
   const controller = new AbortController()
   const fetchMock = t.mock.method(globalThis, 'fetch', async () => ({ok: true, status: 200,
+    headers: new Headers(),
     json() { return new Promise(() => {}) },
   }) as Response)
   const rejected = assert.rejects(api('/api/cancel-body', {signal: controller.signal}), {name: 'AbortError'})
+  await nextTurn()
+  t.mock.timers.tick(30001)
   await nextTurn()
   controller.abort()
   await rejected
   assert.equal(fetchMock.mock.callCount(), 1)
 })
 
-test('write timeout and network failures explain uncertain outcome and never replay', async (t) => {
-  const timeout = new AbortController()
-  t.mock.method(AbortSignal, 'timeout', () => timeout.signal)
-  const fetchMock = t.mock.method(globalThis, 'fetch', () => new Promise<Response>(() => {}))
-  const rejected = assert.rejects(write('/api/uncertain-write', {}), {name: 'TimeoutError', message: '请求超时，操作结果尚未确认，请查询状态后再试'})
+test('a write remains pending after 30 seconds and completes once without replay', async (t) => {
+  const timeoutMock = simulatedDeadlines(t)
+  let respond!: (response: Response) => void
+  let settled = false
+  const fetchMock = t.mock.method(globalThis, 'fetch', () => new Promise<Response>(resolve => { respond = resolve }))
+  const request = write('/api/slow-write', {})
+  request.then(() => { settled = true }, () => { settled = true })
   await nextTurn()
-  timeout.abort(new DOMException('signal timed out', 'TimeoutError'))
-  await rejected
+  t.mock.timers.tick(30001)
+  await nextTurn()
+  assert.equal(settled, false)
+  assert.equal(timeoutMock.mock.callCount(), 0)
+  respond(Response.json({ok: true}))
+  assert.deepEqual(await request, {ok: true})
   assert.equal(fetchMock.mock.callCount(), 1)
 })
 
@@ -310,7 +337,7 @@ test('structured cancellation is not retried', async (t) => {
   }
 })
 
-test('read_busy retries a live GET once with jitter and keeps the same deadline', async (t) => {
+test('read_busy retries a live GET once with jitter and keeps the same cancellation signal', async (t) => {
   t.mock.timers.enable({apis: ['setTimeout']})
   t.mock.method(Math, 'random', () => 0.5)
   const fetchMock = t.mock.method(globalThis, 'fetch', async () => Response.json({detail: {code: 'read_busy', message: '繁忙'}}, {status: 503}))
@@ -350,35 +377,47 @@ test('a read_busy write is sent once', async t => {
   assert.equal(fetchMock.mock.callCount(), 1)
 })
 
-test('image preparation has a bounded decode wait and remains retryable', async (t) => {
+test('image decode remains pending after 10 seconds, can finish later, and can be cancelled', async (t) => {
   t.mock.timers.enable({apis: ['setTimeout']})
   const images: {onload: (() => void) | null; onerror: (() => void) | null; src: string; removed: boolean; decode: () => Promise<void>; removeAttribute: () => void}[] = []
+  const decoded: (() => void)[] = []
   class PendingImage {
     onload: (() => void) | null = null; onerror: (() => void) | null = null; src = ''; removed = false
-    decode() { return new Promise<void>(() => {}) }
+    decode() { return new Promise<void>(resolve => { decoded.push(resolve) }) }
     removeAttribute() { this.removed = true }
     constructor() { images.push(this) }
   }
   Object.defineProperty(globalThis, 'Image', {value: PendingImage, configurable: true})
   t.after(() => { Reflect.deleteProperty(globalThis, 'Image') })
-  const rejected = assert.rejects(prepareImage('/synthetic.png', new AbortController().signal), {name: 'TimeoutError'})
+  let settled = false
+  const ready = prepareImage('/synthetic.png', new AbortController().signal)
+  ready.then(() => { settled = true }, () => { settled = true })
   images[0]!.onload?.()
-  t.mock.timers.tick(10000)
+  t.mock.timers.tick(10001)
   await nextTurn()
-  // Avoid letting a missing timeout hang the whole fixture on the old implementation.
-  assert.equal(images[0]!.removed, true, 'decode waiting must end at the image budget')
-  await rejected
+  assert.equal(settled, false)
+  assert.equal(images[0]!.removed, false)
+  decoded[0]!()
+  await ready
   assert.equal(images[0]!.onload, null)
   assert.equal(images[0]!.onerror, null)
-  assert.equal(images[0]!.removed, true)
+  assert.equal(images[0]!.removed, false)
   const controller = new AbortController()
   const retry = assert.rejects(prepareImage('/synthetic.png', controller.signal), {name: 'AbortError'})
+  images[1]!.onload?.()
+  t.mock.timers.tick(10001)
+  await nextTurn()
   controller.abort()
   await retry
+  decoded[1]!()
+  await nextTurn()
+  assert.equal(images[1]!.removed, true)
+  assert.equal(images[1]!.onload, null)
+  assert.equal(images[1]!.onerror, null)
   assert.equal(images.length, 2)
 })
 
-test('an image that never loads times out; a successful decode releases its timer and abort listener', async t => {
+test('image loading remains pending after 10 seconds, can finish later, and can be cancelled', async t => {
   t.mock.timers.enable({apis: ['setTimeout']})
   const images: {onload: (() => void) | null; onerror: (() => void) | null; removed: boolean}[] = []
   class ImageFixture {
@@ -389,8 +428,12 @@ test('an image that never loads times out; a successful decode releases its time
   }
   Object.defineProperty(globalThis, 'Image', {value: ImageFixture, configurable: true})
   t.after(() => { Reflect.deleteProperty(globalThis, 'Image') })
-  const rejected = assert.rejects(prepareImage('/slow.png', new AbortController().signal), {name: 'TimeoutError'})
-  t.mock.timers.tick(10000); await rejected
+  let settled = false
+  const slow = prepareImage('/slow.png', new AbortController().signal)
+  slow.then(() => { settled = true }, () => { settled = true })
+  t.mock.timers.tick(10001); await nextTurn()
+  assert.equal(settled, false)
+  images[0]!.onload?.(); await slow
   const controller = new AbortController()
   const ready = prepareImage('/ready.png', controller.signal)
   images[1]!.onload?.(); await ready
@@ -398,6 +441,13 @@ test('an image that never loads times out; a successful decode releases its time
   assert.equal(images[1]!.removed, false)
   assert.equal(images[1]!.onload, null)
   assert.equal(images[1]!.onerror, null)
+  const cancel = new AbortController()
+  const rejected = assert.rejects(prepareImage('/cancel.png', cancel.signal), {name: 'AbortError'})
+  t.mock.timers.tick(10001); await nextTurn()
+  cancel.abort(); await rejected
+  assert.equal(images[2]!.removed, true)
+  assert.equal(images[2]!.onload, null)
+  assert.equal(images[2]!.onerror, null)
 })
 
 test('structured proxy errors still retry when they carry no final local read outcome', async (t) => {

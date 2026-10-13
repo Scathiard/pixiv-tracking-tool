@@ -1,4 +1,4 @@
-"""Bounded local read admission, one deadline, and cooperative SQLite cancellation."""
+"""Bounded admission and cancellable local reads, without an implicit deadline."""
 from __future__ import annotations
 
 import asyncio
@@ -57,9 +57,9 @@ class ReadCancelled(LocalReadError):
 
 
 class ReadBudget:
-    def __init__(self, timeout=4.5, lane="background", label="local_read"):
+    def __init__(self, timeout=None, lane="background", label="local_read"):
         self.started = monotonic()
-        self.deadline = self.started + timeout
+        self.deadline = self.started + timeout if timeout is not None else float("inf")
         self.lane = lane
         self.label = label
         self.request_id = uuid4().hex[:12]
@@ -117,7 +117,7 @@ class ReadBudget:
     def stopped(self):
         return self.cancelled.is_set() or monotonic() >= self.deadline
 
-    def cancel(self, *, timed_out=False):
+    def cancel(self, *, timed_out=False, reason=None):
         # Clearing hooks and removing the connection use this same lock. An old
         # consumer can never interrupt a connection returned to a later borrower.
         with self._lock:
@@ -125,7 +125,7 @@ class ReadBudget:
             self.cancelled.set()
             if diagnostics.enabled() and self.diagnostic_cancel_at is None:
                 self.diagnostic_cancel_at = monotonic()
-            _read_event("read.cancel", self, reason="deadline" if timed_out else "consumer_gone",
+            _read_event("read.cancel", self, reason=reason or ("deadline" if timed_out else "consumer_gone"),
                 connection_count=len(self._connections))
             for connection in self._connections:
                 connection.interrupt()
@@ -174,6 +174,22 @@ class ReadController:
         self.pending = dict.fromkeys(self.capacities, 0)
         self._shared = {}
         self._generation = 0
+        self._budgets = set()
+        self._stopping = False
+
+    def request_stop(self):
+        """User-requested exit interrupts readers; write connections are separate."""
+        with self._condition:
+            self._stopping = True
+            budgets = tuple(self._budgets)
+            self._condition.notify_all()
+        # Do not hold admission state while interrupting a SQLite connection.
+        for budget in budgets:
+            budget.cancel(reason="shutdown")
+
+    def _forget(self, budget):
+        with self._condition:
+            self._budgets.discard(budget)
 
     @property
     def generation(self):
@@ -185,14 +201,17 @@ class ReadController:
         with self._condition:
             self._generation += 1
 
-    def _enqueue(self, lane):
+    def _enqueue(self, lane, budget):
         with self._condition:
+            if self._stopping:
+                raise ReadCancelled("程序正在退出，本地读取已取消")
             if self.pending[lane] >= self.queue_bounds[lane]:
                 if diagnostics.enabled():
                     diagnostics.emit("read.queue_rejected", lane=lane, pending_count=self.pending[lane],
                         active_count=self.active[lane], capacity=self.capacities[lane], queue_bound=self.queue_bounds[lane])
                 raise LocalReadBusy("本地读取繁忙，请稍后重试")
             self.pending[lane] += 1
+            self._budgets.add(budget)
             if diagnostics.enabled():
                 diagnostics.emit("read.queue_enqueued", lane=lane, pending_count=self.pending[lane],
                     active_count=self.active[lane], capacity=self.capacities[lane])
@@ -211,16 +230,17 @@ class ReadController:
                 diagnostics.emit("read.queue_dequeued", lane=lane, pending_count=self.pending[lane],
                     active_count=self.active[lane])
 
-    def release(self, lane):
+    def release(self, lane, budget=None):
         with self._condition:
             self.active[lane] -= 1
+            self._budgets.discard(budget)
             if diagnostics.enabled():
                 diagnostics.emit("read.admission_released", lane=lane, active_count=self.active[lane], pending_count=self.pending[lane])
             self._condition.notify_all()
 
     def acquire_sync(self, budget):
         lane = budget.lane
-        self._enqueue(lane)
+        self._enqueue(lane, budget)
         try:
             with _read_span("read.admission_wait", budget, mode="sync"):
                 while True:
@@ -232,6 +252,9 @@ class ReadController:
                         return
                     with self._condition:
                         self._condition.wait(min(.02, max(0, budget.deadline - monotonic())))
+        except BaseException:
+            self._forget(budget)
+            raise
         finally:
             self._dequeue(lane)
 
@@ -260,7 +283,7 @@ class ReadController:
 
     async def _execute_admitted(self, budget, function):
         lane = budget.lane
-        self._enqueue(lane)
+        self._enqueue(lane, budget)
         try:
             with _read_span("read.admission_wait", budget, mode="async"):
                 while True:
@@ -271,6 +294,9 @@ class ReadController:
                             active_count=self.active[lane], pending_count=self.pending[lane], capacity=self.capacities[lane])
                         break
                     await asyncio.sleep(.01)
+        except BaseException:
+            self._forget(budget)
+            raise
         finally:
             self._dequeue(lane)
 
@@ -289,14 +315,14 @@ class ReadController:
                     after_cancel_ms=(monotonic() - budget.diagnostic_cancel_at) * 1000
                         if budget.diagnostic_cancel_at is not None else None)
                 current_read.reset(token)
-                self.release(lane)
+                self.release(lane, budget)
 
         # The lease belongs to the worker until it has actually finished. A
         # disk syscall that cannot be interrupted must not open another slot.
         with _read_span("read.thread_wait", budget):
             return await asyncio.to_thread(worker)
 
-    async def run(self, request, function, *, lane="frontend", key=None, timeout=4.5, label="local_read"):
+    async def run(self, request, function, *, lane="frontend", key=None, timeout=None, label="local_read"):
         loop = asyncio.get_running_loop()
         shared_key = (loop, lane, key) if key is not None else None
         job = self._shared.get(shared_key) if shared_key is not None else None
@@ -315,7 +341,7 @@ class ReadController:
         job[2] += 1
         _read_event("read.consumer_joined", budget, consumer_count=job[2],
             http_request_id=getattr(getattr(request, "state", None), "diagnostic_request_id", None))
-        consumer_deadline = monotonic() + timeout
+        consumer_deadline = monotonic() + timeout if timeout is not None else float("inf")
         consumer_timed_out = False
         try:
             with _read_span("read.consumer_wait", budget):
@@ -350,7 +376,7 @@ class ReadController:
                         pass
 
 
-async def run_read(request, database, function, *, lane="frontend", key=None, timeout=4.5, label="local_read"):
+async def run_read(request, database, function, *, lane="frontend", key=None, timeout=None, label="local_read"):
     try:
         return await database.reads.run(request, function, lane=lane, key=key, timeout=timeout, label=label)
     except ReadCancelled as exc:

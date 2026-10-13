@@ -1,5 +1,7 @@
 # 测试目录约定
 
+2026-10-13 取消读取时限：用户明确要求继续观察慢操作。临时脚本、合成库和构建缓存位于当前工作树 `work/tmp/unbounded-observation/`；本轮依赖 junction 为 `app/frontend/node_modules`，只移除链接；旧 `diagnostic-observation/package/enabled-runtime/` 在旧进程退出前保留。只验证旧时限以后仍可完成、切页／断开／退出取消与写入不被打断；不重复全套或长测。证据在 `docs/审查/证据/2026-10-13-诊断观察/` 使用 `unbounded-` 前缀，最终运行目录使用中暂留。
+
 2026-10-13 诊断补强：用户已批准取证方案并启用。临时脚本、合成数据、打包缓存及依赖链接登记在当前工作树 `work/tmp/diagnostic-observation/`；`backend/`、`frontend/`、`observer/`、`package/` 分别用于三个实现范围与最终打包核对，每项测试的进程 TEMP/TMP 与 pytest 基目录分开。复用既有前端依赖的 `app/frontend/node_modules` junction 由主会话统一创建和清理，仅移除链接本身。正式证据位于 `docs/审查/证据/2026-10-13-诊断观察/`，必要小范围检查后及时启用，不跑全量或长测；真实日志原位保留，仍在使用的日常运行目录不清理。
 
 2026-10-13 定时增量检查：本轮临时脚本、合成数据、构建缓存与独立运行目录位于当前工作树 `work/tmp/incremental-check/`；`app/frontend/node_modules` 为本轮创建、复用既有依赖的 junction，清理只移除链接本身。正式证据位于 `docs/审查/证据/2026-10-13-定时增量检查/`，交付 `release/v0.2.0/build-20261013.1/`。仅验证增量边界、失败恢复、真实新增计数、桌面／手机进度及最终 EXE 基础流程，不跑全量／长测，不额外触发真实账号批量任务；测试结束清理本轮临时项，日常实例使用中的运行目录暂留。

@@ -1,0 +1,40 @@
+{
+  "node": "v24.19.0",
+  "tests": {
+    "command": "node --experimental-strip-types --test tests/api.test.ts tests/interaction.test.ts",
+    "exit_code": 0,
+    "passed": 41,
+    "failed": 0
+  },
+  "typecheck": {
+    "command": "node node_modules/vue-tsc/bin/vue-tsc.js --noEmit",
+    "exit_code": 0,
+    "stdout": "empty"
+  },
+  "build": {
+    "command": "node node_modules/vite/bin/vite.js build --configLoader native",
+    "exit_code": 0,
+    "vite": "8.3.1",
+    "output": "app/frontend/dist",
+    "config_runner_attempt": "Failed to load CommonJS picomatch: require is not defined; native loader succeeded"
+  },
+  "verified": [
+    "GET fetch and JSON body stay pending beyond 30000ms then succeed",
+    "POST stays pending beyond 30000ms and succeeds without replay",
+    "caller cancellation after 30000ms releases a noncooperating body",
+    "image loading and decode stay pending beyond 10000ms then succeed",
+    "image load and decode cancellation after 10000ms releases ownership",
+    "shared read last-consumer cancellation and stale-result suppression",
+    "bounded HTTP/network retry and no automatic write replay"
+  ],
+  "unchanged": [
+    "diagnostic upload and probe 5000ms",
+    "bookmark existing-operation wait 30000ms"
+  ],
+  "limitations": [
+    "Synthetic clock, fetch and Image fixtures; no actual slow media or real account",
+    "No browser suite or packaged EXE verification in this subtask",
+    "TaskPanel and ArtistsView 4000ms wrapper removal checked in source diff and typecheck",
+    "Retained preexisting dist assets because build emptyOutDir is false"
+  ]
+}
