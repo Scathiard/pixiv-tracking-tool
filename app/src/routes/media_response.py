@@ -3,10 +3,13 @@ from email.utils import parsedate_to_datetime
 from hashlib import sha256
 
 from fastapi.responses import FileResponse, Response
+from ..core import diagnostics
 
 
 def local_media_response(request, path):
-    stat = path.stat()
+    with diagnostics.span('media.response.stat') as observation:
+        stat = path.stat()
+        observation['file_bytes'] = stat.st_size
     response = FileResponse(path, stat_result=stat)
     version = f"{stat.st_mtime_ns}:{stat.st_size}:{stat.st_ino}"
     etag = '"' + sha256(version.encode()).hexdigest() + '"'

@@ -19,8 +19,8 @@ _REQUEST_ACTIONS = {
 
 def _remote_fields(context):
     operation_id, item_id = getattr(context, "operation_id", None), getattr(context, "item_id", None)
-    return {"operation_ref": diagnostics.ref(operation_id) if operation_id is not None else None,
-        "item_ref": diagnostics.ref(item_id) if item_id is not None else None}
+    return {"operation_ref": diagnostics.task_ref(operation_id) if operation_id is not None else None,
+        "item_ref": diagnostics.task_ref(item_id) if item_id is not None else None}
 
 
 def _remote_event(event, context=None, **fields):

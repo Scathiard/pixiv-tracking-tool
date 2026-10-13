@@ -23,6 +23,9 @@ import uuid
 _current: ContextVar[tuple[str, str]] = ContextVar("diagnostic_context", default=("", ""))
 _recorder = None
 DEFAULT_PART_BYTES = 64 * 1024 * 1024
+FAST_SPAN_MS = 25.0
+_COMPACT_EVENTS = frozenset(("read.connection_attached", "read.connection_detached", "read.budget_created"))
+_DIMENSIONS = frozenset(("lane", "endpoint", "stage", "outcome", "reason", "kind", "mode", "thread_name"))
 _private = {"token", "password", "secret", "authorization", "cookie", "headers",
     "parameters", "params", "payload", "target", "result", "body", "url", "path",
     "statement", "sql", "message", "account_id"}
@@ -88,6 +91,21 @@ class Recorder:
         self.active = {}
         self.sql_counts = {}
         self.sql_catalogue = set()
+        self.aggregates = {}
+        self.aggregate_overflow = 0
+        self.probe_errors = 0
+        self.queue_peak = 0
+        self.written_bytes = 0
+        self.written_records = 0
+        self.write_ms = 0.0
+        self.flush_ms = 0.0
+        self.flush_count = 0
+        self.writer_cpu_ms = 0.0
+        self.watch_cpu_ms = 0.0
+        self.last_sample_at = self.started
+        self.last_sample_bytes = 0
+        self.last_sample_records = 0
+        self.stack_fingerprints = {}
         self.sequence = 0
         self.dropped = 0
         self.closed = False
@@ -111,7 +129,8 @@ class Recorder:
         self.put("diagnostic.start", build=build, version=version, pid=os.getpid(),
                  python=sys.version.split()[0], interval_seconds=interval, part_bytes=max_bytes,
                  retention="continuous parts; prior files retained", run_id=self.run_id,
-                 sql_policy="all statements counted; individual spans for slow or failed statements")
+                 sql_policy="all statements counted by fingerprint; individual slow or failed statements",
+                 fast_span_ms=FAST_SPAN_MS, format_version=2)
         self.watcher.start()
 
     def put(self, event, **fields):
@@ -127,8 +146,37 @@ class Recorder:
             record["seq"] = self.sequence
             try:
                 self.queue.put_nowait(record)
+                self.queue_peak = max(self.queue_peak, self.queue.qsize())
             except queue.Full:
                 self.dropped += 1
+
+    def aggregate(self, event, *, duration_ms=0, count=1, **dimensions):
+        dimensions = _clean({key: value for key, value in dimensions.items() if key in _DIMENSIONS})
+        key = (event, tuple(sorted(dimensions.items())))
+        with self.lock:
+            if key not in self.aggregates and len(self.aggregates) >= 512:
+                self.aggregate_overflow += count
+                return
+            row = self.aggregates.setdefault(key, {"count": 0, "duration_ms": 0.0, "max_ms": 0.0})
+            row["count"] += count
+            row["duration_ms"] += duration_ms
+            row["max_ms"] = max(row["max_ms"], duration_ms)
+
+    def _write_line(self, line):
+        started = time.perf_counter()
+        self.stream.write(line)
+        self.write_ms += (time.perf_counter() - started) * 1000
+        size = len(line.encode("utf-8"))
+        self.part_bytes += size
+        self.written_bytes += size
+        self.written_records += 1
+
+    def _flush(self):
+        started = time.perf_counter()
+        self.stream.flush()
+        self.flush_ms += (time.perf_counter() - started) * 1000
+        self.flush_count += 1
+        self.writer_cpu_ms = time.thread_time() * 1000
 
     def _write_marker(self, event, **fields):
         # Writer-owned boundaries have no producer sequence. Their adjacent
@@ -138,8 +186,7 @@ class Recorder:
                "run_id": self.run_id, "part": self.part, "build": self.build,
                "version": self.version, **fields}
         line = json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n"
-        self.stream.write(line)
-        self.part_bytes += len(line.encode("utf-8"))
+        self._write_line(line)
 
     def _rotate(self, next_sequence):
         next_file = self.file.with_name(f"{self.part_prefix}-part{self.part + 1:04d}.jsonl")
@@ -150,7 +197,7 @@ class Recorder:
         try:
             self._write_marker("diagnostic.part_end", next_file=next_file.name,
                                last_sequence=self.last_sequence, next_sequence=next_sequence)
-            self.stream.flush()
+            self._flush()
             self.stream.close()
         except BaseException:
             next_stream.close()
@@ -170,7 +217,7 @@ class Recorder:
                 try:
                     first = self.queue.get(timeout=.2)
                 except queue.Empty:
-                    self.stream.flush()
+                    self._flush()
                     continue
                 batch = [first]
                 batch_deadline = time.monotonic() + .2
@@ -186,11 +233,10 @@ class Recorder:
                         self._rotate(row["seq"])
                     # A single large JSON row stays intact, even if it exceeds
                     # the soft part size; rows are never cut between files.
-                    self.stream.write(line)
-                    self.part_bytes += size
+                    self._write_line(line)
                     self.part_records += 1
                     self.last_sequence = row["seq"]
-                self.stream.flush()
+                self._flush()
         except Exception as error:
             self.failed = True
             try:
@@ -212,12 +258,25 @@ class Recorder:
             for data in active:
                 data.pop("started", None)
             counts, self.sql_counts = self.sql_counts, {}
+            aggregates, self.aggregates = self.aggregates, {}
             dropped = self.dropped
+            health = {"probe_errors": self.probe_errors, "aggregate_overflow": self.aggregate_overflow,
+                      "queue_peak": self.queue_peak}
         for index in range(0, len(active), 48):
             self.put("watch.active", spans=active[index:index + 48], total=len(active))
-        for (sql_id, connection), counts_row in counts.items():
-            self.put("sql.aggregate", sql_id=sql_id, connection=connection, **counts_row)
+        for sql_id, counts_row in counts.items():
+            self.put("sql.aggregate", sql_id=sql_id, **counts_row)
+        for (event, dimensions), values in aggregates.items():
+            self.put("event.aggregate", observed_event=event, **dict(dimensions), **values)
         metrics = {"active_spans": len(active), "queue_size": self.queue.qsize(), "dropped_records": dropped}
+        elapsed = max(.001, now - self.last_sample_at)
+        metrics.update(**health, log_bytes=self.written_bytes, log_records=self.written_records,
+                       log_bytes_per_second=round((self.written_bytes - self.last_sample_bytes) / elapsed, 2),
+                       log_records_per_second=round((self.written_records - self.last_sample_records) / elapsed, 2),
+                       log_write_ms=round(self.write_ms, 3), log_flush_ms=round(self.flush_ms, 3),
+                       log_flush_count=self.flush_count, writer_cpu_ms=round(self.writer_cpu_ms, 3),
+                       watch_cpu_ms=round(self.watch_cpu_ms, 3), writer_alive=self.writer.is_alive())
+        self.last_sample_at, self.last_sample_bytes, self.last_sample_records = now, self.written_bytes, self.written_records
         if self.heartbeat_at is not None:
             metrics["event_loop_gap_ms"] = round((now - self.heartbeat_at) * 1000, 2)
         try:
@@ -235,12 +294,20 @@ class Recorder:
         # Capture all threads on stalled work / event-loop lag, including writers.
         if any(row["age_ms"] >= 1000 for row in active) or metrics.get("event_loop_gap_ms", 0) >= 1500:
             names = {thread.ident: thread.name for thread in threading.enumerate()}
-            for ident, frame in sys._current_frames().items():
+            frames = sys._current_frames()
+            self.stack_fingerprints = {ident: value for ident, value in self.stack_fingerprints.items() if ident in frames}
+            for ident, frame in frames.items():
                 stack = []
                 while frame is not None and len(stack) < 60:
                     stack.append(_location(frame))
                     frame = frame.f_back
-                self.put("thread.stack", inspected_thread=ident, thread_name=names.get(ident, "unknown"), stack=stack)
+                fingerprint = hashlib.blake2s("\n".join(stack).encode(), digest_size=8).hexdigest()
+                if self.stack_fingerprints.get(ident) == fingerprint:
+                    self.aggregate("thread.stack.repeat", thread_name=names.get(ident, "unknown"))
+                else:
+                    self.stack_fingerprints[ident] = fingerprint
+                    self.put("thread.stack", inspected_thread=ident, thread_name=names.get(ident, "unknown"),
+                             stack_id=fingerprint, stack=stack)
 
     def _watch(self):
         while not self.stop_event.wait(self.interval):
@@ -249,7 +316,10 @@ class Recorder:
             try:
                 self.sample()
             except Exception as error:
+                _probe_failed(self)
                 self.put("diagnostic.sample_error", error_type=type(error).__name__)
+            finally:
+                self.watch_cpu_ms = time.thread_time() * 1000
 
     def close(self):
         if self.closed:
@@ -270,6 +340,27 @@ def _live(recorder):
 
 def enabled():
     return _live(_recorder)
+
+
+def status():
+    recorder = _recorder
+    return {"enabled": _live(recorder), "run_id": recorder.run_id if recorder else None,
+            "build": recorder.build if recorder else None}
+
+
+def _probe_failed(recorder=None):
+    recorder = recorder or _recorder
+    if recorder is not None:
+        with recorder.lock:
+            recorder.probe_errors += 1
+
+
+def aggregate(event, *, duration_ms=0, count=1, **dimensions):
+    try:
+        if enabled():
+            _recorder.aggregate(event, duration_ms=duration_ms, count=count, **dimensions)
+    except Exception:
+        _probe_failed()
 
 
 def start(directory, *, build, version, interval=2.0, max_bytes=DEFAULT_PART_BYTES):
@@ -298,9 +389,14 @@ def emit(event, **fields):
     try:
         recorder = _recorder
         if _live(recorder):
+            if event in _COMPACT_EVENTS or (event == "read.completed" and fields.get("outcome") == "ok"
+                                           and fields.get("total_ms", 0) < FAST_SPAN_MS):
+                recorder.aggregate(event, duration_ms=fields.get("total_ms", 0),
+                                   **{key: value for key, value in fields.items() if key in _DIMENSIONS})
+                return
             recorder.put(event, **fields)
     except Exception:
-        pass
+        _probe_failed()
 
 
 def ref(value):
@@ -310,7 +406,19 @@ def ref(value):
     try:
         return hashlib.blake2s(str(value).encode("utf-8"), key=recorder.salt, digest_size=8).hexdigest()
     except Exception:
+        _probe_failed()
         return ""
+
+
+def task_ref(value):
+    """Stable across restarts for random task UUIDs, never for account/artwork IDs."""
+    if not enabled() or value is None:
+        return ""
+    try:
+        parsed = uuid.UUID(str(value))
+        return hashlib.blake2s(parsed.bytes, person=b"pt-task", digest_size=16).hexdigest()
+    except (ValueError, TypeError, AttributeError):
+        return ref(value)
 
 
 @contextmanager
@@ -322,6 +430,8 @@ def span(event, **fields):
         return
     token = None
     identity = None
+    started = time.monotonic()
+    compact = event.startswith("db.read.") or event in {"task.scheduler_step", "http.send"}
     try:
         identity = uuid.uuid4().hex[:12]
         trace, parent = _current.get()
@@ -331,10 +441,11 @@ def span(event, **fields):
         with recorder.lock:
             recorder.active[identity] = {"span": identity, "event": event, "trace": trace,
                 "parent": parent, "thread": threading.get_ident(), "started": started, **_clean(fields)}
-        emit(event + ".begin", **{**fields, "span": identity})
+        if not compact:
+            emit(event + ".begin", **{**fields, "span": identity})
     except Exception:
         # An observer failure must never prevent the business body from running.
-        pass
+        _probe_failed(recorder)
     try:
         yield record
     except BaseException as error:
@@ -344,15 +455,21 @@ def span(event, **fields):
         try:
             with recorder.lock:
                 recorder.active.pop(identity, None)
-            emit(event + ".end", **{**fields, **record, "span": identity,
-                 "duration_ms": round((time.monotonic() - started) * 1000, 3)})
+            duration_ms = round((time.monotonic() - started) * 1000, 3)
+            if compact and duration_ms < FAST_SPAN_MS and "error_type" not in record:
+                aggregate(event, duration_ms=duration_ms,
+                          **{key: value for key, value in {**fields, **record}.items() if key in _DIMENSIONS})
+            else:
+                emit(event + ".end", **{**fields, **record, "span": identity,
+                     "started_elapsed_ms": round((started - recorder.started) * 1000, 3),
+                     "begin_recorded": not compact, "duration_ms": duration_ms})
         except Exception:
-            pass
+            _probe_failed(recorder)
         if token is not None:
             try:
                 _current.reset(token)
             except Exception:
-                pass
+                _probe_failed(recorder)
 
 
 def sql_start(connection, statement, executemany=False):
@@ -385,6 +502,7 @@ def sql_start(connection, statement, executemany=False):
                 "parent": parent, "started": started}
         return recorder, identity, signature, connection_id, started, bool(executemany)
     except Exception:
+        _probe_failed(recorder)
         return None
 
 
@@ -398,7 +516,7 @@ def sql_finish(token, error=None, rowcount=None):
             recorder.active.pop(identity, None)
             if not _live(recorder):
                 return
-            row = recorder.sql_counts.setdefault((signature, connection), {"count": 0, "duration_ms": 0.0,
+            row = recorder.sql_counts.setdefault(signature, {"count": 0, "duration_ms": 0.0,
                 "max_ms": 0.0, "errors": 0, "rows": 0})
             row["count"] += 1
             row["duration_ms"] = round(row["duration_ms"] + elapsed, 3)
@@ -410,7 +528,7 @@ def sql_finish(token, error=None, rowcount=None):
                  duration_ms=round(elapsed, 3), executemany=many, rowcount=rowcount,
                  error_type=type(error).__name__ if error is not None else None)
     except Exception:
-        pass
+        _probe_failed()
 
 
 async def loop_heartbeat():
@@ -429,13 +547,22 @@ class DiagnosticHTTPMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or not enabled():
+        if scope["type"] != "http" or not enabled() or scope.get("path", "").startswith("/api/diagnostics"):
             return await self.app(scope, receive, send)
         method = scope.get("method", "UNKNOWN")
         category = "api" if scope.get("path", "").startswith("/api/") else "page_or_media"
-        with span("http.request", method=method, category=category) as observation:
-            scope.setdefault("state", {})["diagnostic_request_id"] = _current.get()[0]
-            observation.update(bytes_sent=0, disconnected=False)
+        headers = dict(scope.get("headers", ()))
+        correlation = {}
+        for name, key in ((b"x-pixiv-client-request", "client_request"), (b"x-pixiv-client-session", "client_session")):
+            raw = headers.get(name, b"")
+            if re.fullmatch(rb"[a-f0-9]{32}", raw):
+                correlation[key] = raw.decode("ascii")
+        started = time.monotonic()
+        with span("http.request", method=method, category=category, **correlation) as observation:
+            state = scope.setdefault("state", {})
+            trace = state["diagnostic_request_id"] = _current.get()[0]
+            run = status()["run_id"]
+            observation.update(bytes_sent=0, disconnected=False, send_wait_ms=0.0, send_calls=0)
             async def observed_receive():
                 message = await receive()
                 if message["type"] == "http.disconnect":
@@ -447,7 +574,27 @@ class DiagnosticHTTPMiddleware:
                     observation["status"] = message["status"]
                     route = scope.get("route")
                     observation["route"] = getattr(route, "path", category)
+                    observation["headers_ms"] = round((time.monotonic() - started) * 1000, 3)
+                    ready = state.get("diagnostic_business_ready_at")
+                    if ready is not None:
+                        observation["after_business_ms"] = round((time.monotonic() - ready) * 1000, 3)
+                    response_headers = list(message.get("headers", ()))
+                    response_headers.extend(((b"x-pixiv-request-id", trace.encode("ascii")),
+                                             (b"x-pixiv-diagnostic-run", run.encode("ascii")),
+                                             (b"server-timing", f'pixiv;desc="{trace}"'.encode("ascii"))))
+                    message = {**message, "headers": response_headers}
+                    emit("http.response_started", status=message["status"], route=observation["route"],
+                         headers_ms=observation["headers_ms"])
                 elif message["type"] == "http.response.body":
                     observation["bytes_sent"] += len(message.get("body", b""))
-                await send(message)
+                    observation.setdefault("first_body_ms", round((time.monotonic() - started) * 1000, 3))
+                    if not message.get("more_body", False):
+                        observation["last_body_ms"] = round((time.monotonic() - started) * 1000, 3)
+                sent = time.monotonic()
+                try:
+                    with span("http.send", message_type=message["type"]):
+                        await send(message)
+                finally:
+                    observation["send_wait_ms"] += round((time.monotonic() - sent) * 1000, 3)
+                    observation["send_calls"] += 1
             await self.app(scope, observed_receive, observed_send)

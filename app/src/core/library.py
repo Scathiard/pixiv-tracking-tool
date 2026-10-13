@@ -17,6 +17,7 @@ from ..security import sanitize_caption
 from .archive_state import work_states
 from .read_projection import CursorExpired
 from .read_control import track_read_stage
+from . import diagnostics
 from .tag_translations import tag_details
 from .source_status import ARTIST_PREFIX, availability_snapshot
 from .catalogue_revision import catalogue_revision
@@ -334,9 +335,10 @@ class Library:
             snapshots = selected_snapshots(session, works, display=True)
         with track_read_stage("library_bookmarks"):
             operations = self._bookmark_operations(session, [work.id for work in works])
-        views = [self._work_view(work, operations.get(work.id)) for work in works]
-        for work, view in zip(works, views):
-            apply_snapshot(view, work, snapshots.get(work.id))
+        with diagnostics.span('read.library.assemble', selected_count=len(works)):
+            views = [self._work_view(work, operations.get(work.id)) for work in works]
+            for work, view in zip(works, views):
+                apply_snapshot(view, work, snapshots.get(work.id))
         animation_ids = [view["id"] for view in views if view["type"] == "ugoira"]
         with track_read_stage("library_states"):
             states, revision = work_states(session, works)
@@ -387,8 +389,9 @@ class Library:
                     "bookmark": bookmark, "is_bookmarked": bool(bookmark["value"])})
         with track_read_stage("library_states"):
             states, revision = work_states(session, works)
-            for view in views:
-                view.update(states[view["id"]])
+            with diagnostics.span('read.library.apply_states', selected_count=len(views)):
+                for view in views:
+                    view.update(states[view["id"]])
         return views, works, operations, revision
 
     @staticmethod

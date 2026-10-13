@@ -76,6 +76,7 @@ class ReadBudget:
         self.cancelled_by_deadline = False
         self._lock = Lock()
         self._connections = set()
+        self.diagnostic_cancel_at = None
         _read_event("read.budget_created", self, timeout_seconds=timeout)
 
     def report(self, outcome):
@@ -122,6 +123,8 @@ class ReadBudget:
         with self._lock:
             self.cancelled_by_deadline |= timed_out
             self.cancelled.set()
+            if diagnostics.enabled() and self.diagnostic_cancel_at is None:
+                self.diagnostic_cancel_at = monotonic()
             _read_event("read.cancel", self, reason="deadline" if timed_out else "consumer_gone",
                 connection_count=len(self._connections))
             for connection in self._connections:
@@ -282,7 +285,9 @@ class ReadController:
                     budget.checkpoint()
                     return result
             finally:
-                _read_event("read.worker_cleanup", budget, cancelled=budget.cancelled.is_set())
+                _read_event("read.worker_cleanup", budget, cancelled=budget.cancelled.is_set(),
+                    after_cancel_ms=(monotonic() - budget.diagnostic_cancel_at) * 1000
+                        if budget.diagnostic_cancel_at is not None else None)
                 current_read.reset(token)
                 self.release(lane)
 
@@ -386,7 +391,11 @@ def local_read(get_runtime, *, lane="frontend", coalesce=False, coalesce_context
                 key = (str(request.url), runtime.database.reads.generation,
                        id(runtime), id(client), generation, account,
                        coalesce_context(runtime) if coalesce_context is not None else None)
-            return await run_read(request, runtime.database, lambda: function(*args, **kwargs), lane=lane, key=key, label=function.__name__)
+            try:
+                return await run_read(request, runtime.database, lambda: function(*args, **kwargs), lane=lane, key=key, label=function.__name__)
+            finally:
+                if diagnostics.enabled() and request is not None:
+                    request.scope.setdefault("state", {})["diagnostic_business_ready_at"] = monotonic()
         endpoint.__signature__ = signature
         return endpoint
     return decorate

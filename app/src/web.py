@@ -45,6 +45,7 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
     from .routes.archive_pages import create_pages
     from .core.startup_upgrade import StartupUpgrade
     from .routes.upgrade_api import create_upgrade_router
+    from .routes.diagnostic_api import create_diagnostic_router
 
     def default_runtime():
         path = _cfg.DATA_DIR / "pixiv_tracker.db"
@@ -169,6 +170,7 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
         runtime_factory or default_runtime, stopping=lambda:application.state.stopping or _shutdown_requested.is_set())
     application.add_middleware(RequestBoundaryMiddleware)
     application.add_middleware(diagnostics.DiagnosticHTTPMiddleware)
+    application.include_router(create_diagnostic_router())
     application.mount("/static", StaticFiles(directory=resource_path("static")), name="static")
     if reading_ui:
         frontend = Path(resource_path("frontend/dist"))

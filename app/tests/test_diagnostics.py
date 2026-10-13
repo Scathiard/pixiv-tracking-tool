@@ -62,6 +62,9 @@ def test_sqlite_commit_rollback_and_http_keep_behavior(capture, tmp_path):
         @app.get("/api/works/{work_id}")
         def endpoint(work_id: int):
             with database.read() as session:
+                # A slow result-consumption body remains individually correlated;
+                # normal fast read phases now retain aggregate evidence instead.
+                time.sleep(.03)
                 return {"count": session.scalar(text("SELECT count(*) FROM application_state WHERE key='synthetic'"))}
         with TestClient(app) as client:
             response = client.get("/api/works/987654321?private=QUERY_SECRET", headers={"Authorization": "Bearer HEADER_SECRET"})

@@ -25,6 +25,7 @@ from .reconcile import ReconcileHandler
 from .source_status import ArtistSourceHandler, SourceStatus
 from .tasks import TaskQueue
 from .wal_maintenance import WalMaintenance
+from . import diagnostics
 
 
 class LoginRequired(RuntimeError):
@@ -387,6 +388,12 @@ class Runtime:
         return self.bookmarks.submit(work_id, desired, uuid4().hex)
 
     def media_path(self, relative):
+        with diagnostics.span('media.authorize') as observation:
+            result = self._media_path_observed(relative)
+            observation['outcome'] = 'available' if result is not None else 'unavailable'
+            return result
+
+    def _media_path_observed(self, relative):
         if relative.startswith((".staging/", ".recovery/", ".archive-writer")):
             return None
         try:
@@ -423,7 +430,9 @@ class Runtime:
         observed_state = "missing"
         if allowed:
             try:
-                stat = path.stat()
+                with diagnostics.span('media.stat') as observation:
+                    stat = path.stat()
+                    observation['file_bytes'] = stat.st_size
                 if S_ISREG(stat.st_mode) and stat.st_size > 0:
                     return path
                 if S_ISREG(stat.st_mode):
@@ -435,7 +444,9 @@ class Runtime:
             with self.database.write() as session:
                 # Publication may have won the writer while this observation waited.
                 try:
-                    current_stat = path.stat()
+                    with diagnostics.span('media.stat', reason='recheck') as observation:
+                        current_stat = path.stat()
+                        observation['file_bytes'] = current_stat.st_size
                     if S_ISREG(current_stat.st_mode) and current_stat.st_size > 0:
                         return path
                     observed_state = "invalid" if S_ISREG(current_stat.st_mode) else "missing"

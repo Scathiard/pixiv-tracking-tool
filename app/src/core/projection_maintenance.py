@@ -16,6 +16,7 @@ from . import diagnostics
 import json
 import math
 import re
+import time
 from functools import lru_cache
 from types import SimpleNamespace
 
@@ -843,22 +844,41 @@ def read_work_states(session, works):
         selected = ids[start:start + 240]
         placeholders = ','.join('?' for _ in selected)
         task_winners = tasks.winners(connection, selected)
-        rows = connection.exec_driver_sql(f'''SELECT s.work_id,s.value,o.work_type,r.thumbnail,r.gif,l.value
+        with diagnostics.span('read.work_states.execute', selected_count=len(selected)):
+            rows = connection.exec_driver_sql(f'''SELECT s.work_id,s.value,o.work_type,r.thumbnail,r.gif,l.value
             FROM read_work_state s JOIN read_work_order o ON o.work_id=s.work_id
             LEFT JOIN read_resource_totals r ON r.scope='work:'||s.work_id
             LEFT JOIN application_state l ON l.key='maintenance_work:'||s.work_id
             WHERE s.work_id IN ({placeholders})''', tuple(selected))
-        for work_id, encoded, work_type, thumbnail, gif, ledger_value in rows:
-            value = json.loads(encoded)
-            archive, source_update = value['archive'], value['source_update']
-            ledger = json.loads(ledger_value) if ledger_value is not None else {}
-            ledger = ledger if isinstance(ledger, dict) else {}
-            winner = task_winners.get(work_id)
-            history = SimpleNamespace(**winner['payload']) if winner is not None else idle
-            processing = _processing(history, ledger, original_gap=bool(archive['missing']),
-                local_gap=not thumbnail or (work_type=='ugoira' and not gif),
-                source_pending=source_update['pending'])
-            result[work_id] = {**value, 'processing':processing, 'recovery':_recovery(ledger,processing,archive)}
+        observing = diagnostics.enabled()
+        consumed, decode_seconds, assemble_seconds = 0, 0.0, 0.0
+        with diagnostics.span('read.work_states.consume', selected_count=len(selected)) as observation:
+            try:
+                for work_id, encoded, work_type, thumbnail, gif, ledger_value in rows:
+                    consumed += 1
+                    began = time.perf_counter() if observing else 0
+                    try:
+                        value = json.loads(encoded)
+                        archive, source_update = value['archive'], value['source_update']
+                        ledger = json.loads(ledger_value) if ledger_value is not None else {}
+                    finally:
+                        if observing:
+                            decode_seconds += time.perf_counter() - began
+                    began = time.perf_counter() if observing else 0
+                    try:
+                        ledger = ledger if isinstance(ledger, dict) else {}
+                        winner = task_winners.get(work_id)
+                        history = SimpleNamespace(**winner['payload']) if winner is not None else idle
+                        processing = _processing(history, ledger, original_gap=bool(archive['missing']),
+                            local_gap=not thumbnail or (work_type=='ugoira' and not gif),
+                            source_pending=source_update['pending'])
+                        result[work_id] = {**value, 'processing':processing, 'recovery':_recovery(ledger,processing,archive)}
+                    finally:
+                        if observing:
+                            assemble_seconds += time.perf_counter() - began
+            finally:
+                observation.update(row_count=consumed, decode_ms=decode_seconds * 1000,
+                    assemble_ms=assemble_seconds * 1000)
     if set(result) != set(ids):
         raise store.ProjectionUnavailable('work state is missing; explicit repair is required')
     return result

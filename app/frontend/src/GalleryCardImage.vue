@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { mediaPlaceholder, type ArchiveState, type ProcessingState, type RecoveryState } from './types'
 import { galleryMediaSource, mediaRetryDelay, newerMediaRevision, staticMediaRetryDelay } from './state/galleryMedia'
+import { mediaObservation } from './diagnostics'
 
 const props = defineProps<{
   thumbnail: string | null
@@ -77,6 +78,15 @@ watch(() => props.recovery?.status, (status, previous) => {
 })
 const source = computed(() => galleryMediaSource(props, active.value || !!(foreground.value && props.animation && retainedPreview.value && retainedPreview.value === props.preview), thumbnailFailed.value, previewFailed.value))
 const animationMasked = computed(() => source.value?.kind === 'animation' && !active.value)
+let observation: ReturnType<typeof mediaObservation>, staticObservation: ReturnType<typeof mediaObservation>
+watch(() => source.value ? source.value.kind + source.value.url : null, () => {
+  observation?.cancel(foreground.value ? 'navigation' : 'hidden')
+  observation = mediaObservation(source.value?.url)
+}, {immediate: true})
+watch(() => animationMasked.value && !thumbnailFailed.value ? props.thumbnail : null, src => {
+  staticObservation?.cancel(foreground.value ? 'navigation' : 'hidden')
+  staticObservation = mediaObservation(src)
+}, {immediate: true})
 const placeholder = computed(() => {
   if (thumbnailFailed.value || previewFailed.value) return {label: '本地图片暂时无法显示', reason: '可打开作品重试图片'}
   if (props.previewStatus === 'ready') return {label: '缩略图待生成', reason: null}
@@ -84,6 +94,8 @@ const placeholder = computed(() => {
 })
 function failed(event: Event) {
   if (event.currentTarget !== image.value && event.currentTarget !== staticImage.value) return
+  const observed = event.currentTarget === image.value ? observation : staticObservation
+  observed?.error()
   if ((event.currentTarget as HTMLImageElement).dataset.mediaSource === 'thumbnail') {
     thumbnailFailures++; thumbnailFailedAt = Date.now(); thumbnailFailed.value = true
   } else if (active.value || source.value?.kind === 'animation') { clearPreviewRetry(); previewFailures++; previewFailedAt = Date.now(); previewFailed.value = true }
@@ -91,6 +103,8 @@ function failed(event: Event) {
 }
 function loaded(event: Event) {
   if (event.currentTarget !== image.value && event.currentTarget !== staticImage.value) return
+  const observed = event.currentTarget === image.value ? observation : staticObservation
+  observed?.loaded(event.currentTarget as HTMLImageElement); observed?.decoded('unsupported')
   if ((event.currentTarget as HTMLImageElement).dataset.mediaSource === 'thumbnail') thumbnailFailures = 0
   else previewFailures = 0
 }
@@ -114,7 +128,7 @@ watch(active, value => {
   if (!value) { clearTimeout(retryTimer); retryTimer = 0; clearStaticRetry() }
   else { retryUpdatedPreview(); queueStaticRetry() }
 })
-onBeforeUnmount(() => { observer?.disconnect(); clearPreviewRetry(); clearStaticRetry(); document.removeEventListener('visibilitychange', visibilityChanged); image.value?.removeAttribute('src') })
+onBeforeUnmount(() => { observation?.cancel('unmounted'); staticObservation?.cancel('unmounted'); observer?.disconnect(); clearPreviewRetry(); clearStaticRetry(); document.removeEventListener('visibilitychange', visibilityChanged); image.value?.removeAttribute('src') })
 </script>
 
 <template>

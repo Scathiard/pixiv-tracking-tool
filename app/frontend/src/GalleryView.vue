@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { api, ApiReadError, url } from './api'
 import { LatestIntent } from './interaction'
+import { discardedSignal } from './diagnostics'
 import { observeCatalogueData } from './state/catalogue'
 import { singleArtistScope } from './state/filterSelection'
 import { matchingGallerySeed, type GallerySeed } from './state/libraryEntry'
@@ -109,7 +110,7 @@ async function fetchRange(offset: number, limit: number, anchor: number, backgro
     hasMore.value = data.has_more ?? offset + data.items.length < data.total
     hasPrevious.value = data.has_previous ?? offset > 0
     costNotice.value = data.performance === 'on_demand_scan' ? '当前筛选或排序按需查询；精确数量与数字跳页可能需要遍历此范围。' : useCursor ? '' : '数字跳页按需定位，会读取目标页之前的作品。'
-    if (!ticket.current() || isOlderCatalogue(data.catalogue_revision, catalogueRevision)) return
+    if (!ticket.current() || isOlderCatalogue(data.catalogue_revision, catalogueRevision)) { discardedSignal(ticket.signal, 'other'); return }
     catalogueRevision = data.catalogue_revision ?? catalogueRevision
     if (!background) {
       // A fresh scroller ends native touch inertia; retain loaded cards until this request succeeds.
@@ -180,7 +181,7 @@ async function extend(direction: number) {
     if (direction > 0) hasMore.value = data.has_more ?? offset + data.items.length < data.total
     else hasPrevious.value = data.has_previous ?? offset > 0
     totalExact.value = data.total_exact !== false
-    if (!ticket.current() || isOlderCatalogue(data.catalogue_revision, catalogueRevision)) return
+    if (!ticket.current() || isOlderCatalogue(data.catalogue_revision, catalogueRevision)) { discardedSignal(ticket.signal, 'other'); return }
     catalogueRevision = data.catalogue_revision ?? catalogueRevision
     const row = rows.value.find(row => row.end > (viewport.value?.scrollTop || 0))
     const anchor = start.value + (row?.index || 0) * columns.value

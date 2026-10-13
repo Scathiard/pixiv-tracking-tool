@@ -33,18 +33,18 @@ _SOURCE_RESULT = object()
 
 def _task_event(event, operation_id=None, item_id=None, **fields):
     if diagnostics.enabled():
-        diagnostics.emit(event, operation_ref=diagnostics.ref(operation_id) if operation_id is not None else None,
-            item_ref=diagnostics.ref(item_id) if item_id is not None else None, **fields)
+        diagnostics.emit(event, operation_ref=diagnostics.task_ref(operation_id) if operation_id is not None else None,
+            item_ref=diagnostics.task_ref(item_id) if item_id is not None else None, **fields)
 
 
 @contextmanager
 def _task_span(event, operation_id, item_id=None, **fields):
     if not diagnostics.enabled():
-        yield
+        yield {}
         return
-    with diagnostics.span(event, operation_ref=diagnostics.ref(operation_id),
-            item_ref=diagnostics.ref(item_id) if item_id is not None else None, **fields):
-        yield
+    with diagnostics.span(event, operation_ref=diagnostics.task_ref(operation_id),
+            item_ref=diagnostics.task_ref(item_id) if item_id is not None else None, **fields) as observation:
+        yield observation
 
 
 def _planning_wait(value):
@@ -174,10 +174,13 @@ class TaskContext:
     def checkpoint(self):
         if self.queue._stop.is_set():
             from ..request_policy import ShutdownRequested
+            _task_event('task.checkpoint_rejected', self.operation_id, self.item_id, reason='shutdown')
             raise ShutdownRequested()
         if self.queue.operation_paused(self.operation_id):
+            _task_event('task.checkpoint_rejected', self.operation_id, self.item_id, reason='manual_pause')
             raise ManualPauseRequested()
         if self.kind is not None and not self.queue.kind_allowed(self.kind):
+            _task_event('task.checkpoint_rejected', self.operation_id, self.item_id, reason='connection_required')
             raise ConnectionRequired()
         guard = getattr(self, "remote_guard", None)
         if guard is not None:
@@ -493,6 +496,7 @@ class TaskQueue:
     def set_manual_paused(self, operation_id, paused):
         if type(paused) is not bool:
             raise ValueError("暂停设置必须是布尔值")
+        _task_event('task.pause_requested', operation_id, paused=paused)
         with self.database.write() as session:
             operation = session.get(Operation, operation_id)
             if operation is None:
@@ -509,6 +513,7 @@ class TaskQueue:
             result = {"operation_id": operation_id, "pause_requested": paused, "state": operation.state}
             self._publish_controls_after_commit(session, paused=(operation_id, paused))
         self._wake.set()
+        _task_event('task.pause_committed', operation_id, paused=paused, changed=changed)
         return result
 
     def enqueue_in_transaction(self, session, kind, parameters, label, source="manual", *, parent_id=None, specs=None):
@@ -563,7 +568,7 @@ class TaskQueue:
         self._wake.set()
         _task_event("task.submit", operation.id, kind=kind, source=source, created=created,
             promoted=promoted, state=operation.state, persistence="transaction",
-            parent_ref=diagnostics.ref(parent_id) if diagnostics.enabled() and parent_id is not None else None)
+            parent_ref=diagnostics.task_ref(parent_id) if diagnostics.enabled() and parent_id is not None else None)
         return {"operation_id": operation.id, "created": created, "state": operation.state, "round_id": operation.round_id}
 
     def materialize_in_transaction(self, session, operation_id, specs):
@@ -640,7 +645,12 @@ class TaskQueue:
 
     def recover(self):
         """Call after filesystem journal recovery, before starting the sole worker."""
+        with _task_span('task.recovery', None) as observation:
+            return self._recover_observed(observation)
+
+    def _recover_observed(self, observation):
         self._clear_byte_attempts()
+        observation.update(item_count=0, operation_count=0, automatic_check_count=0)
         with self.database.write() as session:
             # Existing operation/state indexes cover SQLite rowid. Select the
             # narrow physical identities first, then fetch only running rows;
@@ -650,16 +660,19 @@ class TaskQueue:
             row_id = literal_column("operation_items.rowid")
             running_ids = select(row_id).select_from(OperationItem).where(OperationItem.state == "running")
             for item in session.scalars(select(OperationItem).where(row_id.in_(running_ids))):
+                observation['item_count'] += 1
                 item.state = "pending"
                 _task_event("task.item_state", item.operation_id, item.id, old_state="running",
                     new_state="pending", reason="recovery", attempts=item.attempts, persistence="transaction")
             for operation in session.scalars(self._allowed_query(select(Operation).where(Operation.state.in_(("planning", "running", "interrupted"))))):
+                observation['operation_count'] += 1
                 round_record = session.get(TaskRound, operation.round_id) if operation.round_id else None
                 self._set_operation_state(operation, "planning" if operation.result.get("planning_complete") is False else "ready" if round_record and round_record.frozen_at else "planning")
                 operation.detail = "上次运行中断，正在核对并继续"
             from .incremental_check import resume_legacy
             for operation in session.scalars(select(Operation).where(Operation.kind == "check",
                     Operation.source == "automatic", Operation.state.in_(ACTIVE))):
+                observation['automatic_check_count'] += 1
                 resume_legacy(session, operation)
         self.worker_error = None
 
@@ -699,6 +712,7 @@ class TaskQueue:
         while not self._stop.is_set():
             try:
                 if not self.database.background_can_advance():
+                    diagnostics.aggregate('task.scheduler_wait', lane=lane, reason='pressure')
                     self._wake.wait(0.1)
                     self._wake.clear()
                     continue
@@ -793,16 +807,28 @@ class TaskQueue:
 
     def _step(self, lane, round_id=None):
         background_tokens = []
+        began = time.perf_counter()
+        observation = {'outcome': 'error'}
         try:
-            with _task_span("task.scheduler_step", None, lane=lane):
-                return self._step_candidate(lane, round_id, background_tokens)
+            with _task_span("task.scheduler_step", None, lane=lane) as detail:
+                try:
+                    return self._step_candidate(lane, round_id, background_tokens, observation)
+                except BaseException:
+                    observation['outcome'] = 'error'
+                    raise
+                finally:
+                    detail.update(observation)
         finally:
             for token in background_tokens:
                 self.database.finish_background_step(token)
+            diagnostics.aggregate('task.scheduler_poll', duration_ms=(time.perf_counter() - began) * 1000,
+                lane=lane, outcome=observation['outcome'])
 
-    def _step_candidate(self, lane, round_id, background_tokens):
+    def _step_candidate(self, lane, round_id, background_tokens, observation=None):
         """Select a bounded indexed window before entering the atomic claim."""
+        observation = {} if observation is None else observation
         if not self.database.background_can_advance():
+            observation['outcome'] = 'pressure'
             return False
         started = time.monotonic()
         self._last_scan_more = False
@@ -813,6 +839,7 @@ class TaskQueue:
             claim_sequence = self._claim_sequence
             check_turns = dict(self._check_turns)
         if not self._accepting or self._stop.is_set():
+            observation['outcome'] = 'stopped'
             return False
         if lane == "check" and round_id is None:
             with self.database.read() as session:
@@ -829,6 +856,7 @@ class TaskQueue:
                 if background_tokens:
                     # Round allocation used the one pressure probe. It is a
                     # completed unit, not permission to claim another item.
+                    observation['outcome'] = 'round_allocated'
                     return True
         claim = None
         operation_key = (lane, round_id)
@@ -866,8 +894,7 @@ class TaskQueue:
                     continue
                 not_before = operation.result.get("planning_not_before")
                 if diagnostics.enabled() and not_before and not_before > utcnow().isoformat():
-                    _task_event("task.plan_not_before", operation.id, lane=lane, state=operation.state,
-                        reason="planning_deferred", wait_seconds=_planning_wait(not_before))
+                    diagnostics.aggregate('task.scheduler_wait', lane=lane, reason='planning_deferred')
                 plan_ready = (lane == "check" and operation.round_id is not None and self._needs_planning(operation)
                     and not (not_before and not_before > utcnow().isoformat()))
                 if plan_ready:
@@ -902,9 +929,7 @@ class TaskQueue:
                     if diagnostics.enabled():
                         delayed = [item for item in items if item.not_before is not None and item.not_before > now]
                         if delayed:
-                            _task_event("task.item_not_before", operation.id, lane=lane,
-                                delayed_count=len(delayed), window_count=len(items),
-                                wait_seconds=min((item.not_before - now).total_seconds() for item in delayed))
+                            diagnostics.aggregate('task.scheduler_wait', count=len(delayed), lane=lane, reason='item_deferred')
                     eligible = [item for item in items if (item.lane == lane or item.lane is None and self._lane(item) == lane)
                         and (item.not_before is None or item.not_before <= now)]
                     keys = list({key for item in eligible for key in item.depends_on})
@@ -941,17 +966,20 @@ class TaskQueue:
         # release below. An empty lane has no state change to commit; a later
         # submission or dependency settlement wakes the workers normally.
         if not candidates and not deferred:
+            observation['outcome'] = 'scan_more' if self._last_scan_more else 'no_candidate'
             return False
         write_started = time.monotonic()
         try:
             with self.database.write() as session:
                 if not self._accepting or self._stop.is_set():
+                    observation['outcome'] = 'stopped'
                     return False
                 for operation_id in deferred:
                     operation = session.get(Operation, operation_id)
                     if operation.source == "automatic" and operation.started_at is None:
                         allowed, token = self.database.begin_background_step()
                         if not allowed:
+                            observation['outcome'] = 'pressure'
                             return False
                         if token is not None:
                             background_tokens.append(token)
@@ -960,6 +988,7 @@ class TaskQueue:
                         if previous_round:
                             self._finalize_round(session, previous_round)
                         if background_tokens:
+                            observation['outcome'] = 'round_released'
                             return True
                 for candidate in candidates:
                     operation = session.get(Operation, candidate[1])
@@ -1050,7 +1079,9 @@ class TaskQueue:
             claim[1] if claim else "none", claim[2].id if claim and claim[0] == "item" else "plan" if claim else "none",
             (time.monotonic() - started) * 1000, (time.monotonic() - write_started) * 1000)
         if claim is None:
+            observation['outcome'] = 'claim_unavailable'
             return False
+        observation['outcome'] = 'claimed_' + claim[0]
         _task_event("task.claim_committed", claim[1], claim[2].id if claim[0] == "item" else None,
             lane=lane, claim_type=claim[0], attempts=claim[2].attempts if claim[0] == "item" else None,
             phase=claim[2].phase if claim[0] == "item" else "checking",
@@ -1565,13 +1596,16 @@ class TaskQueue:
             # Seek bounded IDs in the exact ordered index before hydration.
             # SQLite may otherwise choose a state-leading index and sort the
             # full active set, even with the partial priority index available.
-            active = task_reads.active_head(session, running=True, limit=4)
-            active += task_reads.active_head(session, running=False, limit=32)
-            history = task_reads.history_head(session, limit=max(1, min(history_limit, 100)), status=True)
+            with diagnostics.span('read.tasks.heads') as observation:
+                active = task_reads.active_head(session, running=True, limit=4)
+                active += task_reads.active_head(session, running=False, limit=32)
+                history = task_reads.history_head(session, limit=max(1, min(history_limit, 100)), status=True)
+                observation.update(active_count=len(active), history_count=len(history))
             attention_count = counters["attention"]
-            views = [self._operation_view(op, session, running_items, result_override=result) for op, result in active + history]
-            for view in views:
-                view["result"] = {key: value for key, value in view["result"].items() if key not in ("child_operation_ids", "parent_operation_ids")}
+            with diagnostics.span('read.tasks.assemble', row_count=len(active) + len(history)):
+                views = [self._operation_view(op, session, running_items, result_override=result) for op, result in active + history]
+                for view in views:
+                    view["result"] = {key: value for key, value in view["result"].items() if key not in ("child_operation_ids", "parent_operation_ids")}
             response = {"active_operation_count": active_operation_count, "queued_operation_count": queued_operation_count, "catalogue_revision": catalogue_revision(session), "round": rounds, "next_round_count": waiting, "needs_attention_count": attention_count,
                     "automatic_paused": bool((setting := session.get(ApplicationState, "automatic_paused")) and setting.value),
                     "worker_error": self.worker_error,
@@ -1619,7 +1653,11 @@ class TaskQueue:
         limit = max(1, min(limit, 100))
         running_items = {}
         with self.database.read() as session:
-            stored = session.execute(task_reads.operation_statement().where(Operation.id == operation_id)).first()
+            with diagnostics.span('read.tasks.detail.execute'):
+                result = session.execute(task_reads.operation_statement().where(Operation.id == operation_id))
+            with diagnostics.span('read.tasks.detail.consume') as observation:
+                stored = result.first()
+                observation['row_count'] = int(stored is not None)
             if stored is None:
                 raise KeyError(operation_id)
             operation, operation_result = stored

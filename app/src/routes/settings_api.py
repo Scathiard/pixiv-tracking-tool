@@ -12,6 +12,7 @@ from ..auth import get_pending_login_url
 from ..core.models import ArchiveIntent, Artist, Asset, RevisionAsset, Work
 from ..core.activity_log import processing_log
 from ..core.read_control import local_read
+from ..core import diagnostics
 from ..version import __version__, __build__
 from ..scheduler import interval_snapshot, save_interval
 
@@ -52,8 +53,9 @@ def create_settings_router(get_runtime):
     def snapshot():
         current = runtime()
         with current.database.read() as session:
-            artists = session.scalar(select(func.count()).select_from(Artist)) or 0
-            works = session.scalar(select(func.count()).select_from(Work)) or 0
+            with diagnostics.span("read.settings.counts"):
+                artists = session.scalar(select(func.count()).select_from(Artist)) or 0
+                works = session.scalar(select(func.count()).select_from(Work)) or 0
             # Seek only selected version shapes in existing covering indexes.
             # Explicit index selection avoids both historical shape scans and
             # SQLite choosing wide caption/metadata rows through the unique ID.
@@ -93,7 +95,7 @@ def create_settings_router(get_runtime):
             originals = originals.group_by(Asset.work_id).subquery()
             required = case((current_works.c.type == "ugoira", 1), else_=current_works.c.page_count)
             gap = required - func.coalesce(originals.c.usable, 0)
-            totals = session.execute(select(
+            statement = select(
                 func.coalesce(func.sum(originals.c.downloaded_pages), 0),
                 func.coalesce(func.sum(originals.c.registered_originals), 0),
                 func.coalesce(func.sum(originals.c.verified_originals), 0),
@@ -101,13 +103,18 @@ def create_settings_router(get_runtime):
                 func.coalesce(func.sum(case((gap > 0, gap), else_=0)), 0),
             ).select_from(current_works).outerjoin(
                 originals, originals.c.work_id == current_works.c.work_id).where(
-                    ~current_works.c.pixiv_id.in_(select(ArchiveIntent.pixiv_illust_id).where(ArchiveIntent.mode == "suppressed")))).one()
+                    ~current_works.c.pixiv_id.in_(select(ArchiveIntent.pixiv_illust_id).where(ArchiveIntent.mode == "suppressed")))
+            with diagnostics.span("read.settings.totals.execute"):
+                result = session.execute(statement)
+            with diagnostics.span("read.settings.totals.consume"):
+                totals = result.one()
             downloaded_pages, registered, verified, unknown, missing = totals
         status = "logged_in" if current.client is not None else (
             "pending" if get_pending_login_url() else "offline")
         # A GET must not contact Pixiv just to retrieve the current account ID.
         account_id = getattr(current, "account_id", None)
-        interval = interval_snapshot(current.database)
+        with diagnostics.span("read.settings.interval"):
+            interval = interval_snapshot(current.database)
         return {"version": __version__, "build": __build__,
             "login": {"status": status, "account_id": account_id},
             "automatic_paused": current.queue.automatic_paused(),

@@ -297,7 +297,7 @@ class RequestBoundaryMiddleware:
                 return
 
         mutation_lease = False
-        if method not in self._SAFE_METHODS and scope.get("path") != "/settings/change-path":
+        if method not in self._SAFE_METHODS and scope.get("path") not in {"/settings/change-path", "/api/diagnostics/events"}:
             from . import progress
 
             mutation_lease = progress.begin_mutation()

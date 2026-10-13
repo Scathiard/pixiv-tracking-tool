@@ -1,3 +1,5 @@
+import { diagnostics, discardedSignal, observeSignal, type RequestObservation } from './diagnostics.ts'
+
 /** Lock one gesture's meaning before deciding whether it can navigate. */
 export class DirectionGesture {
   private points = new Set<number>()
@@ -37,7 +39,11 @@ export class LatestIntent {
     this.controller?.abort()
     const controller = this.controller = new AbortController()
     const revision = ++this.revision
-    return {signal: controller.signal, current: () => revision === this.revision && !controller.signal.aborted}
+    return {signal: controller.signal, current: () => {
+      const current = revision === this.revision && !controller.signal.aborted
+      if (!current) discardedSignal(controller.signal)
+      return current
+    }}
   }
   cancel() { this.revision++; this.controller?.abort(); this.controller = null }
 }
@@ -74,15 +80,15 @@ export function isAbortError(error: unknown): boolean {
 
 /** One underlying read, separately owned by every waiting consumer. */
 export class SharedReads {
-  private flights = new Map<string, {controller: AbortController; promise: Promise<unknown>; consumers: number; completed: boolean}>()
-  read<T>(key: string, start: (signal: AbortSignal) => Promise<T>, signal?: AbortSignal | null): Promise<T> {
+  private flights = new Map<string, {controller: AbortController; promise: Promise<unknown>; consumers: number; completed: boolean; observation?: RequestObservation}>()
+  read<T>(key: string, start: (signal: AbortSignal, observation?: RequestObservation) => Promise<T>, signal?: AbortSignal | null, observation?: RequestObservation): Promise<T> {
     if (signal?.aborted) return Promise.reject(signal.reason)
     let flight = this.flights.get(key)
     if (!flight) {
       const controller = new AbortController()
-      flight = {controller, consumers: 0, completed: false, promise: Promise.resolve().then(() => {
+      flight = {controller, consumers: 0, completed: false, observation, promise: Promise.resolve().then(() => {
         controller.signal.throwIfAborted()
-        return start(controller.signal)
+        return start(controller.signal, observation)
       })}
       const started = flight
       flight.promise = flight.promise.then(value => { started.completed = true; return value }, error => { started.completed = true; throw error })
@@ -90,21 +96,28 @@ export class SharedReads {
     }
     const owned = flight
     owned.consumers++
+    observeSignal(signal, owned.observation)
+    diagnostics.emit('shared.join', {...owned.observation, consumer_count: owned.consumers, shared: true})
     return new Promise<T>((resolve, reject) => {
       let settled = false
-      const release = () => {
+      const release = (outcome = 'ok') => {
         if (settled) return false
         settled = true
         signal?.removeEventListener('abort', abort)
-        if (--owned.consumers === 0) {
+        --owned.consumers
+        diagnostics.emit('shared.leave', {...owned.observation, consumer_count: owned.consumers, shared: true, outcome: signal?.aborted ? 'cancelled' : outcome, reason: signal?.aborted ? 'caller' : undefined})
+        if (owned.consumers === 0) {
           if (this.flights.get(key) === owned) this.flights.delete(key)
-          if (!owned.completed) owned.controller.abort()
+          if (!owned.completed) {
+            diagnostics.emit('shared.abandoned', {...owned.observation, consumer_count: 0, shared: true, outcome: 'cancelled', reason: 'shared_empty'})
+            owned.controller.abort()
+          }
         }
         return true
       }
       const abort = () => { if (release()) reject(signal?.reason) }
       signal?.addEventListener('abort', abort, {once: true})
-      owned.promise.then(value => { if (release()) resolve(value as T) }, error => { if (release()) reject(error) })
+      owned.promise.then(value => { if (release()) resolve(value as T) }, error => { if (release('error')) reject(error) })
       if (signal?.aborted) abort()
     })
   }

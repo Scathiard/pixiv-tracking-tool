@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api, url } from '../api'
 import { LatestIntent } from '../interaction'
+import { discardedSignal } from '../diagnostics'
 import { isOlderCatalogue, localSourceStatus, sourceStatusLabel, type SourceStatusBatch } from '../types'
 import { observeCatalogueData } from '../state/catalogue'
 
@@ -18,7 +19,7 @@ async function load() {
   loading.value = true; error.value = ''
   try {
     const data = await api<SourceStatusBatch>(url('/api/library/source-status', '', {kind: requestedKind, group: requestedGroup, offset: requestedOffset, limit: props.summary ? 1 : LIMIT}), {signal: ticket.signal})
-    if (!ticket.current() || isOlderCatalogue(data.catalogue_revision, revision)) return
+    if (!ticket.current() || isOlderCatalogue(data.catalogue_revision, revision)) { discardedSignal(ticket.signal, 'other'); return }
     revision = data.catalogue_revision ?? revision
     if (!data.items.length && requestedOffset > 0 && data.total <= requestedOffset) {
       offset.value = Math.max(0, Math.floor(Math.max(0, data.total - 1) / LIMIT) * LIMIT)

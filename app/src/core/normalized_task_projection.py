@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 
+from . import diagnostics
 from .read_projection import ProjectionUnavailable
 
 ACTIVE = "('queued','planning','ready','running','interrupted')"
@@ -225,9 +226,17 @@ def winners(connection, work_ids):
     result={}
     for start in range(0,len(ids),240):
         selected=ids[start:start+240]
-        for row in connection.exec_driver_sql(winner_sql(len(selected)),tuple(selected)):
-            result[row[0]]={'candidate_id':('scope:'+row[1]) if row[6] else ('item:'+row[7]),
-                'payload':dict(zip(('operation_id','operation_state','item_state','reason','concern'),row[1:6]))}
+        with diagnostics.span('read.task_winners.execute', selected_count=len(selected)):
+            rows = connection.exec_driver_sql(winner_sql(len(selected)),tuple(selected))
+        with diagnostics.span('read.task_winners.consume', selected_count=len(selected)) as observation:
+            consumed = 0
+            try:
+                for row in rows:
+                    consumed += 1
+                    result[row[0]]={'candidate_id':('scope:'+row[1]) if row[6] else ('item:'+row[7]),
+                        'payload':dict(zip(('operation_id','operation_state','item_state','reason','concern'),row[1:6]))}
+            finally:
+                observation['row_count'] = consumed
     return result
 
 

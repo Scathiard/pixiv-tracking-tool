@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { archiveNotice, isOlderCatalogue, needsPageRefresh, type Anchor, type PageData, type PageLoader } from './types'
 import { DirectionGesture, LatestIntent } from './interaction'
+import { discardedSignal } from './diagnostics'
 import { ApiReadError, prepareImage } from './api'
 import { observeCatalogueData } from './state/catalogue'
 import MediaImage from './MediaImage.vue'
@@ -85,7 +86,7 @@ async function jump(index: number, offset = 0, showIntro = true) {
     const cached = pages.value.find(page => page.index === index)
     const batch = cached ? {items: pages.value, total: total.value, catalogue_revision: catalogueRevision}
       : await props.loader(Math.max(0, index - 16), 64, request.signal)
-    if (!request.current() || isOlderCatalogue(batch.catalogue_revision, catalogueRevision)) return
+    if (!request.current() || isOlderCatalogue(batch.catalogue_revision, catalogueRevision)) { discardedSignal(request.signal, 'other'); return }
     const target = batch.items.find(page => page.index === index)
     if (!target && batch.total) throw new Error('目标图片页已不在当前范围内，请重试')
     if (target && pages.value.length) await prepareImage(target.src, request.signal)
@@ -122,7 +123,7 @@ async function extend(direction: number) {
   try {
     const offset = direction > 0 ? end : Math.max(0, first - CHUNK)
     const batch = await props.loader(offset, direction > 0 ? CHUNK : first - offset, request.signal)
-    if (!request.current() || isOlderCatalogue(batch.catalogue_revision, catalogueRevision)) return
+    if (!request.current() || isOlderCatalogue(batch.catalogue_revision, catalogueRevision)) { discardedSignal(request.signal, 'other'); return }
     catalogueRevision = batch.catalogue_revision ?? catalogueRevision
     const anchor = readAnchor()
     restoring = true

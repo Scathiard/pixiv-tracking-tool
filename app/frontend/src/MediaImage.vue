@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { mediaPlaceholder, type ArchiveState, type ProcessingState, type RecoveryState } from './types'
 import { ImageTaps } from './state/imageTaps'
+import { mediaObservation } from './diagnostics'
 const props = defineProps<{src: string | null; state?: string; label: string; thumbnail?: boolean; width?: number; height?: number; recovery?: RecoveryState | null; processing?: ProcessingState; archive?: ArchiveState; animation?: boolean; flowTaps?: boolean}>()
 const emit = defineEmits<{size: [width: number, height: number]; zoom: []; bookmark: []}>()
 const taps = new ImageTaps(() => emit('zoom'), () => emit('bookmark'))
@@ -18,13 +19,19 @@ watch(() => props.recovery?.status, (status, previous) => {
     failed.value = false; revision.value++
   }
 })
-function loaded() { if (image.value) emit('size', image.value.naturalWidth, image.value.naturalHeight) }
-onBeforeUnmount(() => { taps.cancel(); image.value?.removeAttribute('src') })
+let observation: ReturnType<typeof mediaObservation>
+watch([() => props.src, revision, failed], () => {
+  observation?.cancel('navigation')
+  observation = props.src && !failed.value ? mediaObservation(props.src) : undefined
+}, {immediate: true})
+function loaded() { if (image.value) { observation?.loaded(image.value); observation?.decoded('unsupported'); emit('size', image.value.naturalWidth, image.value.naturalHeight) } }
+function loadFailed() { observation?.error(); failed.value = true }
+onBeforeUnmount(() => { observation?.cancel('unmounted'); taps.cancel(); image.value?.removeAttribute('src') })
 </script>
 <template>
   <div class="media-image" :class="{'media-thumbnail': thumbnail}">
     <img v-if="src && !failed" :key="revision" ref="image" :src="src" :alt="label" :width="width" :height="height" draggable="false" decoding="async"
-      @load="loaded" @error="failed = true" @dblclick.prevent="!flowTaps && emit('zoom')"
+      @load="loaded" @error="loadFailed" @dblclick.prevent="!flowTaps && emit('zoom')"
       @pointerdown="flowTaps && $event.button === 0 && taps.down($event.pointerId, $event.clientX, $event.clientY)"
       @pointermove="flowTaps && taps.move($event.pointerId, $event.clientX, $event.clientY)"
       @pointerup="flowTaps && taps.up($event.pointerId, $event.clientX, $event.clientY)"
