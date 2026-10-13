@@ -430,6 +430,7 @@ def span(event, **fields):
         return
     token = None
     identity = None
+    parent = ""
     started = time.monotonic()
     compact = event.startswith("db.read.") or event in {"task.scheduler_step", "http.send"}
     try:
@@ -442,7 +443,7 @@ def span(event, **fields):
             recorder.active[identity] = {"span": identity, "event": event, "trace": trace,
                 "parent": parent, "thread": threading.get_ident(), "started": started, **_clean(fields)}
         if not compact:
-            emit(event + ".begin", **{**fields, "span": identity})
+            emit(event + ".begin", **{**fields, "span": identity, "parent": parent})
     except Exception:
         # An observer failure must never prevent the business body from running.
         _probe_failed(recorder)
@@ -460,7 +461,7 @@ def span(event, **fields):
                 aggregate(event, duration_ms=duration_ms,
                           **{key: value for key, value in {**fields, **record}.items() if key in _DIMENSIONS})
             else:
-                emit(event + ".end", **{**fields, **record, "span": identity,
+                emit(event + ".end", **{**fields, **record, "span": identity, "parent": parent,
                      "started_elapsed_ms": round((started - recorder.started) * 1000, 3),
                      "begin_recorded": not compact, "duration_ms": duration_ms})
         except Exception:

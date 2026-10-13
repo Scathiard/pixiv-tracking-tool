@@ -18,6 +18,26 @@ def captured(path):
             for line in part.read_text(encoding='utf-8').splitlines()]
 
 
+def test_span_hierarchy_uses_enclosing_span_not_itself(tmp_path):
+    path = diagnostics.start(tmp_path, build='test', version='0.2.0', interval=60)
+    try:
+        with diagnostics.span('synthetic.outer'):
+            with diagnostics.span('synthetic.inner'):
+                diagnostics.emit('synthetic.leaf')
+        rows = captured(path)
+        outer = next(row for row in rows if row['event'] == 'synthetic.outer.begin')
+        inner = next(row for row in rows if row['event'] == 'synthetic.inner.begin')
+        leaf = next(row for row in rows if row['event'] == 'synthetic.leaf')
+        assert outer['parent'] == ''
+        assert inner['parent'] == outer['span']
+        assert leaf['parent'] == inner['span']
+        for start in (outer, inner):
+            end = next(row for row in rows if row['event'] == start['event'].replace('.begin', '.end'))
+            assert (end['trace'], end['parent'], end['span']) == (start['trace'], start['parent'], start['span'])
+    finally:
+        diagnostics.stop()
+
+
 def test_fast_aggregation_slow_active_work_and_probe_failure(tmp_path, monkeypatch):
     path = diagnostics.start(tmp_path, build='test', version='0.2.0', interval=60)
     recorder = diagnostics._recorder

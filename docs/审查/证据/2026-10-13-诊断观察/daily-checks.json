@@ -1,0 +1,51 @@
+{
+  "observed_at": "2026-10-13T19:12:00+0800",
+  "mode": "normal daily, original library",
+  "checks": [
+    {
+      "path": "/api/startup",
+      "status": 200,
+      "ms": 19.657,
+      "trace": "f345e0fbbec6",
+      "run": "72ce11a075b6",
+      "state": "ready"
+    },
+    {
+      "path": "/api/status",
+      "status": 200,
+      "ms": 1.087,
+      "trace": "68e52d753d2f",
+      "run": "72ce11a075b6",
+      "logged_in": true,
+      "upgrade_required": false,
+      "listening_port": 1919,
+      "saved_port": 1919
+    },
+    {
+      "path": "/api/diagnostics",
+      "status": 200,
+      "ms": 12.709,
+      "trace": null,
+      "run": null,
+      "enabled": true,
+      "run_id": "72ce11a075b6",
+      "build": "20261013.2"
+    },
+    {
+      "path": "/api/progress",
+      "status": 200,
+      "ms": 26.585,
+      "trace": "fd4f3414392d",
+      "run": "72ce11a075b6",
+      "automatic_paused": false
+    },
+    {
+      "path": "/api/library/cursor?limit=240",
+      "status": 504,
+      "ms": 4539.315,
+      "trace": "45eeff4afbca",
+      "run": "72ce11a075b6",
+      "error_code": "read_timeout"
+    }
+  ]
+}
