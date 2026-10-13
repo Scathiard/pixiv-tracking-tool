@@ -1,0 +1,47 @@
+{
+  "checks": [
+    {
+      "status": 200,
+      "state": "ready",
+      "elapsed_ms": 85,
+      "path": "/api/startup"
+    },
+    {
+      "status": 404,
+      "elapsed_ms": 98,
+      "path": "/reader/"
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 8,
+      "path": "/api/library/cursor?limit=240&compact=1"
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 6,
+      "path": "/api/progress"
+    },
+    {
+      "status": 200,
+      "logged_in": false,
+      "elapsed_ms": 1,
+      "path": "/api/status",
+      "upgrade_required": false
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 107,
+      "path": "/",
+      "frontend_bundle": "index-D3yJK40k.js"
+    }
+  ],
+  "shutdown": {
+    "exit_ms": 1368,
+    "windows": 2,
+    "owner_pid": 30096
+  },
+  "environment": "Workspace EXE had Low Mandatory Label; byte-identical installed copy started normally. No ACL settings modified.",
+  "probe_correction": "Static assets mount /reader/ is not the application entry; corrected entry / returned 200.",
+  "exe_sha256": "c9b85732cd34980e3ec9f62541545ac1d439d185561362f1da83c53b7f05b194",
+  "mode": "installed-exe-isolated-offline"
+}

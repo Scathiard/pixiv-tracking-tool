@@ -1,0 +1,58 @@
+[2026-10-13T18:04:16.292+08:00] [tray] PixivTracker 0.2.0 · 构建 20261013.1 启动
+[2026-10-13T18:04:16.292+08:00] [tray] 端口: 19193
+[2026-10-13T18:04:16.292+08:00] [tray] 离线模式：不登录 Pixiv，不启动自动检查
+[2026-10-13T18:04:16.477+08:00] 
+[2026-10-13T18:04:16.477+08:00] 启动失败：
+[2026-10-13T18:04:16.479+08:00] Traceback (most recent call last):
+[2026-10-13T18:04:16.479+08:00]   File "run.py", line 27, in <module>
+[2026-10-13T18:04:16.480+08:00]   File "src\tray.py", line 120, in run_tray
+[2026-10-13T18:04:16.480+08:00]   File "pystray\_base.py", line 212, in run
+[2026-10-13T18:04:16.480+08:00]   File "pystray\_win32.py", line 120, in _run
+[2026-10-13T18:04:16.480+08:00]   File "pystray\_win32.py", line 257, in _create_window
+[2026-10-13T18:04:16.480+08:00]   File "pystray\_util\win32.py", line 204, in _err
+[2026-10-13T18:04:16.480+08:00] PermissionError: [WinError 5] 拒绝访问。
+[2026-10-13T18:04:16.480+08:00] 
+[2026-10-13T18:04:16.480+08:00] 按 Enter 退出...
+[2026-10-13T18:04:16.481+08:00] Traceback (most recent call last):
+[2026-10-13T18:04:16.481+08:00]   File "run.py", line 27, in <module>
+[2026-10-13T18:04:16.481+08:00]   File "src\tray.py", line 120, in run_tray
+[2026-10-13T18:04:16.481+08:00]   File "pystray\_base.py", line 212, in run
+[2026-10-13T18:04:16.481+08:00]   File "pystray\_win32.py", line 120, in _run
+[2026-10-13T18:04:16.481+08:00]   File "pystray\_win32.py", line 257, in _create_window
+[2026-10-13T18:04:16.481+08:00]   File "pystray\_util\win32.py", line 204, in _err
+[2026-10-13T18:04:16.481+08:00] PermissionError: [WinError 5] 拒绝访问。
+[2026-10-13T18:04:16.481+08:00] 
+[2026-10-13T18:04:16.481+08:00] During handling of the above exception, another exception occurred:
+[2026-10-13T18:04:16.481+08:00] 
+[2026-10-13T18:04:16.481+08:00] Traceback (most recent call last):
+[2026-10-13T18:04:16.481+08:00]   File "run.py", line 36, in <module>
+[2026-10-13T18:04:16.482+08:00] RuntimeError: lost sys.stdin
+[2026-10-13T18:05:26.922+08:00] Exception in thread Thread-1 (_start_web):
+[2026-10-13T18:05:26.922+08:00] Traceback (most recent call last):
+[2026-10-13T18:05:26.922+08:00]   File "threading.py", line 1075, in _bootstrap_inner
+[2026-10-13T18:05:26.923+08:00]   File "threading.py", line 1012, in run
+[2026-10-13T18:05:26.923+08:00]   File "src\tray.py", line 106, in _start_web
+[2026-10-13T18:05:26.923+08:00]   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+[2026-10-13T18:05:26.923+08:00]   File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+[2026-10-13T18:05:26.923+08:00]   File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+[2026-10-13T18:05:26.924+08:00]   File "pyimod02_importers.py", line 457, in exec_module
+[2026-10-13T18:05:26.924+08:00]   File "src\web.py", line 19, in <module>
+[2026-10-13T18:05:26.924+08:00]   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+[2026-10-13T18:05:26.924+08:00]   File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+[2026-10-13T18:05:26.924+08:00]   File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+[2026-10-13T18:05:26.924+08:00]   File "pyimod02_importers.py", line 457, in exec_module
+[2026-10-13T18:05:26.924+08:00]   File "src\core\runtime.py", line 15, in <module>
+[2026-10-13T18:05:26.924+08:00]   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+[2026-10-13T18:05:26.924+08:00]   File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+[2026-10-13T18:05:26.924+08:00]   File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+[2026-10-13T18:05:26.924+08:00]   File "pyimod02_importers.py", line 457, in exec_module
+[2026-10-13T18:05:26.924+08:00]   File "src\core\bookmarks.py", line 9, in <module>
+[2026-10-13T18:05:26.924+08:00]   File "<frozen importlib._bootstrap>", line 1412, in _handle_fromlist
+[2026-10-13T18:05:26.924+08:00]   File "concurrent\futures\__init__.py", line 50, in __getattr__
+[2026-10-13T18:05:26.924+08:00]   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+[2026-10-13T18:05:26.924+08:00]   File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+[2026-10-13T18:05:26.924+08:00]   File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+[2026-10-13T18:05:26.924+08:00]   File "pyimod02_importers.py", line 457, in exec_module
+[2026-10-13T18:05:26.925+08:00]   File "concurrent\futures\thread.py", line 37, in <module>
+[2026-10-13T18:05:26.925+08:00]   File "threading.py", line 1561, in _register_atexit
+[2026-10-13T18:05:26.925+08:00] RuntimeError: can't register atexit after shutdown

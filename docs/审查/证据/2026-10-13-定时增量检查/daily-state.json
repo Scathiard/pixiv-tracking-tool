@@ -1,0 +1,35 @@
+{
+  "checked_at": "2026-10-13T18:13:59.9224023+08:00",
+  "status": {
+    "upgrade_required": false,
+    "port": 1919,
+    "logged_in": true
+  },
+  "progress": {
+    "http_status": 200,
+    "elapsed_ms": 15,
+    "active_count": 1,
+    "operations": [
+      {
+        "phase": {
+          "name": "checking",
+          "unit": "artists",
+          "done": 56,
+          "total": null,
+          "detail": "正在处理"
+        },
+        "kind": "check",
+        "incremental_check": {
+          "mode": "incremental-v1",
+          "artists_done": 27,
+          "artists_total": 86,
+          "new_works": 0,
+          "scan_complete": false
+        },
+        "state": "running",
+        "source": "automatic"
+      }
+    ],
+    "automatic_paused": false
+  }
+}
