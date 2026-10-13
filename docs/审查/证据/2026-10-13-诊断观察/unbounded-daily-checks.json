@@ -1,0 +1,40 @@
+{
+  "mode": "daily",
+  "observed_at": "2026-10-13T21:58:05.788265+08:00",
+  "probe_deadline_seconds": 45,
+  "checks": [
+    {
+      "path": "/api/startup",
+      "probe_error": "URLError",
+      "ms": 2015.0
+    },
+    {
+      "path": "/api/status",
+      "probe_error": "URLError",
+      "ms": 2032.0
+    },
+    {
+      "path": "/api/diagnostics",
+      "probe_error": "TimeoutError",
+      "ms": 47110.0
+    },
+    {
+      "path": "/",
+      "status": 200,
+      "final_bundle": true,
+      "ms": 23328.0
+    },
+    {
+      "path": "/api/library/cursor?limit=240",
+      "probe_error": "TimeoutError",
+      "ms": 45031.0
+    },
+    {
+      "path": "/api/progress",
+      "status": 200,
+      "automatic_paused": false,
+      "ms": 281.0
+    }
+  ],
+  "completed_at": "2026-10-13T22:00:50.476648+08:00"
+}

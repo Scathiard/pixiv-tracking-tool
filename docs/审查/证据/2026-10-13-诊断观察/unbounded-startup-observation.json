@@ -1,0 +1,36 @@
+{
+  "time": "2026-10-13T21:59:44.2869211+08:00",
+  "logs": [
+    {
+      "Name": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl",
+      "Length": 0,
+      "LastWriteTime": "2026-10-13T21:58:39.8392858+08:00"
+    }
+  ],
+  "processes": [
+    {
+      "ProcessId": 41956,
+      "ParentProcessId": 24056,
+      "ExecutablePath": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261013.4.exe",
+      "ReadTransferCount": 65542459,
+      "WriteTransferCount": 163202335
+    },
+    {
+      "ProcessId": 6296,
+      "ParentProcessId": 41956,
+      "ExecutablePath": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261013.4.exe",
+      "ReadTransferCount": 38044212,
+      "WriteTransferCount": 419709
+    }
+  ],
+  "listeners": [
+    {
+      "LocalAddress": "::",
+      "OwningProcess": 6296
+    },
+    {
+      "LocalAddress": "0.0.0.0",
+      "OwningProcess": 6296
+    }
+  ]
+}

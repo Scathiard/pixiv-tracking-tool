@@ -1,0 +1,14 @@
+{
+  "tray_windows": 2,
+  "executable": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261013.3.exe",
+  "seconds": 6.585,
+  "process_ids": [
+    39388,
+    29992
+  ],
+  "observed_at": "2026-10-13T21:56:42.2152507+08:00",
+  "normal_exit": true,
+  "remaining_ids": [
+    null
+  ]
+}

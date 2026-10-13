@@ -2,6 +2,7 @@
 
 对应[取证方案与经验记录](../../2026-10-13-诊断观察与重写经验.md)。
 
+- `unbounded-*`：`.4` 取消固定读取时限的增补证据；后端 6 项、前端 41 项及类型／构建记录，空库 EXE 启动／退出，旧实例正常退出，正常模式启动与原图库一次探测。`unbounded-daily-checks.json` 保留首次慢启动和 45 秒外部探测截止，`unbounded-daily-ready.json` 是随后只读确认就绪／登录／诊断，不覆盖失败；`unbounded-daily-log-check.json` 仅抽取当前日志末段固定计时字段，`unbounded-cleanup.json` 登记清理与正在使用的临时目录。
 - `observed-window.json`：本次实际读取的已封卷统计及当前卷可读性；只覆盖约四分钟，不是压力测试或整段运行统计。
 - 原始分卷保存在 `D:\PixivTracker\data`，文件名与运行标识在摘要中。本目录不复制全套真实日志、图库、图片或凭据。
 - 用户已批准实施：`backend-observation.xml`（3 项）、`observer-tests.xml`（7 项）、`settings-observation.xml`（1 项）及 `backend-test_*.jsonl` 是本轮合成验证；不含真实图库或凭据。
