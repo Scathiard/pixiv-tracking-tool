@@ -695,13 +695,14 @@ class TaskQueue:
         self._clear_byte_attempts()
         observation.update(item_count=0, operation_count=0, automatic_check_count=0)
         with self.database.write() as session:
-            # Existing operation/state indexes cover SQLite rowid. Select the
-            # narrow physical identities first, then fetch only running rows;
-            # a direct ORM state filter scans every historical JSON payload.
-            # Do not filter by parent state: interrupted items can also belong
-            # to finished operations. Rowid stays within this write transaction.
+            # State follows operation_id in the existing indexes. Supplying
+            # every parent key makes SQLite seek each operation/state prefix;
+            # state alone still scans the entire historical covering index.
+            # Include finished parents too. Rowid stays in this transaction,
+            # so only interrupted items need their full payload loaded.
             row_id = literal_column("operation_items.rowid")
-            running_ids = select(row_id).select_from(OperationItem).where(OperationItem.state == "running")
+            running_ids = select(row_id).select_from(OperationItem).where(
+                OperationItem.operation_id.in_(select(Operation.id)), OperationItem.state == "running")
             for item in session.scalars(select(OperationItem).where(row_id.in_(running_ids))):
                 observation['item_count'] += 1
                 item.state = "pending"

@@ -1,5 +1,7 @@
 # 测试目录约定
 
+2026-10-17 R-072：本工作树 `work/tmp/tailscale-startup-dock/` 为本轮临时根目录，`network/`、`startup/`、`dock/`、`package/` 分别保存来源规则、恢复查询、底栏和最终包的合成验证；各自设置进程级 TEMP/TMP，pytest使用自己的basetemp。前端 `node_modules` 复用 `.worktrees/v0.2.0-build20261004.3/app/frontend/node_modules` 的junction，只清理链接本身。必要小回归及最终包320／390／1440px检查后交付，不做全套或长测；证据归入 `docs/审查/证据/2026-10-17-Tailscale启动与手机底栏/`，真实库只核对元数据和有限只读对照，不迁移或修改schema。
+
 2026-10-17 读取与调度修订：仅相关小回归及最终 EXE／浏览器基础验证，遵循用户不做过度测试的要求。临时项为本工作树 `work/tmp/read-path-repair/` 下的 `scheduler/`、`pages/`、`gallery/`、`integration/`、`package/`；各自设置进程级 TEMP/TMP 和 pytest 基目录。前端 `node_modules` 为主会话创建的复用依赖 junction，完成后只移除链接。证据归入 `docs/审查/证据/2026-10-17-读取与调度修订/`。不触碰真实账号或迁移数据库，保留取消、数据保存、暂停、去重和退出语义。
 
 2026-10-13 取消读取时限：用户明确要求继续观察慢操作。临时脚本、合成库和构建缓存位于当前工作树 `work/tmp/unbounded-observation/`；本轮依赖 junction 为 `app/frontend/node_modules`，只移除链接；旧 `diagnostic-observation/package/enabled-runtime/` 在旧进程退出前保留。只验证旧时限以后仍可完成、切页／断开／退出取消与写入不被打断；不重复全套或长测。证据在 `docs/审查/证据/2026-10-13-诊断观察/` 使用 `unbounded-` 前缀，最终运行目录使用中暂留。

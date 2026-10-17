@@ -1,0 +1,58 @@
+{"history_items": 16000, "selected_items": 0, "vm_steps_floor": 48000, "plan": [[2, 0, 91, "SEARCH operation_items USING INTEGER PRIMARY KEY (rowid=?)"], [6, 0, 0, "LIST SUBQUERY 1"], [8, 6, 211, "SCAN operation_items USING COVERING INDEX ix_items_progress"]]}
+F
+================================== FAILURES ===================================
+___________ test_empty_recovery_does_not_visit_settled_item_history ___________
+
+recovery_case = (<src.core.database.ArchiveDatabase object at 0x000001A86F1AC5F0>, <src.core.tasks.TaskQueue object at 0x000001A86F7EAC60>)
+
+    def test_empty_recovery_does_not_visit_settled_item_history(recovery_case):
+        database, queue = recovery_case
+        statements = []
+    
+        def capture(connection, cursor, statement, parameters, context, many):
+            if statement.lstrip().startswith("SELECT operation_items."):
+                statements.append((statement, parameters))
+    
+        event.listen(database.writer_engine, "before_cursor_execute", capture)
+        try:
+            queue.recover()
+        finally:
+            event.remove(database.writer_engine, "before_cursor_execute", capture)
+        assert len(statements) == 1
+        statement, parameters = statements[0]
+    
+        # Replay the actual startup SELECT against the same model indexes without
+        # unrelated projection writes. This isolates historical-row visitation.
+        engine = create_engine("sqlite://")
+        try:
+            Base.metadata.create_all(engine)
+            with engine.begin() as connection:
+                connection.execute(insert(Operation), [dict(id="finished", kind="verify",
+                    label="synthetic", dedupe_key="finished", state="finished")])
+                connection.execute(insert(OperationItem), [dict(id=f"item-{i}",
+                    operation_id="finished", item_key=str(i), kind="verify", target={},
+                    phase="verifying", state="succeeded", position=i) for i in range(16000)])
+            with engine.connect() as connection:
+                driver = connection.connection.driver_connection
+                plan = driver.execute("EXPLAIN QUERY PLAN " + statement, parameters).fetchall()
+                steps = [0]
+    
+                def count_steps():
+                    steps[0] += 100
+                    return 0
+    
+                driver.set_progress_handler(count_steps, 100)
+                try:
+                    assert driver.execute(statement, parameters).fetchall() == []
+                finally:
+                    driver.set_progress_handler(None, 0)
+            print(json.dumps(dict(history_items=16000, selected_items=0,
+                vm_steps_floor=steps[0], plan=plan)))
+>           assert steps[0] < 2000, "empty recovery must seek states, not scan settled history"
+E           AssertionError: empty recovery must seek states, not scan settled history
+E           assert 48000 < 2000
+
+tests\test_recovery_query_plan.py:66: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_recovery_query_plan.py::test_empty_recovery_does_not_visit_settled_item_history
+1 failed in 36.04s

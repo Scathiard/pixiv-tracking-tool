@@ -24,6 +24,10 @@ _ALLOWED_TAGS = {
 }
 _VOID_TAGS = {"br"}
 _CONTROL_CHARS = re.compile(r"[\x00-\x20\x7f]+")
+# Windows exposes a Tailscale node as /32; its peers use the shared overlay
+# range. Only enable this range when an active Tailscale adapter owns an IP
+# inside it, not for an arbitrary ISP/CGNAT adapter.
+_TAILSCALE_IPV4 = ipaddress.ip_network("100.64.0.0/10")
 
 
 def resolve_image_path(images_root: Path, requested_path: str) -> Path | None:
@@ -172,12 +176,22 @@ class NetworkPolicy:
 
             stats = psutil.net_if_stats()
             interfaces: list[tuple[str, str | None]] = []
+            tailscale_active = False
             for name, entries in psutil.net_if_addrs().items():
                 if name in stats and not stats[name].isup:
                     continue
                 for entry in entries:
                     if entry.family in (socket.AF_INET, socket.AF_INET6):
                         interfaces.append((entry.address, entry.netmask))
+                    if (name.casefold().startswith("tailscale")
+                            and name in stats and stats[name].isup
+                            and entry.family == socket.AF_INET):
+                        try:
+                            tailscale_active |= ipaddress.ip_address(entry.address) in _TAILSCALE_IPV4
+                        except ValueError:
+                            continue
+            if tailscale_active:
+                interfaces.append((str(_TAILSCALE_IPV4.network_address), str(_TAILSCALE_IPV4.netmask)))
             return cls.from_interfaces(interfaces)
         except Exception:
             return cls.from_interfaces([])

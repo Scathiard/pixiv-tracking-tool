@@ -1,0 +1,24 @@
+npm notice run pixiv-local-reader@0.2.0 build
+npm notice run vue-tsc --noEmit && vite build
+vite v8.3.1 building client environment for production...
+transforming...
+✓ 96 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:   0.32 kB
+dist/assets/index-DLhfBFhj.css   51.76 kB │ gzip:  10.51 kB
+dist/assets/index-Cljr99RT.js   307.86 kB │ gzip: 105.15 kB
+
+✓ built in 8.18s
+[PLUGIN_TIMINGS] JavaScript callbacks ran for 6.8s of this 8.1s build (83%).
+The slowest callbacks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
+  - plugin vite:css-post renderChunk (49%, 4.0s, 1 call)
+  - plugin vite:build-html transform (22%, 1.8s, 1 call)
+Additional callback time came from callbacks under 1s.
+See https://rolldown.rs/reference/InputOptions.checks#bundlertimings for more details.
+
+npm notice
+npm notice New minor version of npm available! 12.0.2 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
