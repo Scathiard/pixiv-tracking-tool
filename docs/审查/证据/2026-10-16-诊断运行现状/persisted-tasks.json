@@ -1,0 +1,520 @@
+{
+  "observed_at": "2026-10-16T23:53:16.632241+08:00",
+  "mode": "SQLite mode=ro + query_only; no app startup",
+  "timestamp_convention": "stored task timestamps are UTC",
+  "queries": {
+    "operation_states": {
+      "ms": 485.0,
+      "rows": [
+        {
+          "state": "finished",
+          "count": 4145
+        }
+      ]
+    },
+    "recent_operations": {
+      "ms": 3453.0,
+      "rows": [
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 20:28:21.022970",
+          "updated_at": "2026-10-15 20:28:24.667022",
+          "started_at": "2026-10-15 20:28:22.344239",
+          "finished_at": "2026-10-15 20:28:24.667022",
+          "local_operation_ref": "e1b3f5aa0072"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 20:27:20.714931",
+          "updated_at": "2026-10-15 20:27:23.975826",
+          "started_at": "2026-10-15 20:27:21.765709",
+          "finished_at": "2026-10-15 20:27:23.975826",
+          "local_operation_ref": "968321833160"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 20:26:22.799374",
+          "updated_at": "2026-10-15 20:26:29.195191",
+          "started_at": "2026-10-15 20:26:25.216853",
+          "finished_at": "2026-10-15 20:26:29.195191",
+          "local_operation_ref": "64fcac379dd8"
+        },
+        {
+          "kind": "repair",
+          "source": "automatic",
+          "state": "finished",
+          "phase": "thumbnails",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 20:01:54.673993",
+          "updated_at": "2026-10-15 20:02:02.395286",
+          "started_at": "2026-10-15 20:01:58.796202",
+          "finished_at": "2026-10-15 20:02:02.395286",
+          "local_operation_ref": "ea04b5196b36"
+        },
+        {
+          "kind": "check",
+          "source": "automatic",
+          "state": "finished",
+          "phase": "checking",
+          "phase_total": 172,
+          "phase_done": 172,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 20:00:19.355850",
+          "updated_at": "2026-10-15 20:06:46.668745",
+          "started_at": "2026-10-15 20:00:20.336187",
+          "finished_at": "2026-10-15 20:06:46.668745",
+          "local_operation_ref": "ae3a494a97ff"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 18:16:10.763288",
+          "updated_at": "2026-10-15 18:16:16.220982",
+          "started_at": "2026-10-15 18:16:13.091210",
+          "finished_at": "2026-10-15 18:16:16.220982",
+          "local_operation_ref": "375659d58685"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 18:15:10.638595",
+          "updated_at": "2026-10-15 18:15:14.782235",
+          "started_at": "2026-10-15 18:15:12.128498",
+          "finished_at": "2026-10-15 18:15:14.782235",
+          "local_operation_ref": "e6ea1cd9b176"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 18:14:11.052671",
+          "updated_at": "2026-10-15 18:14:15.053695",
+          "started_at": "2026-10-15 18:14:12.266918",
+          "finished_at": "2026-10-15 18:14:15.053695",
+          "local_operation_ref": "65eea6751afa"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 18:13:11.830917",
+          "updated_at": "2026-10-15 18:13:15.595448",
+          "started_at": "2026-10-15 18:13:12.980560",
+          "finished_at": "2026-10-15 18:13:15.595448",
+          "local_operation_ref": "82d33776b550"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 18:12:11.431320",
+          "updated_at": "2026-10-15 18:12:15.925152",
+          "started_at": "2026-10-15 18:12:12.744089",
+          "finished_at": "2026-10-15 18:12:15.925152",
+          "local_operation_ref": "241d05fdda8c"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 18:11:12.187572",
+          "updated_at": "2026-10-15 18:11:20.487137",
+          "started_at": "2026-10-15 18:11:14.328551",
+          "finished_at": "2026-10-15 18:11:20.487137",
+          "local_operation_ref": "064127ec1382"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 16:01:07.272254",
+          "updated_at": "2026-10-15 16:01:14.637268",
+          "started_at": "2026-10-15 16:01:09.033282",
+          "finished_at": "2026-10-15 16:01:14.637268",
+          "local_operation_ref": "56454891c9e7"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 14:18:58.576561",
+          "updated_at": "2026-10-15 14:19:01.542588",
+          "started_at": "2026-10-15 14:18:59.452507",
+          "finished_at": "2026-10-15 14:19:01.542588",
+          "local_operation_ref": "007ac0d89170"
+        },
+        {
+          "kind": "repair",
+          "source": "automatic",
+          "state": "finished",
+          "phase": "thumbnails",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 14:01:40.529528",
+          "updated_at": "2026-10-15 14:01:47.396752",
+          "started_at": "2026-10-15 14:01:41.708078",
+          "finished_at": "2026-10-15 14:01:47.396752",
+          "local_operation_ref": "1405b398106a"
+        },
+        {
+          "kind": "repair",
+          "source": "automatic",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 3,
+          "phase_done": 3,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 14:01:03.112545",
+          "updated_at": "2026-10-15 14:01:09.270829",
+          "started_at": "2026-10-15 14:01:05.288634",
+          "finished_at": "2026-10-15 14:01:09.270829",
+          "local_operation_ref": "7c94172b451f"
+        },
+        {
+          "kind": "check",
+          "source": "automatic",
+          "state": "finished",
+          "phase": "checking",
+          "phase_total": 172,
+          "phase_done": 172,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 14:00:18.957062",
+          "updated_at": "2026-10-15 14:07:09.903786",
+          "started_at": "2026-10-15 14:00:19.485941",
+          "finished_at": "2026-10-15 14:07:09.903786",
+          "local_operation_ref": "20e5182fe60e"
+        },
+        {
+          "kind": "check",
+          "source": "automatic",
+          "state": "finished",
+          "phase": "checking",
+          "phase_total": 172,
+          "phase_done": 172,
+          "pause_requested": 0,
+          "created_at": "2026-10-15 08:00:19.008257",
+          "updated_at": "2026-10-15 08:05:40.449896",
+          "started_at": "2026-10-15 08:00:19.629106",
+          "finished_at": "2026-10-15 08:05:40.449896",
+          "local_operation_ref": "bc138c0e0a64"
+        },
+        {
+          "kind": "repair",
+          "source": "automatic",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 3,
+          "phase_done": 3,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 20:02:27.092223",
+          "updated_at": "2026-10-14 20:02:33.622306",
+          "started_at": "2026-10-14 20:02:29.457983",
+          "finished_at": "2026-10-14 20:02:33.622306",
+          "local_operation_ref": "6d609c31fa32"
+        },
+        {
+          "kind": "check",
+          "source": "automatic",
+          "state": "finished",
+          "phase": "checking",
+          "phase_total": 172,
+          "phase_done": 172,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 20:00:18.993864",
+          "updated_at": "2026-10-14 20:05:45.578380",
+          "started_at": "2026-10-14 20:00:19.491921",
+          "finished_at": "2026-10-14 20:05:45.578380",
+          "local_operation_ref": "dd2d24d3d498"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 18:19:57.649596",
+          "updated_at": "2026-10-14 18:19:59.506044",
+          "started_at": "2026-10-14 18:19:58.324495",
+          "finished_at": "2026-10-14 18:19:59.506044",
+          "local_operation_ref": "71b2d66119ef"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 18:18:57.588410",
+          "updated_at": "2026-10-14 18:18:59.854396",
+          "started_at": "2026-10-14 18:18:58.229636",
+          "finished_at": "2026-10-14 18:18:59.854396",
+          "local_operation_ref": "bf25fd88bbae"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 18:17:57.954425",
+          "updated_at": "2026-10-14 18:18:02.702320",
+          "started_at": "2026-10-14 18:17:58.683054",
+          "finished_at": "2026-10-14 18:18:02.702320",
+          "local_operation_ref": "6793acb9616a"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 16:07:51.888630",
+          "updated_at": "2026-10-14 16:07:53.771712",
+          "started_at": "2026-10-14 16:07:52.419795",
+          "finished_at": "2026-10-14 16:07:53.771712",
+          "local_operation_ref": "c3a98b3ff156"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 16:06:51.783879",
+          "updated_at": "2026-10-14 16:06:53.564833",
+          "started_at": "2026-10-14 16:06:52.375837",
+          "finished_at": "2026-10-14 16:06:53.564833",
+          "local_operation_ref": "8fed4a6b51b9"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 16:05:51.682773",
+          "updated_at": "2026-10-14 16:05:53.684315",
+          "started_at": "2026-10-14 16:05:52.543321",
+          "finished_at": "2026-10-14 16:05:53.684315",
+          "local_operation_ref": "60eb0e7a6347"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 16:04:53.552474",
+          "updated_at": "2026-10-14 16:04:55.145522",
+          "started_at": "2026-10-14 16:04:54.066518",
+          "finished_at": "2026-10-14 16:04:55.145522",
+          "local_operation_ref": "b8f8aed1d3fd"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 16:03:51.657894",
+          "updated_at": "2026-10-14 16:03:53.283804",
+          "started_at": "2026-10-14 16:03:52.204682",
+          "finished_at": "2026-10-14 16:03:53.283804",
+          "local_operation_ref": "5ecbc0c46578"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 16:02:51.289083",
+          "updated_at": "2026-10-14 16:02:56.643034",
+          "started_at": "2026-10-14 16:02:52.564160",
+          "finished_at": "2026-10-14 16:02:56.643034",
+          "local_operation_ref": "db1aca0539f8"
+        },
+        {
+          "kind": "repair",
+          "source": "automatic",
+          "state": "finished",
+          "phase": "thumbnails",
+          "phase_total": 2,
+          "phase_done": 2,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 14:04:38.512882",
+          "updated_at": "2026-10-14 14:04:54.297022",
+          "started_at": "2026-10-14 14:04:39.913242",
+          "finished_at": "2026-10-14 14:04:54.297022",
+          "local_operation_ref": "87bb887cfe3f"
+        },
+        {
+          "kind": "repair",
+          "source": "automatic",
+          "state": "finished",
+          "phase": "thumbnails",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 14:01:42.348583",
+          "updated_at": "2026-10-14 14:01:47.623597",
+          "started_at": "2026-10-14 14:01:43.665546",
+          "finished_at": "2026-10-14 14:01:47.623597",
+          "local_operation_ref": "c72f49bccb7b"
+        },
+        {
+          "kind": "check",
+          "source": "automatic",
+          "state": "finished",
+          "phase": "checking",
+          "phase_total": 172,
+          "phase_done": 172,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 14:00:18.894307",
+          "updated_at": "2026-10-14 14:05:59.125935",
+          "started_at": "2026-10-14 14:00:19.401695",
+          "finished_at": "2026-10-14 14:05:59.125935",
+          "local_operation_ref": "48e1d4e794d0"
+        },
+        {
+          "kind": "repair",
+          "source": "maintenance",
+          "state": "finished",
+          "phase": "downloading",
+          "phase_total": 1,
+          "phase_done": 1,
+          "pause_requested": 0,
+          "created_at": "2026-10-14 13:52:42.218352",
+          "updated_at": "2026-10-14 13:52:49.625369",
+          "started_at": "2026-10-14 13:52:43.062838",
+          "finished_at": "2026-10-14 13:52:49.625369",
+          "local_operation_ref": "a83c8e439b21"
+        }
+      ]
+    },
+    "unfinished_operations": {
+      "ms": 31.0,
+      "rows": []
+    },
+    "automatic_check_setting": {
+      "ms": 16.0,
+      "rows": [
+        {
+          "key": "automatic_paused",
+          "value": "false"
+        }
+      ]
+    },
+    "schema_version": {
+      "ms": 0.0,
+      "rows": [
+        {
+          "version_num": "0005_read_cards_tasks"
+        }
+      ]
+    }
+  },
+  "errors": {},
+  "before": {
+    "pixiv_tracker.db": {
+      "bytes": 2196733952,
+      "mtime_ns": 1792096279527229400
+    },
+    "pixiv_tracker.db-wal": {
+      "bytes": 34261952,
+      "mtime_ns": 1792096278888692100
+    },
+    "pixiv_tracker.db-shm": {
+      "bytes": 98304,
+      "mtime_ns": 1791900170976125100
+    }
+  },
+  "after": {
+    "pixiv_tracker.db": {
+      "bytes": 2196733952,
+      "mtime_ns": 1792096279527229400
+    },
+    "pixiv_tracker.db-wal": {
+      "bytes": 34261952,
+      "mtime_ns": 1792096278888692100
+    },
+    "pixiv_tracker.db-shm": {
+      "bytes": 98304,
+      "mtime_ns": 1791900170976125100
+    }
+  },
+  "file_metadata_unchanged": true
+}
