@@ -1,0 +1,72 @@
+{
+  "retained_reason": "currently running installed EXE uses extraction and instance ownership here",
+  "retained_running_temp": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.1\\work\\tmp\\read-path-repair\\package\\enabled-runtime",
+  "dependency_junction_removed": true,
+  "removed": [
+    {
+      "bytes": 2850816.0,
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.1\\work\\tmp\\read-path-repair\\integration",
+      "removed": true
+    },
+    {
+      "bytes": 2875.0,
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.1\\work\\tmp\\read-path-repair\\compare_gallery_read.py",
+      "removed": true
+    },
+    {
+      "bytes": 3069.0,
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.1\\work\\tmp\\read-path-repair\\inspect_read_paths.py",
+      "removed": true
+    },
+    {
+      "bytes": 2587.0,
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.1\\work\\tmp\\read-path-repair\\read_failure_categories.py",
+      "removed": true
+    },
+    {
+      "bytes": 97568239.0,
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.1\\work\\tmp\\read-path-repair\\package\\b20261017.1-package",
+      "removed": true
+    },
+    {
+      "bytes": 3543.0,
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.1\\work\\tmp\\read-path-repair\\package\\browser",
+      "removed": true
+    },
+    {
+      "bytes": 841132.0,
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.1\\work\\tmp\\read-path-repair\\package\\smoke",
+      "removed": true
+    },
+    {
+      "bytes": 1503.0,
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.1\\work\\tmp\\read-path-repair\\package\\enable_daily.py",
+      "removed": true
+    },
+    {
+      "bytes": 305.0,
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.1\\work\\tmp\\read-path-repair\\package\\enabled-owner-2.json",
+      "removed": true
+    },
+    {
+      "bytes": 6510.0,
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.1\\work\\tmp\\read-path-repair\\package\\finalize_records.py",
+      "removed": true
+    },
+    {
+      "bytes": 990.0,
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.1\\work\\tmp\\read-path-repair\\package\\launch_smoke.py",
+      "removed": true
+    },
+    {
+      "bytes": 2404.0,
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.1\\work\\tmp\\read-path-repair\\package\\probe_daily.py",
+      "removed": true
+    },
+    {
+      "bytes": 444.0,
+      "path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.1\\work\\tmp\\read-path-repair\\package\\smoke-owner.json",
+      "removed": true
+    }
+  ]
+}

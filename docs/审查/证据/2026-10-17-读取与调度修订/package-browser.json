@@ -1,0 +1,37 @@
+{
+  "scope": "final EXE on synthetic library, actual pointer/keyboard input; only stats failure intercepted",
+  "results": [
+    {
+      "viewport": [
+        1440,
+        1000
+      ],
+      "saved_while_stats_pending": true,
+      "failure_isolated": true,
+      "refresh_recovered": true,
+      "horizontal_overflow": false
+    },
+    {
+      "viewport": [
+        390,
+        844
+      ],
+      "saved_while_stats_pending": true,
+      "failure_isolated": true,
+      "refresh_recovered": true,
+      "horizontal_overflow": false
+    },
+    {
+      "viewport": [
+        320,
+        768
+      ],
+      "saved_while_stats_pending": true,
+      "failure_isolated": true,
+      "refresh_recovered": true,
+      "horizontal_overflow": false
+    }
+  ],
+  "page_errors": [],
+  "real_phone_test": false
+}

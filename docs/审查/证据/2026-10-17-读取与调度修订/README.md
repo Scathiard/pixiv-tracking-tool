@@ -13,3 +13,5 @@
 - `gallery-read-comparison.py`、`failure-category-read.py`：只读复核脚本；先核对原路径再使用，不启动程序或提交账号任务。
 
 候选生产前端构建：`index-CbVcoYAA.js`、`index-BiyP4cED.css`；类型检查和构建退出 0。最终包和界面结果随交付补充。
+
+最终结果：`package-smoke.json` 为最终 EXE 合成验证，`package-browser.json` 与三张设置截图为实际浏览器交互；`enabled-reads.json` 和 `enabled-launch.json` 为日常原图库启用。首次启动权限错误保留于 `enabled-first-launch-error.txt`，不得只看早先失败的启动 PID。`package-build.log` 为实际构建日志。归档脚本反映执行时的目录；复核旧基线须使用报告所列旧提交，不能将更新后的 main 当作旧实现。

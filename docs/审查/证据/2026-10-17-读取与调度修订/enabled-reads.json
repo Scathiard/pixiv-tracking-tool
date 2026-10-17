@@ -1,0 +1,77 @@
+{
+  "observed_at": "2026-10-17T19:04:08.131222+08:00",
+  "scope": "one read per endpoint on normally enabled real library; no account task submissions; 45s external observation budget",
+  "requests": [
+    {
+      "endpoint": "/api/startup",
+      "status": 200,
+      "ms": 0.0,
+      "state": {
+        "state": "ready"
+      }
+    },
+    {
+      "endpoint": "/api/status",
+      "status": 200,
+      "ms": 0.0,
+      "state": {
+        "logged_in": true,
+        "upgrade_required": false
+      }
+    },
+    {
+      "endpoint": "/api/settings",
+      "status": 200,
+      "ms": 31.0,
+      "settings": {
+        "version": "0.2.0",
+        "build": "20261017.1",
+        "automatic_paused": false,
+        "check_interval_minutes": 360,
+        "next_check_at": "2026-10-18T01:03:42.055341+08:00",
+        "current_port": 1919,
+        "data_root": "D:\\PixivTracker"
+      },
+      "login_status": "logged_in",
+      "contains_statistics": false
+    },
+    {
+      "endpoint": "/api/progress",
+      "status": 200,
+      "ms": 16.0,
+      "progress": {
+        "active_operation_count": 1,
+        "queued_operation_count": 0,
+        "automatic_paused": false,
+        "worker_error": null,
+        "needs_attention_count": 500
+      },
+      "operations_returned": 2
+    },
+    {
+      "endpoint": "/api/library?limit=240&compact=true",
+      "status": 200,
+      "ms": 344.0,
+      "item_count": 240
+    },
+    {
+      "endpoint": "/api/diagnostics",
+      "status": 200,
+      "ms": 15.0,
+      "diagnostics": {
+        "enabled": true,
+        "run_id": "eb7624219a7f",
+        "build": "20261017.1"
+      }
+    },
+    {
+      "endpoint": "/",
+      "status": 200,
+      "ms": 0.0,
+      "assets": [
+        "/reader/assets/index-CbVcoYAA.js",
+        "/reader/assets/index-BiyP4cED.css"
+      ]
+    }
+  ]
+}
