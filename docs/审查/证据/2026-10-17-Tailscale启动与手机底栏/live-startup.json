@@ -1,0 +1,55 @@
+{
+  "log_file": "D:\\PixivTracker\\data\\diagnostic-20261017-232715-11576-973f0fc8794d-part0001.jsonl",
+  "events": [
+    {
+      "event": "diagnostic.start",
+      "utc": "2026-10-17T15:27:15.131+00:00",
+      "elapsed_ms": 0.0,
+      "thread": 58312,
+      "trace": "",
+      "parent": "",
+      "build": "20261017.2",
+      "version": "0.2.0",
+      "pid": 11576,
+      "python": "3.12.13",
+      "interval_seconds": 2.0,
+      "part_bytes": 67108864,
+      "retention": "continuous parts; prior files retained",
+      "run_id": "973f0fc8794d",
+      "sql_policy": "all statements counted by fingerprint; individual slow or failed statements",
+      "fast_span_ms": 25.0,
+      "format_version": 2,
+      "seq": 1
+    },
+    {
+      "event": "task.recovery.begin",
+      "utc": "2026-10-17T15:27:17.572+00:00",
+      "elapsed_ms": 2438.0,
+      "thread": 16980,
+      "trace": "0f599f4e4d3f",
+      "parent": "0f599f4e4d3f",
+      "operation_ref": "",
+      "item_ref": null,
+      "span": "d6acf39fb301",
+      "seq": 65
+    },
+    {
+      "event": "task.recovery.end",
+      "utc": "2026-10-17T15:27:21.504+00:00",
+      "elapsed_ms": 6375.0,
+      "thread": 16980,
+      "trace": "0f599f4e4d3f",
+      "parent": "0f599f4e4d3f",
+      "operation_ref": "",
+      "item_ref": null,
+      "item_count": 0,
+      "operation_count": 0,
+      "automatic_check_count": 0,
+      "span": "d6acf39fb301",
+      "started_elapsed_ms": 2438.0,
+      "begin_recorded": true,
+      "duration_ms": 3937.0,
+      "seq": 227
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "source": "actual Windows interfaces with revised policy",
+  "tailscale_phone_ipv4_allowed": true,
+  "tailscale_phone_ipv6_allowed": true,
+  "external_public_denied": true,
+  "loopback_allowed": true
+}

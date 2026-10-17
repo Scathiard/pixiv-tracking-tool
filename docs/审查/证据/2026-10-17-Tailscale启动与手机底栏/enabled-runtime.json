@@ -1,0 +1,25 @@
+{
+  "before": {
+    "version": "0.2.0",
+    "build": "20261017.1",
+    "automatic_paused": false,
+    "check_interval_minutes": 360,
+    "current_port": 1919,
+    "data_root": "D:\\PixivTracker"
+  },
+  "installed_exe": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261017.2.exe",
+  "sha256": "13fa92032bea9076ebe7bd2243381a5219b17eed3c313c6f46f3194e342e2161",
+  "runtime_temporary": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261017.2\\work\\tmp\\tailscale-startup-dock\\package\\enabled-runtime",
+  "started_at": "2026-10-17T23:27:10.5966128+08:00",
+  "normal_mode": true,
+  "parent_pid": 47176,
+  "ready_seconds": 11.083,
+  "after": {
+    "build": "20261017.2",
+    "logged_in": false,
+    "automatic_paused": false,
+    "check_interval_minutes": 360,
+    "current_port": 1919,
+    "data_root": "D:\\PixivTracker"
+  }
+}
