@@ -1,0 +1,287 @@
+{
+  "observed_at": "2026-10-17T18:42:49.998359+08:00",
+  "before": {
+    "pixiv_tracker.db": [
+      2196733952,
+      1792096279527229400
+    ],
+    "pixiv_tracker.db-wal": [
+      34261952,
+      1792096278888692100
+    ],
+    "pixiv_tracker.db-shm": [
+      98304,
+      1791900170976125100
+    ]
+  },
+  "errors": {
+    "failure_parents": {
+      "type": "OperationalError",
+      "message": "interrupted",
+      "ms": 27375.0
+    }
+  },
+  "baseline_gallery_plan": {
+    "ms": 0.0,
+    "rows": [
+      [
+        2,
+        0,
+        0,
+        "CO-ROUTINE ranked"
+      ],
+      [
+        5,
+        2,
+        0,
+        "CO-ROUTINE (subquery-253)"
+      ],
+      [
+        7,
+        5,
+        0,
+        "CO-ROUTINE candidates"
+      ],
+      [
+        8,
+        7,
+        0,
+        "COMPOUND QUERY"
+      ],
+      [
+        9,
+        8,
+        0,
+        "LEFT-MOST SUBQUERY"
+      ],
+      [
+        12,
+        9,
+        0,
+        "MATERIALIZE wanted"
+      ],
+      [
+        15,
+        12,
+        0,
+        "MATERIALIZE selected"
+      ],
+      [
+        17,
+        15,
+        0,
+        "SCAN 240 CONSTANT ROWS"
+      ],
+      [
+        982,
+        12,
+        256,
+        "SCAN selected"
+      ],
+      [
+        985,
+        12,
+        0,
+        "CORRELATED SCALAR SUBQUERY 245"
+      ],
+      [
+        989,
+        985,
+        0,
+        "MATERIALIZE active"
+      ],
+      [
+        991,
+        989,
+        0,
+        "COMPOUND QUERY"
+      ],
+      [
+        992,
+        991,
+        0,
+        "LEFT-MOST SUBQUERY"
+      ],
+      [
+        997,
+        992,
+        215,
+        "SCAN p USING INDEX ix_read_task_parent_active"
+      ],
+      [
+        1001,
+        992,
+        62,
+        "SEARCH g USING INDEX ix_read_task_work_parent_operation (operation_id=? AND work_id=?)"
+      ],
+      [
+        1006,
+        992,
+        0,
+        "LIST SUBQUERY 241"
+      ],
+      [
+        1009,
+        1006,
+        216,
+        "SCAN selected"
+      ],
+      [
+        1049,
+        991,
+        0,
+        "UNION ALL"
+      ],
+      [
+        1054,
+        1049,
+        215,
+        "SCAN p USING INDEX ix_read_task_parent_active"
+      ],
+      [
+        1058,
+        1049,
+        45,
+        "SEARCH b USING PRIMARY KEY (operation_id=?)"
+      ],
+      [
+        1071,
+        1049,
+        56,
+        "SEARCH s USING PRIMARY KEY (operation_id=? AND work_id=?)"
+      ],
+      [
+        1076,
+        1049,
+        0,
+        "LIST SUBQUERY 243"
+      ],
+      [
+        1079,
+        1076,
+        216,
+        "SCAN selected"
+      ],
+      [
+        1117,
+        985,
+        0,
+        "BLOOM FILTER ON active (work_id=?)"
+      ],
+      [
+        1126,
+        985,
+        55,
+        "SEARCH active USING AUTOMATIC COVERING INDEX (work_id=?)"
+      ],
+      [
+        1148,
+        9,
+        255,
+        "SCAN wanted"
+      ],
+      [
+        1150,
+        9,
+        56,
+        "SEARCH g USING PRIMARY KEY (work_id=?)"
+      ],
+      [
+        1156,
+        9,
+        45,
+        "SEARCH p USING PRIMARY KEY (operation_id=?)"
+      ],
+      [
+        1204,
+        8,
+        0,
+        "UNION ALL"
+      ],
+      [
+        1210,
+        1204,
+        216,
+        "SCAN wanted"
+      ],
+      [
+        1212,
+        1204,
+        56,
+        "SEARCH s USING COVERING INDEX ix_read_scope_work (work_id=?)"
+      ],
+      [
+        1218,
+        1204,
+        45,
+        "SEARCH p USING PRIMARY KEY (operation_id=?)"
+      ],
+      [
+        1254,
+        1204,
+        45,
+        "SEARCH b USING PRIMARY KEY (operation_id=?)"
+      ],
+      [
+        1275,
+        8,
+        0,
+        "UNION ALL"
+      ],
+      [
+        1278,
+        1275,
+        216,
+        "SCAN active"
+      ],
+      [
+        1294,
+        5,
+        288,
+        "SCAN c"
+      ],
+      [
+        1297,
+        5,
+        45,
+        "SEARCH i USING PRIMARY KEY (item_id=?) LEFT-JOIN"
+      ],
+      [
+        1467,
+        5,
+        0,
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      [
+        1504,
+        2,
+        288,
+        "SCAN (subquery-253)"
+      ],
+      [
+        1582,
+        0,
+        288,
+        "SCAN ranked"
+      ]
+    ]
+  },
+  "failure_categories": [],
+  "failure_parent_count": 0,
+  "selected_count": 240,
+  "after": {
+    "pixiv_tracker.db": [
+      2196733952,
+      1792096279527229400
+    ],
+    "pixiv_tracker.db-wal": [
+      34261952,
+      1792096278888692100
+    ],
+    "pixiv_tracker.db-shm": [
+      98304,
+      1791900170976125100
+    ]
+  },
+  "file_metadata_unchanged": true
+}

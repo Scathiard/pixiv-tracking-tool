@@ -8,7 +8,7 @@ phase list costs its distinct output groups, not its historical item count.
 """
 from __future__ import annotations
 
-from sqlalchemy import JSON, column, select, table
+from sqlalchemy import JSON, column, func, select, table
 from sqlalchemy.orm import defer
 
 from .models import Operation
@@ -246,6 +246,38 @@ def active_head(session, *, running, limit):
     predicate = RUNNING_STATES_SQL if running else WAITING_STATES_SQL
     ids = _connection(session).exec_driver_sql(f"SELECT id FROM operations INDEXED BY {index} WHERE {predicate} ORDER BY {PRIORITY_SQL},created_at LIMIT ?", (limit,)).scalars().all()
     return _operation_rows(session, ids, status=True, read_stage="progress_active_hydrate")
+
+
+def completion_feedback(session, *, operation_ids=()):
+    """Only the latest feedback and explicitly watched completions, never history.
+
+    Project display fields in SQLite so unrelated large historical result lists
+    are not transferred or decoded by the progress poll. Full results remain in
+    the explicit history/details endpoints.
+    """
+    connection = _connection(session)
+    ids = list(dict.fromkeys(operation_ids))[:64]
+    for index, attention in (("ix_task_status_history", ""),
+            ("ix_task_status_attention_history", " AND needs_attention IS 1")):
+        latest = connection.exec_driver_sql(f"SELECT id FROM operations INDEXED BY {index} "
+            f"WHERE state='finished'{attention} ORDER BY finished_at DESC,id DESC LIMIT 1").scalar()
+        if latest is not None and latest not in ids:
+            ids.append(latest)
+    if not ids:
+        return []
+    view = table("read_task_operation_view", column("operation_id"), column("status_result", JSON))
+    fields = ("outcome", "counts", "planning_complete", "step_progress", "incremental_check", "lane")
+    summary = func.json_object(*[entry for name in fields for entry in
+        (name, func.json_extract(view.c.status_result, f"$.{name}"))], type_=JSON)
+    statement = select(Operation, summary, view.c.operation_id).options(
+        defer(Operation.parameters), defer(Operation.result)).outerjoin(view, view.c.operation_id == Operation.id).where(
+            Operation.id.in_(ids), Operation.state == "finished")
+    with track_read_stage("progress_history_hydrate"):
+        rows = session.execute(statement.execution_options(read_stage="progress_history_hydrate")).all()
+    if any(projected_id is None for _, _, projected_id in rows):
+        raise ProjectionUnavailable("task operation result projection is missing")
+    return [(op, {key: value for key, value in result.items() if value is not None})
+            for op, result, _ in rows]
 
 
 def history_head(session, *, limit, before=None, attention_only=False, status=False):

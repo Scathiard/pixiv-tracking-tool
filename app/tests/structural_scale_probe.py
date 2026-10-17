@@ -484,7 +484,7 @@ def run(root, *, n_sizes=(1000, 10000, 100000), h_sizes=(100, 1000, 10000),
                 assert sum(task_api.json()["counts"].values()) == h
                 fresh_queue = TaskQueue(database, handlers={})
                 snapshot, row["task_snapshot"] = probe.measure("task_snapshot",
-                    lambda: fresh_queue.snapshot(history_limit=K))
+                    lambda: fresh_queue.snapshot())
                 row["task_snapshot_response_bytes"] = len(json.dumps(snapshot, ensure_ascii=False).encode("utf-8"))
                 history, row["task_history"] = probe.measure("task_history",
                     lambda: queue.history(limit=K))
@@ -528,7 +528,7 @@ def run(root, *, n_sizes=(1000, 10000, 100000), h_sizes=(100, 1000, 10000),
                 assert all(card["processing"]["state"] == "queued" for card in page["items"])
                 fresh_queue = TaskQueue(database, handlers={})
                 status, row["task_snapshot"] = probe.measure("scope_task_snapshot",
-                    lambda: fresh_queue.snapshot(history_limit=K))
+                    lambda: fresh_queue.snapshot())
                 row["task_snapshot_response_bytes"] = len(json.dumps(status, ensure_ascii=False).encode("utf-8"))
                 evidence["S"].append(row)
                 _save(root, evidence)

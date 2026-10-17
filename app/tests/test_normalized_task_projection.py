@@ -1,12 +1,12 @@
 """Small source-oracle and query-boundary contracts; synthetic data only."""
 from datetime import datetime, timedelta
 
-from sqlalchemy import event, select
+from sqlalchemy import create_engine, event, select
 
 from src.core.archive_state import raw_work_states, work_states
 from src.core.database import ArchiveDatabase
-from src.core.models import Artist, Work, Operation, OperationItem
-from src.core.normalized_task_projection import winners, verify, winner_sql, backfill
+from src.core.models import Base, Artist, Work, Operation, OperationItem
+from src.core.normalized_task_projection import winners, verify, winner_sql, backfill, install
 
 STAMP = datetime(2026, 10, 12, 12)
 
@@ -161,3 +161,56 @@ def test_selected_history_skips_unrelated_parent_history(tmp_path):
         assert_oracle(database)
     finally:
         database.close()
+
+
+def test_healthy_read_budget_is_independent_of_same_work_history():
+    """Synthetic normalized facts isolate read work from writer/backfill cost."""
+    engine = create_engine('sqlite:///:memory:')
+    Base.metadata.create_all(engine)
+    try:
+        with engine.begin() as connection:
+            install(connection)
+            connection.exec_driver_sql('CREATE TABLE read_operation_scope '
+                '(operation_id TEXT,work_id INTEGER,PRIMARY KEY(operation_id,work_id)) WITHOUT ROWID')
+            connection.exec_driver_sql('CREATE INDEX ix_read_scope_work ON read_operation_scope(work_id,operation_id)')
+            driver = connection.connection.driver_connection
+            def measure(history_ids):
+                steps = [0]
+                def progress():
+                    steps[0] += 1
+                    return 0
+                driver.set_progress_handler(progress, 1)
+                try:
+                    value = winners(connection, [1], history_ids=history_ids)
+                finally:
+                    driver.set_progress_handler(None, 0)
+                return value, steps[0]
+            before, before_steps = measure([])
+            for index in range(400):
+                stamp = (STAMP + timedelta(days=index)).isoformat()
+                identity = f'history-{index:04}'
+                connection.exec_driver_sql('INSERT INTO read_task_parent VALUES(?,?,?,?,?)',
+                    (identity, 'verify', 'finished', stamp, stamp))
+                connection.exec_driver_sql('INSERT INTO read_task_work_parent VALUES(?,?,?,?,?)',
+                    (1, identity, None, None, identity))
+                connection.exec_driver_sql('INSERT INTO read_task_item_fact VALUES(?,?,?,?,?,?,?,?)',
+                    (identity, identity, 1, 'failed', 0, 0, 'work', 'synthetic failure'))
+            after, after_steps = measure([])
+            assert before == after == {}
+            assert after_steps <= before_steps + 10, (before_steps, after_steps)
+            historical, historical_steps = measure([1])
+            assert historical[1]['payload']['operation_id'] == 'history-0399'
+            assert historical[1]['payload']['reason'] == 'synthetic failure'
+            # Same timestamps retain item failure/position and operation ID
+            # tie breakers, even across direct and scoped candidates.
+            connection.exec_driver_sql('INSERT INTO read_task_parent VALUES(?,?,?,?,?)',
+                ('tie', 'verify', 'finished', stamp, stamp))
+            connection.exec_driver_sql('INSERT INTO read_task_work_parent VALUES(?,?,?,?,?)',
+                (1, 'tie', None, None, 'tie'))
+            connection.exec_driver_sql('INSERT INTO read_task_item_fact VALUES(?,?,?,?,?,?,?,?)',
+                ('tie', 'tie', 1, 'succeeded', 1, 0, 'work', None))
+            assert measure([1])[0] == historical
+            print(f'healthy_same_work_history_vm_steps: before={before_steps}, '
+                f'after400={after_steps}; gap_exact_history_steps={historical_steps}')
+    finally:
+        engine.dispose()

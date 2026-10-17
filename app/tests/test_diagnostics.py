@@ -150,3 +150,64 @@ def test_rotation_write_failure_is_visible_without_leaking_exception_text(tmp_pa
     warning = capsys.readouterr().err
     assert "OSError" in warning and "记录已停止" in warning
     assert "PRIVATE_DISK_DETAIL" not in warning
+
+
+def test_lifecycle_and_idle_wait_do_not_request_stacks_but_business_and_loop_lag_do(capture, monkeypatch):
+    recorder = diagnostics._recorder
+    captured = []
+    original = diagnostics.sys._current_frames
+    def stack_probe():
+        captured.append(True)
+        return original()
+    monkeypatch.setattr(diagnostics.sys, '_current_frames', stack_probe)
+    with diagnostics.span('application.run'):
+        with diagnostics.span('wal.wait', delay_seconds=30):
+            with recorder.lock:
+                for row in recorder.active.values():
+                    row['started'] -= 2
+            recorder.sample()
+            assert captured == [], 'Normal application lifetime and idle WAL delay must not trigger stacks'
+            with diagnostics.span('read.synthetic_business'):
+                with recorder.lock:
+                    for row in recorder.active.values():
+                        if row['event'] == 'read.synthetic_business':
+                            row['started'] -= 2
+                recorder.sample()
+            assert len(captured) == 1
+            recorder.heartbeat_at = time.monotonic() - 2
+            recorder.sample()
+            assert len(captured) == 2
+            recorder.heartbeat_at = time.monotonic()
+    rows = records(capture)
+    assert any(row['event'] == 'application.run.begin' for row in rows)
+    assert any(row['event'] == 'application.run.end' for row in rows)
+    assert any(row['event'] == 'process.sample' and row['active_spans'] == 0 for row in rows)
+    assert any(row['event'] == 'thread.stack' for row in rows)
+
+
+def test_real_read_admission_aggregates_fast_chatter_and_keeps_slow_cancel_chain(tmp_path):
+    from src.core.read_control import current_read
+    database = ArchiveDatabase.create(tmp_path / 'admission.db')
+    path = diagnostics.start(tmp_path, build='synthetic', version='0.2.0', interval=60)
+    try:
+        with database.read() as session:
+            assert session.scalar(text('SELECT 42')) == 42
+        with database.read() as session:
+            time.sleep(.03)
+            assert session.scalar(text('SELECT 43')) == 43
+        with pytest.raises(RuntimeError, match='本地读取已取消'):
+            with database.read():
+                current_read.get().cancel(reason='synthetic_cancel')
+        rows = records(path)
+    finally:
+        diagnostics.stop()
+        database.close()
+    assert not any(row['event'] in {'read.queue_enqueued', 'read.queue_dequeued', 'read.admission_released'} for row in rows)
+    assert any(row['event'] == 'event.aggregate' and row['observed_event'] == 'read.queue_enqueued'
+               and row['count'] == 3 for row in rows)
+    assert any(row['event'] == 'db.read.body.end' and row['duration_ms'] >= 25 for row in rows)
+    cancelled = next(row for row in rows if row['event'] == 'read.cancel')
+    rejected = next(row for row in rows if row['event'] == 'read.checkpoint_rejected')
+    assert cancelled['read_ref'] == rejected['read_ref'] and cancelled['trace'] == rejected['trace']
+    assert any(row['event'] == 'db.read.body.end' and row.get('error_type') == 'ReadCancelled'
+               and row['trace'] == cancelled['trace'] for row in rows)

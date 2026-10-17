@@ -105,7 +105,7 @@ def test_settings_large_catalogue_latency_and_current_revision_semantics(tmp_pat
             expected["verified_originals"] += 1
             expected["downloaded_pages"] += 1
             expected["unverified_originals"] -= 1
-            assert client.get("/api/settings").json()["stats"] == expected
+            assert client.get("/api/settings/stats").json()["stats"] == expected
     finally:
         event.remove(db.engine, "before_cursor_execute", before)
         event.remove(db.engine, "after_cursor_execute", after)

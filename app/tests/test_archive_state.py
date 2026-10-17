@@ -173,6 +173,44 @@ def test_finished_original_failure_does_not_pollute_later_complete_state(catalog
     assert views(library)[0]["processing"]["state"] == "idle"
 
 
+def test_complete_views_skip_history_but_active_and_new_gap_keep_their_truth(catalogue, monkeypatch):
+    from src.core import normalized_task_projection as tasks
+    database, library = catalogue
+    add_work(database, pages=1)
+    with database.write() as session:
+        session.add(Derivative(id='thumb', work_id=1, kind='thumbnail',
+            state='verified', relative_path='101.webp'))
+        session.add(Operation(id='failed', kind='repair', state='finished',
+            dedupe_key='failed', label='repair'))
+        session.add(OperationItem(operation_id='failed', item_key='failed', kind='download',
+            phase='downloading', target={'asset_id': 'asset-0'}, state='failed',
+            result={'message': 'original still missing'}))
+    reads = []
+    original = tasks._read_winners
+    def capture(connection, selected, *, active_only):
+        reads.append(active_only)
+        return original(connection, selected, active_only=active_only)
+    monkeypatch.setattr(tasks, '_read_winners', capture)
+    assert views(library)[0]['processing']['state'] == 'idle'
+    assert reads and all(reads)
+    reads.clear()
+    with database.write() as session:
+        asset = session.get(Asset, 'asset-0')
+        asset.state, asset.relative_path = 'missing', None
+    card, _, _ = views(library)
+    assert card['processing']['state'] == 'attention'
+    assert card['processing']['reason'] == 'original still missing'
+    assert False in reads
+    reads.clear()
+    with database.write() as session:
+        session.add(Operation(id='active', kind='repair', state='running',
+            dedupe_key='active', label='repair'))
+        session.add(OperationItem(operation_id='active', item_key='active', kind='download',
+            phase='downloading', target={'work_id': 1}, state='running'))
+    assert views(library)[0]['processing']['state'] == 'running'
+    assert reads and all(reads)
+
+
 def test_legacy_scoped_error_without_target_work_id_is_attention(catalogue):
     database, library = catalogue
     add_work(database, pages=2)

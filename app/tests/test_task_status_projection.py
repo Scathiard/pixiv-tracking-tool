@@ -111,12 +111,13 @@ def test_complete_task_reads_preserve_priority_history_null_dates_and_unknown_st
             session.execute(insert(OperationItem), [item_row("remote", "auto", phase="checking", unit="pages")])
             session.get(OperationItem, "remote").kind = "bookmark_artist"
         queue = TaskQueue(database, {"reconcile": object()})
-        snapshot = queue.snapshot(history_limit=2)
+        snapshot = queue.snapshot(watch_ids=("done-b",))
         assert snapshot["active_operation_count"] == 4
         assert snapshot["queued_operation_count"] == 1
         assert snapshot["next_round_count"] == 1
         assert snapshot["needs_attention_count"] == 2
-        assert [row["id"] for row in snapshot["operations"]] == ["manual", "auto", "maint", "next", "done-c", "done-b"]
+        assert [row["id"] for row in snapshot["operations"][:4]] == ["manual", "auto", "maint", "next"]
+        assert {row["id"] for row in snapshot["operations"][4:]} == {"done-c", "done-b"}
         assert snapshot["round"]["counts"] == {"succeeded": 1, "failed": 1, "not_executed": 1, "future-v2": 1, "pending": 2}
         assert snapshot["round"]["total"] == 6
         assert snapshot["round"]["settled"] == 3
@@ -189,7 +190,7 @@ def test_task_fixed_windows_and_single_item_delta_are_history_independent(tmp_pa
                 high.result = {"child_operation_ids": [str(i) for i in range(size)], "parent_operation_ids": [str(i) for i in range(size)]}
             queue = TaskQueue(database, {"reconcile": object()})
             reads = {}
-            for name, call in (("snapshot", lambda: queue.snapshot(history_limit=20)),
+            for name, call in (("snapshot", lambda: queue.snapshot()),
                     ("details", lambda: queue.details("probe", limit=20)),
                     ("problems", lambda: queue.details("probe", limit=20, problems_only=True)),
                     ("history", lambda: queue.history(before="history-000025", limit=20)),

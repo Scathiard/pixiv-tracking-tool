@@ -49,13 +49,51 @@ def save_interval(tracker, minutes):
     return next_run
 
 
-def check_and_download(tracker):
+def _advance_interval(session, next_run, minutes):
+    record = session.get(ApplicationState, INTERVAL_KEY)
+    if record is None:
+        record = ApplicationState(key=INTERVAL_KEY, value={"minutes": minutes})
+        session.add(record)
+    value = record.value if isinstance(record.value, dict) else {}
+    # A concurrently saved interval takes precedence over the old live trigger.
+    if value.get("minutes", minutes) == minutes:
+        try:
+            saved_due = datetime.fromisoformat(value.get("next_check_at") or "")
+            if saved_due.tzinfo is not None and saved_due > next_run:
+                return
+        except ValueError:
+            pass
+        record.value = {**value, "minutes": minutes, "next_check_at": next_run.isoformat()}
+
+
+def _scheduled_check(tracker, scheduler):
+    job = scheduler.get_job("check_updates")
+    if job is None:
+        return
+    now = datetime.now(timezone.utc)
+    due = job.next_run_time
+    interval = job.trigger.interval
+    # APScheduler may already have advanced the job on another thread. In
+    # either ordering, persist the first future slot, never replay old periods.
+    if due <= now:
+        due += interval * (int((now - due) // interval) + 1)
+    check_and_download(tracker, next_run=due, minutes=int(interval.total_seconds() // 60))
+
+
+def check_and_download(tracker, *, next_run=None, minutes=None):
     """定时任务：检查更新并下载新作品。"""
     from . import progress
     if progress.maintenance_active():
         return
     if hasattr(tracker, "queue"):
-        tracker.queue.submit("check", {}, "定时检查更新", source="automatic")
+        if next_run is not None and hasattr(tracker.queue, "enqueue_in_transaction"):
+            # The durable intent and its next due time commit together. Pause
+            # remains the queue's responsibility: the intent still waits there.
+            with tracker.database.write() as session:
+                tracker.queue.enqueue_in_transaction(session, "check", {}, "定时检查更新", source="automatic")
+                _advance_interval(session, next_run, minutes)
+        else:
+            tracker.queue.submit("check", {}, "定时检查更新", source="automatic")
         return
     progress.submit_task(
         "check_updates",
@@ -88,10 +126,13 @@ def start_scheduler(tracker):
             pass
 
         scheduler.add_job(
-            check_and_download,
+            _scheduled_check,
             "interval",
-            args=[tracker],
+            args=[tracker, scheduler],
             id="check_updates",
+            misfire_grace_time=None,
+            coalesce=True,
+            max_instances=1,
             **interval_kwargs,
         )
         scheduler.start()

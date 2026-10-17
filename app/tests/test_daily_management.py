@@ -127,7 +127,7 @@ def test_settings_distinguish_registration_verification_gaps_and_history(daily, 
     runtime = SimpleNamespace(database=daily,client=None,queue=SimpleNamespace(automatic_paused=lambda:True))
     app=FastAPI(); app.include_router(create_settings_router(lambda:runtime))
     with TestClient(app) as client:
-        data=client.get("/api/settings").json()
+        data={**client.get("/api/settings").json(), **client.get("/api/settings/stats").json()}
     assert data["stats"] == {"artists":1,"works":2,"downloaded_pages":1,"registered_originals":2,"verified_originals":1,"missing_originals":2,"unverified_originals":1}
     assert data["lan_urls"] == [f"http://192.168.1.2:{data['current_port']}"]
     assert data["automatic_paused"] is True
@@ -168,7 +168,7 @@ def test_settings_use_default_version_shape_legacy_ugoira_and_suppression(daily,
     runtime = SimpleNamespace(database=daily, client=None, queue=SimpleNamespace(automatic_paused=lambda: False))
     app = FastAPI(); app.include_router(create_settings_router(lambda: runtime))
     with TestClient(app) as client:
-        assert client.get("/api/settings").json()["stats"] == {
+        assert client.get("/api/settings/stats").json()["stats"] == {
             "artists": 1, "works": 4, "downloaded_pages": 1, "registered_originals": 2,
             "verified_originals": 1, "missing_originals": 3, "unverified_originals": 1,
         }

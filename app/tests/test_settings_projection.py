@@ -73,7 +73,7 @@ def test_settings_materializes_shape_once_without_losing_cross_work_reuse(monkey
     event.listen(engine,"before_cursor_execute",capture)
     try:
         with TestClient(app) as client:
-            response = client.get("/api/settings")
+            response = client.get("/api/settings/stats")
             assert response.status_code == 200
             assert response.json()["stats"] == {"artists":1,"works":6,"downloaded_pages":1,
                 "registered_originals":4,"verified_originals":2,"unverified_originals":1,"missing_originals":5}
@@ -180,7 +180,7 @@ def test_settings_dense_history_stays_bounded_and_default_switch_is_immediate(tm
                         session.execute(update(Work).where(Work.id == 1).values(default_revision_id=revision))
                     memory_before = memory()
                     began = time.perf_counter()
-                    response = client.get('/api/settings')
+                    response = client.get('/api/settings/stats?refresh=true')
                     elapsed = time.perf_counter() - began
                     evidence['requests'].append({'revision': revision, 'seconds': elapsed,
                         'status': response.status_code, 'memory_before': memory_before, 'memory_after': memory()})

@@ -1,5 +1,7 @@
 # 测试目录约定
 
+2026-10-17 读取与调度修订：仅相关小回归及最终 EXE／浏览器基础验证，遵循用户不做过度测试的要求。临时项为本工作树 `work/tmp/read-path-repair/` 下的 `scheduler/`、`pages/`、`gallery/`、`integration/`、`package/`；各自设置进程级 TEMP/TMP 和 pytest 基目录。前端 `node_modules` 为主会话创建的复用依赖 junction，完成后只移除链接。证据归入 `docs/审查/证据/2026-10-17-读取与调度修订/`。不触碰真实账号或迁移数据库，保留取消、数据保存、暂停、去重和退出语义。
+
 2026-10-13 取消读取时限：用户明确要求继续观察慢操作。临时脚本、合成库和构建缓存位于当前工作树 `work/tmp/unbounded-observation/`；本轮依赖 junction 为 `app/frontend/node_modules`，只移除链接；旧 `diagnostic-observation/package/enabled-runtime/` 在旧进程退出前保留。只验证旧时限以后仍可完成、切页／断开／退出取消与写入不被打断；不重复全套或长测。证据在 `docs/审查/证据/2026-10-13-诊断观察/` 使用 `unbounded-` 前缀，最终运行目录使用中暂留。
 
 2026-10-13 诊断补强：用户已批准取证方案并启用。临时脚本、合成数据、打包缓存及依赖链接登记在当前工作树 `work/tmp/diagnostic-observation/`；`backend/`、`frontend/`、`observer/`、`package/` 分别用于三个实现范围与最终打包核对，每项测试的进程 TEMP/TMP 与 pytest 基目录分开。复用既有前端依赖的 `app/frontend/node_modules` junction 由主会话统一创建和清理，仅移除链接本身。正式证据位于 `docs/审查/证据/2026-10-13-诊断观察/`，必要小范围检查后及时启用，不跑全量或长测；真实日志原位保留，仍在使用的日常运行目录不清理。

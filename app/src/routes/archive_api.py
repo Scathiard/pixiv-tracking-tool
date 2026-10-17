@@ -490,9 +490,12 @@ def create_router(get_runtime):
     @router.get("/api/progress")
     @local_read(get_runtime, coalesce=True,
                 coalesce_context=lambda current: current.queue.byte_progress_generation)
-    def progress():
+    def progress(watch_ids: str = Query("", max_length=8192)):
         current = runtime()
-        return {**current.queue.snapshot(), "recovery_issues": current.recovery_issues()}
+        watched = list(dict.fromkeys(ident for ident in watch_ids.split(",") if ident))
+        if len(watched) > 64 or any(len(ident) > 128 for ident in watched):
+            raise HTTPException(422, "当前任务关注范围过大，请刷新")
+        return {**current.queue.snapshot(watch_ids=watched), "recovery_issues": current.recovery_issues()}
 
     @router.get("/api/tasks/{operation_id}")
     @local_read(get_runtime)

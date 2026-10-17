@@ -176,7 +176,7 @@ def backfill(connection):
 # First resolve active candidates from the partial parent index. Historical
 # parent summaries are visited only for selected works without an active winner;
 # no source payload or item history is read by this path.
-def winner_sql(size):
+def winner_sql(size, *, active_only=False):
     selected = ','.join('(?)' for _ in range(size))
     active_direct = f'''SELECT g.work_id,p.operation_id,p.state,p.kind,p.created_at,p.updated_at,
         coalesce(g.running_id,g.pending_id) item_id,0 scoped,0 unplanned
@@ -203,11 +203,23 @@ def winner_sql(size):
         JOIN read_task_parent p ON p.operation_id=s.operation_id
         JOIN read_task_scope_best b ON b.operation_id=p.operation_id
         WHERE p.kind IN {LOCAL} AND b.history_id IS NOT NULL'''
+    # Resolve the newest parent timestamps before looking up item payloads.
+    # For settled candidates these precede every item-specific tie breaker.
+    # A large historical scope can therefore sort/group narrow parent facts
+    # without fetching failure messages and item facts for every old parent.
+    historical = f'''history AS MATERIALIZED ({historical_direct} UNION ALL {historical_scope}),
+        newest_created AS (SELECT work_id,max(created_at) created_at FROM history GROUP BY work_id),
+        recent AS MATERIALIZED (SELECT h.* FROM history h JOIN newest_created n
+            ON n.work_id=h.work_id AND n.created_at=h.created_at),
+        newest_updated AS (SELECT work_id,max(updated_at) updated_at FROM recent GROUP BY work_id),
+        candidates AS (SELECT r.* FROM recent r JOIN newest_updated n
+            ON n.work_id=r.work_id AND n.updated_at=r.updated_at UNION ALL SELECT * FROM active),'''
+    candidates = 'candidates AS (SELECT * FROM active),' if active_only else historical
     return f'''WITH selected(work_id) AS (VALUES {selected}),
         active AS MATERIALIZED ({active_direct} UNION ALL {active_scope}),
         wanted AS MATERIALIZED (SELECT work_id FROM selected WHERE NOT EXISTS
             (SELECT 1 FROM active WHERE active.work_id=selected.work_id)),
-        candidates AS ({historical_direct} UNION ALL {historical_scope} UNION ALL SELECT * FROM active),
+        {candidates}
         resolved AS (SELECT c.*,coalesce(i.state,'pending') item_state,
             coalesce(i.failure_priority,1) failure_priority,coalesce(i.position,0) position,i.concern,i.reason,
             CASE WHEN c.state IN {ACTIVE} AND i.state='running' THEN 0
@@ -221,22 +233,39 @@ def winner_sql(size):
         FROM ranked WHERE rank=1'''
 
 
-def winners(connection, work_ids):
+def _read_winners(connection, selected, *, active_only):
+    result = {}
+    with diagnostics.span('read.task_winners.execute', selected_count=len(selected), active_only=active_only):
+        rows = connection.exec_driver_sql(winner_sql(len(selected), active_only=active_only), tuple(selected))
+    with diagnostics.span('read.task_winners.consume', selected_count=len(selected), active_only=active_only) as observation:
+        consumed = 0
+        try:
+            for row in rows:
+                consumed += 1
+                result[row[0]] = {'candidate_id': ('scope:' + row[1]) if row[6] else ('item:' + row[7]),
+                    'payload': dict(zip(('operation_id', 'operation_state', 'item_state', 'reason', 'concern'), row[1:6]))}
+        finally:
+            observation['row_count'] = consumed
+    return result
+
+
+def winners(connection, work_ids, *, history_ids=None):
+    """Read active facts, then exact history only for works that need it.
+
+    Callers without local completeness facts retain the full historical result.
+    Healthy archive reads can explicitly omit history: its only observable use
+    is failure attention while an original/local/source gap remains.
+    """
     ids=sorted(set(work_ids))
+    historical = set(ids) if history_ids is None else set(history_ids)
     result={}
     for start in range(0,len(ids),240):
         selected=ids[start:start+240]
-        with diagnostics.span('read.task_winners.execute', selected_count=len(selected)):
-            rows = connection.exec_driver_sql(winner_sql(len(selected)),tuple(selected))
-        with diagnostics.span('read.task_winners.consume', selected_count=len(selected)) as observation:
-            consumed = 0
-            try:
-                for row in rows:
-                    consumed += 1
-                    result[row[0]]={'candidate_id':('scope:'+row[1]) if row[6] else ('item:'+row[7]),
-                        'payload':dict(zip(('operation_id','operation_state','item_state','reason','concern'),row[1:6]))}
-            finally:
-                observation['row_count'] = consumed
+        active = _read_winners(connection, selected, active_only=True)
+        result.update(active)
+        pending = [work_id for work_id in selected if work_id in historical and work_id not in active]
+        if pending:
+            result.update(_read_winners(connection, pending, active_only=False))
     return result
 
 

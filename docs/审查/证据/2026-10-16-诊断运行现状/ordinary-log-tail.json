@@ -1,0 +1,311 @@
+[
+  {
+    "header": "[2026-10-13T19:11:09.624+08:00] startup phase=publication_recovery state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:11:09.626+08:00] startup phase=publication_recovery state=ok elapsed_ms=1.9"
+  },
+  {
+    "header": "[2026-10-13T19:11:09.626+08:00] startup phase=bookmark_start state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:11:09.626+08:00] startup phase=bookmark_start state=ok elapsed_ms=0.1"
+  },
+  {
+    "header": "[2026-10-13T19:11:09.626+08:00] startup phase=task_recovery state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:11:31.314+08:00] startup phase=task_recovery state=ok elapsed_ms=21687.9"
+  },
+  {
+    "header": "[2026-10-13T19:11:31.314+08:00] startup phase=workers_start state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:11:31.316+08:00] startup phase=workers_start state=ok elapsed_ms=2.4"
+  },
+  {
+    "header": "[2026-10-13T19:11:31.337+08:00] "
+  },
+  {
+    "header": "[2026-10-13T19:11:31.337+08:00]   Pixiv Tracking Tool 已启动"
+  },
+  {
+    "header": "[2026-10-13T19:11:31.337+08:00]   本地访问: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:11:31.371+08:00]   局域网 IPv4: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:11:31.372+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:11:31.373+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:11:31.373+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:11:31.373+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:11:31.373+08:00]   局域网 IPv4: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:11:31.374+08:00]   局域网 IPv4: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:11:31.374+08:00] "
+  },
+  {
+    "header": "[2026-10-13T19:18:03.050+08:00] [tray] PixivTracker 0.2.0 · 构建 20261013.3 启动"
+  },
+  {
+    "header": "[2026-10-13T19:18:03.050+08:00] [tray] 端口: 1919"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.562+08:00] startup phase=database_open state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.587+08:00] startup phase=database_open state=ok elapsed_ms=24.8"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.587+08:00] startup phase=query_indexes state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.619+08:00] startup phase=query_indexes state=ok elapsed_ms=32.9"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.632+08:00] startup phase=wal_start state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.642+08:00] startup phase=wal_start state=ok elapsed_ms=10.6"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.642+08:00] startup phase=publication_recovery state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.644+08:00] startup phase=publication_recovery state=ok elapsed_ms=1.6"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.644+08:00] startup phase=bookmark_start state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.644+08:00] startup phase=bookmark_start state=ok elapsed_ms=0.0"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.644+08:00] startup phase=task_recovery state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.676+08:00] startup phase=task_recovery state=ok elapsed_ms=32.2"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.676+08:00] startup phase=workers_start state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.678+08:00] startup phase=workers_start state=ok elapsed_ms=2.2"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.731+08:00] "
+  },
+  {
+    "header": "[2026-10-13T19:18:06.731+08:00]   Pixiv Tracking Tool 已启动"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.731+08:00]   本地访问: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.767+08:00]   局域网 IPv4: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.768+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.768+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.768+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.768+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.768+08:00]   局域网 IPv4: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.768+08:00]   局域网 IPv4: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:18:06.769+08:00] "
+  },
+  {
+    "header": "[2026-10-13T19:21:17.431+08:00] [tray] PixivTracker 0.2.0 · 构建 20261013.3 启动"
+  },
+  {
+    "header": "[2026-10-13T19:21:17.433+08:00] [tray] 端口: 1919"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.770+08:00] startup phase=database_open state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.794+08:00] startup phase=database_open state=ok elapsed_ms=24.4"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.794+08:00] startup phase=query_indexes state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.825+08:00] startup phase=query_indexes state=ok elapsed_ms=30.8"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.835+08:00] startup phase=wal_start state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.844+08:00] startup phase=wal_start state=ok elapsed_ms=9.0"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.844+08:00] startup phase=publication_recovery state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.846+08:00] startup phase=publication_recovery state=ok elapsed_ms=1.5"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.846+08:00] startup phase=bookmark_start state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.846+08:00] startup phase=bookmark_start state=ok elapsed_ms=0.0"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.846+08:00] startup phase=task_recovery state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.874+08:00] startup phase=task_recovery state=ok elapsed_ms=28.2"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.874+08:00] startup phase=workers_start state=begin"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.877+08:00] startup phase=workers_start state=ok elapsed_ms=2.4"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.938+08:00] "
+  },
+  {
+    "header": "[2026-10-13T19:21:20.938+08:00]   Pixiv Tracking Tool 已启动"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.938+08:00]   本地访问: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.969+08:00]   局域网 IPv4: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.970+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.970+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.970+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.970+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.970+08:00]   局域网 IPv4: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.970+08:00]   局域网 IPv4: [URL]"
+  },
+  {
+    "header": "[2026-10-13T19:21:20.970+08:00] "
+  },
+  {
+    "header": "[2026-10-13T21:58:41.247+08:00] [tray] PixivTracker 0.2.0 · 构建 20261013.4 启动"
+  },
+  {
+    "header": "[2026-10-13T21:58:41.275+08:00] [tray] 端口: 1919"
+  },
+  {
+    "header": "[2026-10-13T21:58:57.357+08:00] startup phase=database_open state=begin"
+  },
+  {
+    "header": "[2026-10-13T21:58:58.337+08:00] startup phase=database_open state=ok elapsed_ms=979.9"
+  },
+  {
+    "header": "[2026-10-13T21:58:58.338+08:00] startup phase=query_indexes state=begin"
+  },
+  {
+    "header": "[2026-10-13T21:58:58.495+08:00] startup phase=query_indexes state=ok elapsed_ms=157.3"
+  },
+  {
+    "header": "[2026-10-13T21:58:58.659+08:00] startup phase=wal_start state=begin"
+  },
+  {
+    "header": "[2026-10-13T21:58:58.673+08:00] startup phase=wal_start state=ok elapsed_ms=14.2"
+  },
+  {
+    "header": "[2026-10-13T21:58:58.673+08:00] startup phase=publication_recovery state=begin"
+  },
+  {
+    "header": "[2026-10-13T21:58:58.705+08:00] startup phase=publication_recovery state=ok elapsed_ms=31.9"
+  },
+  {
+    "header": "[2026-10-13T21:58:58.705+08:00] startup phase=bookmark_start state=begin"
+  },
+  {
+    "header": "[2026-10-13T21:58:58.705+08:00] startup phase=bookmark_start state=ok elapsed_ms=0.1"
+  },
+  {
+    "header": "[2026-10-13T21:58:58.705+08:00] startup phase=task_recovery state=begin"
+  },
+  {
+    "header": "[2026-10-13T22:00:02.542+08:00] startup phase=task_recovery state=ok elapsed_ms=63837.4"
+  },
+  {
+    "header": "[2026-10-13T22:00:02.542+08:00] startup phase=workers_start state=begin"
+  },
+  {
+    "header": "[2026-10-13T22:00:02.544+08:00] startup phase=workers_start state=ok elapsed_ms=1.6"
+  },
+  {
+    "header": "[2026-10-13T22:00:02.648+08:00] "
+  },
+  {
+    "header": "[2026-10-13T22:00:02.648+08:00]   Pixiv Tracking Tool 已启动"
+  },
+  {
+    "header": "[2026-10-13T22:00:02.648+08:00]   本地访问: [URL]"
+  },
+  {
+    "header": "[2026-10-13T22:00:02.749+08:00]   局域网 IPv4: [URL]"
+  },
+  {
+    "header": "[2026-10-13T22:00:02.848+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T22:00:02.859+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T22:00:02.859+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T22:00:02.860+08:00]   IPv6: [URL]"
+  },
+  {
+    "header": "[2026-10-13T22:00:02.860+08:00]   局域网 IPv4: [URL]"
+  },
+  {
+    "header": "[2026-10-13T22:00:02.861+08:00]   局域网 IPv4: [URL]"
+  },
+  {
+    "header": "[2026-10-13T22:00:02.861+08:00] "
+  },
+  {
+    "header": "[2026-10-14T10:00:20.356+08:00] Run time of job \"check_and_download (trigger: interval[6:00:00], next run at: 2026-10-14 16:00:18 CST)\" was missed by 0:00:01.654164"
+  },
+  {
+    "header": "[2026-10-15T10:00:19.902+08:00] Run time of job \"check_and_download (trigger: interval[6:00:00], next run at: 2026-10-15 16:00:18 CST)\" was missed by 0:00:01.200040"
+  },
+  {
+    "header": "[2026-10-16T10:00:19.890+08:00] Run time of job \"check_and_download (trigger: interval[6:00:00], next run at: 2026-10-16 16:00:18 CST)\" was missed by 0:00:01.187895"
+  }
+]

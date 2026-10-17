@@ -40,7 +40,7 @@ def test_settings_snapshot_tail_never_resolves_hostname(tmp_path, monkeypatch, a
         assert response.status_code == 200 and elapsed < .5
         data = response.json()
         assert data['lan_urls'] == ([] if adapter_failure else [f"http://192.168.1.2:{data['current_port']}"])
-        assert data['stats']['works'] == 0 and data['login']['status'] == 'offline'
+        assert 'stats' not in data and data['login']['status'] == 'offline'
         assert db.engine.pool.checkedout() == 0
     finally:
         db.close()

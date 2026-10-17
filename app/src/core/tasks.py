@@ -187,6 +187,51 @@ class TaskContext:
             guard()
 
 
+class _TaskWakeSignal:
+    """Broadcast changes without one worker consuming another worker's wakeup."""
+    def __init__(self):
+        self._condition = threading.Condition()
+        self._generation = 0
+        self._flag = False
+        self._retry_at = None
+
+    def snapshot(self):
+        with self._condition:
+            return self._generation
+
+    def set(self):
+        with self._condition:
+            self._generation += 1
+            self._flag = True
+            self._condition.notify_all()
+
+    def is_set(self):
+        with self._condition:
+            return self._flag
+
+    def schedule(self, seconds):
+        due = time.monotonic() + max(0, seconds)
+        with self._condition:
+            if self._retry_at is None or due < self._retry_at:
+                self._retry_at = due
+                self._condition.notify_all()
+
+    def wait_since(self, generation, timeout):
+        until = time.monotonic() + timeout
+        with self._condition:
+            while self._generation == generation:
+                now = time.monotonic()
+                if self._retry_at is not None and self._retry_at <= now:
+                    self._retry_at = None
+                    self._generation += 1
+                    self._condition.notify_all()
+                    return
+                if now >= until:
+                    return
+                deadline = min(until, self._retry_at) if self._retry_at is not None else until
+                self._condition.wait(deadline - now)
+
+
 class TaskQueue:
     def __init__(self, database: ArchiveDatabase, handlers: dict[str, Handler], *, allowed_kinds=None, check_workers=1):
         if check_workers not in (1, 2):
@@ -195,7 +240,7 @@ class TaskQueue:
         self.check_workers = check_workers
         self.allowed_kinds = allowed_kinds
         self._run_lock = threading.Lock()
-        self._wake = threading.Event()
+        self._wake = _TaskWakeSignal()
         self._stop = threading.Event()
         self._thread = None
         self._threads = []
@@ -563,19 +608,19 @@ class TaskQueue:
                 self._publish_controls_after_commit(session, parents=(operation.id, parents))
             inherited_round = operation.round_id is None and parent.round_id is not None
             operation.round_id = operation.round_id or parent.round_id
-        if created or promoted or inherited_round:
-            self._publish_controls_after_commit(session)
-        self._wake.set()
+        self._publish_controls_after_commit(session)
         _task_event("task.submit", operation.id, kind=kind, source=source, created=created,
             promoted=promoted, state=operation.state, persistence="transaction",
             parent_ref=diagnostics.task_ref(parent_id) if diagnostics.enabled() and parent_id is not None else None)
         return {"operation_id": operation.id, "created": created, "state": operation.state, "round_id": operation.round_id}
 
     def materialize_in_transaction(self, session, operation_id, specs):
+        # Waiting lanes must see the committed manifest, not an early wake
+        # before the caller's transaction has made its items visible.
+        self._publish_controls_after_commit(session)
         specs = list(specs)
         if not specs:
             session.flush()
-            self._wake.set()
             return
         needed = {spec.key for spec in specs} | {key for spec in specs for key in spec.depends_on}
         existing = set()
@@ -585,7 +630,6 @@ class TaskQueue:
                 OperationItem.operation_id == operation_id, OperationItem.item_key.in_(keys[offset:offset + 500]))))
         if all(spec.key in existing for spec in specs):
             session.flush()
-            self._wake.set()
             return
         position = self._max_item_position(session, operation_id)
         position = 0 if position is None else position + 1
@@ -611,7 +655,6 @@ class TaskQueue:
             operation.result = {**operation.result, "step_progress": progress}
         _task_event("task.materialize", operation_id, added_count=sum(added.values()),
             spec_count=len(specs), persistence="transaction")
-        self._wake.set()
 
     @classmethod
     def _max_item_position(cls, session, operation_id):
@@ -710,11 +753,11 @@ class TaskQueue:
         from ..request_policy import ShutdownRequested
         _task_event("task.worker_enter", lane=lane)
         while not self._stop.is_set():
+            generation = self._wake.snapshot()
             try:
                 if not self.database.background_can_advance():
                     diagnostics.aggregate('task.scheduler_wait', lane=lane, reason='pressure')
-                    self._wake.wait(0.1)
-                    self._wake.clear()
+                    self._wake.wait_since(generation, 0.5)
                     continue
                 if (lane == "check" and not self.database.background_pressured()
                         and self.maintenance is not None and self._maintenance_lock.acquire(blocking=False)):
@@ -727,19 +770,22 @@ class TaskQueue:
                         self._maintenance_lock.release()
                 if self._step(lane):
                     continue
-                self._wake.wait(0.1)
-                self._wake.clear()
+                # New submissions and dependency settlements wake every lane.
+                # Timed retries wake at their deadline; the low-frequency scan
+                # covers persisted deadlines and maintenance after restart.
+                self._wake.wait_since(generation, 1.0 if self._last_scan_more else 5.0)
             except ShutdownRequested:
                 _task_event("task.worker_exit", lane=lane, reason="shutdown")
                 return
             except LocalReadError:
                 # Local capacity/budget is expected pressure, not corrupt state.
-                self._wake.wait(0.1)
+                self._wake.wait_since(generation, 0.5)
             except Exception as exc:
                 _task_event("task.worker_error", lane=lane, exception_type=type(exc).__name__)
                 self.worker_error = type(exc).__name__
                 log.error("任务执行器中断，未完成记录已保留", exc_info=False)
                 self._stop.set()
+                self._wake.set()
                 self._clear_byte_attempts()
         _task_event("task.worker_exit", lane=lane, reason="stop")
 
@@ -893,8 +939,10 @@ class TaskQueue:
                 if lane == "check" and operation.id in planning | checking:
                     continue
                 not_before = operation.result.get("planning_not_before")
-                if diagnostics.enabled() and not_before and not_before > utcnow().isoformat():
-                    diagnostics.aggregate('task.scheduler_wait', lane=lane, reason='planning_deferred')
+                if not_before and not_before > utcnow().isoformat():
+                    self._wake.schedule((datetime.fromisoformat(not_before) - utcnow()).total_seconds())
+                    if diagnostics.enabled():
+                        diagnostics.aggregate('task.scheduler_wait', lane=lane, reason='planning_deferred')
                 plan_ready = (lane == "check" and operation.round_id is not None and self._needs_planning(operation)
                     and not (not_before and not_before > utcnow().isoformat()))
                 if plan_ready:
@@ -926,9 +974,10 @@ class TaskQueue:
                     after = items[-1].position
                     epoch = self._advance_candidate_cursor(cursor_key, epoch, after)
                     now = utcnow()
-                    if diagnostics.enabled():
-                        delayed = [item for item in items if item.not_before is not None and item.not_before > now]
-                        if delayed:
+                    delayed = [item for item in items if item.not_before is not None and item.not_before > now]
+                    if delayed:
+                        self._wake.schedule((min(item.not_before for item in delayed) - now).total_seconds())
+                        if diagnostics.enabled():
                             diagnostics.aggregate('task.scheduler_wait', count=len(delayed), lane=lane, reason='item_deferred')
                     eligible = [item for item in items if (item.lane == lane or item.lane is None and self._lane(item) == lane)
                         and (item.not_before is None or item.not_before <= now)]
@@ -1460,6 +1509,7 @@ class TaskQueue:
             operation.result = result
         _task_event("task.plan_delay_committed", operation_id, expected_delay_seconds=seconds,
             retry_attempts=retry_attempts)
+        self._wake.schedule(seconds)
 
     def _defer_item(self, item_id, operation_id, seconds, message, *, refund_attempt=False, detail=None):
         self._interrupt_item(item_id, operation_id, refund_attempt=refund_attempt,
@@ -1488,6 +1538,8 @@ class TaskQueue:
             previous_attempts=previous_attempts, attempts=item.attempts, refund_attempt=refund_attempt,
             parent_state=operation.state, phase=item.phase, lane=self._lane(item),
             wait_seconds=max(0, (not_before - utcnow()).total_seconds()) if not_before is not None else None)
+        if not_before is not None:
+            self._wake.schedule((not_before - utcnow()).total_seconds())
 
     def _finalize(self, session, operation_ids):
         session.flush()
@@ -1577,7 +1629,7 @@ class TaskQueue:
                 operation.updated_at = utcnow()
             operation.needs_attention = False
 
-    def snapshot(self, *, history_limit=20):
+    def snapshot(self, *, watch_ids=()):
         running_items = {}
         with self.database.read() as session:
             current = session.scalar(select(TaskRound).order_by(TaskRound.created_at.desc()).limit(1))
@@ -1599,7 +1651,7 @@ class TaskQueue:
             with diagnostics.span('read.tasks.heads') as observation:
                 active = task_reads.active_head(session, running=True, limit=4)
                 active += task_reads.active_head(session, running=False, limit=32)
-                history = task_reads.history_head(session, limit=max(1, min(history_limit, 100)), status=True)
+                history = task_reads.completion_feedback(session, operation_ids=watch_ids)
                 observation.update(active_count=len(active), history_count=len(history))
             attention_count = counters["attention"]
             with diagnostics.span('read.tasks.assemble', row_count=len(active) + len(history)):

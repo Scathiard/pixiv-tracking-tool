@@ -1,0 +1,451 @@
+{
+  "first": {
+    "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl",
+    "bytes": 67366594,
+    "first_utc": "2026-10-13T13:58:39.840+00:00",
+    "last_utc": "2026-10-13T14:06:10.254+00:00",
+    "first_seq": null,
+    "last_seq": null,
+    "sample_records": 1948,
+    "last_complete_line": true
+  },
+  "last": {
+    "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0314.jsonl",
+    "bytes": 10707439,
+    "first_utc": "2026-10-16T06:27:11.937+00:00",
+    "last_utc": "2026-10-16T06:29:11.850+00:00",
+    "first_seq": null,
+    "last_seq": 77189130,
+    "sample_records": 1918,
+    "last_complete_line": true
+  },
+  "sample_metrics": {
+    "rss_bytes": {
+      "first": 45109248,
+      "last": 140124160,
+      "max": 177799168
+    },
+    "threads": {
+      "first": 12,
+      "last": 26,
+      "max": 29
+    },
+    "cpu_user": {
+      "first": 0.171875,
+      "last": 14772.249999999998,
+      "max": 14772.249999999998
+    },
+    "cpu_system": {
+      "first": 0.109375,
+      "last": 2515.046875,
+      "max": 2515.046875
+    },
+    "read_bytes": {
+      "first": 5011157,
+      "last": 44751062873,
+      "max": 44751062873
+    },
+    "write_bytes": {
+      "first": 1600,
+      "last": 23704278604,
+      "max": 23704278604
+    },
+    "event_loop_gap_ms": {
+      "first": null,
+      "last": 203.0,
+      "max": 266.0
+    },
+    "active_spans": {
+      "first": 1,
+      "last": 2,
+      "max": 16
+    },
+    "queue_peak": {
+      "first": 1,
+      "last": 2974,
+      "max": 2974
+    },
+    "dropped_records": {
+      "first": 0,
+      "last": 0,
+      "max": 0
+    },
+    "probe_errors": {
+      "first": 0,
+      "last": 0,
+      "max": 0
+    },
+    "log_bytes": {
+      "first": 838,
+      "last": 21015705158,
+      "max": 21015705158
+    },
+    "log_records": {
+      "first": 3,
+      "last": 77189447,
+      "max": 77189447
+    },
+    "log_bytes_per_second": {
+      "first": 388.68,
+      "last": 86304.71,
+      "max": 360892.86
+    },
+    "log_flush_ms": {
+      "first": 0.354,
+      "last": 456279.277,
+      "max": 456279.277
+    },
+    "writer_cpu_ms": {
+      "first": 0.0,
+      "last": 998625.0,
+      "max": 998625.0
+    },
+    "watch_cpu_ms": {
+      "first": 0.0,
+      "last": 989906.25,
+      "max": 989906.25
+    }
+  },
+  "sample_event_categories": {
+    "diagnostic.start": 1,
+    "sql.slow": 127,
+    "wal.connection.end": 1,
+    "wal.start.end": 1,
+    "wal.backpressure.allow": 82,
+    "task.item_state": 80,
+    "task.parent_state": 112,
+    "wal.queued": 302,
+    "task.claim_committed": 80,
+    "task.remote_attempt": 14,
+    "task.item_handler.end": 77,
+    "task.item_yielded": 12,
+    "task.item_execute.end": 76,
+    "task.scheduler_step.end": 107,
+    "task.item_deferred": 55,
+    "task.item_delay_committed": 54,
+    "task.item_settled": 10,
+    "http.request.end": 177,
+    "task.submit": 1
+  },
+  "longest_sample_events": [
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0247.jsonl",
+      "utc": "2026-10-15T16:39:09.241+00:00",
+      "event": "sql.slow",
+      "duration_ms": 2281.0,
+      "trace": "39582319c6d4"
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0244.jsonl",
+      "utc": "2026-10-15T16:01:06.732+00:00",
+      "event": "sql.slow",
+      "duration_ms": 1859.0,
+      "trace": "443b2c20a602"
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0272.jsonl",
+      "utc": "2026-10-15T21:36:23.699+00:00",
+      "event": "sql.slow",
+      "duration_ms": 1640.0,
+      "trace": "282b35dbd38f"
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0247.jsonl",
+      "utc": "2026-10-15T16:39:06.485+00:00",
+      "event": "sql.slow",
+      "duration_ms": 1578.0,
+      "trace": "39582319c6d4"
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0264.jsonl",
+      "utc": "2026-10-15T20:00:16.153+00:00",
+      "event": "sql.slow",
+      "duration_ms": 1469.0,
+      "trace": "d145699e0e8e"
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0010.jsonl",
+      "utc": "2026-10-13T15:45:11.537+00:00",
+      "event": "sql.slow",
+      "duration_ms": 1172.0,
+      "trace": "696dbe74a28e"
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0267.jsonl",
+      "utc": "2026-10-15T20:46:20.914+00:00",
+      "event": "sql.slow",
+      "duration_ms": 1141.0,
+      "trace": "5bc4e1bc51ca"
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0278.jsonl",
+      "utc": "2026-10-15T23:05:28.721+00:00",
+      "event": "sql.slow",
+      "duration_ms": 1094.0,
+      "trace": "77c2fb04b3f9"
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0278.jsonl",
+      "utc": "2026-10-15T23:05:27.036+00:00",
+      "event": "sql.slow",
+      "duration_ms": 1032.0,
+      "trace": "77c2fb04b3f9"
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0088.jsonl",
+      "utc": "2026-10-14T08:01:26.961+00:00",
+      "event": "task.scheduler_step.end",
+      "duration_ms": 734.0,
+      "outcome": "claimed_item",
+      "lane": "check",
+      "trace": "23563463d510",
+      "span": "23563463d510",
+      "operation_ref": ""
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0269.jsonl",
+      "utc": "2026-10-15T21:11:21.486+00:00",
+      "event": "sql.slow",
+      "duration_ms": 688.0,
+      "trace": "3ef68a7d6387"
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0147.jsonl",
+      "utc": "2026-10-14T20:01:11.093+00:00",
+      "event": "task.scheduler_step.end",
+      "duration_ms": 687.0,
+      "outcome": "claimed_item",
+      "lane": "check",
+      "trace": "5a983331d021",
+      "span": "5a983331d021",
+      "operation_ref": ""
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0206.jsonl",
+      "utc": "2026-10-15T08:04:18.623+00:00",
+      "event": "task.scheduler_step.end",
+      "duration_ms": 672.0,
+      "outcome": "claimed_item",
+      "lane": "check",
+      "trace": "100019f631f8",
+      "span": "100019f631f8",
+      "operation_ref": ""
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0277.jsonl",
+      "utc": "2026-10-15T22:39:25.778+00:00",
+      "event": "sql.slow",
+      "duration_ms": 672.0,
+      "trace": "5cd32699a1c5"
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0237.jsonl",
+      "utc": "2026-10-15T14:20:58.796+00:00",
+      "event": "sql.slow",
+      "duration_ms": 657.0,
+      "trace": "d12ae133257a"
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0147.jsonl",
+      "utc": "2026-10-14T20:01:11.091+00:00",
+      "event": "task.item_execute.end",
+      "duration_ms": 625.0,
+      "lane": "check",
+      "trace": "5a983331d021",
+      "span": "80240b55e128",
+      "operation_ref": "5a324634c70bdec24386245ca6278e7d"
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0182.jsonl",
+      "utc": "2026-10-15T03:10:23.713+00:00",
+      "event": "sql.slow",
+      "duration_ms": 625.0,
+      "trace": "262ac3b74471"
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0248.jsonl",
+      "utc": "2026-10-15T16:39:09.871+00:00",
+      "event": "sql.slow",
+      "duration_ms": 625.0,
+      "trace": "39582319c6d4"
+    }
+  ],
+  "sample_poll_outcomes": {
+    "claimed_item": 79,
+    "no_candidate": 18,
+    "scan_more": 10
+  },
+  "method": "first and last 256 KiB of every volume; not whole-run event statistics",
+  "sample_metrics_count": 924,
+  "sample_active_count": 921,
+  "oldest_active_business_spans": [
+    {
+      "span": "6fe6b4bcbe86",
+      "event": "runtime.start",
+      "trace": "6fe6b4bcbe86",
+      "parent": "",
+      "thread": 4724,
+      "age_ms": 24312.0,
+      "utc": "2026-10-13T13:59:22.970+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    },
+    {
+      "span": "9ec64fb67600",
+      "event": "task.recovery",
+      "trace": "6fe6b4bcbe86",
+      "parent": "6fe6b4bcbe86",
+      "thread": 33208,
+      "operation_ref": "",
+      "item_ref": null,
+      "age_ms": 24265.0,
+      "utc": "2026-10-13T13:59:22.970+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    },
+    {
+      "span": "8e2366a9be8f",
+      "event": "db.write.transaction",
+      "trace": "6fe6b4bcbe86",
+      "parent": "9ec64fb67600",
+      "thread": 33208,
+      "age_ms": 24265.0,
+      "utc": "2026-10-13T13:59:22.970+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    },
+    {
+      "span": "f5298f89b8b0",
+      "event": "db.write.body",
+      "trace": "6fe6b4bcbe86",
+      "parent": "8e2366a9be8f",
+      "thread": 33208,
+      "age_ms": 24265.0,
+      "utc": "2026-10-13T13:59:22.970+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    },
+    {
+      "span": "826762fd80fc",
+      "event": "sql",
+      "sql_id": "f9f9d2f33aaae2d3",
+      "connection": "5e16b4b53843a8cd",
+      "thread": 33208,
+      "trace": "6fe6b4bcbe86",
+      "parent": "f5298f89b8b0",
+      "age_ms": 24265.0,
+      "utc": "2026-10-13T13:59:22.970+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    },
+    {
+      "span": "6fe6b4bcbe86",
+      "event": "runtime.start",
+      "trace": "6fe6b4bcbe86",
+      "parent": "",
+      "thread": 4724,
+      "age_ms": 22265.0,
+      "utc": "2026-10-13T13:59:20.927+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    },
+    {
+      "span": "9ec64fb67600",
+      "event": "task.recovery",
+      "trace": "6fe6b4bcbe86",
+      "parent": "6fe6b4bcbe86",
+      "thread": 33208,
+      "operation_ref": "",
+      "item_ref": null,
+      "age_ms": 22218.0,
+      "utc": "2026-10-13T13:59:20.927+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    },
+    {
+      "span": "8e2366a9be8f",
+      "event": "db.write.transaction",
+      "trace": "6fe6b4bcbe86",
+      "parent": "9ec64fb67600",
+      "thread": 33208,
+      "age_ms": 22218.0,
+      "utc": "2026-10-13T13:59:20.927+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    },
+    {
+      "span": "f5298f89b8b0",
+      "event": "db.write.body",
+      "trace": "6fe6b4bcbe86",
+      "parent": "8e2366a9be8f",
+      "thread": 33208,
+      "age_ms": 22218.0,
+      "utc": "2026-10-13T13:59:20.927+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    },
+    {
+      "span": "826762fd80fc",
+      "event": "sql",
+      "sql_id": "f9f9d2f33aaae2d3",
+      "connection": "5e16b4b53843a8cd",
+      "thread": 33208,
+      "trace": "6fe6b4bcbe86",
+      "parent": "f5298f89b8b0",
+      "age_ms": 22218.0,
+      "utc": "2026-10-13T13:59:20.927+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    },
+    {
+      "span": "6fe6b4bcbe86",
+      "event": "runtime.start",
+      "trace": "6fe6b4bcbe86",
+      "parent": "",
+      "thread": 4724,
+      "age_ms": 20234.0,
+      "utc": "2026-10-13T13:59:18.904+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    },
+    {
+      "span": "9ec64fb67600",
+      "event": "task.recovery",
+      "trace": "6fe6b4bcbe86",
+      "parent": "6fe6b4bcbe86",
+      "thread": 33208,
+      "operation_ref": "",
+      "item_ref": null,
+      "age_ms": 20187.0,
+      "utc": "2026-10-13T13:59:18.904+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    },
+    {
+      "span": "8e2366a9be8f",
+      "event": "db.write.transaction",
+      "trace": "6fe6b4bcbe86",
+      "parent": "9ec64fb67600",
+      "thread": 33208,
+      "age_ms": 20187.0,
+      "utc": "2026-10-13T13:59:18.904+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    },
+    {
+      "span": "f5298f89b8b0",
+      "event": "db.write.body",
+      "trace": "6fe6b4bcbe86",
+      "parent": "8e2366a9be8f",
+      "thread": 33208,
+      "age_ms": 20187.0,
+      "utc": "2026-10-13T13:59:18.904+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    },
+    {
+      "span": "826762fd80fc",
+      "event": "sql",
+      "sql_id": "f9f9d2f33aaae2d3",
+      "connection": "5e16b4b53843a8cd",
+      "thread": 33208,
+      "trace": "6fe6b4bcbe86",
+      "parent": "f5298f89b8b0",
+      "age_ms": 20187.0,
+      "utc": "2026-10-13T13:59:18.904+00:00",
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl"
+    }
+  ],
+  "excluded_lifetime_events": [
+    "application.run",
+    "wal.wait"
+  ],
+  "span_interpretation": "Long-lived lifecycle and idle wait spans do not imply stuck business work. Samples are sparse.",
+  "run_seconds": 232232.01
+}

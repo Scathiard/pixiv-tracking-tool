@@ -90,7 +90,9 @@ async function poll() {
   if (polling || stopped) return
   polling = true
   try {
-    const data = await api<Snapshot>('/api/progress', {signal: controller.signal})
+    const watched = [...new Set([...requestedIds, ...active.value.map(op => op.id), ...(runningId.value ? [runningId.value] : [])])].slice(-64)
+    const path = watched.length ? `/api/progress?watch_ids=${encodeURIComponent(watched.join(','))}` : '/api/progress'
+    const data = await api<Snapshot>(path, {signal: controller.signal})
     if (stopped) return
     // A bounded progress snapshot may omit a requested task; absence is not completion.
     const tracking = [...new Set([...requestedIds, ...(runningId.value ? [runningId.value] : [])])]

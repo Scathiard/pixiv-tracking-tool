@@ -1,0 +1,3338 @@
+{
+  "observed_at": "2026-10-16T23:50:59.214353+08:00",
+  "run_id": "7c2dedefc7d6",
+  "method": "first and last 256 KiB of every volume; not whole-run event statistics",
+  "all_log_files": 704,
+  "all_log_bytes": 47698272973,
+  "run_files": 314,
+  "run_bytes": 21092979029,
+  "sample_bytes": 164537346,
+  "sample_events": {
+    "diagnostic.part_start": 314,
+    "diagnostic.start": 1,
+    "application.run.begin": 1,
+    "watch.active": 921,
+    "process.sample": 924,
+    "thread.stack": 932,
+    "event.aggregate": 38494,
+    "runtime.open.begin": 1,
+    "db.open.validate.begin": 1,
+    "sql.definition": 51,
+    "sql.slow": 127,
+    "db.open.validate.end": 1,
+    "read.queue_enqueued": 82095,
+    "read.admission_wait.begin": 82093,
+    "read.admitted": 82102,
+    "read.admission_wait.end": 82094,
+    "read.queue_dequeued": 82118,
+    "db.read.body.end": 62,
+    "read.admission_released": 82101,
+    "db.read.transaction.end": 72,
+    "runtime.open.end": 1,
+    "runtime.start.begin": 1,
+    "wal.start.begin": 1,
+    "wal.connection.begin": 1,
+    "wal.checkpoint.begin": 7005,
+    "wal.checkpoint.end": 6999,
+    "wal.connection.end": 1,
+    "wal.wait.begin": 6999,
+    "wal.start.end": 1,
+    "sql.aggregate": 7810,
+    "task.recovery.begin": 1,
+    "db.write.transaction.begin": 301,
+    "db.write.lock_wait.begin": 302,
+    "db.write.lock_wait.end": 303,
+    "db.write.connection.begin": 303,
+    "db.write.connection.end": 303,
+    "db.write.begin.begin": 303,
+    "db.write.begin.end": 303,
+    "db.write.body.begin": 304,
+    "wal.wait.end": 7004,
+    "wal.cycle.begin": 7007,
+    "wal.cycle.end": 6996,
+    "wal.backpressure.allow": 82,
+    "task.item_state": 80,
+    "task.parent_state": 112,
+    "db.write.body.end": 303,
+    "db.write.flush.begin": 303,
+    "db.write.flush.end": 303,
+    "db.write.projections.begin": 303,
+    "projection.flush.begin": 303,
+    "projection.flush.end": 303,
+    "projection.dirty.begin": 302,
+    "projection.dirty.end": 303,
+    "projection.operations.begin": 180,
+    "projection.operations.end": 179,
+    "projection.items.begin": 179,
+    "projection.items.end": 179,
+    "projection.scopes.begin": 179,
+    "projection.scopes.end": 179,
+    "projection.physical.begin": 179,
+    "projection.physical.end": 178,
+    "projection.works.begin": 178,
+    "projection.work.batch.begin": 178,
+    "projection.work.batch.end": 178,
+    "projection.works.end": 178,
+    "projection.revisions.begin": 179,
+    "projection.revision.batch.begin": 179,
+    "projection.revision.batch.end": 179,
+    "projection.revisions.end": 179,
+    "projection.lifecycle.begin": 179,
+    "projection.lifecycle.end": 179,
+    "projection.source.begin": 180,
+    "projection.source.end": 180,
+    "projection.display.begin": 180,
+    "projection.display.end": 180,
+    "projection.cards.begin": 180,
+    "projection.cards.end": 180,
+    "projection.finalize.begin": 180,
+    "projection.finalize.end": 180,
+    "db.write.projections.end": 303,
+    "db.write.commit.begin": 302,
+    "db.write.commit.end": 302,
+    "wal.queued": 302,
+    "db.write.transaction.end": 301,
+    "task.claim_committed": 80,
+    "task.item_execute.begin": 79,
+    "task.item_handler.begin": 79,
+    "remote.request.begin": 69,
+    "remote.client_lock_wait.begin": 69,
+    "remote.client_lock_wait.end": 69,
+    "remote.admission_granted": 14,
+    "task.remote_attempt": 14,
+    "remote.transport.begin": 14,
+    "remote.transport.end": 13,
+    "remote.request.end": 68,
+    "task.item_handler.end": 77,
+    "task.item_yielded": 12,
+    "task.item_execute.end": 76,
+    "task.scheduler_step.end": 107,
+    "remote.admission_deferred": 55,
+    "task.item_deferred": 55,
+    "task.item_delay_committed": 54,
+    "task.item_settled": 10,
+    "diagnostic.part_end": 313,
+    "http.request.begin": 174,
+    "read.shared_created": 161,
+    "read.consumer_joined": 161,
+    "read.consumer_wait.begin": 161,
+    "read.execute.begin": 161,
+    "read.thread_wait.begin": 163,
+    "read.worker_started": 164,
+    "read.worker.begin": 164,
+    "read.tasks.heads.begin": 165,
+    "read.stage.begin": 166,
+    "read.stage.end": 166,
+    "read.tasks.heads.end": 165,
+    "read.tasks.assemble.begin": 165,
+    "read.tasks.assemble.end": 165,
+    "read.worker.end": 165,
+    "read.worker_cleanup": 165,
+    "read.thread_wait.end": 165,
+    "read.execute.end": 164,
+    "read.consumer_wait.end": 164,
+    "read.consumer_left": 164,
+    "read.shared_removed": 164,
+    "http.response_started": 177,
+    "http.request.end": 177,
+    "browser.event": 1213,
+    "browser.capture_health": 40,
+    "db.read.admission.end": 8,
+    "projection.work.states.begin": 2,
+    "projection.work.states.end": 2,
+    "task.submit": 1,
+    "task.plan_handler.begin": 1
+  },
+  "sample_aggregate_counts": {
+    "thread.stack.repeat": {
+      "count": 22672
+    },
+    "read.budget_created": {
+      "count": 82981
+    },
+    "db.read.admission": {
+      "count": 82809
+    },
+    "db.read.connection": {
+      "count": 83147
+    },
+    "read.connection_attached": {
+      "count": 83147
+    },
+    "db.read.begin": {
+      "count": 83157
+    },
+    "db.read.rollback": {
+      "count": 83070
+    },
+    "read.connection_detached": {
+      "count": 83164
+    },
+    "db.read.close": {
+      "count": 83162
+    },
+    "db.read.body": {
+      "count": 83010
+    },
+    "db.read.transaction": {
+      "count": 82904
+    },
+    "task.scheduler_step": {
+      "count": 66016
+    },
+    "task.scheduler_poll": {
+      "count": 66124
+    },
+    "browser.batch_accepted": {
+      "count": 1216
+    },
+    "read.completed": {
+      "count": 164
+    },
+    "http.send": {
+      "count": 350
+    }
+  },
+  "files": [
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0001.jsonl",
+      "bytes": 67366594,
+      "first_utc": "2026-10-13T13:58:39.840+00:00",
+      "last_utc": "2026-10-13T14:06:10.254+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1948,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0002.jsonl",
+      "bytes": 67359296,
+      "first_utc": "2026-10-13T14:06:10.254+00:00",
+      "last_utc": "2026-10-13T14:17:54.994+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1987,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0003.jsonl",
+      "bytes": 67356966,
+      "first_utc": "2026-10-13T14:17:54.994+00:00",
+      "last_utc": "2026-10-13T14:30:17.179+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1918,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0004.jsonl",
+      "bytes": 67356837,
+      "first_utc": "2026-10-13T14:30:17.179+00:00",
+      "last_utc": "2026-10-13T14:42:41.118+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1924,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0005.jsonl",
+      "bytes": 67356203,
+      "first_utc": "2026-10-13T14:42:41.118+00:00",
+      "last_utc": "2026-10-13T14:55:02.329+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1928,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0006.jsonl",
+      "bytes": 67355954,
+      "first_utc": "2026-10-13T14:55:02.329+00:00",
+      "last_utc": "2026-10-13T15:07:21.698+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1923,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0007.jsonl",
+      "bytes": 67357361,
+      "first_utc": "2026-10-13T15:07:21.698+00:00",
+      "last_utc": "2026-10-13T15:19:55.316+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1902,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0008.jsonl",
+      "bytes": 67357586,
+      "first_utc": "2026-10-13T15:19:55.316+00:00",
+      "last_utc": "2026-10-13T15:32:31.836+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1937,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0009.jsonl",
+      "bytes": 67356737,
+      "first_utc": "2026-10-13T15:32:31.836+00:00",
+      "last_utc": "2026-10-13T15:45:09.008+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1937,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0010.jsonl",
+      "bytes": 67357629,
+      "first_utc": "2026-10-13T15:45:09.008+00:00",
+      "last_utc": "2026-10-13T15:57:52.205+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1942,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0011.jsonl",
+      "bytes": 67358020,
+      "first_utc": "2026-10-13T15:57:52.205+00:00",
+      "last_utc": "2026-10-13T16:10:32.320+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1912,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0012.jsonl",
+      "bytes": 67357697,
+      "first_utc": "2026-10-13T16:10:32.320+00:00",
+      "last_utc": "2026-10-13T16:23:13.665+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1947,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0013.jsonl",
+      "bytes": 67357828,
+      "first_utc": "2026-10-13T16:23:13.666+00:00",
+      "last_utc": "2026-10-13T16:35:58.849+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1941,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0014.jsonl",
+      "bytes": 67357438,
+      "first_utc": "2026-10-13T16:35:58.849+00:00",
+      "last_utc": "2026-10-13T16:48:46.550+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1930,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0015.jsonl",
+      "bytes": 67356594,
+      "first_utc": "2026-10-13T16:48:46.550+00:00",
+      "last_utc": "2026-10-13T17:01:24.376+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1928,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0016.jsonl",
+      "bytes": 67356704,
+      "first_utc": "2026-10-13T17:01:24.377+00:00",
+      "last_utc": "2026-10-13T17:14:00.739+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1931,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0017.jsonl",
+      "bytes": 67356598,
+      "first_utc": "2026-10-13T17:14:00.739+00:00",
+      "last_utc": "2026-10-13T17:26:39.053+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0018.jsonl",
+      "bytes": 67356716,
+      "first_utc": "2026-10-13T17:26:39.053+00:00",
+      "last_utc": "2026-10-13T17:39:15.929+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1929,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0019.jsonl",
+      "bytes": 67356485,
+      "first_utc": "2026-10-13T17:39:15.930+00:00",
+      "last_utc": "2026-10-13T17:52:03.782+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1929,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0020.jsonl",
+      "bytes": 67356651,
+      "first_utc": "2026-10-13T17:52:03.783+00:00",
+      "last_utc": "2026-10-13T18:04:44.198+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1927,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0021.jsonl",
+      "bytes": 67356660,
+      "first_utc": "2026-10-13T18:04:44.198+00:00",
+      "last_utc": "2026-10-13T18:17:35.005+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1928,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0022.jsonl",
+      "bytes": 67356705,
+      "first_utc": "2026-10-13T18:17:35.005+00:00",
+      "last_utc": "2026-10-13T18:30:13.922+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1931,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0023.jsonl",
+      "bytes": 67356557,
+      "first_utc": "2026-10-13T18:30:13.922+00:00",
+      "last_utc": "2026-10-13T18:42:52.178+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1919,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0024.jsonl",
+      "bytes": 67356805,
+      "first_utc": "2026-10-13T18:42:52.178+00:00",
+      "last_utc": "2026-10-13T18:55:29.167+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1911,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0025.jsonl",
+      "bytes": 67356544,
+      "first_utc": "2026-10-13T18:55:29.167+00:00",
+      "last_utc": "2026-10-13T19:08:06.570+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1929,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0026.jsonl",
+      "bytes": 67356810,
+      "first_utc": "2026-10-13T19:08:06.571+00:00",
+      "last_utc": "2026-10-13T19:20:43.535+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1933,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0027.jsonl",
+      "bytes": 67356762,
+      "first_utc": "2026-10-13T19:20:43.536+00:00",
+      "last_utc": "2026-10-13T19:33:21.036+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1926,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0028.jsonl",
+      "bytes": 67356453,
+      "first_utc": "2026-10-13T19:33:21.037+00:00",
+      "last_utc": "2026-10-13T19:45:57.860+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1934,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0029.jsonl",
+      "bytes": 67356555,
+      "first_utc": "2026-10-13T19:45:57.860+00:00",
+      "last_utc": "2026-10-13T19:58:34.944+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1931,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0030.jsonl",
+      "bytes": 67364894,
+      "first_utc": "2026-10-13T19:58:34.944+00:00",
+      "last_utc": "2026-10-13T20:04:09.368+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1967,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0031.jsonl",
+      "bytes": 67358305,
+      "first_utc": "2026-10-13T20:04:09.368+00:00",
+      "last_utc": "2026-10-13T20:17:46.739+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1964,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0032.jsonl",
+      "bytes": 67356408,
+      "first_utc": "2026-10-13T20:17:46.739+00:00",
+      "last_utc": "2026-10-13T20:30:23.712+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1932,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0033.jsonl",
+      "bytes": 67356436,
+      "first_utc": "2026-10-13T20:30:23.713+00:00",
+      "last_utc": "2026-10-13T20:43:00.341+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1930,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0034.jsonl",
+      "bytes": 67356747,
+      "first_utc": "2026-10-13T20:43:00.341+00:00",
+      "last_utc": "2026-10-13T20:55:36.718+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1927,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0035.jsonl",
+      "bytes": 67356448,
+      "first_utc": "2026-10-13T20:55:36.718+00:00",
+      "last_utc": "2026-10-13T21:08:13.269+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1929,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0036.jsonl",
+      "bytes": 67356591,
+      "first_utc": "2026-10-13T21:08:13.269+00:00",
+      "last_utc": "2026-10-13T21:20:50.405+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1918,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0037.jsonl",
+      "bytes": 67356599,
+      "first_utc": "2026-10-13T21:20:50.406+00:00",
+      "last_utc": "2026-10-13T21:33:26.849+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1931,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0038.jsonl",
+      "bytes": 67356537,
+      "first_utc": "2026-10-13T21:33:26.849+00:00",
+      "last_utc": "2026-10-13T21:46:03.795+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1933,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0039.jsonl",
+      "bytes": 67356649,
+      "first_utc": "2026-10-13T21:46:03.795+00:00",
+      "last_utc": "2026-10-13T21:58:40.762+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1928,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0040.jsonl",
+      "bytes": 67356595,
+      "first_utc": "2026-10-13T21:58:40.762+00:00",
+      "last_utc": "2026-10-13T22:11:17.619+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1929,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0041.jsonl",
+      "bytes": 67356002,
+      "first_utc": "2026-10-13T22:11:17.619+00:00",
+      "last_utc": "2026-10-13T22:23:52.457+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1926,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0042.jsonl",
+      "bytes": 67355842,
+      "first_utc": "2026-10-13T22:23:52.457+00:00",
+      "last_utc": "2026-10-13T22:36:26.342+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1903,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0043.jsonl",
+      "bytes": 67355585,
+      "first_utc": "2026-10-13T22:36:26.342+00:00",
+      "last_utc": "2026-10-13T22:49:00.658+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1925,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0044.jsonl",
+      "bytes": 67355786,
+      "first_utc": "2026-10-13T22:49:00.658+00:00",
+      "last_utc": "2026-10-13T23:01:34.782+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0045.jsonl",
+      "bytes": 67355695,
+      "first_utc": "2026-10-13T23:01:34.782+00:00",
+      "last_utc": "2026-10-13T23:14:08.297+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0046.jsonl",
+      "bytes": 67355721,
+      "first_utc": "2026-10-13T23:14:08.297+00:00",
+      "last_utc": "2026-10-13T23:26:42.176+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1918,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0047.jsonl",
+      "bytes": 67355610,
+      "first_utc": "2026-10-13T23:26:42.177+00:00",
+      "last_utc": "2026-10-13T23:39:14.268+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1924,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0048.jsonl",
+      "bytes": 67355711,
+      "first_utc": "2026-10-13T23:39:14.268+00:00",
+      "last_utc": "2026-10-13T23:51:46.834+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1920,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0049.jsonl",
+      "bytes": 67355611,
+      "first_utc": "2026-10-13T23:51:46.835+00:00",
+      "last_utc": "2026-10-14T00:04:19.485+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1925,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0050.jsonl",
+      "bytes": 67355590,
+      "first_utc": "2026-10-14T00:04:19.485+00:00",
+      "last_utc": "2026-10-14T00:16:51.456+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1927,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0051.jsonl",
+      "bytes": 67355900,
+      "first_utc": "2026-10-14T00:16:51.456+00:00",
+      "last_utc": "2026-10-14T00:29:23.693+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0052.jsonl",
+      "bytes": 67355815,
+      "first_utc": "2026-10-14T00:29:23.694+00:00",
+      "last_utc": "2026-10-14T00:41:57.148+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1898,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0053.jsonl",
+      "bytes": 67355870,
+      "first_utc": "2026-10-14T00:41:57.149+00:00",
+      "last_utc": "2026-10-14T00:54:32.832+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0054.jsonl",
+      "bytes": 67355751,
+      "first_utc": "2026-10-14T00:54:32.832+00:00",
+      "last_utc": "2026-10-14T01:07:07.595+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1919,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0055.jsonl",
+      "bytes": 67355669,
+      "first_utc": "2026-10-14T01:07:07.596+00:00",
+      "last_utc": "2026-10-14T01:19:41.672+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0056.jsonl",
+      "bytes": 67355510,
+      "first_utc": "2026-10-14T01:19:41.673+00:00",
+      "last_utc": "2026-10-14T01:32:15.159+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1920,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0057.jsonl",
+      "bytes": 67355840,
+      "first_utc": "2026-10-14T01:32:15.160+00:00",
+      "last_utc": "2026-10-14T01:44:49.222+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1920,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0058.jsonl",
+      "bytes": 67355756,
+      "first_utc": "2026-10-14T01:44:49.223+00:00",
+      "last_utc": "2026-10-14T01:57:22.546+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0059.jsonl",
+      "bytes": 67355611,
+      "first_utc": "2026-10-14T01:57:22.546+00:00",
+      "last_utc": "2026-10-14T02:09:55.227+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1900,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0060.jsonl",
+      "bytes": 67355788,
+      "first_utc": "2026-10-14T02:09:55.227+00:00",
+      "last_utc": "2026-10-14T02:22:28.058+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1927,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0061.jsonl",
+      "bytes": 67355702,
+      "first_utc": "2026-10-14T02:22:28.058+00:00",
+      "last_utc": "2026-10-14T02:35:00.307+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1925,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0062.jsonl",
+      "bytes": 67355632,
+      "first_utc": "2026-10-14T02:35:00.307+00:00",
+      "last_utc": "2026-10-14T02:47:32.122+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1923,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0063.jsonl",
+      "bytes": 67355730,
+      "first_utc": "2026-10-14T02:47:32.122+00:00",
+      "last_utc": "2026-10-14T03:00:04.459+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1925,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0064.jsonl",
+      "bytes": 67355600,
+      "first_utc": "2026-10-14T03:00:04.460+00:00",
+      "last_utc": "2026-10-14T03:12:36.759+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1920,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0065.jsonl",
+      "bytes": 67355680,
+      "first_utc": "2026-10-14T03:12:36.760+00:00",
+      "last_utc": "2026-10-14T03:25:08.582+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1926,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0066.jsonl",
+      "bytes": 67356020,
+      "first_utc": "2026-10-14T03:25:08.582+00:00",
+      "last_utc": "2026-10-14T03:37:41.053+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0067.jsonl",
+      "bytes": 67355721,
+      "first_utc": "2026-10-14T03:37:41.053+00:00",
+      "last_utc": "2026-10-14T03:50:13.127+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1923,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0068.jsonl",
+      "bytes": 67355872,
+      "first_utc": "2026-10-14T03:50:13.127+00:00",
+      "last_utc": "2026-10-14T04:02:46.885+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1922,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0069.jsonl",
+      "bytes": 67355751,
+      "first_utc": "2026-10-14T04:02:46.886+00:00",
+      "last_utc": "2026-10-14T04:15:20.964+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1923,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0070.jsonl",
+      "bytes": 67355510,
+      "first_utc": "2026-10-14T04:15:20.964+00:00",
+      "last_utc": "2026-10-14T04:27:54.188+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1910,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0071.jsonl",
+      "bytes": 67355881,
+      "first_utc": "2026-10-14T04:27:54.189+00:00",
+      "last_utc": "2026-10-14T04:40:26.761+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1898,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0072.jsonl",
+      "bytes": 67355559,
+      "first_utc": "2026-10-14T04:40:26.762+00:00",
+      "last_utc": "2026-10-14T04:53:00.557+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1923,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0073.jsonl",
+      "bytes": 67355572,
+      "first_utc": "2026-10-14T04:53:00.557+00:00",
+      "last_utc": "2026-10-14T05:05:33.994+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1920,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0074.jsonl",
+      "bytes": 67355766,
+      "first_utc": "2026-10-14T05:05:33.995+00:00",
+      "last_utc": "2026-10-14T05:18:09.311+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0075.jsonl",
+      "bytes": 67355809,
+      "first_utc": "2026-10-14T05:18:09.311+00:00",
+      "last_utc": "2026-10-14T05:30:43.893+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0076.jsonl",
+      "bytes": 67355677,
+      "first_utc": "2026-10-14T05:30:43.893+00:00",
+      "last_utc": "2026-10-14T05:43:30.362+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1918,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0077.jsonl",
+      "bytes": 67355556,
+      "first_utc": "2026-10-14T05:43:30.362+00:00",
+      "last_utc": "2026-10-14T05:56:02.834+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1919,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0078.jsonl",
+      "bytes": 67355677,
+      "first_utc": "2026-10-14T05:56:02.835+00:00",
+      "last_utc": "2026-10-14T06:08:36.931+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1924,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0079.jsonl",
+      "bytes": 67355712,
+      "first_utc": "2026-10-14T06:08:36.932+00:00",
+      "last_utc": "2026-10-14T06:21:11.231+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1922,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0080.jsonl",
+      "bytes": 67355792,
+      "first_utc": "2026-10-14T06:21:11.231+00:00",
+      "last_utc": "2026-10-14T06:33:44.269+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1924,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0081.jsonl",
+      "bytes": 67355790,
+      "first_utc": "2026-10-14T06:33:44.269+00:00",
+      "last_utc": "2026-10-14T06:46:17.910+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0082.jsonl",
+      "bytes": 67355787,
+      "first_utc": "2026-10-14T06:46:17.910+00:00",
+      "last_utc": "2026-10-14T06:58:51.939+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1923,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0083.jsonl",
+      "bytes": 67355497,
+      "first_utc": "2026-10-14T06:58:51.939+00:00",
+      "last_utc": "2026-10-14T07:11:25.532+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1900,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0084.jsonl",
+      "bytes": 67355604,
+      "first_utc": "2026-10-14T07:11:25.532+00:00",
+      "last_utc": "2026-10-14T07:24:00.314+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1925,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0085.jsonl",
+      "bytes": 67355726,
+      "first_utc": "2026-10-14T07:24:00.314+00:00",
+      "last_utc": "2026-10-14T07:36:35.525+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1918,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0086.jsonl",
+      "bytes": 67355749,
+      "first_utc": "2026-10-14T07:36:35.526+00:00",
+      "last_utc": "2026-10-14T07:49:08.998+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1919,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0087.jsonl",
+      "bytes": 67356885,
+      "first_utc": "2026-10-14T07:49:08.998+00:00",
+      "last_utc": "2026-10-14T08:01:26.298+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1962,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0088.jsonl",
+      "bytes": 67364838,
+      "first_utc": "2026-10-14T08:01:26.298+00:00",
+      "last_utc": "2026-10-14T08:06:00.630+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1985,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0089.jsonl",
+      "bytes": 67358899,
+      "first_utc": "2026-10-14T08:06:00.630+00:00",
+      "last_utc": "2026-10-14T08:15:58.184+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1967,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0090.jsonl",
+      "bytes": 67355698,
+      "first_utc": "2026-10-14T08:15:58.185+00:00",
+      "last_utc": "2026-10-14T08:28:31.886+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1924,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0091.jsonl",
+      "bytes": 67355667,
+      "first_utc": "2026-10-14T08:28:31.886+00:00",
+      "last_utc": "2026-10-14T08:41:05.318+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1923,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0092.jsonl",
+      "bytes": 67355720,
+      "first_utc": "2026-10-14T08:41:05.318+00:00",
+      "last_utc": "2026-10-14T08:53:39.270+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1922,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0093.jsonl",
+      "bytes": 67355688,
+      "first_utc": "2026-10-14T08:53:39.271+00:00",
+      "last_utc": "2026-10-14T09:06:12.670+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1916,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0094.jsonl",
+      "bytes": 67355663,
+      "first_utc": "2026-10-14T09:06:12.670+00:00",
+      "last_utc": "2026-10-14T09:18:46.691+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0095.jsonl",
+      "bytes": 67355743,
+      "first_utc": "2026-10-14T09:18:46.692+00:00",
+      "last_utc": "2026-10-14T09:31:19.972+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0096.jsonl",
+      "bytes": 67355536,
+      "first_utc": "2026-10-14T09:31:19.972+00:00",
+      "last_utc": "2026-10-14T09:43:55.447+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1894,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0097.jsonl",
+      "bytes": 67355766,
+      "first_utc": "2026-10-14T09:43:55.448+00:00",
+      "last_utc": "2026-10-14T09:56:29.632+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0098.jsonl",
+      "bytes": 67355616,
+      "first_utc": "2026-10-14T09:56:29.632+00:00",
+      "last_utc": "2026-10-14T10:09:03.453+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1928,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0099.jsonl",
+      "bytes": 67355835,
+      "first_utc": "2026-10-14T10:09:03.453+00:00",
+      "last_utc": "2026-10-14T10:21:37.076+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1922,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0100.jsonl",
+      "bytes": 67355818,
+      "first_utc": "2026-10-14T10:21:37.076+00:00",
+      "last_utc": "2026-10-14T10:34:10.313+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1922,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0101.jsonl",
+      "bytes": 67355755,
+      "first_utc": "2026-10-14T10:34:10.313+00:00",
+      "last_utc": "2026-10-14T10:46:45.024+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1923,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0102.jsonl",
+      "bytes": 67355643,
+      "first_utc": "2026-10-14T10:46:45.024+00:00",
+      "last_utc": "2026-10-14T10:59:18.358+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1924,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0103.jsonl",
+      "bytes": 67355771,
+      "first_utc": "2026-10-14T10:59:18.359+00:00",
+      "last_utc": "2026-10-14T11:11:50.838+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1920,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0104.jsonl",
+      "bytes": 67355642,
+      "first_utc": "2026-10-14T11:11:50.838+00:00",
+      "last_utc": "2026-10-14T11:24:22.922+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1927,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0105.jsonl",
+      "bytes": 67355688,
+      "first_utc": "2026-10-14T11:24:22.922+00:00",
+      "last_utc": "2026-10-14T11:36:56.819+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1893,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0106.jsonl",
+      "bytes": 67355663,
+      "first_utc": "2026-10-14T11:36:56.819+00:00",
+      "last_utc": "2026-10-14T11:49:31.668+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1919,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0107.jsonl",
+      "bytes": 67355593,
+      "first_utc": "2026-10-14T11:49:31.668+00:00",
+      "last_utc": "2026-10-14T12:02:05.625+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1922,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0108.jsonl",
+      "bytes": 67355738,
+      "first_utc": "2026-10-14T12:02:05.625+00:00",
+      "last_utc": "2026-10-14T12:14:37.845+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1924,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0109.jsonl",
+      "bytes": 67355649,
+      "first_utc": "2026-10-14T12:14:37.846+00:00",
+      "last_utc": "2026-10-14T12:27:11.808+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1926,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0110.jsonl",
+      "bytes": 67355757,
+      "first_utc": "2026-10-14T12:27:11.809+00:00",
+      "last_utc": "2026-10-14T12:39:45.434+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1923,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0111.jsonl",
+      "bytes": 67355801,
+      "first_utc": "2026-10-14T12:39:45.434+00:00",
+      "last_utc": "2026-10-14T12:52:19.251+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0112.jsonl",
+      "bytes": 67355745,
+      "first_utc": "2026-10-14T12:52:19.251+00:00",
+      "last_utc": "2026-10-14T13:04:53.879+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1920,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0113.jsonl",
+      "bytes": 67355859,
+      "first_utc": "2026-10-14T13:04:53.879+00:00",
+      "last_utc": "2026-10-14T13:17:28.043+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1900,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0114.jsonl",
+      "bytes": 67355782,
+      "first_utc": "2026-10-14T13:17:28.043+00:00",
+      "last_utc": "2026-10-14T13:30:01.563+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1919,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0115.jsonl",
+      "bytes": 67355646,
+      "first_utc": "2026-10-14T13:30:01.563+00:00",
+      "last_utc": "2026-10-14T13:42:33.546+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1924,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0116.jsonl",
+      "bytes": 67355765,
+      "first_utc": "2026-10-14T13:42:33.547+00:00",
+      "last_utc": "2026-10-14T13:55:04.747+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1922,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0117.jsonl",
+      "bytes": 67361307,
+      "first_utc": "2026-10-14T13:55:04.747+00:00",
+      "last_utc": "2026-10-14T14:03:21.414+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1960,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0118.jsonl",
+      "bytes": 67361367,
+      "first_utc": "2026-10-14T14:03:21.415+00:00",
+      "last_utc": "2026-10-14T14:11:12.587+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1959,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0119.jsonl",
+      "bytes": 67355669,
+      "first_utc": "2026-10-14T14:11:12.588+00:00",
+      "last_utc": "2026-10-14T14:23:46.233+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1923,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0120.jsonl",
+      "bytes": 67355637,
+      "first_utc": "2026-10-14T14:23:46.233+00:00",
+      "last_utc": "2026-10-14T14:36:20.482+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1923,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0121.jsonl",
+      "bytes": 67355542,
+      "first_utc": "2026-10-14T14:36:20.482+00:00",
+      "last_utc": "2026-10-14T14:48:54.585+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1898,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0122.jsonl",
+      "bytes": 67355770,
+      "first_utc": "2026-10-14T14:48:54.585+00:00",
+      "last_utc": "2026-10-14T15:01:28.728+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0123.jsonl",
+      "bytes": 67355539,
+      "first_utc": "2026-10-14T15:01:28.728+00:00",
+      "last_utc": "2026-10-14T15:14:02.816+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0124.jsonl",
+      "bytes": 67355701,
+      "first_utc": "2026-10-14T15:14:02.816+00:00",
+      "last_utc": "2026-10-14T15:26:36.821+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1924,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0125.jsonl",
+      "bytes": 67355660,
+      "first_utc": "2026-10-14T15:26:36.822+00:00",
+      "last_utc": "2026-10-14T15:39:10.141+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0126.jsonl",
+      "bytes": 67355745,
+      "first_utc": "2026-10-14T15:39:10.141+00:00",
+      "last_utc": "2026-10-14T15:51:43.837+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1922,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0127.jsonl",
+      "bytes": 67355950,
+      "first_utc": "2026-10-14T15:51:43.837+00:00",
+      "last_utc": "2026-10-14T16:04:14.793+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1918,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0128.jsonl",
+      "bytes": 67355953,
+      "first_utc": "2026-10-14T16:04:14.793+00:00",
+      "last_utc": "2026-10-14T16:16:43.895+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1924,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0129.jsonl",
+      "bytes": 67355751,
+      "first_utc": "2026-10-14T16:16:43.895+00:00",
+      "last_utc": "2026-10-14T16:29:18.293+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1923,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0130.jsonl",
+      "bytes": 67355841,
+      "first_utc": "2026-10-14T16:29:18.293+00:00",
+      "last_utc": "2026-10-14T16:41:52.210+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1919,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0131.jsonl",
+      "bytes": 67355640,
+      "first_utc": "2026-10-14T16:41:52.211+00:00",
+      "last_utc": "2026-10-14T16:54:25.936+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1906,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0132.jsonl",
+      "bytes": 67355597,
+      "first_utc": "2026-10-14T16:54:25.937+00:00",
+      "last_utc": "2026-10-14T17:07:00.472+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1922,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0133.jsonl",
+      "bytes": 67355795,
+      "first_utc": "2026-10-14T17:07:00.472+00:00",
+      "last_utc": "2026-10-14T17:19:35.714+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0134.jsonl",
+      "bytes": 67355623,
+      "first_utc": "2026-10-14T17:19:35.715+00:00",
+      "last_utc": "2026-10-14T17:32:08.908+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1912,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0135.jsonl",
+      "bytes": 67355652,
+      "first_utc": "2026-10-14T17:32:08.909+00:00",
+      "last_utc": "2026-10-14T17:44:43.284+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1923,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0136.jsonl",
+      "bytes": 67354709,
+      "first_utc": "2026-10-14T17:44:43.285+00:00",
+      "last_utc": "2026-10-14T17:57:15.127+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0137.jsonl",
+      "bytes": 67354772,
+      "first_utc": "2026-10-14T17:57:15.127+00:00",
+      "last_utc": "2026-10-14T18:09:46.347+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0138.jsonl",
+      "bytes": 67354769,
+      "first_utc": "2026-10-14T18:09:46.348+00:00",
+      "last_utc": "2026-10-14T18:22:12.798+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1916,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0139.jsonl",
+      "bytes": 67354876,
+      "first_utc": "2026-10-14T18:22:12.799+00:00",
+      "last_utc": "2026-10-14T18:34:43.163+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1906,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0140.jsonl",
+      "bytes": 67354758,
+      "first_utc": "2026-10-14T18:34:43.164+00:00",
+      "last_utc": "2026-10-14T18:47:12.348+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1912,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0141.jsonl",
+      "bytes": 67354661,
+      "first_utc": "2026-10-14T18:47:12.348+00:00",
+      "last_utc": "2026-10-14T18:59:42.482+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1906,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0142.jsonl",
+      "bytes": 67354534,
+      "first_utc": "2026-10-14T18:59:42.482+00:00",
+      "last_utc": "2026-10-14T19:12:13.095+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1909,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0143.jsonl",
+      "bytes": 67354612,
+      "first_utc": "2026-10-14T19:12:13.096+00:00",
+      "last_utc": "2026-10-14T19:24:44.039+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1905,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0144.jsonl",
+      "bytes": 67354453,
+      "first_utc": "2026-10-14T19:24:44.039+00:00",
+      "last_utc": "2026-10-14T19:37:14.172+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0145.jsonl",
+      "bytes": 67354569,
+      "first_utc": "2026-10-14T19:37:14.172+00:00",
+      "last_utc": "2026-10-14T19:49:36.810+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1909,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0146.jsonl",
+      "bytes": 67355816,
+      "first_utc": "2026-10-14T19:49:36.810+00:00",
+      "last_utc": "2026-10-14T20:01:10.176+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1951,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0147.jsonl",
+      "bytes": 67364088,
+      "first_utc": "2026-10-14T20:01:10.176+00:00",
+      "last_utc": "2026-10-14T20:05:25.390+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1987,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0148.jsonl",
+      "bytes": 67355450,
+      "first_utc": "2026-10-14T20:05:25.391+00:00",
+      "last_utc": "2026-10-14T20:17:16.220+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1943,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0149.jsonl",
+      "bytes": 67354549,
+      "first_utc": "2026-10-14T20:17:16.220+00:00",
+      "last_utc": "2026-10-14T20:29:49.385+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1912,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0150.jsonl",
+      "bytes": 67354609,
+      "first_utc": "2026-10-14T20:29:49.385+00:00",
+      "last_utc": "2026-10-14T20:42:21.071+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1912,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0151.jsonl",
+      "bytes": 67354613,
+      "first_utc": "2026-10-14T20:42:21.072+00:00",
+      "last_utc": "2026-10-14T20:54:51.725+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1908,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0152.jsonl",
+      "bytes": 67354630,
+      "first_utc": "2026-10-14T20:54:51.726+00:00",
+      "last_utc": "2026-10-14T21:07:23.359+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1919,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0153.jsonl",
+      "bytes": 67354764,
+      "first_utc": "2026-10-14T21:07:23.359+00:00",
+      "last_utc": "2026-10-14T21:19:54.732+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1918,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0154.jsonl",
+      "bytes": 67354798,
+      "first_utc": "2026-10-14T21:19:54.732+00:00",
+      "last_utc": "2026-10-14T21:32:25.977+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1892,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0155.jsonl",
+      "bytes": 67354579,
+      "first_utc": "2026-10-14T21:32:25.977+00:00",
+      "last_utc": "2026-10-14T21:44:56.312+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1886,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0156.jsonl",
+      "bytes": 67354815,
+      "first_utc": "2026-10-14T21:44:56.312+00:00",
+      "last_utc": "2026-10-14T21:57:26.721+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1918,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0157.jsonl",
+      "bytes": 67354706,
+      "first_utc": "2026-10-14T21:57:26.721+00:00",
+      "last_utc": "2026-10-14T22:09:58.256+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1894,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0158.jsonl",
+      "bytes": 67354576,
+      "first_utc": "2026-10-14T22:09:58.256+00:00",
+      "last_utc": "2026-10-14T22:22:29.507+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1912,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0159.jsonl",
+      "bytes": 67354685,
+      "first_utc": "2026-10-14T22:22:29.507+00:00",
+      "last_utc": "2026-10-14T22:35:00.504+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1910,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0160.jsonl",
+      "bytes": 67354448,
+      "first_utc": "2026-10-14T22:35:00.505+00:00",
+      "last_utc": "2026-10-14T22:47:32.291+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1910,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0161.jsonl",
+      "bytes": 67354572,
+      "first_utc": "2026-10-14T22:47:32.292+00:00",
+      "last_utc": "2026-10-14T23:00:02.585+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1905,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0162.jsonl",
+      "bytes": 67354638,
+      "first_utc": "2026-10-14T23:00:02.586+00:00",
+      "last_utc": "2026-10-14T23:12:33.354+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1903,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0163.jsonl",
+      "bytes": 67354568,
+      "first_utc": "2026-10-14T23:12:33.354+00:00",
+      "last_utc": "2026-10-14T23:25:04.092+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0164.jsonl",
+      "bytes": 67354709,
+      "first_utc": "2026-10-14T23:25:04.093+00:00",
+      "last_utc": "2026-10-14T23:37:35.318+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0165.jsonl",
+      "bytes": 67354700,
+      "first_utc": "2026-10-14T23:37:35.318+00:00",
+      "last_utc": "2026-10-14T23:50:05.580+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0166.jsonl",
+      "bytes": 67354548,
+      "first_utc": "2026-10-14T23:50:05.580+00:00",
+      "last_utc": "2026-10-15T00:02:36.047+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1908,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0167.jsonl",
+      "bytes": 67354634,
+      "first_utc": "2026-10-15T00:02:36.047+00:00",
+      "last_utc": "2026-10-15T00:15:06.855+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1919,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0168.jsonl",
+      "bytes": 67354716,
+      "first_utc": "2026-10-15T00:15:06.855+00:00",
+      "last_utc": "2026-10-15T00:27:38.816+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0169.jsonl",
+      "bytes": 67354315,
+      "first_utc": "2026-10-15T00:27:38.817+00:00",
+      "last_utc": "2026-10-15T00:40:08.513+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1910,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0170.jsonl",
+      "bytes": 67354669,
+      "first_utc": "2026-10-15T00:40:08.513+00:00",
+      "last_utc": "2026-10-15T00:52:40.780+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1909,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0171.jsonl",
+      "bytes": 67354761,
+      "first_utc": "2026-10-15T00:52:40.780+00:00",
+      "last_utc": "2026-10-15T01:05:12.097+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0172.jsonl",
+      "bytes": 67354794,
+      "first_utc": "2026-10-15T01:05:12.097+00:00",
+      "last_utc": "2026-10-15T01:17:42.810+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0173.jsonl",
+      "bytes": 67354684,
+      "first_utc": "2026-10-15T01:17:42.810+00:00",
+      "last_utc": "2026-10-15T01:30:13.831+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1909,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0174.jsonl",
+      "bytes": 67354538,
+      "first_utc": "2026-10-15T01:30:13.832+00:00",
+      "last_utc": "2026-10-15T01:42:44.260+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1911,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0175.jsonl",
+      "bytes": 67354394,
+      "first_utc": "2026-10-15T01:42:44.260+00:00",
+      "last_utc": "2026-10-15T01:55:15.630+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1916,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0176.jsonl",
+      "bytes": 67354466,
+      "first_utc": "2026-10-15T01:55:15.630+00:00",
+      "last_utc": "2026-10-15T02:07:46.254+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0177.jsonl",
+      "bytes": 67354520,
+      "first_utc": "2026-10-15T02:07:46.256+00:00",
+      "last_utc": "2026-10-15T02:20:16.320+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0178.jsonl",
+      "bytes": 67354766,
+      "first_utc": "2026-10-15T02:20:16.320+00:00",
+      "last_utc": "2026-10-15T02:32:48.445+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0179.jsonl",
+      "bytes": 67354655,
+      "first_utc": "2026-10-15T02:32:48.445+00:00",
+      "last_utc": "2026-10-15T02:45:19.145+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1917,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0180.jsonl",
+      "bytes": 67354573,
+      "first_utc": "2026-10-15T02:45:19.146+00:00",
+      "last_utc": "2026-10-15T02:57:51.970+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0181.jsonl",
+      "bytes": 67354512,
+      "first_utc": "2026-10-15T02:57:51.970+00:00",
+      "last_utc": "2026-10-15T03:10:23.070+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1919,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0182.jsonl",
+      "bytes": 67354561,
+      "first_utc": "2026-10-15T03:10:23.070+00:00",
+      "last_utc": "2026-10-15T03:22:53.949+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1916,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0183.jsonl",
+      "bytes": 67354632,
+      "first_utc": "2026-10-15T03:22:53.949+00:00",
+      "last_utc": "2026-10-15T03:35:24.214+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1894,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0184.jsonl",
+      "bytes": 67354515,
+      "first_utc": "2026-10-15T03:35:24.214+00:00",
+      "last_utc": "2026-10-15T03:47:54.950+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0185.jsonl",
+      "bytes": 67354508,
+      "first_utc": "2026-10-15T03:47:54.950+00:00",
+      "last_utc": "2026-10-15T04:00:25.788+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1897,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0186.jsonl",
+      "bytes": 67354512,
+      "first_utc": "2026-10-15T04:00:25.788+00:00",
+      "last_utc": "2026-10-15T04:12:56.024+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1893,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0187.jsonl",
+      "bytes": 67354201,
+      "first_utc": "2026-10-15T04:12:56.024+00:00",
+      "last_utc": "2026-10-15T04:25:26.407+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1916,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0188.jsonl",
+      "bytes": 67354429,
+      "first_utc": "2026-10-15T04:25:26.407+00:00",
+      "last_utc": "2026-10-15T04:37:57.456+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1891,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0189.jsonl",
+      "bytes": 67354677,
+      "first_utc": "2026-10-15T04:37:57.456+00:00",
+      "last_utc": "2026-10-15T04:50:28.603+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1908,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0190.jsonl",
+      "bytes": 67354689,
+      "first_utc": "2026-10-15T04:50:28.603+00:00",
+      "last_utc": "2026-10-15T05:03:00.228+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1920,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0191.jsonl",
+      "bytes": 67354595,
+      "first_utc": "2026-10-15T05:03:00.229+00:00",
+      "last_utc": "2026-10-15T05:15:32.418+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1905,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0192.jsonl",
+      "bytes": 67354465,
+      "first_utc": "2026-10-15T05:15:32.420+00:00",
+      "last_utc": "2026-10-15T05:28:02.536+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1909,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0193.jsonl",
+      "bytes": 67354656,
+      "first_utc": "2026-10-15T05:28:02.536+00:00",
+      "last_utc": "2026-10-15T05:40:33.571+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1917,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0194.jsonl",
+      "bytes": 67354629,
+      "first_utc": "2026-10-15T05:40:33.572+00:00",
+      "last_utc": "2026-10-15T05:53:03.940+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1918,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0195.jsonl",
+      "bytes": 67354544,
+      "first_utc": "2026-10-15T05:53:03.941+00:00",
+      "last_utc": "2026-10-15T06:05:34.260+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1919,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0196.jsonl",
+      "bytes": 67354626,
+      "first_utc": "2026-10-15T06:05:34.261+00:00",
+      "last_utc": "2026-10-15T06:18:06.072+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1904,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0197.jsonl",
+      "bytes": 67354676,
+      "first_utc": "2026-10-15T06:18:06.072+00:00",
+      "last_utc": "2026-10-15T06:30:37.128+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0198.jsonl",
+      "bytes": 67354556,
+      "first_utc": "2026-10-15T06:30:37.129+00:00",
+      "last_utc": "2026-10-15T06:43:08.583+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1916,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0199.jsonl",
+      "bytes": 67354443,
+      "first_utc": "2026-10-15T06:43:08.584+00:00",
+      "last_utc": "2026-10-15T06:55:39.893+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1911,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0200.jsonl",
+      "bytes": 67354574,
+      "first_utc": "2026-10-15T06:55:39.893+00:00",
+      "last_utc": "2026-10-15T07:08:10.935+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1910,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0201.jsonl",
+      "bytes": 67354591,
+      "first_utc": "2026-10-15T07:08:10.935+00:00",
+      "last_utc": "2026-10-15T07:20:43.593+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1908,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0202.jsonl",
+      "bytes": 67354563,
+      "first_utc": "2026-10-15T07:20:43.593+00:00",
+      "last_utc": "2026-10-15T07:33:15.565+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1911,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0203.jsonl",
+      "bytes": 67354690,
+      "first_utc": "2026-10-15T07:33:15.565+00:00",
+      "last_utc": "2026-10-15T07:45:46.930+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0204.jsonl",
+      "bytes": 67354693,
+      "first_utc": "2026-10-15T07:45:46.930+00:00",
+      "last_utc": "2026-10-15T07:58:20.971+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1907,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0205.jsonl",
+      "bytes": 67362606,
+      "first_utc": "2026-10-15T07:58:20.971+00:00",
+      "last_utc": "2026-10-15T08:04:18.621+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1943,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0206.jsonl",
+      "bytes": 67357498,
+      "first_utc": "2026-10-15T08:04:18.621+00:00",
+      "last_utc": "2026-10-15T08:14:22.346+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1947,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0207.jsonl",
+      "bytes": 67354609,
+      "first_utc": "2026-10-15T08:14:22.346+00:00",
+      "last_utc": "2026-10-15T08:26:53.679+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1917,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0208.jsonl",
+      "bytes": 67354503,
+      "first_utc": "2026-10-15T08:26:53.680+00:00",
+      "last_utc": "2026-10-15T08:39:24.130+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1892,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0209.jsonl",
+      "bytes": 67354192,
+      "first_utc": "2026-10-15T08:39:24.130+00:00",
+      "last_utc": "2026-10-15T08:51:54.254+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1909,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0210.jsonl",
+      "bytes": 67354645,
+      "first_utc": "2026-10-15T08:51:54.254+00:00",
+      "last_utc": "2026-10-15T09:04:25.625+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1891,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0211.jsonl",
+      "bytes": 67354640,
+      "first_utc": "2026-10-15T09:04:25.625+00:00",
+      "last_utc": "2026-10-15T09:16:57.267+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1886,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0212.jsonl",
+      "bytes": 67354475,
+      "first_utc": "2026-10-15T09:16:57.267+00:00",
+      "last_utc": "2026-10-15T09:29:29.191+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1910,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0213.jsonl",
+      "bytes": 67354631,
+      "first_utc": "2026-10-15T09:29:29.191+00:00",
+      "last_utc": "2026-10-15T09:42:00.668+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0214.jsonl",
+      "bytes": 67354466,
+      "first_utc": "2026-10-15T09:42:00.669+00:00",
+      "last_utc": "2026-10-15T09:54:31.216+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1919,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0215.jsonl",
+      "bytes": 67354569,
+      "first_utc": "2026-10-15T09:54:31.216+00:00",
+      "last_utc": "2026-10-15T10:07:02.405+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1910,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0216.jsonl",
+      "bytes": 67354481,
+      "first_utc": "2026-10-15T10:07:02.405+00:00",
+      "last_utc": "2026-10-15T10:19:33.069+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1909,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0217.jsonl",
+      "bytes": 67354438,
+      "first_utc": "2026-10-15T10:19:33.069+00:00",
+      "last_utc": "2026-10-15T10:32:05.357+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0218.jsonl",
+      "bytes": 67354741,
+      "first_utc": "2026-10-15T10:32:05.357+00:00",
+      "last_utc": "2026-10-15T10:44:35.925+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0219.jsonl",
+      "bytes": 67354582,
+      "first_utc": "2026-10-15T10:44:35.926+00:00",
+      "last_utc": "2026-10-15T10:57:06.503+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1904,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0220.jsonl",
+      "bytes": 67354497,
+      "first_utc": "2026-10-15T10:57:06.503+00:00",
+      "last_utc": "2026-10-15T11:09:37.520+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0221.jsonl",
+      "bytes": 67353881,
+      "first_utc": "2026-10-15T11:09:37.520+00:00",
+      "last_utc": "2026-10-15T11:22:46.937+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1918,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0222.jsonl",
+      "bytes": 67354626,
+      "first_utc": "2026-10-15T11:22:46.937+00:00",
+      "last_utc": "2026-10-15T11:35:17.254+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0223.jsonl",
+      "bytes": 67354546,
+      "first_utc": "2026-10-15T11:35:17.254+00:00",
+      "last_utc": "2026-10-15T11:47:49.256+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1909,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0224.jsonl",
+      "bytes": 67354674,
+      "first_utc": "2026-10-15T11:47:49.256+00:00",
+      "last_utc": "2026-10-15T12:00:21.441+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0225.jsonl",
+      "bytes": 67354705,
+      "first_utc": "2026-10-15T12:00:21.442+00:00",
+      "last_utc": "2026-10-15T12:12:52.119+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0226.jsonl",
+      "bytes": 67354697,
+      "first_utc": "2026-10-15T12:12:52.119+00:00",
+      "last_utc": "2026-10-15T12:25:23.268+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1903,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0227.jsonl",
+      "bytes": 67354735,
+      "first_utc": "2026-10-15T12:25:23.269+00:00",
+      "last_utc": "2026-10-15T12:37:53.229+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0228.jsonl",
+      "bytes": 67354642,
+      "first_utc": "2026-10-15T12:37:53.229+00:00",
+      "last_utc": "2026-10-15T12:50:24.583+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1889,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0229.jsonl",
+      "bytes": 67354611,
+      "first_utc": "2026-10-15T12:50:24.583+00:00",
+      "last_utc": "2026-10-15T13:02:55.764+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1911,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0230.jsonl",
+      "bytes": 67354580,
+      "first_utc": "2026-10-15T13:02:55.765+00:00",
+      "last_utc": "2026-10-15T13:15:33.607+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1897,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0231.jsonl",
+      "bytes": 67354609,
+      "first_utc": "2026-10-15T13:15:33.608+00:00",
+      "last_utc": "2026-10-15T13:28:05.365+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0232.jsonl",
+      "bytes": 67354531,
+      "first_utc": "2026-10-15T13:28:05.365+00:00",
+      "last_utc": "2026-10-15T13:40:35.989+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1919,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0233.jsonl",
+      "bytes": 67354393,
+      "first_utc": "2026-10-15T13:40:35.989+00:00",
+      "last_utc": "2026-10-15T13:53:07.433+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1900,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0234.jsonl",
+      "bytes": 67358675,
+      "first_utc": "2026-10-15T13:53:07.433+00:00",
+      "last_utc": "2026-10-15T14:02:42.774+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1947,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0235.jsonl",
+      "bytes": 67362124,
+      "first_utc": "2026-10-15T14:02:42.774+00:00",
+      "last_utc": "2026-10-15T14:08:26.824+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1946,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0236.jsonl",
+      "bytes": 67354495,
+      "first_utc": "2026-10-15T14:08:26.824+00:00",
+      "last_utc": "2026-10-15T14:20:56.888+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1893,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0237.jsonl",
+      "bytes": 67354533,
+      "first_utc": "2026-10-15T14:20:56.889+00:00",
+      "last_utc": "2026-10-15T14:33:27.888+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0238.jsonl",
+      "bytes": 67354617,
+      "first_utc": "2026-10-15T14:33:27.889+00:00",
+      "last_utc": "2026-10-15T14:45:58.057+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1891,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0239.jsonl",
+      "bytes": 67354626,
+      "first_utc": "2026-10-15T14:45:58.058+00:00",
+      "last_utc": "2026-10-15T14:58:28.967+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1912,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0240.jsonl",
+      "bytes": 67354594,
+      "first_utc": "2026-10-15T14:58:28.967+00:00",
+      "last_utc": "2026-10-15T15:11:00.229+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1910,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0241.jsonl",
+      "bytes": 67354633,
+      "first_utc": "2026-10-15T15:11:00.229+00:00",
+      "last_utc": "2026-10-15T15:23:31.877+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1919,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0242.jsonl",
+      "bytes": 67354598,
+      "first_utc": "2026-10-15T15:23:31.878+00:00",
+      "last_utc": "2026-10-15T15:36:03.934+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1921,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0243.jsonl",
+      "bytes": 67354784,
+      "first_utc": "2026-10-15T15:36:03.934+00:00",
+      "last_utc": "2026-10-15T15:48:33.738+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0244.jsonl",
+      "bytes": 67354374,
+      "first_utc": "2026-10-15T15:48:33.738+00:00",
+      "last_utc": "2026-10-15T16:01:08.204+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1920,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0245.jsonl",
+      "bytes": 67354576,
+      "first_utc": "2026-10-15T16:01:08.204+00:00",
+      "last_utc": "2026-10-15T16:13:52.195+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1942,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0246.jsonl",
+      "bytes": 67354485,
+      "first_utc": "2026-10-15T16:13:52.195+00:00",
+      "last_utc": "2026-10-15T16:26:29.411+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0247.jsonl",
+      "bytes": 67354618,
+      "first_utc": "2026-10-15T16:26:29.411+00:00",
+      "last_utc": "2026-10-15T16:39:09.504+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1910,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0248.jsonl",
+      "bytes": 67354670,
+      "first_utc": "2026-10-15T16:39:09.504+00:00",
+      "last_utc": "2026-10-15T16:51:55.814+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0249.jsonl",
+      "bytes": 67354636,
+      "first_utc": "2026-10-15T16:51:55.814+00:00",
+      "last_utc": "2026-10-15T17:04:27.710+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1892,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0250.jsonl",
+      "bytes": 67354661,
+      "first_utc": "2026-10-15T17:04:27.710+00:00",
+      "last_utc": "2026-10-15T17:16:58.565+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1903,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0251.jsonl",
+      "bytes": 67354657,
+      "first_utc": "2026-10-15T17:16:58.566+00:00",
+      "last_utc": "2026-10-15T17:29:29.018+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1917,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0252.jsonl",
+      "bytes": 67354352,
+      "first_utc": "2026-10-15T17:29:29.018+00:00",
+      "last_utc": "2026-10-15T17:42:03.091+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1912,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0253.jsonl",
+      "bytes": 67354782,
+      "first_utc": "2026-10-15T17:42:03.092+00:00",
+      "last_utc": "2026-10-15T17:54:37.317+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1909,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0254.jsonl",
+      "bytes": 67354566,
+      "first_utc": "2026-10-15T17:54:37.317+00:00",
+      "last_utc": "2026-10-15T18:07:19.073+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0255.jsonl",
+      "bytes": 67355074,
+      "first_utc": "2026-10-15T18:07:19.074+00:00",
+      "last_utc": "2026-10-15T18:19:52.423+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0256.jsonl",
+      "bytes": 67354623,
+      "first_utc": "2026-10-15T18:19:52.424+00:00",
+      "last_utc": "2026-10-15T18:32:26.155+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1910,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0257.jsonl",
+      "bytes": 67354754,
+      "first_utc": "2026-10-15T18:32:26.155+00:00",
+      "last_utc": "2026-10-15T18:45:00.592+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1918,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0258.jsonl",
+      "bytes": 67354741,
+      "first_utc": "2026-10-15T18:45:00.592+00:00",
+      "last_utc": "2026-10-15T18:57:34.128+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0259.jsonl",
+      "bytes": 67354663,
+      "first_utc": "2026-10-15T18:57:34.129+00:00",
+      "last_utc": "2026-10-15T19:10:05.984+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1912,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0260.jsonl",
+      "bytes": 67354690,
+      "first_utc": "2026-10-15T19:10:05.985+00:00",
+      "last_utc": "2026-10-15T19:22:36.432+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1903,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0261.jsonl",
+      "bytes": 67354574,
+      "first_utc": "2026-10-15T19:22:36.433+00:00",
+      "last_utc": "2026-10-15T19:35:07.101+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0262.jsonl",
+      "bytes": 67354725,
+      "first_utc": "2026-10-15T19:35:07.102+00:00",
+      "last_utc": "2026-10-15T19:47:38.713+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1907,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0263.jsonl",
+      "bytes": 67354698,
+      "first_utc": "2026-10-15T19:47:38.713+00:00",
+      "last_utc": "2026-10-15T20:00:12.867+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0264.jsonl",
+      "bytes": 67361946,
+      "first_utc": "2026-10-15T20:00:12.867+00:00",
+      "last_utc": "2026-10-15T20:08:06.371+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1918,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0265.jsonl",
+      "bytes": 67354583,
+      "first_utc": "2026-10-15T20:08:06.373+00:00",
+      "last_utc": "2026-10-15T20:20:58.176+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1894,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0266.jsonl",
+      "bytes": 67354754,
+      "first_utc": "2026-10-15T20:20:58.176+00:00",
+      "last_utc": "2026-10-15T20:33:43.293+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1907,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0267.jsonl",
+      "bytes": 67354703,
+      "first_utc": "2026-10-15T20:33:43.294+00:00",
+      "last_utc": "2026-10-15T20:46:22.177+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1912,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0268.jsonl",
+      "bytes": 67354749,
+      "first_utc": "2026-10-15T20:46:22.178+00:00",
+      "last_utc": "2026-10-15T20:58:55.298+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1917,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0269.jsonl",
+      "bytes": 67354747,
+      "first_utc": "2026-10-15T20:58:55.298+00:00",
+      "last_utc": "2026-10-15T21:11:23.835+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1894,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0270.jsonl",
+      "bytes": 67354595,
+      "first_utc": "2026-10-15T21:11:23.835+00:00",
+      "last_utc": "2026-10-15T21:23:53.031+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1917,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0271.jsonl",
+      "bytes": 67354835,
+      "first_utc": "2026-10-15T21:23:53.031+00:00",
+      "last_utc": "2026-10-15T21:36:20.577+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0272.jsonl",
+      "bytes": 67354660,
+      "first_utc": "2026-10-15T21:36:20.577+00:00",
+      "last_utc": "2026-10-15T21:48:55.075+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0273.jsonl",
+      "bytes": 67354750,
+      "first_utc": "2026-10-15T21:48:55.075+00:00",
+      "last_utc": "2026-10-15T22:01:31.482+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1885,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0274.jsonl",
+      "bytes": 67354347,
+      "first_utc": "2026-10-15T22:01:31.482+00:00",
+      "last_utc": "2026-10-15T22:14:08.922+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1908,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0275.jsonl",
+      "bytes": 67354519,
+      "first_utc": "2026-10-15T22:14:08.923+00:00",
+      "last_utc": "2026-10-15T22:26:45.788+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0276.jsonl",
+      "bytes": 67354465,
+      "first_utc": "2026-10-15T22:26:45.789+00:00",
+      "last_utc": "2026-10-15T22:39:23.479+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0277.jsonl",
+      "bytes": 67354605,
+      "first_utc": "2026-10-15T22:39:23.480+00:00",
+      "last_utc": "2026-10-15T22:52:01.782+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1917,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0278.jsonl",
+      "bytes": 67354464,
+      "first_utc": "2026-10-15T22:52:01.782+00:00",
+      "last_utc": "2026-10-15T23:05:29.135+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1918,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0279.jsonl",
+      "bytes": 67354770,
+      "first_utc": "2026-10-15T23:05:29.135+00:00",
+      "last_utc": "2026-10-15T23:18:37.438+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0280.jsonl",
+      "bytes": 67354614,
+      "first_utc": "2026-10-15T23:18:37.438+00:00",
+      "last_utc": "2026-10-15T23:31:11.976+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0281.jsonl",
+      "bytes": 67354656,
+      "first_utc": "2026-10-15T23:31:11.976+00:00",
+      "last_utc": "2026-10-15T23:43:41.981+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1917,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0282.jsonl",
+      "bytes": 67354700,
+      "first_utc": "2026-10-15T23:43:41.982+00:00",
+      "last_utc": "2026-10-15T23:56:12.450+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1912,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0283.jsonl",
+      "bytes": 67354702,
+      "first_utc": "2026-10-15T23:56:12.450+00:00",
+      "last_utc": "2026-10-16T00:08:43.157+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1911,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0284.jsonl",
+      "bytes": 67354347,
+      "first_utc": "2026-10-16T00:08:43.157+00:00",
+      "last_utc": "2026-10-16T00:21:56.403+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0285.jsonl",
+      "bytes": 67354536,
+      "first_utc": "2026-10-16T00:21:56.403+00:00",
+      "last_utc": "2026-10-16T00:34:47.233+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1895,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0286.jsonl",
+      "bytes": 67354595,
+      "first_utc": "2026-10-16T00:34:47.233+00:00",
+      "last_utc": "2026-10-16T00:47:19.723+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1917,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0287.jsonl",
+      "bytes": 67354623,
+      "first_utc": "2026-10-16T00:47:19.723+00:00",
+      "last_utc": "2026-10-16T00:59:51.127+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1908,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0288.jsonl",
+      "bytes": 67354696,
+      "first_utc": "2026-10-16T00:59:51.128+00:00",
+      "last_utc": "2026-10-16T01:12:22.264+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0289.jsonl",
+      "bytes": 67354806,
+      "first_utc": "2026-10-16T01:12:22.264+00:00",
+      "last_utc": "2026-10-16T01:24:53.526+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1916,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0290.jsonl",
+      "bytes": 67354593,
+      "first_utc": "2026-10-16T01:24:53.526+00:00",
+      "last_utc": "2026-10-16T01:37:24.596+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1912,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0291.jsonl",
+      "bytes": 67354664,
+      "first_utc": "2026-10-16T01:37:24.596+00:00",
+      "last_utc": "2026-10-16T01:49:55.014+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1911,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0292.jsonl",
+      "bytes": 67354706,
+      "first_utc": "2026-10-16T01:49:55.014+00:00",
+      "last_utc": "2026-10-16T02:02:25.902+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1892,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0293.jsonl",
+      "bytes": 67354745,
+      "first_utc": "2026-10-16T02:02:25.903+00:00",
+      "last_utc": "2026-10-16T02:14:57.588+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1893,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0294.jsonl",
+      "bytes": 67354534,
+      "first_utc": "2026-10-16T02:14:57.588+00:00",
+      "last_utc": "2026-10-16T02:27:28.848+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1912,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0295.jsonl",
+      "bytes": 67354738,
+      "first_utc": "2026-10-16T02:27:28.848+00:00",
+      "last_utc": "2026-10-16T02:39:59.014+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1889,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0296.jsonl",
+      "bytes": 67354720,
+      "first_utc": "2026-10-16T02:39:59.015+00:00",
+      "last_utc": "2026-10-16T02:52:31.451+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1908,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0297.jsonl",
+      "bytes": 67354406,
+      "first_utc": "2026-10-16T02:52:31.452+00:00",
+      "last_utc": "2026-10-16T03:05:30.660+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1911,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0298.jsonl",
+      "bytes": 67354470,
+      "first_utc": "2026-10-16T03:05:30.660+00:00",
+      "last_utc": "2026-10-16T03:18:00.894+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0299.jsonl",
+      "bytes": 67354614,
+      "first_utc": "2026-10-16T03:18:00.895+00:00",
+      "last_utc": "2026-10-16T03:30:31.449+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1912,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0300.jsonl",
+      "bytes": 67354592,
+      "first_utc": "2026-10-16T03:30:31.449+00:00",
+      "last_utc": "2026-10-16T03:43:01.573+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1900,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0301.jsonl",
+      "bytes": 67354558,
+      "first_utc": "2026-10-16T03:43:01.574+00:00",
+      "last_utc": "2026-10-16T03:55:33.205+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1917,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0302.jsonl",
+      "bytes": 67354468,
+      "first_utc": "2026-10-16T03:55:33.205+00:00",
+      "last_utc": "2026-10-16T04:08:04.226+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0303.jsonl",
+      "bytes": 67354544,
+      "first_utc": "2026-10-16T04:08:04.226+00:00",
+      "last_utc": "2026-10-16T04:20:43.043+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0304.jsonl",
+      "bytes": 67354716,
+      "first_utc": "2026-10-16T04:20:43.043+00:00",
+      "last_utc": "2026-10-16T04:33:13.129+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0305.jsonl",
+      "bytes": 67354447,
+      "first_utc": "2026-10-16T04:33:13.129+00:00",
+      "last_utc": "2026-10-16T04:45:44.035+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1910,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0306.jsonl",
+      "bytes": 67354273,
+      "first_utc": "2026-10-16T04:45:44.035+00:00",
+      "last_utc": "2026-10-16T04:58:13.714+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1908,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0307.jsonl",
+      "bytes": 67354573,
+      "first_utc": "2026-10-16T04:58:13.714+00:00",
+      "last_utc": "2026-10-16T05:10:45.284+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1914,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0308.jsonl",
+      "bytes": 67354592,
+      "first_utc": "2026-10-16T05:10:45.284+00:00",
+      "last_utc": "2026-10-16T05:23:15.738+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1913,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0309.jsonl",
+      "bytes": 67354725,
+      "first_utc": "2026-10-16T05:23:15.738+00:00",
+      "last_utc": "2026-10-16T05:35:46.191+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1917,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0310.jsonl",
+      "bytes": 67354508,
+      "first_utc": "2026-10-16T05:35:46.192+00:00",
+      "last_utc": "2026-10-16T05:48:32.693+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0311.jsonl",
+      "bytes": 67354317,
+      "first_utc": "2026-10-16T05:48:32.694+00:00",
+      "last_utc": "2026-10-16T06:01:03.860+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1916,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0312.jsonl",
+      "bytes": 67354322,
+      "first_utc": "2026-10-16T06:01:03.860+00:00",
+      "last_utc": "2026-10-16T06:14:41.719+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1903,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0313.jsonl",
+      "bytes": 67354404,
+      "first_utc": "2026-10-16T06:14:41.719+00:00",
+      "last_utc": "2026-10-16T06:27:11.936+00:00",
+      "first_seq": null,
+      "last_seq": null,
+      "sample_records": 1915,
+      "last_complete_line": true
+    },
+    {
+      "file": "diagnostic-20261013-215839-6296-7c2dedefc7d6-part0314.jsonl",
+      "bytes": 10707439,
+      "first_utc": "2026-10-16T06:27:11.937+00:00",
+      "last_utc": "2026-10-16T06:29:11.850+00:00",
+      "first_seq": null,
+      "last_seq": 77189130,
+      "sample_records": 1918,
+      "last_complete_line": true
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "before": {
+    "pixiv_tracker.db": [
+      2196733952,
+      1792096279527229400
+    ],
+    "pixiv_tracker.db-wal": [
+      34261952,
+      1792096278888692100
+    ],
+    "pixiv_tracker.db-shm": [
+      98304,
+      1791900170976125100
+    ]
+  },
+  "scope": "failed item categories for diagnostic run, narrow parent selection first",
+  "parents_selected": 49,
+  "failed_parents": 26,
+  "groups": [
+    {
+      "operation_kind": "check",
+      "source": "automatic",
+      "item_kind": "discover_page",
+      "state": "failed",
+      "code": "PixivRequestError",
+      "failure_code": "api_network",
+      "status": null,
+      "retryable": 1,
+      "items": 29
+    },
+    {
+      "operation_kind": "repair",
+      "source": "maintenance",
+      "item_kind": "error",
+      "state": "failed",
+      "code": "PixivRequestError",
+      "failure_code": "api_forbidden",
+      "status": 403,
+      "retryable": 0,
+      "items": 25
+    }
+  ],
+  "elapsed_ms": 1000.0,
+  "after": {
+    "pixiv_tracker.db": [
+      2196733952,
+      1792096279527229400
+    ],
+    "pixiv_tracker.db-wal": [
+      34261952,
+      1792096278888692100
+    ],
+    "pixiv_tracker.db-shm": [
+      98304,
+      1791900170976125100
+    ]
+  },
+  "file_metadata_unchanged": true
+}

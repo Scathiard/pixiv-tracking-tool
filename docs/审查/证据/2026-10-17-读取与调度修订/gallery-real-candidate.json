@@ -1,0 +1,42 @@
+{
+  "mode": "candidate",
+  "observed_at": "2026-10-17T18:50:21.116553+08:00",
+  "scope": "same visible latest 240 identities, read_work_states, mode=ro; diagnostics disabled in both",
+  "before": {
+    "pixiv_tracker.db": [
+      2196733952,
+      1792096279527229400
+    ],
+    "pixiv_tracker.db-wal": [
+      34261952,
+      1792096278888692100
+    ],
+    "pixiv_tracker.db-shm": [
+      98304,
+      1791900170976125100
+    ]
+  },
+  "selected_count": 240,
+  "selection_hash": "039e71a1486e8acffe73681f6fbfc667acf12c407261183ce4ae54b8543b3f62",
+  "read_ms": 359.0,
+  "vm_steps_approx": 10000,
+  "processing_states": {
+    "idle": 240
+  },
+  "result_hash": "b4ca08f03bd34da795f8b2d703000a052331c453f54d1dfe9bb5bfa9123f2825",
+  "after": {
+    "pixiv_tracker.db": [
+      2196733952,
+      1792096279527229400
+    ],
+    "pixiv_tracker.db-wal": [
+      34261952,
+      1792096278888692100
+    ],
+    "pixiv_tracker.db-shm": [
+      98304,
+      1791900170976125100
+    ]
+  },
+  "file_metadata_unchanged": true
+}

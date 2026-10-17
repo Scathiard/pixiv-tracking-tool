@@ -9,8 +9,12 @@ defineProps<{galleryMode: string}>()
 interface Settings {
   login: {status: 'logged_in' | 'offline' | 'pending'; account_id: string | null}
   automatic_paused: boolean; current_port: number; next_port: number; data_root: string
-  check_interval_minutes: number; next_check_at?: string | null; lan_urls?: string[]; stats: {artists: number; works: number; downloaded_pages: number; registered_originals?: number; verified_originals?: number; missing_originals?: number; unverified_originals?: number}
+  check_interval_minutes: number; next_check_at?: string | null; lan_urls?: string[]
   version?: string; build?: string
+}
+interface Statistics {
+  calculated_at: string
+  stats: {artists: number; works: number; downloaded_pages: number; registered_originals?: number; verified_originals?: number; missing_originals?: number; unverified_originals?: number}
 }
 const emit = defineEmits<{task: [kind: string, workId?: number]; theme: [theme: 'dark' | 'light', event: MouseEvent]; galleryMode: [value: string]; message: [text: string, isError?: boolean]}>()
 const settings = ref<Settings | null>(null), loading = ref(true), error = ref(''), port = ref(''), pendingPath = ref(''), busy = ref(false)
@@ -22,7 +26,8 @@ interface Logs {lines: string[]; truncated: boolean; details_complete: boolean; 
 const auth = ref<AuthStatus | null>(null), authError = ref('')
 const oauthCode = ref(''), confirmPath = ref(false)
 const logsOpen = ref(false), logsLoading = ref(false), logsError = ref(''), logs = ref<Logs | null>(null)
-const settingsReads = new ReadLifecycle(), logReads = new ReadLifecycle(), statusReads = new ReadLifecycle()
+const statistics = ref<Statistics | null>(null), statsLoading = ref(false), statsError = ref('')
+const settingsReads = new ReadLifecycle(), logReads = new ReadLifecycle(), statusReads = new ReadLifecycle(), statsReads = new ReadLifecycle()
 let retryLogContinuation = false
 let statusTimer = 0, stopped = false
 function loadLogs(continuation = false) {
@@ -48,6 +53,14 @@ function load() {
   return settingsReads.run('settings', signal => api<Settings>('/api/settings', {signal}), value => {
     settings.value = value; port.value = String(value.next_port); interval.value = String(value.check_interval_minutes); intervalUnit.value = 'minutes'; error.value = ''
   }, failure => { error.value = failure instanceof Error ? failure.message : '设置暂时无法读取' }, () => { loading.value = false })
+}
+function loadStats(refresh = false) {
+  if (stopped || statsLoading.value) return Promise.resolve()
+  statsLoading.value = true
+  statsError.value = ''
+  return statsReads.run('statistics', signal => api<Statistics>(`/api/settings/stats${refresh ? '?refresh=true' : ''}`, {signal}), value => {
+    statistics.value = value
+  }, failure => { statsError.value = failure instanceof Error ? failure.message : '统计暂时无法读取' }, () => { statsLoading.value = false })
 }
 function beginSettingsWrite() { settingsReads.cancel(); loading.value = false; busy.value = true }
 function applySettings(value: Settings) {
@@ -120,12 +133,12 @@ async function changePath() {
   try {
     const body = new URLSearchParams({new_path: pendingPath.value})
     const result = await api<{message?: string}>('/settings/change-path', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body})
-    emit('message', result.message || '数据目录已更新'); pendingPath.value = ''; await load()
+    emit('message', result.message || '数据目录已更新'); pendingPath.value = ''; statsReads.cancel(); statsLoading.value = false; statistics.value = null; await load(); void loadStats(true)
   } catch (failure) { emit('message', failure instanceof Error ? failure.message : '数据目录未能更新', true) }
   finally { busy.value = false }
 }
-onMounted(() => { theme.value = document.body.dataset.theme === 'light' ? 'light' : 'dark'; void load(); void pollStatus() })
-onBeforeUnmount(() => { stopped = true; clearTimeout(statusTimer); settingsReads.dispose(); logReads.dispose(); statusReads.dispose() })
+onMounted(() => { theme.value = document.body.dataset.theme === 'light' ? 'light' : 'dark'; void load(); void loadStats(); void pollStatus() })
+onBeforeUnmount(() => { stopped = true; clearTimeout(statusTimer); settingsReads.dispose(); logReads.dispose(); statusReads.dispose(); statsReads.dispose() })
 </script>
 <template>
   <section class="settings-page"><template v-if="sourcesOpen"><button class="text-link" @click="openSources(false)">← 返回设置</button><h1 class="sources-title">主站已无法访问</h1><SourceStatusOverview /></template><template v-else><div class="settings-heading"><h1>设置</h1><p class="sublead">管理连接、自动检查和本地存储。</p></div>
@@ -139,7 +152,7 @@ onBeforeUnmount(() => { stopped = true; clearTimeout(statusTimer); settingsReads
       <SourceStatusOverview summary @open="openSources(true)" />
       <div class="settings-card settings-stack"><div class="setting-top"><div><h3>处理日志</h3><p>查看最近的后台处理与失败原因，内容只读。</p></div><button :aria-expanded="logsOpen" @click="toggleLogs">{{ logsOpen ? '收起日志' : '查看日志' }}</button></div><div v-if="logsOpen" class="settings-log"><div class="settings-controls"><button :disabled="logsLoading" @click="loadLogs()">{{ logsLoading ? '正在读取…' : '刷新日志' }}</button></div><p v-if="logsError" class="error" role="alert">{{ logsError }} <button :disabled="logsLoading" @click="loadLogs(retryLogContinuation)">重试</button></p><p v-else-if="!logs && logsLoading" class="muted">正在读取处理日志…</p><template v-else-if="logs"><pre v-if="logs.lines.length">{{ logs.lines.join('\n') }}</pre><p v-else class="muted">暂无处理记录。</p><p v-if="logs.truncated" class="muted">仅显示最近任务的记录。</p><p v-if="!logs.details_complete" class="muted">详细记录尚未读完，可继续读取。</p><button v-if="logs.next_cursor" :disabled="logsLoading" @click="loadLogs(true)">{{ logsLoading ? '正在读取…' : '继续读取' }}</button></template></div></div>
       <h2 class="settings-section-title">本地存储</h2>
-      <div class="settings-card settings-stack"><div><h3>图库位置</h3><p>{{ settings.stats.artists }} 位画师 · {{ settings.stats.works }} 件作品 · {{ settings.stats.registered_originals ?? settings.stats.downloaded_pages }} 项原件已登记</p></div><p class="stats-detail">原件已核验 {{ settings.stats.verified_originals ?? settings.stats.downloaded_pages }} 项 · 缺失 {{ settings.stats.missing_originals ?? 0 }} 项 · 待核验 {{ settings.stats.unverified_originals ?? 0 }} 项</p><p class="stats-detail">统计当前默认版本：登记表示已有本地路径；核验表示文件已经检查。历史版本和动图预览不重复计数。</p><div class="path-display">{{ settings.data_root }}</div><div class="settings-controls"><button @click="browsePath"><Icon name="folder" />选择目录</button><span v-if="pendingPath" class="muted">{{ pendingPath }}</span><button v-if="pendingPath" :disabled="busy" @click="confirmPath = true">迁移到这里</button></div></div>
+      <div class="settings-card settings-stack"><div class="setting-top"><div><h3>图库位置</h3><p v-if="statistics">{{ statistics.stats.artists }} 位画师 · {{ statistics.stats.works }} 件作品 · {{ statistics.stats.registered_originals ?? statistics.stats.downloaded_pages }} 项原件已登记</p><p v-else class="muted">{{ statsLoading ? '正在统计图库…，其他设置可正常使用。' : '尚未取得图库统计。' }}</p></div><button :disabled="statsLoading" @click="loadStats(true)">{{ statsLoading ? '正在统计…' : '刷新统计' }}</button></div><template v-if="statistics"><p class="stats-detail">原件已核验 {{ statistics.stats.verified_originals ?? statistics.stats.downloaded_pages }} 项 · 缺失 {{ statistics.stats.missing_originals ?? 0 }} 项 · 待核验 {{ statistics.stats.unverified_originals ?? 0 }} 项</p><p class="stats-detail">统计更新于 {{ nextCheck(statistics.calculated_at) }}；显示该时刻的统计，可手动刷新。</p></template><p v-if="statsError" class="error" role="alert">统计读取失败：{{ statsError }}{{ statistics ? '；保留上次统计。' : '；不影响设置保存。' }}</p><p class="stats-detail">统计当前默认版本：登记表示已有本地路径；核验表示文件已经检查。历史版本和动图预览不重复计数。</p><div class="path-display">{{ settings.data_root }}</div><div class="settings-controls"><button @click="browsePath"><Icon name="folder" />选择目录</button><span v-if="pendingPath" class="muted">{{ pendingPath }}</span><button v-if="pendingPath" :disabled="busy" @click="confirmPath = true">迁移到这里</button></div></div>
       <div class="settings-card"><div><h3>访问端口</h3><p>当前使用 {{ settings.current_port }}；修改后重启程序才会生效。</p></div><div class="settings-controls"><input v-model="port" type="number" min="1024" max="65535" aria-label="下次启动端口"><button :disabled="busy" @click="savePort">保存端口</button></div></div>
       <div class="settings-card settings-stack"><div><h3>手机访问</h3><p>电脑和手机连接同一局域网，在手机浏览器打开以下当前端口地址。</p></div><div v-for="address in settings.lan_urls || []" :key="address" class="lan-address"><a :href="address">{{ address }}</a><button @click="copyAddress(address)">复制地址</button></div><p v-if="!settings.lan_urls?.length">暂未发现可用局域网地址，请检查电脑的网络连接。</p></div>
       <h2 class="settings-section-title">界面</h2>

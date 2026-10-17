@@ -24,7 +24,11 @@ _current: ContextVar[tuple[str, str]] = ContextVar("diagnostic_context", default
 _recorder = None
 DEFAULT_PART_BYTES = 64 * 1024 * 1024
 FAST_SPAN_MS = 25.0
-_COMPACT_EVENTS = frozenset(("read.connection_attached", "read.connection_detached", "read.budget_created"))
+_COMPACT_EVENTS = frozenset(("read.connection_attached", "read.connection_detached", "read.budget_created",
+    "read.queue_enqueued", "read.queue_dequeued", "read.admission_released"))
+# These spans describe an expected lifetime/delay, not unfinished business.
+# Keep lifecycle boundaries and trace context without repeatedly sampling them.
+_EXPECTED_WAIT_SPANS = frozenset(("application.run", "wal.wait"))
 _DIMENSIONS = frozenset(("lane", "endpoint", "stage", "outcome", "reason", "kind", "mode", "thread_name"))
 _private = {"token", "password", "secret", "authorization", "cookie", "headers",
     "parameters", "params", "payload", "target", "result", "body", "url", "path",
@@ -389,9 +393,15 @@ def emit(event, **fields):
     try:
         recorder = _recorder
         if _live(recorder):
-            if event in _COMPACT_EVENTS or (event == "read.completed" and fields.get("outcome") == "ok"
-                                           and fields.get("total_ms", 0) < FAST_SPAN_MS):
-                recorder.aggregate(event, duration_ms=fields.get("total_ms", 0),
+            duration = fields.get("total_ms", fields.get("queue_ms", fields.get("dispatch_wait_ms", 0)))
+            normal = (not fields.get("error_type") and fields.get("outcome") in (None, "ok")
+                      and not fields.get("cancelled") and not fields.get("timed_out"))
+            compact = (event in _COMPACT_EVENTS
+                       or event in {"read.completed", "read.admitted", "read.worker_started"} and duration < FAST_SPAN_MS
+                       or event == "read.worker_cleanup" and fields.get("after_cancel_ms") is None
+                       or event == "db.background.eligibility" and fields.get("allowed") and not fields.get("pressure"))
+            if compact and normal:
+                recorder.aggregate(event, duration_ms=duration,
                                    **{key: value for key, value in fields.items() if key in _DIMENSIONS})
                 return
             recorder.put(event, **fields)
@@ -432,16 +442,17 @@ def span(event, **fields):
     identity = None
     parent = ""
     started = time.monotonic()
-    compact = event.startswith("db.read.") or event in {"task.scheduler_step", "http.send"}
+    compact = event.startswith("db.read.") or event in {"task.scheduler_step", "http.send", "read.admission_wait", "wal.wait"}
     try:
         identity = uuid.uuid4().hex[:12]
         trace, parent = _current.get()
         trace = trace or identity
         token = _current.set((trace, identity))
         started = time.monotonic()
-        with recorder.lock:
-            recorder.active[identity] = {"span": identity, "event": event, "trace": trace,
-                "parent": parent, "thread": threading.get_ident(), "started": started, **_clean(fields)}
+        if event not in _EXPECTED_WAIT_SPANS:
+            with recorder.lock:
+                recorder.active[identity] = {"span": identity, "event": event, "trace": trace,
+                    "parent": parent, "thread": threading.get_ident(), "started": started, **_clean(fields)}
         if not compact:
             emit(event + ".begin", **{**fields, "span": identity, "parent": parent})
     except Exception:
@@ -457,7 +468,8 @@ def span(event, **fields):
             with recorder.lock:
                 recorder.active.pop(identity, None)
             duration_ms = round((time.monotonic() - started) * 1000, 3)
-            if compact and duration_ms < FAST_SPAN_MS and "error_type" not in record:
+            if (compact and (duration_ms < FAST_SPAN_MS or event == "wal.wait")
+                    and "error_type" not in record and record.get("outcome") in (None, "ok")):
                 aggregate(event, duration_ms=duration_ms,
                           **{key: value for key, value in {**fields, **record}.items() if key in _DIMENSIONS})
             else:

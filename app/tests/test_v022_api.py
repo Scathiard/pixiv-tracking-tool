@@ -149,7 +149,7 @@ def test_settings_and_artist_routes_on_offline_synthetic_runtime(tmp_path):
     with TestClient(app) as client:
         settings = client.get("/api/settings").json()
         assert settings["login"]["status"] == "offline"
-        assert settings["stats"]["artists"] == 1
+        assert client.get("/api/settings/stats").json()["stats"]["artists"] == 1
         assert client.patch("/api/settings", json={"automatic_paused": True}).json()["automatic_paused"] is True
         assert client.get("/api/artists?q=Local").json()["total"] == 1
         assert client.get("/api/artists/1").json()["biography"] == "local"

@@ -6,12 +6,15 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Integer, String, and_, case, func, or_, select, text, union
 import socket
 import ipaddress
+from datetime import datetime, timezone
+from threading import Lock
+from time import monotonic
 
 from .. import config
 from ..auth import get_pending_login_url
 from ..core.models import ArchiveIntent, Artist, Asset, RevisionAsset, Work
 from ..core.activity_log import processing_log
-from ..core.read_control import local_read
+from ..core.read_control import current_read, local_read
 from ..core import diagnostics
 from ..version import __version__, __build__
 from ..scheduler import interval_snapshot, save_interval
@@ -50,8 +53,7 @@ def create_settings_router(get_runtime):
             raise HTTPException(503, "图库尚未准备好")
         return current
 
-    def snapshot():
-        current = runtime()
+    def statistics(current):
         with current.database.read() as session:
             with diagnostics.span("read.settings.counts"):
                 artists = session.scalar(select(func.count()).select_from(Artist)) or 0
@@ -109,6 +111,12 @@ def create_settings_router(get_runtime):
             with diagnostics.span("read.settings.totals.consume"):
                 totals = result.one()
             downloaded_pages, registered, verified, unknown, missing = totals
+        return {"artists": artists, "works": works, "downloaded_pages": downloaded_pages,
+                "registered_originals": registered, "verified_originals": verified,
+                "missing_originals": missing, "unverified_originals": unknown}
+
+    def snapshot():
+        current = runtime()
         status = "logged_in" if current.client is not None else (
             "pending" if get_pending_login_url() else "offline")
         # A GET must not contact Pixiv just to retrieve the current account ID.
@@ -122,16 +130,42 @@ def create_settings_router(get_runtime):
             "data_root": str(config.DATA_ROOT),
             "check_interval_minutes": interval["minutes"],
             "next_check_at": interval["next_check_at"],
-            "lan_urls": lan_addresses(config.LISTENING_PORT),
-            "stats": {"artists": artists, "works": works, "downloaded_pages": downloaded_pages,
-                      "registered_originals": registered, "verified_originals": verified,
-                      "missing_originals": missing, "unverified_originals": unknown}}
+            "lan_urls": lan_addresses(config.LISTENING_PORT)}
 
     @router.get("/api/settings")
     @local_read(get_runtime, coalesce=True, coalesce_context=lambda current:
         (config.PORT, config.LISTENING_PORT, bool(get_pending_login_url())))
     def settings():
         return snapshot()
+
+    # The optional statistics read is the only owner of this short-lived cache.
+    # These are explicitly timestamped statistics, not current task state.
+    # Background writes must not defeat the cache while a queue is busy.
+    # Cancellation also applies while waiting for the single statistics read.
+    stats_lock = Lock()
+    stats_cache = None
+
+    @router.get("/api/settings/stats")
+    @local_read(get_runtime, lane="logs", coalesce=True)
+    def settings_stats(refresh: bool = False):
+        nonlocal stats_cache
+        current = runtime()
+        budget = current_read.get()
+        requested_at = budget.started if budget is not None else monotonic()
+        while not stats_lock.acquire(timeout=.1):
+            if (budget := current_read.get()) is not None:
+                budget.checkpoint()
+        try:
+            if (stats_cache is not None and stats_cache[0] is current.database
+                    and monotonic() - stats_cache[1] < 15
+                    and (not refresh or stats_cache[1] >= requested_at)):
+                return stats_cache[2]
+            value = {"stats": statistics(current),
+                     "calculated_at": datetime.now(timezone.utc).isoformat()}
+            stats_cache = (current.database, monotonic(), value)
+            return value
+        finally:
+            stats_lock.release()
 
     @router.get("/api/logs")
     @local_read(get_runtime, lane="logs", coalesce=True)
@@ -155,6 +189,6 @@ def create_settings_router(get_runtime):
             current.queue.set_automatic_paused(edit.automatic_paused)
         if edit.check_interval_minutes is not None:
             save_interval(current, edit.check_interval_minutes)
-        return snapshot()
+        return {"ok": True, **snapshot()}
 
     return router
