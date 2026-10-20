@@ -1,0 +1,34 @@
+{
+  "version": "0.2.0",
+  "build": "20261021.3",
+  "exe_file": "PixivTracker_v0.2.0_build20261021.3.exe",
+  "exe_size_bytes": 75287197,
+  "exe_sha256": "a05844283fc34043eb0f1fb384ebdb023efb9c5f63f6d3d399e5a7ac10e72b59",
+  "source_commit": "9584a935e16b4938e009bcd115cebe085d950a9c",
+  "source_branch": "codex/continuous-stream-20261021",
+  "source_dirty": false,
+  "frontend_dist": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\app\\frontend\\dist",
+  "database_schema": "0005_read_cards_tasks",
+  "database_upgrade_required": false,
+  "database_compatible_from": "0005_read_cards_tasks",
+  "explicit_upgrade_supported_from": [
+    "0001_archive",
+    "0002_client",
+    "0003_revisions",
+    "0004_read_projections"
+  ],
+  "older_database_upgrade_required": true,
+  "database_upgrade_entry": "startup-confirmed backup / validate / activate",
+  "build_environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "pyinstaller": "6.20.0"
+  },
+  "published": false,
+  "user_acceptance": false,
+  "validation": "Focused source, browser and final EXE checks passed; enabled normally; physical mobile acceptance pending.",
+  "enabled_locally": true,
+  "known_limitations": [
+    "First complete live reading manifest still took 43.178 seconds; BUG-120 remains open."
+  ]
+}
