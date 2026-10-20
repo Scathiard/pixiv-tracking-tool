@@ -1,0 +1,195 @@
+{
+  "baseline": "162ac99",
+  "entries": [
+    {
+      "id": "BUG-011",
+      "title": "网页有简介而接口返回空简介",
+      "status": "搁置",
+      "reason": "原报告针对外部来源差异；现有简介状态与缺字段保留机制不能证明历史样本的网页/接口差异已解决，也无当前外部复核证据。",
+      "code": ["app/src/client.py:PixivClient._parse_illust", "app/src/core/archive.py:ArchiveHandler._save_remote_work_in_session"],
+      "evidence": ["docs/BUG回报.md", "docs/审查/2026-10-03-集中交付.md"],
+      "acceptance": "出现当前样本或稳定新来源再重开；先区分合法空值、接口缺字段、权限和临时失败，不安排全库抓取。"
+    },
+    {
+      "id": "BUG-015",
+      "title": "迁移失败未恢复旧运行环境及目标冲突后切换",
+      "status": "已修复待验收",
+      "reason": "当前目录切换先验证独立候选并门禁领取，以配置原子替换为提交点；提交前失败恢复原实例，目标冲突与同长损坏有拒绝路径；结构升级另有备份、启用与失败恢复机制，旧待修复状态过时。",
+      "code": ["app/src/web.py:create_app.switch_root", "app/src/core/relocation.py:prepare_relocation", "app/src/data_migration.py:prepare_migration", "app/src/data_migration.py:execute_migration", "app/src/core/upgrade.py:guard_upgrade_recovery"],
+      "evidence": ["docs/审查/2026-09-30-存档流程修订.md", "docs/审查/证据/2026-10-03-集中交付/backend.xml", "docs/审查/2026-10-03-集中交付.md", "docs/审查/证据/2026-10-03-集中交付/exe-strict-upgrade.json"],
+      "acceptance": "已有隔离配置失败、候选门禁、同长损坏和旧库升级证据；目录实际搬迁的用户验收仍缺，提交后原实例关闭失败明确要求重启，不承诺无条件回滚。"
+    },
+    {
+      "id": "BUG-021",
+      "title": "筛选、分页、空结果恢复和乱序响应脱节",
+      "status": "已修复待验收",
+      "reason": "筛选统一生成查询条件，图库请求采用可取消代际与旧响应拒绝，共享筛选及分页；完整筛选与500件分页全范围已有隔离浏览器和EXE证据。",
+      "code": ["app/frontend/src/FilterPanel.vue:apply", "app/frontend/src/GalleryView.vue:fetchRange", "app/frontend/src/GalleryView.vue:restart", "app/src/core/library.py:Library.query", "app/src/core/library.py:Library.query_cursor"],
+      "evidence": ["docs/审查/2026-09-27-v0.2.2接口与实施记录.md", "docs/审查/2026-10-03-集中交付.md", "docs/审查/证据/2026-10-03-集中交付/daily-browser.json", "docs/审查/证据/2026-10-03-集中交付/browser-scale.json"],
+      "acceptance": "日常连续筛选和手机手感待用户验收；后台变化导致的游标续读另归BUG-117，不与本项自动合并。"
+    },
+    {
+      "id": "BUG-022",
+      "title": "下载失败仍显示任务成功",
+      "status": "已修复待验收",
+      "reason": "现行实际下载器检查HTTP和长度，保存前验证媒体与发布结果，任务按失败/部分失败结案；不再依赖旧gallery-dl返回值。现有任务失败、发布失败和真实本机下载证据覆盖新路径。",
+      "code": ["app/src/core/download.py:AssetDownloader.download", "app/src/core/archive.py:ArchiveHandler.execute", "app/src/core/tasks.py:TaskQueue._finalize"],
+      "evidence": ["docs/审查/2026-09-30-存档流程修订.md", "docs/审查/证据/2026-10-03-集中交付/backend.xml", "docs/审查/证据/2026-10-03-集中交付/source-smoke.json", "docs/审查/证据/2026-10-03-集中交付/exe-smoke.json"],
+      "acceptance": "模拟下载失败/部分成功与本机实际下载通过；真实主站下载失败反馈仍由日常复验，不因此认定真实图库已齐全。"
+    },
+    {
+      "id": "BUG-033",
+      "title": "补下载进度分母包含全部旧文件",
+      "status": "已修复待验收",
+      "reason": "现行进度基于实际任务项及阶段/单位，未完成清点时分母为未知；百页只补两页、固定分母及部分失败已有隔离证据，旧全画师页数和新增文件数对比路径已替换。",
+      "code": ["app/src/core/archive.py:ArchiveHandler._plan_work", "app/src/core/tasks.py:TaskQueue._step_progress", "app/src/core/tasks.py:TaskQueue._operation_view"],
+      "evidence": ["docs/审查/2026-09-30-存档流程修订.md", "docs/审查/证据/2026-10-03-集中交付/backend.xml", "docs/审查/证据/2026-09-30-存档流程修订/browser-pipeline.json"],
+      "acceptance": "大量已有文件加少量缺页的真实EXE进度仍待用户日常复验；不与阶段串数BUG-034或进度请求超时BUG-108合并。"
+    },
+    {
+      "id": "BUG-034",
+      "title": "简介阶段完成数带入下载阶段",
+      "status": "已修复待验收",
+      "reason": "阶段与单位各自保存计数并在事务中一起切换，当前下载进度不继承简介计数；已有阶段原子更新及并行阶段专项通过记录。",
+      "code": ["app/src/core/tasks.py:TaskQueue._report_step_in_transaction", "app/src/core/tasks.py:TaskQueue.record_settlement_in_transaction", "app/src/core/tasks.py:TaskQueue._operation_view"],
+      "evidence": ["docs/审查/2026-09-30-存档流程修订.md", "docs/审查/证据/2026-10-03-集中交付/backend.xml"],
+      "acceptance": "源码隔离已覆盖阶段切换；真实刷新先补简介再下载的观察待日常验收，不以结束强设100%关闭。"
+    },
+    {
+      "id": "BUG-035",
+      "title": "旧作品限制等级缺失或不显示",
+      "status": "待核实",
+      "reason": "应拆清事实：已知x_restrict在图库、画师预览、详情和流式的角标显示已修复且有浏览器/EXE证据；历史等级数据是否缺失及回填范围仍未查证，不能整体记作已修复。",
+      "code": ["app/frontend/src/components/RestrictionBadge.vue:label", "app/src/core/library.py:Library._work_view", "app/src/core/archive.py:ArchiveHandler._save_remote_work_in_session"],
+      "evidence": ["docs/审查/2026-09-28-v0.2.3界面修订.md", "docs/审查/证据/2026-09-28-v0.2.3/browser.json", "docs/审查/证据/2026-09-28-v0.2.3/exe-browser.json", "docs/BUG回报.md"],
+      "acceptance": "显示修复待用户验收；旧资料真实性和需要回填的样本待核实，保留R-016，不能推断所有0均为缺失或擅自全库回填。"
+    },
+    {
+      "id": "BUG-036",
+      "title": "多页缺页和零字节仍算完整",
+      "status": "已修复待验收",
+      "reason": "原件按每页登记与核验，空文件/坏图拒绝，整件完整性计算缺项而非只看file_paths非空；百页只补两页及坏文件验证有通过证据。",
+      "code": ["app/src/core/archive.py:ArchiveHandler._inspect_asset", "app/src/core/archive.py:ArchiveHandler._plan_work", "app/src/core/media.py:verify_media", "app/src/core/library.py:Library._raw_revision_archive"],
+      "evidence": ["docs/审查/2026-09-30-存档流程修订.md", "docs/审查/证据/2026-10-03-集中交付/backend.xml", "docs/审查/证据/2026-10-03-集中交付/exe-smoke.json"],
+      "acceptance": "真实图库是否存在缺项及能否全部补回不是本次核对结论；需用户日常复验具体补图与完整性反馈。"
+    },
+    {
+      "id": "BUG-037",
+      "title": "画师路径含#或%时图片打不开",
+      "status": "已修复待验收",
+      "reason": "现行media_url在Web边界编码一次，媒体路由按框架解码后的字面相对路径授权和读取，已不调用旧重复解码函数；旧登记路径转换和真实媒体读取有证据。",
+      "code": ["app/src/core/library.py:media_url", "app/src/routes/archive_api.py:create_router.media", "app/src/core/runtime.py:Runtime._media_path_observed", "app/src/core/legacy_import.py:_media_relative"],
+      "evidence": ["docs/审查/2026-09-27-真实图库切换执行记录.md", "docs/审查/2026-09-26-两阶段实施与隔离验证.md", "docs/审查/证据/2026-10-03-集中交付/backend.xml"],
+      "acceptance": "未找到新实现对原Hash#Name/Percent%20Name样本的独立HTTP复测记录；保留该专项验收缺口，不能仅凭已迁移路径就关闭。"
+    },
+    {
+      "id": "BUG-038",
+      "title": "画师改名失败造成目录与记录不一致",
+      "status": "已修复待验收",
+      "reason": "现行资料刷新只改画师资料，媒体使用保留的directory或稳定artist_ID及版本目录，不再随画师名执行搬目录；发布日志另有移动后故障恢复证据。",
+      "code": ["app/src/core/archive.py:ArchiveHandler._execute_metadata", "app/src/core/profiles.py:ArtistProfiles.refresh", "app/src/core/profiles.py:ArtistProfiles.save", "app/src/core/revisions.py:revision_directory", "app/src/core/media.py:Publisher.publish", "app/src/core/media.py:Publisher.recover"],
+      "evidence": ["docs/审查/2026-09-26-两阶段实施与隔离验证.md", "docs/审查/2026-09-27-真实图库切换执行记录.md", "docs/审查/证据/2026-10-03-集中交付/backend.xml"],
+      "acceptance": "原改名并注入提交失败场景未找到新路径专项记录；需针对旧保留目录和改名后后续下载确认，但不能沿用旧代码仍会搬名的结论。"
+    },
+    {
+      "id": "BUG-039",
+      "title": "动图时序缺失仍生成坏GIF且删ZIP",
+      "status": "已修复待验收",
+      "reason": "当前时序要求每帧正时长并与ZIP配对，转换验证成功后发布，ZIP和时序为独立长期保留原件；缺时序、转换上限和失败保源有通过证据。",
+      "code": ["app/src/core/media.py:read_timing", "app/src/core/media.py:verify_ugoira_pair", "app/src/core/media.py:build_gif", "app/src/core/archive.py:ArchiveHandler.execute"],
+      "evidence": ["docs/审查/证据/2026-10-03-集中交付/backend.xml", "docs/审查/2026-10-03-集中交付.md", "docs/审查/证据/2026-10-03-集中交付/exe-smoke.json"],
+      "acceptance": "真实动图下载/转换及用户体验待验收；不把旧GIF-only缺原包与本项转换失败删源混成同一事故。"
+    },
+    {
+      "id": "BUG-040",
+      "title": "HTTP错误或主站未确认仍显示已收藏",
+      "status": "已修复待验收",
+      "reason": "现行写入最多一次、HTTP/业务有效性检查、固定账号回读和独立意图/事实，只有同账号有效回读才确认；已有模拟拒绝、丢响应、缺字段和重启证据，真实主站仍未验收。",
+      "code": ["app/src/client.py:PixivClient.write_bookmark", "app/src/core/bookmarks.py:BookmarkService._run_active", "app/src/core/bookmarks.py:BookmarkService._confirm"],
+      "evidence": ["docs/审查/2026-09-27-v0.2.2接口与实施记录.md", "docs/审查/证据/2026-10-03-集中交付/backend.xml", "docs/审查/2026-10-20-阅览与收藏修订.md"],
+      "acceptance": "同账号真实主站收藏/取消事实核对仍阻断验收；BUG-118的后台回读吞意图和按钮阻塞是另一根因。"
+    },
+    {
+      "id": "BUG-041",
+      "title": "画师首次打开只能看首批50件且总数错误",
+      "status": "已修复待验收",
+      "reason": "画师作品已进入统一分页图库，观察器在DOM就绪后绑定，画师数量来自独立批量统计；现有5000件/500件分页及画师直达EXE证据覆盖新入口。",
+      "code": ["app/frontend/src/GalleryView.vue:windowElement watcher", "app/frontend/src/GalleryView.vue:fetchRange", "app/src/core/library.py:Library._artist_views", "app/src/core/library.py:Library.artist_page"],
+      "evidence": ["docs/审查/2026-09-27-v0.2.2接口与实施记录.md", "docs/审查/证据/2026-09-27-v0.2.2/exe-browser-final.json", "docs/审查/证据/2026-10-03-集中交付/browser-scale.json"],
+      "acceptance": "用户日常直接进入大画师并遍历末端及核对数量待体验验收；不因共用图库就并入BUG-021。"
+    },
+    {
+      "id": "BUG-042",
+      "title": "加载更多后一次收藏点击发送两次请求",
+      "status": "已修复待验收",
+      "reason": "现行统一Vue收藏控件和共享状态以显式目标/请求ID提交，重复请求去重；已记录模拟收藏/取消往返与延迟点击检查，旧重复事件绑定路径已替换。",
+      "code": ["app/frontend/src/components/BookmarkButton.vue:click", "app/frontend/src/state/bookmarks.ts:toggleBookmark", "app/src/core/bookmarks.py:BookmarkService._enqueue_in_session"],
+      "evidence": ["docs/审查/2026-09-27-v0.2.2接口与实施记录.md", "docs/审查/证据/2026-09-27-v0.2.2/bookmark-http-fallback.json", "docs/审查/2026-09-28-v0.2.3界面修订.md"],
+      "acceptance": "真实主站与加载后卡片收藏的日常验收仍缺；与BUG-040共享执行包但错误原因及验收断言不同，保留编号。"
+    },
+    {
+      "id": "BUG-043",
+      "title": "投稿时区丢失导致近期和日期边界偏移",
+      "status": "已修复待验收",
+      "reason": "当前入库将有时区时间归一UTC，自定义日期带设备偏移且后端分别处理UTC和legacy_unknown；现有跨日边界隔离证据通过，历史未知日期没有批量猜测重写。",
+      "code": ["app/src/core/archive.py:ArchiveHandler._save_remote_work_in_session", "app/src/core/library.py:Library._statement", "app/frontend/src/FilterPanel.vue:apply", "app/src/core/legacy_import.py:import_legacy"],
+      "evidence": ["docs/审查/2026-10-03-集中交付.md", "docs/审查/证据/2026-10-03-集中交付/backend.xml", "docs/BUG回报.md"],
+      "acceptance": "设备实际日期范围待用户复验；旧unknown记录真实时区仍未知，任何旧日期修订须单独查证和批准，不能视为已校正。"
+    },
+    {
+      "id": "BUG-044",
+      "title": "单件下载扩大到整画师且缺文件被旧去重跳过",
+      "status": "已修复待验收",
+      "reason": "当前任务显式携带work_ids，计划只枚举指定作品并按每页缺项发出下载，不再以gallery-dl用户URL和旧去重库控制范围；百页只补两页及所选修复不碰他件有证据。",
+      "code": ["app/src/routes/archive_api.py:create_router.submit", "app/src/core/archive.py:ArchiveHandler._work_ids", "app/src/core/archive.py:ArchiveHandler._plan_work"],
+      "evidence": ["docs/审查/2026-09-26-两阶段实施与隔离验证.md", "docs/审查/证据/2026-10-03-集中交付/backend.xml", "docs/审查/证据/2026-10-03-集中交付/exe-smoke.json"],
+      "acceptance": "真实主站单件/缺页下载待日常验收；BUG-036是完整性判定，本项是操作范围，不能合并。"
+    },
+    {
+      "id": "BUG-045",
+      "title": "保存新端口后托盘提前打开未生效地址",
+      "status": "已修复待验收",
+      "reason": "LISTENING_PORT与待启动PORT分离，托盘读取当前监听端口，设置返回current_port/next_port；已有保存端口不改运行链接通过记录。",
+      "code": ["app/src/config.py:LISTENING_PORT", "app/src/tray.py:_open_gallery", "app/src/tray.py:_open_settings", "app/src/routes/settings_api.py:create_settings_router"],
+      "evidence": ["docs/审查/证据/2026-10-03-集中交付/backend.xml", "docs/审查/2026-09-27-v0.2.2接口与实施记录.md"],
+      "acceptance": "现有源码证据覆盖端口分离；用户实际保存后不重启从托盘打开、重启后新端口生效的完整体验待验收。"
+    },
+    {
+      "id": "BUG-046",
+      "title": "手机设置页长地址横向溢出",
+      "status": "已修复待验收",
+      "reason": "当前手机地址容器允许折行，链接可任意断行并独立提供复制；20261003.4已有320/390px长地址隔离布局检查，不应继续记待修复。",
+      "code": ["app/frontend/src/views/SettingsView.vue:.lan-address", "app/frontend/src/views/SettingsView.vue:copyAddress"],
+      "evidence": ["docs/审查/2026-10-03-集中交付.md", "docs/BUG回报.md", "docs/审查/证据/2026-10-03-集中交付/exe-reading.json"],
+      "acceptance": "实体手机上地址可读、复制可用及按钮布局待用户验收；不能用手机尺寸浏览器替代实机。"
+    },
+    {
+      "id": "BUG-047",
+      "title": "未登录时本地删除静默无效",
+      "status": "已修复待验收",
+      "reason": "本地删除经Runtime立即保存删除意图并提交delete任务，离线allowed_kinds明确允许delete，路由不依赖Pixiv Tracker；删除与隐藏、晚到发布保护有隔离回归证据。",
+      "code": ["app/src/routes/archive_api.py:create_router.delete", "app/src/core/runtime.py:Runtime.delete", "app/src/core/runtime.py:Runtime.__init__", "app/src/core/media.py:Publisher.suppress", "app/src/core/media.py:Publisher.finish_deletion"],
+      "evidence": ["docs/审查/2026-09-26-两阶段实施与隔离验证.md", "docs/审查/证据/2026-10-03-集中交付/backend.xml", "docs/审查/2026-10-03-集中交付.md"],
+      "acceptance": "未发现当前版本用户离线删除的明确验收结论；本轮不操作真实数据，需用户以愿意删除的本地项日常确认。"
+    },
+    {
+      "id": "BUG-048",
+      "title": "同画师下载吞掉后来的刷新任务",
+      "status": "已修复待验收",
+      "reason": "当前去重键包含kind和完整parameters，自动检查意图另分开；已记录同画师check/repair/metadata得到不同任务ID的专项通过证据。",
+      "code": ["app/src/core/tasks.py:TaskQueue.enqueue_in_transaction", "app/src/routes/archive_api.py:create_router.submit"],
+      "evidence": ["docs/审查/证据/2026-10-03-集中交付/backend.xml", "docs/审查/2026-09-30-存档流程修订.md"],
+      "acceptance": "当前语义去重已隔离验证；真实日常同范围补图和刷新并存的反馈待用户验收，不与后续其他任务饥饿/暂停问题合并。"
+    },
+    {
+      "id": "BUG-049",
+      "title": "异步页面路由直接运行同步DB阻塞事件循环",
+      "status": "已修复待验收",
+      "reason": "现行本地读取通过local_read有界准入后在线程执行，同步写路由使用def，已脱离原async def直接阻塞路径；有慢远端不挡本地图库及后续读通道修订证据。",
+      "code": ["app/src/core/read_control.py:local_read", "app/src/core/read_control.py:run_read", "app/src/routes/archive_api.py:create_router", "app/src/routes/settings_api.py:create_settings_router"],
+      "evidence": ["docs/审查/证据/2026-10-03-集中交付/backend.xml", "docs/审查/2026-10-04-并行任务与本地读取修订.md", "release/v0.2.0/build-20261008.1/VALIDATION.md"],
+      "acceptance": "只判原同步DB占事件循环根因已修复；当前BUG-108的进度间歇超时仍开放，不能由线程化外推整体并发性能已验收。"
+    }
+  ],
+  "merge_suggestions": []
+}
