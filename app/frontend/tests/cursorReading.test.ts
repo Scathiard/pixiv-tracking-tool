@@ -250,7 +250,7 @@ test('an expiration error propagates unchanged without automatic restart', async
   assert.equal(reading.retainedPages, 0)
 })
 
-test('recovery retains selected identity, removes its token and both original snapshot parameters', async () => {
+test('recovery retains selected identity and original snapshot parameters while removing its token', async () => {
   const fresh = fixture([2, 3], 8)
   const reading = new CursorReading('q=synthetic&tags=blue&ceiling=5&as_of=original&page=20', fresh)
   reading.seed(batch([slot(3, 2, 1, 3, 1, 7, 0)]))
@@ -265,8 +265,8 @@ test('recovery retains selected identity, removes its token and both original sn
   assert.equal(request.get('index'), '3')
   assert.equal(request.get('work_index'), '1')
   assert.equal(request.has('cursor'), false)
-  assert.equal(request.has('ceiling'), false)
-  assert.equal(request.has('as_of'), false)
+  assert.equal(request.get('ceiling'), '999')
+  assert.equal(request.get('as_of'), 'snapshot-7')
   assert.equal(request.get('q'), 'synthetic')
   assert.equal(request.get('tags'), 'blue')
   assert.equal(result.items[0]!.work_id, 2)
@@ -345,4 +345,43 @@ test('invalid range and noncanonical responses do not poison the registry', asyn
   await assert.rejects(reading.load(0, 2, signal()), /响应顺序无效/)
   assert.equal(reading.generation, undefined)
   assert.equal(reading.retainedPages, 0)
+})
+
+
+test('validated continuations survive repeated unrelated generation mutations', async () => {
+  const opening = fixture([2, 3], 7)
+  let generation = 7
+  const reading = new CursorReading('q=synthetic&ceiling=999&as_of=frozen', {request: async (...args) => {
+    const result = await opening.request(...args)
+    return {...result, generation: generation++, continuation_rebased: true}
+  }})
+  await reading.load(0, 1, signal())
+  await reading.load(1, 1, signal())
+  await reading.load(2, 1, signal())
+  assert.equal(reading.generation, 9)
+  assert.equal(reading.anchorAt(2)?.work_id, 2)
+  assert.equal(opening.calls.length, 3)
+})
+
+test('expired continuation retries the same identity, direction and frozen scope only once', async () => {
+  const server = fixture([2, 3], 8), requests: URLSearchParams[] = []
+  const reading = new CursorReading('tags=blue&sort=oldest&ceiling=999&as_of=frozen', {request: async (path, options) => {
+    const params = new URL(path, 'http://synthetic.test').searchParams
+    requests.push(params)
+    if (params.has('cursor')) throw new ApiReadError('changed boundary', 'cursor_expired')
+    return server.request(path, options)
+  }})
+  reading.seed(batch([slot(1, 1, 1, 2, 0)]))
+  const result = await reading.load(2, 1, signal())
+  assert.equal(result.items[0]!.work_id, 2)
+  assert.equal(reading.generation, 8)
+  assert.equal(requests.length, 2)
+  assert.equal(requests[1]!.has('cursor'), false)
+  for (const field of ['anchor_work_id', 'page', 'index', 'work_index', 'direction', 'ceiling', 'as_of', 'tags', 'sort']) {
+    assert.equal(requests[1]!.get(field), requests[0]!.get(field), field)
+  }
+  const removed = new CursorReading('', {request: async () => { throw new ApiReadError('removed', 'cursor_expired') }})
+  removed.seed(batch([slot(0, 1, 0, 1, 0)]))
+  await assert.rejects(removed.load(1, 1, signal()), /removed/)
+  assert.equal(removed.generation, 7)
 })

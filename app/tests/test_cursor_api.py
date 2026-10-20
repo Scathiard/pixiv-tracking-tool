@@ -61,7 +61,7 @@ def test_expired_generation_and_explicit_recovery(cursor_api):
     first = read(client, '/api/library/cursor/feed', limit=1)
     token = first['items'][0]['work_cursor']
     with runtime.database.write() as session:
-        session.get(Work, 3).title = 'Changed synthetic title'
+        session.get(Work, 3).posted_at = datetime(2026, 2, 3)
     expired = client.get('/api/library/cursor/feed', params={'cursor':token,'anchor_work_id':3,'page':1,'index':1})
     assert expired.status_code == 409 and expired.json()['detail']['code'] == 'cursor_expired'
     recovered = read(client, '/api/library/cursor/feed', anchor_work_id=3, page=1, index=1, limit=1)

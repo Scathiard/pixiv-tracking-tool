@@ -73,9 +73,11 @@ def freeze_bootstrap(session, artist_id, kind):
 
 
 def plan_batch(handler, parameters, context, cursor):
+    from .task_planning import CHECK_ARTIST_BATCH
     ids = handler._artist_ids(parameters, context)
     offset = cursor.get("incremental_artist_offset", 0)
-    subset = ids[offset:offset + 32]
+    # Two list items per artist; at most eight new projection items per commit.
+    subset = ids[offset:offset + CHECK_ARTIST_BATCH]
     specs = [ItemSpec(f"incremental-page-{ident}-{kind}", "discover_page",
         {"artist_id": ident, "work_type": kind, "offset": 0, "incremental": MODE}, "checking", "artists")
         for ident in subset for kind in ("illust", "manga")]

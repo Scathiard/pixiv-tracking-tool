@@ -4,6 +4,7 @@ import type { Anchor, PageBatch, PageData, PageLoader } from '../types.ts'
 export interface CursorPageBatch extends PageBatch {
   generation: number
   has_more: boolean
+  continuation_rebased?: boolean
 }
 export type CursorPageRequest = (path: string, options: {signal: AbortSignal}) => Promise<CursorPageBatch>
 export interface CursorReadingOptions {request?: CursorPageRequest; maxPages?: number}
@@ -58,7 +59,7 @@ export class CursorReading {
 
   seed(batch: CursorPageBatch) {
     this.validateBatch(batch, MAX_READ)
-    this.checkGeneration(batch.generation)
+    this.checkGeneration(batch)
     this.invalidate()
     this.install(batch, 'next')
   }
@@ -71,10 +72,11 @@ export class CursorReading {
     this.query.delete('ceiling'); this.query.delete('as_of')
   }
 
-  /** Drop expired tokens and the old snapshot, keeping just the selected identity. */
+  /** Drop expired tokens while retaining the original scope and snapshot ceiling. */
   recover(page?: PageData | null) {
     if (page) this.validatePage(page)
-    this.reset()
+    this.invalidate(); this.pages.clear(); this.currentGeneration = undefined
+    this.extent = 0; this.finalExtent = undefined
     if (page) this.remember([{...page, work_cursor: undefined}])
   }
 
@@ -96,22 +98,22 @@ export class CursorReading {
       if (predecessor) {
         // One page supplies the adjacent work's identity and span, even after
         // its old window was evicted. It is never installed on its own.
-        probe = await untilAborted(this.request(this.path(predecessor, 1), {signal: ownedSignal}), ownedSignal)
+        probe = await this.readWindow(predecessor, 1, ownedSignal)
         ownedSignal.throwIfAborted()
         this.validateBatch(probe, 1)
-        this.checkGeneration(probe.generation)
+        this.checkGeneration(probe)
         if (probe.items.length !== 1 || probe.items[0]!.index !== predecessor.index) {
           throw new ApiReadError('阅读范围已变化，请重新定位后继续', 'cursor_expired')
         }
         selected = this.select(offset, limit, probe.items)
         if (!selected) throw this.unsupportedJump()
       }
-      const batch = await untilAborted(this.request(this.path(selected!, selected!.limit ?? limit, probe), {signal: ownedSignal}), ownedSignal)
+      const batch = await this.readWindow(selected!, selected!.limit ?? limit, ownedSignal, probe)
       ownedSignal.throwIfAborted()
       if (revision !== this.revision) throw new DOMException('图片页读取已被替换', 'AbortError')
       this.validateBatch(batch, selected!.limit ?? limit)
-      this.checkGeneration(batch.generation)
-      if (probe && batch.generation !== probe.generation) {
+      this.checkGeneration(batch)
+      if (probe && batch.generation !== probe.generation && !batch.continuation_rebased) {
         throw new ApiReadError('阅读范围已变化，请重新定位后继续', 'cursor_expired')
       }
       if (batch.items.length && (batch.items[0]!.index !== offset ||
@@ -186,8 +188,23 @@ export class CursorReading {
     return url('/api/library/cursor/feed', this.query.toString(), extras)
   }
 
-  private checkGeneration(generation: number) {
-    if (this.currentGeneration !== undefined && generation !== this.currentGeneration) {
+  private async readWindow(selected: WindowRequest, limit: number, signal: AbortSignal, snapshot?: CursorPageBatch) {
+    const path = this.path(selected, limit, snapshot)
+    try { return await untilAborted(this.request(path, {signal}), signal) }
+    catch (error) {
+      signal.throwIfAborted()
+      if (!(error instanceof ApiReadError) || error.code !== 'cursor_expired' || !selected.page?.work_cursor) throw error
+      // One identity validation, in the same frozen scope, resumes this exact
+      // direction/page request. An invalid identity exits normally; never loop.
+      const identity = new URLSearchParams(path.slice(path.indexOf('?') + 1))
+      identity.delete('cursor')
+      const batch = await untilAborted(this.request('/api/library/cursor/feed?' + identity, {signal}), signal)
+      return {...batch, continuation_rebased: true}
+    }
+  }
+
+  private checkGeneration(batch: CursorPageBatch) {
+    if (this.currentGeneration !== undefined && batch.generation !== this.currentGeneration && !batch.continuation_rebased) {
       throw new ApiReadError('图库已变化，当前位置仍保留；重新定位后可继续', 'cursor_expired')
     }
   }

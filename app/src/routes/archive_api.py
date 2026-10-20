@@ -167,9 +167,12 @@ def create_router(get_runtime):
     @local_read(get_runtime)
     def cursor_neighbors(request: Request, work_id: int,
                          ceiling: int | None = Query(None, ge=0),
-                         cursor: str | None = Query(None, max_length=8192)):
+                         cursor: str | None = Query(None, max_length=8192),
+                         from_cursor: str | None = Query(None, max_length=8192),
+                         from_direction: Literal["next", "previous"] = "next"):
         try:
-            return runtime().library.cursor_neighbors(work_id, cursor_filters(request, cursor), ceiling=ceiling, cursor=cursor)
+            return runtime().library.cursor_neighbors(work_id, cursor_filters(request, cursor),
+                ceiling=ceiling, cursor=cursor, from_cursor=from_cursor, from_direction=from_direction)
         except ValueError as exc:
             cursor_failure(exc)
         except KeyError as exc:
@@ -184,75 +187,12 @@ def create_router(get_runtime):
                     anchor_work_id: int | None = Query(None, gt=0),
                     page: int = Query(0, ge=-1), index: int = Query(0, ge=0),
                     work_index: int = Query(0, ge=0)):
-        # Ordinals are browser-local hints, never exact SQL ranks. The token
-        # binds the actual identity, ordering, filters and projection generation.
-        selected = cursor_filters(request, cursor)
-        current = runtime().library
+        # Ordinals are browser-local hints; identity, membership and image
+        # slots are resolved together by Library in one read snapshot.
         try:
-            batch = current.list_cursor(selected, limit=min(500, limit + 1), cursor=cursor,
-                direction=direction, ceiling=ceiling, compact=True, anchor_work_id=anchor_work_id)
-            cards = batch["items"]
-            boundaries = batch.get("boundaries", [])
-            positions = {card["id"]: position for position, card in enumerate(cards)}
-            tokens = {card["id"]: card.get("cursor") or boundaries[position]
-                      for position, card in enumerate(cards)}
-            requests, remaining, ordinal, position = [], limit, index, work_index
-            candidates = cards if direction == "next" else list(reversed(cards))
-            more = bool(batch.get("has_more")) if direction == "next" else bool(batch.get("has_previous"))
-            for number, card in enumerate(candidates):
-                count = max(1, 1 if card["type"] == "ugoira" else card["page_count"])
-                first = page if number == 0 and anchor_work_id is not None else (0 if direction == "next" else count - 1)
-                if direction == "next" and first >= count or direction == "previous" and first < 0:
-                    position += 1 if direction == "next" else -1
-                    continue
-                first = min(count - 1, max(0, first))
-                take = min(remaining, count - first if direction == "next" else first + 1)
-                start_page = first if direction == "next" else first - take + 1
-                start_index = ordinal if direction == "next" else ordinal - take + 1
-                work_start = start_index - start_page
-                requests.append({"work_id": card["id"], "revision_id": card.get("revision_id"),
-                    "page_offset": start_page, "page_limit": take, "index": max(0, start_index),
-                    "work_index": max(0, position), "round": 0,
-                    "previous_work_index": None, "next_work_index": work_start + count})
-                remaining -= take
-                ordinal += take if direction == "next" else -take
-                if not remaining:
-                    more = more or (first + take < count if direction == "next" else start_page > 0) or number + 1 < len(candidates)
-                    break
-                position += 1 if direction == "next" else -1
-            if direction == "previous":
-                requests.reverse()
-            if requests:
-                # A single predecessor lookup gives the first work's boundary;
-                # the remaining boundaries follow directly from this K window.
-                first = requests[0]
-                nearby = current.cursor_neighbors(first["work_id"], selected, ceiling=batch["ceiling"],
-                    cursor=tokens[first["work_id"]])
-                predecessor = nearby.get("previous")
-                previous = (first["index"] - first["page_offset"] - predecessor["page_count"]) if predecessor else None
-                for wanted in requests:
-                    wanted["previous_work_index"] = max(0, previous) if previous is not None else None
-                    previous = wanted["index"] - wanted["page_offset"]
-            result = current.reading_window(requests)
-            items = result["items"]
-            if len(items) != sum(wanted["page_limit"] for wanted in requests):
-                raise CursorExpired("阅读范围已变化")
-            if cards:
-                # Separate read connections cannot silently cross a write.
-                current.list_cursor(selected, limit=1, cursor=tokens[cards[0]["id"]],
-                    anchor_work_id=cards[0]["id"], ceiling=batch["ceiling"], compact=True)
-            for item in items:
-                item["work_cursor"] = tokens[item["work_id"]]
-                card_position = positions[item["work_id"]]
-                item["has_next_work"] = card_position + 1 < len(cards) or bool(batch.get("has_more"))
-            end = items[-1]["index"] + 1 if items else index
-            return {**result, "items": items, "offset": items[0]["index"] if items else index,
-                "total": end + (1 if direction == "next" and more else 0),
-                "has_more": more if direction == "next" else bool(items),
-                "has_previous": more if direction == "previous" else bool(items and items[0]["index"] > 0),
-                "ceiling": batch["ceiling"], "as_of": batch["as_of"],
-                "generation": batch["generation"], "performance": batch.get("performance"),
-                "count_mode": batch.get("count_mode")}
+            return runtime().library.cursor_feed(cursor_filters(request, cursor), limit=limit,
+                cursor=cursor, direction=direction, ceiling=ceiling, anchor_work_id=anchor_work_id,
+                page=page, index=index, work_index=work_index)
         except ValueError as exc:
             cursor_failure(exc)
         except KeyError as exc:

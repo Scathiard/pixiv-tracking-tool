@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, ApiReadError, prepareImage, url, write } from './api'
+import { api, ApiReadError, preparePageImage, url, write } from './api'
 import { LatestIntent } from './interaction'
 import { freshLibraryQuery } from './positions'
 import { readLibraryEntry, type GallerySeed } from './state/libraryEntry'
@@ -50,7 +50,7 @@ const flowOrdinalKnown = ref(true)
 const readingEnded = ref(false), totalExact = ref(true), cursorExpired = ref(false), revisionLoading = ref(false)
 let cursorFeed: CursorReading | null = null
 interface Neighbor {work_id: number; revision_id: string | null; page_count: number; cursor: string}
-interface CursorNeighbors {anchor_cursor: string; generation: number; previous: Neighbor | null; next: Neighbor | null}
+interface CursorNeighbors {anchor_cursor: string; generation: number; continuation_rebased?: boolean; previous: Neighbor | null; next: Neighbor | null}
 const galleryOrdinalKnown = ref(true), ordinaryRankKnown = ref(false)
 const ordinaryCursor = ref<string | null>(null), ordinaryNeighbors = ref<CursorNeighbors | null>(null)
 const galleryView = ref<InstanceType<typeof GalleryView> | null>(null), checkingNewContent = ref(false)
@@ -58,6 +58,23 @@ const currentWork = ref<WorkDetail | null>(null), infoWork = ref<WorkDetail | nu
 const initialAnchor = ref<Anchor | null>(null), currentAnchor = ref<Anchor | null>(null), zoomPage = ref<PageData | null>(null)
 const reader = ref<InstanceType<typeof PageReader> | null>(null), taskPanel = ref<InstanceType<typeof TaskPanel> | null>(null)
 const navigation = new LatestIntent(), infoRequest = new LatestIntent(), statusRequest = new LatestIntent()
+const navigationPhase = ref('正在定位作品…'), readerActivity = ref({phase: '', error: ''})
+let openingKey: string | null = null, adjacentPreload: AbortController | null = null
+const readingActivity = computed(() => pending.value ? {phase: navigationPhase.value, error: ''} : error.value ? {phase: '', error: error.value} : readerActivity.value)
+function cancelNavigation() {
+  navigation.cancel(); adjacentPreload?.abort(); pending.value = false; openingKey = null; desiredIndex.value = ordinaryIndex.value
+  reader.value?.cancel(); readerActivity.value = {phase: '', error: ''}
+}
+function retryReading() { if (error.value) retryNavigation(); else reader.value?.retry() }
+function preloadAdjacent(neighbors: CursorNeighbors) {
+  adjacentPreload?.abort()
+  const controller = adjacentPreload = new AbortController()
+  // Two opening responses and two display images at most; no full-work scan.
+  for (const neighbor of [neighbors.previous, neighbors.next]) if (neighbor) {
+    void workDetail(neighbor.work_id, neighbor.revision_id, controller.signal).then(detail =>
+      preparePageImage(detail.pages[0], controller.signal)).catch(() => {})
+  }
+}
 const newContentRequest = new LatestIntent()
 const railRequest = new LatestIntent()
 let newContentAgain = false, revealNewContent = false, hiddenCatalogueUpdate = false
@@ -133,6 +150,7 @@ async function initialize(query: string, path = '/', push = false, saveHome = fa
     if (push) route(true)
     return
   }
+  openingKey = null; adjacentPreload?.abort(); navigationPhase.value = '正在定位作品…'
   const ticket = navigation.begin(); infoRequest.cancel(); pending.value = true; error.value = ''
   failedNavigation = () => { void initialize(query, path, push, saveHome) }
   let preparedVisit: ReadingVisit | null = null, preparedFeed: CursorReading | null = null, preparedNeighbors: CursorNeighbors | null = null
@@ -145,7 +163,8 @@ async function initialize(query: string, path = '/', push = false, saveHome = fa
       const id = Number(match[1])
       preparedNeighbors = await api<CursorNeighbors>(url(`/api/works/${id}/cursor-neighbors`, seed.query), {signal: ticket.signal})
       openingDetail = await workDetail(id, new URLSearchParams(query).get('revision_id'), ticket.signal)
-      await prepareImage(openingDetail.pages[0]?.src || null, ticket.signal)
+      navigationPhase.value = '正在准备图片，当前画面会保留…'
+      await preparePageImage(openingDetail.pages[0], ticket.signal)
       openingAnchor = {work_id: id, work_index: 0, page: 0, index: 0, offset: 0}
     } else if (path === '/flow' && batch.total) {
       if (readingOrder.value === 'random') {
@@ -204,18 +223,26 @@ async function ensureVisit(signal: AbortSignal) {
 async function openWork(index: number, push = true, selectedRevision?: string | null, identity?: {id: number; cursor?: string; revision_id?: string | null}) {
   if (!total.value && !identity) return
   if (identity) index = Math.max(0, index)
+  const key = `${identity?.id || 'index:' + index}:${selectedRevision || identity?.revision_id || ''}`
+  if (pending.value && openingKey === key) return
+  openingKey = key; navigationPhase.value = '正在定位作品…'
   desiredIndex.value = index
   clearTimeout(searchTimer); railRequest.cancel()
   const ticket = navigation.begin(); pending.value = true; error.value = ''
   failedNavigation = () => { void openWork(index, push, selectedRevision, identity) }
   try {
     let target = identity
+    const difference = index - ordinaryIndex.value
+    const direction = difference > 0 ? 'next' : 'previous'
     if (!target) {
       if (!currentWork.value) throw new Error('请先选择一件作品')
-      const difference = index - ordinaryIndex.value
       if (!difference) target = {id: currentWork.value.id, cursor: ordinaryCursor.value || undefined, revision_id: currentWork.value.revision_id}
+      else if (Math.abs(difference) === 1) {
+        const neighbor = ordinaryNeighbors.value?.[direction]
+        if (!neighbor) throw new Error(direction === 'next' ? '已到当前范围末尾' : '已到当前范围开头')
+        target = {id: neighbor.work_id, cursor: neighbor.cursor, revision_id: neighbor.revision_id}
+      }
       else {
-        const direction = difference > 0 ? 'next' : 'previous'
         const data = await api<CursorGalleryBatch>(url('/api/library/cursor', scope.value, {limit: Math.min(500, Math.abs(difference) + 1), compact: 1, anchor_work_id: currentWork.value.id, ...(ordinaryCursor.value ? {cursor: ordinaryCursor.value} : {}), direction}), {signal: ticket.signal})
         const cards = data.items
         const selected = difference > 0 ? cards.at(-1) : cards[0]
@@ -224,13 +251,40 @@ async function openWork(index: number, push = true, selectedRevision?: string | 
         target = {id: selected.id, cursor: selected.cursor || data.boundaries?.[difference > 0 ? cards.length - 1 : 0], revision_id: selected.revision_id}
       }
     }
-    const neighbors = await api<CursorNeighbors>(url(`/api/works/${target.id}/cursor-neighbors`, scope.value, target.cursor ? {cursor: target.cursor} : {}), {signal: ticket.signal})
+    let neighbors: CursorNeighbors
+    try {
+      neighbors = await api<CursorNeighbors>(url(`/api/works/${target.id}/cursor-neighbors`, scope.value, {
+        ...(target.cursor ? {cursor: target.cursor} : {}),
+        ...(!identity && Math.abs(difference) === 1 && ordinaryCursor.value
+          ? {from_cursor: ordinaryCursor.value, from_direction: direction} : {}),
+      }), {signal: ticket.signal})
+      if (target.cursor && ordinaryNeighbors.value && neighbors.generation !== ordinaryNeighbors.value.generation && !neighbors.continuation_rebased) throw new ApiReadError('图库定位需要更新', 'cursor_expired')
+    } catch (failure) {
+      if (!(failure instanceof ApiReadError) || failure.code !== 'cursor_expired') throw failure
+      ticket.signal.throwIfAborted(); navigationPhase.value = '正在恢复当前位置并继续…'
+      // Revalidate once by identity in the original frozen scope, then resume
+      // the user's original direction. Invalid/hidden anchors remain explicit.
+      const anchorId = !identity && difference ? currentWork.value!.id : target.id
+      const rebased = await api<CursorNeighbors>(url(`/api/works/${anchorId}/cursor-neighbors`, scope.value), {signal: ticket.signal})
+      ordinaryRankKnown.value = false
+      if (!identity && difference) {
+        const neighbor = rebased[direction]
+        if (!neighbor) throw new Error(direction === 'next' ? '已到当前范围末尾' : '已到当前范围开头')
+        target = {id: neighbor.work_id, cursor: neighbor.cursor, revision_id: neighbor.revision_id}
+        neighbors = await api<CursorNeighbors>(url(`/api/works/${target.id}/cursor-neighbors`, scope.value, {cursor: neighbor.cursor}), {signal: ticket.signal})
+      } else neighbors = rebased
+    }
+    navigationPhase.value = '正在读取作品信息…'
     const detail = await workDetail(target.id, selectedRevision || target.revision_id, ticket.signal)
-    await prepareImage(detail.pages[0]?.src || null, ticket.signal)
+    navigationPhase.value = '正在准备图片，当前画面会保留…'
+    const displayReady = preparePageImage(detail.pages[0], ticket.signal)
+    adjacentPreload?.abort()
+    await displayReady
     if (!ticket.current()) return
     const previousMode = mode.value
     currentWork.value = infoWork.value = detail; ordinaryIndex.value = desiredIndex.value = index
     ordinaryNeighbors.value = neighbors; ordinaryCursor.value = neighbors.anchor_cursor; cursorExpired.value = false
+    if (neighbors.continuation_rebased) ordinaryRankKnown.value = false
     readingEnded.value = false
     ingestBookmark(detail.id, detail.bookmark); refreshBookmark(detail.id)
     initialAnchor.value = {work_id: detail.id, work_index: index, page: 0, index: 0, offset: 0}
@@ -238,11 +292,12 @@ async function openWork(index: number, push = true, selectedRevision?: string | 
     if (previousMode === 'feed') detailOrigin.value = 'feed'
     readerReset.value++; mode.value = 'reader'; section.value = 'library'; filterOpen.value = false; galleryAnchor.value = index
     observeCatalogueData(detail.catalogue_revision)
+    preloadAdjacent(neighbors)
     route(push && previousMode !== 'reader')
     await nextTick()
   } catch (failure) {
     if (ticket.current()) { cursorExpired.value = failure instanceof ApiReadError && failure.code === 'cursor_expired'; error.value = failure instanceof Error ? failure.message : '下一件作品未能载入'; desiredIndex.value = ordinaryIndex.value }
-  } finally { if (ticket.current()) pending.value = false }
+  } finally { if (ticket.current()) { pending.value = false; openingKey = null } }
 }
 function navigate(delta: number) {
   if (zoomPage.value) return
@@ -250,13 +305,20 @@ function navigate(delta: number) {
     const target = delta < 0 ? activePage.value?.previous_work_index : activePage.value?.next_work_index
     if (delta < 0 && readingOrder.value === 'sequential' && activePage.value && needsIdentityPrevious(activePage.value)) void previousFeedIdentity(activePage.value)
     else if (target != null) void reader.value?.jump(target)
-  } else void openWork(desiredIndex.value + delta)
+  } else void openWork(ordinaryIndex.value + delta)
 }
 async function previousFeedIdentity(page: PageData) {
+  navigationPhase.value = '正在定位上一件作品…'
   const ticket = navigation.begin(); pending.value = true; error.value = ''
   failedNavigation = () => { void previousFeedIdentity(page) }
   try {
-    const nearby = await api<CursorNeighbors>(url(`/api/works/${page.work_id}/cursor-neighbors`, scope.value, page.work_cursor ? {cursor: page.work_cursor} : {}), {signal: ticket.signal})
+    let nearby: CursorNeighbors
+    try { nearby = await api<CursorNeighbors>(url(`/api/works/${page.work_id}/cursor-neighbors`, scope.value, page.work_cursor ? {cursor: page.work_cursor} : {}), {signal: ticket.signal}) }
+    catch (failure) {
+      if (!(failure instanceof ApiReadError) || failure.code !== 'cursor_expired' || !page.work_cursor) throw failure
+      ticket.signal.throwIfAborted()
+      nearby = await api<CursorNeighbors>(url(`/api/works/${page.work_id}/cursor-neighbors`, scope.value), {signal: ticket.signal})
+    }
     if (!nearby.previous) return
     const previous = nearby.previous
     const batch = await api<CursorPageBatch>(url('/api/library/cursor/feed', scope.value, {cursor: previous.cursor, anchor_work_id: previous.work_id, page: 0, index: 0, work_index: 0, limit: 1}), {signal: ticket.signal})
@@ -272,6 +334,7 @@ async function previousFeedIdentity(page: PageData) {
 async function enterFeed(push = true) {
   if (!total.value) return
   clearTimeout(searchTimer); railRequest.cancel()
+  navigationPhase.value = '正在打开流式阅览…'
   const ticket = navigation.begin(); pending.value = true; error.value = ''
   failedNavigation = () => { void enterFeed(push) }
   try {
@@ -292,6 +355,7 @@ async function enterFeed(push = true) {
 }
 async function recoverFeed(page: PageData | null) {
   if (readingOrder.value !== 'sequential') return
+  navigationPhase.value = '正在恢复当前位置…'
   const ticket = navigation.begin(); pending.value = true
   try {
     const feed = new CursorReading(scope.value); feed.recover(page || undefined)
@@ -479,13 +543,7 @@ function galleryFocused(index: number) { galleryAnchor.value = index }
 function filter(query: string) { void initialize(query, '/', true, true) }
 function refresh() { const params = new URLSearchParams(scope.value); params.delete('ceiling'); params.delete('as_of'); void initialize(params.toString()) }
 function retryNavigation() {
-  if (cursorExpired.value && mode.value === 'feed') { void recoverFeed(activePage.value); return }
-  if (cursorExpired.value && mode.value === 'reader' && currentWork.value) {
-    const params = new URLSearchParams(scope.value); params.delete('ceiling'); params.delete('as_of')
-    scope.value = params.toString(); ordinaryCursor.value = null; cursorExpired.value = false; ordinaryRankKnown.value = false
-    invalidateWorkCache(currentWork.value.id)
-    void openWork(0, false, currentWork.value.revision_id, {id: currentWork.value.id})
-  } else if (failedNavigation) failedNavigation(); else refresh()
+  if (failedNavigation) failedNavigation(); else refresh()
 }
 function galleryTotal(count: number, exact: boolean) { total.value = count; totalExact.value = exact }
 function recoveredGallery(seed: GallerySeed) { galleryOrdinalKnown.value = false; scope.value = seed.query; galleryAnchor.value = seed.anchor; gallerySeed.value = seed; galleryReset.value++; total.value = seed.data.total; totalExact.value = seed.data.total_exact !== false; route(false) }
@@ -526,8 +584,8 @@ function sort() {
   for (const name of ['ceiling', 'as_of', 'page']) params.delete(name)
   params.set('sort', sortChoice.value); void initialize(params.toString(), '/', true, true)
 }
-function showArtists(id: number | null = null) { clearTimeout(searchTimer); navigation.cancel(); railRequest.cancel(); infoRequest.cancel(); pending.value = false; error.value = ''; section.value = 'artists'; artistId.value = id; filterOpen.value = false; infoOpen.value = false; route(true) }
-function showSettings() { clearTimeout(searchTimer); navigation.cancel(); railRequest.cancel(); infoRequest.cancel(); pending.value = false; error.value = ''; section.value = 'settings'; filterOpen.value = false; infoOpen.value = false; route(true) }
+function showArtists(id: number | null = null) { clearTimeout(searchTimer); adjacentPreload?.abort(); navigation.cancel(); railRequest.cancel(); infoRequest.cancel(); pending.value = false; error.value = ''; section.value = 'artists'; artistId.value = id; filterOpen.value = false; infoOpen.value = false; route(true) }
+function showSettings() { clearTimeout(searchTimer); adjacentPreload?.abort(); navigation.cancel(); railRequest.cancel(); infoRequest.cancel(); pending.value = false; error.value = ''; section.value = 'settings'; filterOpen.value = false; infoOpen.value = false; route(true) }
 function openArtistGallery(id: number) {
   detailOrigin.value = 'gallery'; originArtistId.value = null
   const params = new URLSearchParams({artist_ids: String(id), sort: sortChoice.value})
@@ -583,7 +641,7 @@ onMounted(async () => {
   window.addEventListener('archive-updated', archiveUpdated)
   document.addEventListener('visibilitychange', catalogueVisibilityChanged)
 })
-onBeforeUnmount(() => { navigation.cancel(); infoRequest.cancel(); statusRequest.cancel(); newContentRequest.cancel(); railRequest.cancel(); releaseVisit(readingVisit.value); clearTimeout(toastTimer); clearTimeout(searchTimer); window.removeEventListener('keydown', key); window.removeEventListener('focus', foreground); window.removeEventListener('archive-updated', archiveUpdated); document.removeEventListener('visibilitychange', catalogueVisibilityChanged) })
+onBeforeUnmount(() => { adjacentPreload?.abort(); navigation.cancel(); infoRequest.cancel(); statusRequest.cancel(); newContentRequest.cancel(); railRequest.cancel(); releaseVisit(readingVisit.value); clearTimeout(toastTimer); clearTimeout(searchTimer); window.removeEventListener('keydown', key); window.removeEventListener('focus', foreground); window.removeEventListener('archive-updated', archiveUpdated); document.removeEventListener('visibilitychange', catalogueVisibilityChanged) })
 function changePageSize(value: string) {
   continuous.value = value === 'scroll'
   if (!continuous.value) pageSize.value = Number(value)
@@ -665,17 +723,20 @@ function updated() { queueCatalogueUpdate() }
           <main class="gallery-main"><div class="gallery-controls"><div class="gallery-heading"><h1>{{ heading }}</h1><span>{{ totalExact ? total + ' 件' : '数量按需统计' }} </span><button class="text-link" title="按需遍历当前筛选，计算精确数量及侧栏统计" @click="updateRailCounts(scope)">统计数量</button><button v-if="newContent" class="text-link new-work-entry" :disabled="checkingNewContent" @click="checkForNewWorks(true)">有新作品，查看</button></div><div class="gallery-control-actions"><select v-model="sortChoice" aria-label="图库排序" @change="sort"><option value="newest">最新投稿</option><option value="oldest">最早投稿</option><option value="added">最近存入</option><option value="title">作品名称</option></select><button class="softbtn" :aria-expanded="filterOpen" :title="filterSummary" @click="filterOpen = true"><Icon name="filter" />筛选</button><button class="check-button" aria-label="检查新作品" @click="task('check')"><Icon name="refresh" /><span>检查新作品</span></button></div></div>
             <div v-if="filterSummary !== '全部画师 · 全部类型'" class="active-filters"><span>{{ filterSummary }}</span><button class="text-link" @click="filterOpen = true">调整</button></div>
             <div v-if="error" class="notice error" role="alert">{{ error }} <button @click="retryNavigation">{{ cursorExpired ? '重新定位后继续' : '重试' }}</button></div>
+            <div v-if="pending" class="gallery-navigation-status" role="status">{{ navigationPhase }} <button @click="cancelNavigation">取消</button></div>
             <GalleryView v-if="ready" ref="galleryView" :query="scope" :start-index="galleryAnchor" :reset-key="galleryReset" :page-size="pageSize" :continuous="continuous" :initial-batch="gallerySeed" :exact-total="totalExact ? total : undefined" @seed-consumed="gallerySeed = null" @open="openFromGallery" @artist="showArtists" @message="message($event, true)" @anchor="galleryFocused" @total="galleryTotal" @recovered="recoveredGallery" @page="galleryAnchor = $event * pageSize; route(false)" /><div v-else class="empty">{{ error ? '图库尚未载入，请重试' : '正在打开本地图库…' }}</div>
           </main></div>
       </template>
       <template v-else><main class="reader-layout" :inert="mobileMenuOpen ? true : undefined">
-        <div v-if="error" class="notice error" role="alert">{{ error }} <button @click="retryNavigation">{{ cursorExpired ? '重新定位后继续' : '重试' }}</button><button class="quiet" @click="error = ''">关闭</button></div>
-        <div v-if="readingEnded" class="empty reading-finished"><p>已到当前范围末尾</p><button @click="gallery()">返回图库</button></div><div class="reader-stage"><Transition name="work"><PageReader v-if="!readingEnded" :key="sessionKey" ref="reader" :mode="mode === 'feed' ? 'feed' : 'reader'" :loader="loader" :session-key="sessionKey" :initial="initialAnchor" :inactive="!!zoomPage" @focus="focused" @recover="recoverFeed" @navigate="navigate" @artist="openArtistGallery" @zoom="zoomPage = $event" @bookmark="bookmarkPage" @manage="managePage">
+        <div v-if="readingEnded" class="empty reading-finished"><p>已到当前范围末尾</p><button @click="gallery()">返回图库</button></div><div class="reader-stage"><Transition name="work"><PageReader v-if="!readingEnded" :key="sessionKey" ref="reader" :mode="mode === 'feed' ? 'feed' : 'reader'" :loader="loader" :session-key="sessionKey" :initial="initialAnchor" :inactive="!!zoomPage" @focus="focused" @activity="readerActivity = $event" @recover="recoverFeed" @navigate="navigate" @artist="openArtistGallery" @zoom="zoomPage = $event" @bookmark="bookmarkPage" @manage="managePage">
           <template #before><div v-if="mode === 'reader' && currentWork" class="detail-head"><div class="detail-nav"><button class="detail-back" @click="backFromDetail"><Icon name="left" />{{ detailOrigin === 'artists' ? '返回画师' : detailOrigin === 'feed' ? '返回流式阅览' : '返回图库' }}</button><span>{{ ordinaryRankKnown && totalExact ? ordinaryIndex + 1 + ' / ' + total : '当前范围阅览' }}</span></div><div class="detail-title-row"><h1>{{ currentWork.title }}</h1><RestrictionBadge :value="currentWork.x_restrict" /><span class="detail-badge">{{ currentWork.type === 'ugoira' ? '动图' : currentWork.type === 'manga' ? '漫画' : '插画' }}</span><span v-if="currentWork.display_page_count > 1" class="detail-badge">{{ currentWork.display_page_count }} 页</span></div><div class="detail-meta"><span>画师：<button class="text-link" @click="openArtistGallery(currentWork.artist_id)">{{ currentWork.artist_name }}</button></span><span v-if="currentWork.posted_at">发布于 {{ currentWork.posted_at.slice(0, 10) }}</span></div><p v-if="archiveNotice(currentWork)" class="source-notice">{{ archiveNotice(currentWork) }}</p><label v-if="currentWork.revisions && currentWork.revisions.length > 1" class="revision-picker">存档版本 <select :value="currentWork.revision_id" aria-label="存档版本" @change="selectRevision(($event.target as HTMLSelectElement).value)"><option v-for="revision in currentWork.revisions" :key="revision.id" :value="revision.id">{{ revision.change_kind === 'legacy' ? '升级前存档' : `版本 ${revision.ordinal}` }} · {{ revision.created_at.slice(0, 16).replace('T', ' ') }}{{ revision.current ? ' · 默认' : '' }}{{ revision.state !== 'complete' ? ' · 未完整' : '' }}</option></select></label><button v-if="currentWork.revisions_has_more" class="text-link" :disabled="revisionLoading" @click="earlierRevisions">{{ revisionLoading ? '正在读取…' : '加载更早版本' }}</button><div class="detail-tags"><button v-for="tag in currentWork.tags" :key="tag" class="tag" @click="tagFilter(tag)"><TagLabel :name="tag" :details="currentWork.tag_details" /></button></div><div class="detail-actions"><a class="text-link" :href="`https://www.pixiv.net/artworks/${currentWork.pixiv_id}`" target="_blank" rel="noopener noreferrer">在 Pixiv 查看 <Icon name="external" /></a><button class="softbtn" @click="openFolder(currentWork.id)"><Icon name="folder" />本地文件</button><div class="detail-action-right"><button class="softbtn" @click="infoOpen = true; loadInfo(currentWork.id)">整理作品</button></div></div></div><div v-else class="stream-head"><div><h1>流式阅览</h1><p>当前图库范围 · {{ totalExact ? total + ' 件作品' : '数量按需统计' }}</p></div><label class="reading-order">顺序 <select :value="readingOrder" aria-label="流式阅览顺序" @change="changeReadingOrder(($event.target as HTMLSelectElement).value)"><option value="sequential">顺序阅览</option><option value="random">随机阅览</option></select></label><button class="softbtn" @click="gallery()"><Icon name="grid" />返回图库</button></div></template>
           <template #after><template v-if="mode === 'reader' && currentWork"><section class="detail-caption" aria-label="作品简介"><h2>作品简介</h2><div v-if="currentWork.caption" v-html="currentWork.caption" /><p v-else>{{ currentWork.caption_state === 'empty' ? '作者没有填写简介' : '尚未取得简介' }}</p></section></template><div v-else class="stream-end"><p>已到当前范围末尾</p><button @click="gallery()">返回图库</button></div></template>
         </PageReader></Transition></div>
         <aside v-if="infoOpen" class="info-panel" data-no-navigation aria-label="作品整理"><header><h2>作品整理</h2><button @click="infoOpen = false" aria-label="关闭作品整理"><Icon name="close" /></button></header><template v-if="infoWork && (mode === 'reader' || infoWork.id === activePage?.work_id)"><h3>{{ infoWork.title }}</h3><p class="muted">{{ infoWork.artist_name }}</p><p class="muted">{{ infoWork.bookmark_count ?? '—' }} 收藏 · {{ infoWork.view_count ?? '—' }} 浏览</p><div class="tags"><span v-for="tag in infoWork.tags" :key="tag"><TagLabel :name="tag" :details="infoWork.tag_details" /></span></div><div class="info-actions"><BookmarkButton v-if="mode === 'feed'" :work-id="infoWork.id" :initial="infoWork.bookmark" @message="message($event, true)" /><button @click="bookmarkSync"><Icon name="refresh" />同步收藏状态</button><button @click="task('metadata', infoWork.id)"><Icon name="refresh" />刷新作品信息</button><button @click="hidden">{{ infoWork.is_hidden ? '取消隐藏' : '隐藏此作品' }}</button><label>本地评分 <select :value="infoWork.rating" @change="rate(Number(($event.target as HTMLSelectElement).value))"><option :value="0">未评分</option><option v-for="value in [1,2,3,4,5]" :key="value" :value="value">{{ value }} 星</option></select></label><button @click="task('reconcile', infoWork.id)">检查并补齐此作品</button><button @click="task('compare', infoWork.id)" title="重新取得这件作品的原图并比较内容；保留已有存档">重新比对原图</button><button v-if="infoWork.type === 'ugoira'" @click="task('backfill', infoWork.id)">补回动图原包</button><button class="danger" @click="removePrompt = true">永久删除</button></div><details v-if="infoWork.legacy_variants?.length" class="asset-detail"><summary>旧档案的同页文件</summary><div v-for="group in infoWork.legacy_variants" :key="group.page"><p>第 {{ group.page + 1 }} 页</p><p v-for="file in group.files" :key="file.name"><a v-if="file.src" :href="file.src" target="_blank" rel="noopener noreferrer">{{ file.default ? '默认显示' : '另一份' }}：{{ file.name }}</a><span v-else>{{ file.name }}（不可用）</span></p></div></details><details class="asset-detail"><summary>存档状态</summary><p>{{ archiveStatus(infoWork.archive) }}</p><p v-for="asset in infoWork.assets" :key="asset.id">{{ asset.role === 'image' ? `第 ${asset.page + 1} 页` : asset.role === 'ugoira_zip' ? '动图原包' : '播放时序' }}：{{ asset.state === 'verified' ? '已核验' : localAssetReason(asset.error) || '待核验或缺失' }}</p></details></template><p v-else>正在读取作品信息…</p></aside>
         <footer v-if="!readingEnded" class="reading-toolbar" :class="{'is-detail': mode === 'reader'}">
+          <div v-if="readingActivity.phase || readingActivity.error" class="reading-activity" :class="{error: readingActivity.error}" role="status" aria-live="polite">
+            <span>{{ readingActivity.error || readingActivity.phase }}</span><button v-if="readingActivity.error" @click="retryReading">重试</button><button v-else @click="cancelNavigation">取消</button><button v-if="readingActivity.error" @click="gallery()">返回图库</button><button v-if="readingActivity.error" @click="error = ''; reader?.cancel()">关闭</button>
+          </div>
           <div class="reading-toolbar-inner">
             <template v-if="mode === 'reader'">
               <button class="softbtn reader-nav-button" aria-label="上一件作品" :disabled="!ordinaryNeighbors?.previous" @click="navigate(-1)"><Icon name="left" /><span class="reader-nav-label">上一件</span></button>

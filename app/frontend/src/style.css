@@ -285,3 +285,11 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
 .source-pagination{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px;margin-top:14px;font-size:12px}.source-pagination button{font-size:12px;min-height:38px}
 .gallery-artist-intro{width:calc(100% - 2 * var(--gallery-gutter));max-width:1384px;margin-inline:auto;padding:8px 0 22px;position:relative}.gallery-artist-summary{display:flex;align-items:center;gap:14px}.gallery-artist-summary h2{font-size:17px;line-height:1.6}.gallery-artist-summary p{font-size:12px;color:var(--muted)}.gallery-artist-bio{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.gallery-artist-bio.expanded{display:block;overflow:visible}.gallery-artist-intro>.text-link{font-size:12px;margin-top:3px}
 @media(max-width:680px){.artists-page{--artist-preview-width:clamp(200px,70vw,270px);--artist-preview-height:clamp(134px,46.6667vw,180px)}.source-group-tabs button{max-width:100%;white-space:normal}.source-overview.settings-card{padding-inline:16px}.gallery-artist-intro{padding-bottom:18px}.gallery-artist-summary h2{font-size:16px}}
+
+/* Reading transitions report in the existing dock and leave the picture clear. */
+.reading-toolbar{flex-direction:column}
+.reading-activity{display:flex;align-items:center;gap:6px;width:100%;padding:2px 6px 4px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--line);margin-bottom:3px}
+.reading-activity>span{flex:1;min-width:0;overflow-wrap:anywhere}
+.reading-toolbar .reading-activity button{flex:none;min-height:32px;padding:3px 7px;font-size:11px;color:var(--text)}
+.reading-activity.error{color:var(--danger)}
+.gallery-navigation-status{display:flex;align-items:center;gap:12px;padding:6px 0;color:var(--muted);font-size:12px}

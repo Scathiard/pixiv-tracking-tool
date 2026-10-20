@@ -11,6 +11,10 @@ from .read_control import LocalReadError
 
 WORK_BATCH = 4
 ARTIST_BATCH = 32
+# Observation reservation also refreshes task projections in this transaction.
+# Bound the known slow check path by work, before it reaches the shared writer.
+OBSERVATION_BATCH = 8
+CHECK_ARTIST_BATCH = 4
 
 
 class _ScopedContext:
@@ -33,13 +37,13 @@ def _reserve_observations(handler, ids, context, cursor):
             if "observation_ceiling" not in cursor:
                 cursor["observation_ceiling"] = session.scalar(select(func.max(Work.id)).where(Work.artist_id.in_(ids))) or 0
             rows = list(session.execute(statement.where(Work.id > cursor.get("observation_after", 0),
-                Work.id <= cursor["observation_ceiling"]).order_by(Work.id).limit(65)))
+                Work.id <= cursor["observation_ceiling"]).order_by(Work.id).limit(OBSERVATION_BATCH + 1)))
         account = handler._bookmark_account()
         source_account = handler.source_status.account_context() if handler.source_status else account
         with handler.database.read() as session:
             existing_keys = set(session.scalars(select(OperationItem.item_key).where(OperationItem.operation_id == context.operation_id,
-                OperationItem.item_key.in_([f"observation-{row.id}" for row in rows[:64]]))))
-        rows_to_reserve = [row for row in rows[:64] if f"observation-{row.id}" not in existing_keys]
+                OperationItem.item_key.in_([f"observation-{row.id}" for row in rows[:OBSERVATION_BATCH]]))))
+        rows_to_reserve = [row for row in rows[:OBSERVATION_BATCH] if f"observation-{row.id}" not in existing_keys]
         work_ids = [row.id for row in rows_to_reserve]
         bookmarks = handler.bookmarks.begin_observations(work_ids) if handler.bookmarks else {}
         sources = handler.source_status.begin_many("work", work_ids, source_account) if handler.source_status else {}
@@ -53,8 +57,8 @@ def _reserve_observations(handler, ids, context, cursor):
                 previous_state = record.state
                 record.state, record.result = "skipped", {"message": "检查开始前已固定核对世代"}
                 context.queue.record_settlement_in_transaction(session, record, previous_state)
-        cursor["observation_after"] = rows[min(63, len(rows)-1)].id if rows else cursor.get("observation_after", 0)
-        cursor["observations_complete"] = len(rows) <= 64
+        cursor["observation_after"] = rows[min(OBSERVATION_BATCH - 1, len(rows)-1)].id if rows else cursor.get("observation_after", 0)
+        cursor["observations_complete"] = len(rows) <= OBSERVATION_BATCH
         return PlanBatch([], cursor, False)
     return None
 
@@ -74,7 +78,7 @@ def plan_batch(handler, parameters, context, cursor):
         if reserved is not None:
             return reserved
         offset = cursor.get("artist_offset", 0)
-        subset = ids[offset:offset + ARTIST_BATCH]
+        subset = ids[offset:offset + CHECK_ARTIST_BATCH]
         specs = [ItemSpec(f"discover-page-{artist_id}-illust-0", "discover_page",
             {"artist_id": artist_id, "work_type": "illust", "offset": 0}, "checking", "pages") for artist_id in subset]
         offset += len(subset)

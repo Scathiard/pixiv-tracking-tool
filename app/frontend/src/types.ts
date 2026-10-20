@@ -51,6 +51,7 @@ export function localSourceStatus(item: SourceStatusItem): string {
   return item.local.state === 'unknown' ? '本地存档尚未核验' : '本地存档尚未齐全'
 }
 export interface BookmarkState {
+  kind?: 'write' | 'refresh' | null; local_unknown?: boolean
   work_id: number; operation_id: string | null; status: 'idle' | 'pending' | 'confirmed' | 'failed' | 'unconfirmed'
   desired: boolean | null; value: boolean | null; confirmed_at: string | null; error: string | null
   version: number; cached: boolean; verified: boolean
@@ -72,6 +73,7 @@ export interface WorkSummary extends ArchiveProjection {
   availability?: AvailabilityState | null
 }
 export interface PageData extends ArchiveProjection {
+  preview?: string | null
   revision_id?: string | null; work_cursor?: string; has_next_work?: boolean; round?: number; previous_work_index?: number | null
   index: number; work_id: number; work_index: number; page: number; page_count: number
   title: string; artist_name: string; artist_id: number; pixiv_id: string; type: string; x_restrict: number | null
@@ -85,7 +87,7 @@ export interface WorkDetail extends WorkSummary {
   revisions?: {id: string; ordinal: number; created_at: string; change_kind: string; state: string; page_count: number; current: boolean}[]
   catalogue_revision?: number
   display_page_count: number
-  pages: {index: number; src: string | null; width: number | null; height: number | null; state: string}[]
+  pages: {index: number; src: string | null; preview?: string | null; width: number | null; height: number | null; state: string}[]
   assets: {id: string; role: string; page: number; state: string; error: string | null}[]
   legacy_variants: {page: number; files: {src: string | null; name: string; default: boolean}[]}[]
 }
@@ -153,6 +155,7 @@ export function sourceNotice(availability?: AvailabilityState | null, recovery?:
   return `${reason}；已存内容仍可阅览`
 }
 export interface CursorMetadata {
+  continuation_rebased?: boolean
   generation?: number; next_cursor?: string | null; previous_cursor?: string | null; boundaries?: string[]
   has_more?: boolean; has_previous?: boolean; performance?: 'indexed_seek' | 'on_demand_scan' | 'offset_scan'
   count_mode?: 'indexed' | 'on_demand'

@@ -1,6 +1,7 @@
 """Local catalogue operations. No authentication, scheduler, or HTTP dependency."""
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import asdict, dataclass, replace
 import base64
 import hashlib
@@ -169,7 +170,7 @@ class Library:
                 result.update((operation.work_id, operation) for operation in session.scalars(
                     select(BookmarkOperation).where(BookmarkOperation.id.in_(winner_ids)).options(
                         load_only(BookmarkOperation.id, BookmarkOperation.work_id, BookmarkOperation.desired,
-                            BookmarkOperation.account_id, BookmarkOperation.status, BookmarkOperation.version,
+                            BookmarkOperation.kind, BookmarkOperation.account_id, BookmarkOperation.status, BookmarkOperation.version,
                             BookmarkOperation.error, raiseload=True))))
         return result
 
@@ -437,8 +438,8 @@ class Library:
     def cursor_reference(token):
         """Recover the relative-filter reference before parsing request filters.
 
-        This is a parsing aid, never authorization; _decode_cursor subsequently
-        validates the complete token, scope, boundary and generation.
+        This is a parsing aid, never authorization; continuation subsequently
+        validates the complete token, scope and current ordering boundary.
         """
         try:
             if not isinstance(token, str) or len(token) > 4096:
@@ -455,7 +456,6 @@ class Library:
 
     @staticmethod
     def _decode_cursor(token, filters, generation, ceiling=None):
-        from .read_projection import CursorExpired
         try:
             if not isinstance(token, str) or len(token) > 4096:
                 raise ValueError()
@@ -465,15 +465,31 @@ class Library:
                     or type(value.get("id")) is not int or value["id"] < 1
                     or type(value.get("ceiling")) is not int or value["ceiling"] < value["id"]
                     or type(value.get("generation")) is not int
+                    or not 0 <= value["generation"] <= generation
                     or not isinstance(value.get("key"), str)
                     or value.get("filter") != Library._filter_key(filters)
                     or ceiling is not None and value["ceiling"] != ceiling):
                 raise ValueError()
         except (ValueError, TypeError, UnicodeError, KeyError) as exc:
             raise ValueError("游标与筛选或范围不匹配") from exc
-        if value["generation"] != generation:
-            raise CursorExpired("图库范围已变化，请按当前作品重新打开窗口")
         return value
+
+    def _cursor_boundary(self, session, decoded, filters, ceiling, generation):
+        """An unrelated write is not a change to this continuation boundary.
+
+        Revalidate identity, visibility, filters and sort key in the same read
+        snapshot as the seek. The original ceiling and relative-filter time
+        remain fixed; a moved or removed anchor needs an explicit rebase.
+        """
+        try:
+            current = self._anchor_row(session, decoded["id"], filters, ceiling)
+        except KeyError as exc:
+            raise CursorExpired("当前作品已移出阅读范围，请重新定位") from exc
+        if current[1] != decoded["key"]:
+            if decoded["generation"] != generation:
+                raise CursorExpired("当前作品排序已变化，请重新定位")
+            raise ValueError("游标边界无效")
+        return current
 
     @staticmethod
     def _seek_key(filters):
@@ -573,7 +589,8 @@ class Library:
                 "has_more": more, "has_previous": previous, "generation": generation}
 
     def query_cursor(self, filters=LibraryFilter(), *, limit=100, cursor=None,
-                     direction="next", ceiling=None, anchor_work_id=None, compact=True):
+                     direction="next", ceiling=None, anchor_work_id=None, compact=True,
+                     _session=None, _bookmark_updates=None):
         """Seek a gallery window; arbitrary exact counts are separate opt-in work.
 
         Single visible/artist/type/favorite scopes with each supported ordering
@@ -586,20 +603,19 @@ class Library:
         if filters.as_of is None:
             stamp = self.cursor_reference(cursor) if cursor else None
             filters = replace(filters, as_of=datetime.fromisoformat(stamp) if stamp else utcnow())
-        with self.database.read() as session:
+        with nullcontext(_session) if _session is not None else self.database.read() as session:
             generation = session_generation(session)
             decoded = self._decode_cursor(cursor, filters, generation, ceiling) if cursor else None
             current_ceiling = session.scalar(select(func.max(Work.id))) or 0
             ceiling = decoded["ceiling"] if decoded else current_ceiling if ceiling is None else ceiling
             if type(ceiling) is not int or ceiling < 0:
                 raise ValueError("图库范围无效")
-            boundary = (decoded["id"], decoded["key"]) if decoded else None
+            boundary = self._cursor_boundary(session, decoded, filters, ceiling, generation) if decoded else None
             if anchor_work_id is not None:
                 if decoded and decoded["id"] != anchor_work_id:
                     raise ValueError("游标与作品不匹配")
-                boundary = self._anchor_row(session, anchor_work_id, filters, ceiling)
-                if decoded and boundary[1] != decoded["key"]:
-                    raise ValueError("游标边界无效")
+                if not decoded:
+                    boundary = self._anchor_row(session, anchor_work_id, filters, ceiling)
             rows = self._seek_rows(session, filters, ceiling, boundary=boundary,
                 direction=direction, inclusive=anchor_work_id is not None, limit=limit)
             if direction == "previous":
@@ -611,28 +627,44 @@ class Library:
             views, works, operations, revision = self._hydrate_window(session, [row[0] for row in rows], compact=compact)
             for view, token in zip(views, metadata["boundaries"]):
                 view["cursor"] = token
-        self._refresh_bookmarks(views, works, operations)
+        if _bookmark_updates is not None:
+            _bookmark_updates.append((views, works, operations))
+        else:
+            self._refresh_bookmarks(views, works, operations)
         return {"items": views, "total": total, "offset": 0, "ceiling": ceiling,
                 "as_of": (filters.as_of or utcnow()).isoformat(), "catalogue_revision": revision,
                 "performance": "indexed_seek" if indexed else "on_demand_scan",
-                "count_mode": "indexed" if indexed else "on_demand", **metadata}
+                "count_mode": "indexed" if indexed else "on_demand",
+                "continuation_rebased": bool(decoded and decoded["generation"] != generation), **metadata}
 
     list_cursor = query_cursor
 
-    def cursor_neighbors(self, work_id, filters=LibraryFilter(), *, ceiling=None, cursor=None):
+    def cursor_neighbors(self, work_id, filters=LibraryFilter(), *, ceiling=None, cursor=None,
+                         from_cursor=None, from_direction="next", _session=None):
         from .read_projection import session_generation
         if filters.as_of is None:
             stamp = self.cursor_reference(cursor) if cursor else None
             filters = replace(filters, as_of=datetime.fromisoformat(stamp) if stamp else utcnow())
-        with self.database.read() as session:
+        with nullcontext(_session) if _session is not None else self.database.read() as session:
             generation = session_generation(session)
             decoded = self._decode_cursor(cursor, filters, generation, ceiling) if cursor else None
             ceiling = decoded["ceiling"] if decoded else ceiling
             ceiling = ceiling if ceiling is not None else session.scalar(select(func.max(Work.id))) or 0
-            row = self._anchor_row(session, work_id, filters, ceiling)
-            if decoded and (decoded["id"] != work_id or decoded["key"] != row[1]):
+            if decoded and decoded["id"] != work_id:
                 raise ValueError("游标与作品不匹配")
+            row = (self._cursor_boundary(session, decoded, filters, ceiling, generation) if decoded
+                   else self._anchor_row(session, work_id, filters, ceiling))
+            if from_cursor:
+                if from_direction not in ("next", "previous"):
+                    raise ValueError("切换方向无效")
+                origin = self._decode_cursor(from_cursor, filters, generation, ceiling)
+                source = self._cursor_boundary(session, origin, filters, ceiling, generation)
+                adjacent = self._seek_rows(session, filters, ceiling, boundary=source,
+                    direction=from_direction, limit=1)
+                if not adjacent or adjacent[0][0] != work_id:
+                    raise CursorExpired("相邻作品已变化，请按当前作品重新定位")
             result = {"index": None, "generation": generation, "ceiling": ceiling,
+                "continuation_rebased": bool(decoded and decoded["generation"] != generation),
                 "anchor_cursor": self._encode_cursor(filters, generation, ceiling, *row)}
             for name, direction in (("previous", "previous"), ("next", "next")):
                 near = self._seek_rows(session, filters, ceiling, boundary=row, direction=direction, limit=1)
@@ -647,6 +679,77 @@ class Library:
                         else (snapshot.page_count if snapshot else neighbor.page_count),
                     "cursor": self._encode_cursor(filters, generation, ceiling, *near[0])}
             return result
+
+    def cursor_feed(self, filters=LibraryFilter(), *, limit=48, cursor=None,
+                    direction="next", ceiling=None, anchor_work_id=None, page=0,
+                    index=0, work_index=0):
+        """Resolve a bounded page window and its boundaries in one read snapshot."""
+        if type(limit) is not int or not 1 <= limit <= 120:
+            raise ValueError("阅读窗口过大")
+        updates = []
+        with self.database.read() as session:
+            batch = self.query_cursor(filters, limit=limit + 1, cursor=cursor,
+                direction=direction, ceiling=ceiling, compact=True, anchor_work_id=anchor_work_id,
+                _session=session, _bookmark_updates=updates)
+            # All members use the relative-filter reference established above.
+            filters = replace(filters, as_of=datetime.fromisoformat(batch["as_of"]))
+            cards = batch["items"]
+            positions = {card["id"]: position for position, card in enumerate(cards)}
+            tokens = {card["id"]: card["cursor"] for card in cards}
+            requests, remaining, ordinal, position = [], limit, index, work_index
+            candidates = cards if direction == "next" else list(reversed(cards))
+            more = bool(batch["has_more"] if direction == "next" else batch["has_previous"])
+            for number, card in enumerate(candidates):
+                count = max(1, 1 if card["type"] == "ugoira" else card["page_count"])
+                first = page if number == 0 and anchor_work_id is not None else (0 if direction == "next" else count - 1)
+                if direction == "next" and first >= count or direction == "previous" and first < 0:
+                    position += 1 if direction == "next" else -1
+                    continue
+                first = min(count - 1, max(0, first))
+                take = min(remaining, count - first if direction == "next" else first + 1)
+                start_page = first if direction == "next" else first - take + 1
+                start_index = ordinal if direction == "next" else ordinal - take + 1
+                work_start = start_index - start_page
+                requests.append({"work_id": card["id"], "revision_id": card.get("revision_id"),
+                    "page_offset": start_page, "page_limit": take, "index": max(0, start_index),
+                    "work_index": max(0, position), "round": 0,
+                    "previous_work_index": None, "next_work_index": work_start + count})
+                remaining -= take
+                ordinal += take if direction == "next" else -take
+                if not remaining:
+                    more = more or (first + take < count if direction == "next" else start_page > 0) or number + 1 < len(candidates)
+                    break
+                position += 1 if direction == "next" else -1
+            if direction == "previous":
+                requests.reverse()
+            if requests:
+                first = requests[0]
+                nearby = self.cursor_neighbors(first["work_id"], filters, ceiling=batch["ceiling"],
+                    cursor=tokens[first["work_id"]], _session=session)
+                predecessor = nearby["previous"]
+                previous = (first["index"] - first["page_offset"] - predecessor["page_count"]) if predecessor else None
+                for wanted in requests:
+                    wanted["previous_work_index"] = max(0, previous) if previous is not None else None
+                    previous = wanted["index"] - wanted["page_offset"]
+            result = self.reading_window(requests, _session=session, _bookmark_updates=updates)
+            items = result["items"]
+            if len(items) != sum(wanted["page_limit"] for wanted in requests):
+                raise CursorExpired("阅读范围已变化")
+            for item in items:
+                item["work_cursor"] = tokens[item["work_id"]]
+                item["has_next_work"] = positions[item["work_id"]] + 1 < len(cards) or bool(batch["has_more"])
+        # Bookmark service locks must never be acquired while holding a read
+        # connection. Apply account freshness after the whole snapshot closes.
+        for views, works, operations in updates:
+            self._refresh_bookmarks(views, works, operations)
+        end = items[-1]["index"] + 1 if items else index
+        return {**result, "offset": items[0]["index"] if items else index,
+            "total": end + (1 if direction == "next" and more else 0),
+            "has_more": more if direction == "next" else bool(items),
+            "has_previous": more if direction == "previous" else bool(items and items[0]["index"] > 0),
+            "ceiling": batch["ceiling"], "as_of": batch["as_of"],
+            "generation": batch["generation"], "continuation_rebased": batch["continuation_rebased"],
+            "performance": batch["performance"], "count_mode": batch["count_mode"]}
 
     def query(self, filters=LibraryFilter(), *, offset=0, limit=100, ceiling=None, compact=False):
         """Explicit numeric jump compatibility; deep OFFSET is O(offset + K)."""
@@ -730,12 +833,12 @@ class Library:
         return {"state": "partial" if missing else "unknown" if unknown else "complete",
                 "total": total, "verified": verified, "missing": missing, "unknown": unknown}
 
-    def reading_window(self, requests):
+    def reading_window(self, requests, *, _session=None, _bookmark_updates=None):
         """Materialize a bounded set of immutable-version image slots in batches."""
         if sum(request["page_limit"] for request in requests) > 120:
             raise ValueError("阅读窗口过大")
         ids = list({request["work_id"] for request in requests})
-        with self.database.read() as session:
+        with nullcontext(_session) if _session is not None else self.database.read() as session:
             works = {work.id: work for work in session.scalars(select(Work).where(
                 Work.id.in_(ids), ~select(ArchiveIntent.pixiv_illust_id).where(
                     ArchiveIntent.pixiv_illust_id == Work.pixiv_illust_id,
@@ -784,10 +887,21 @@ class Library:
                          "round": request["round"], "next_work_index": request["next_work_index"],
                          "previous_work_index": request["previous_work_index"], **state,
                          "src": readable_page_url(record, animation=view["type"] == "ugoira"),
+                         "preview": self._page_preview(derived, work.id, page),
                          "width": record.width if record else None, "height": record.height if record else None,
                          "state": record.state if record else "missing"})
-        self._refresh_bookmarks(items, works.values(), operations)
+        if _bookmark_updates is not None:
+            _bookmark_updates.append((items, list(works.values()), operations))
+        else:
+            self._refresh_bookmarks(items, works.values(), operations)
         return {"items": items, "catalogue_revision": revision}
+
+    @staticmethod
+    def _page_preview(derived, work_id, page):
+        # Only page zero has a generated local thumbnail. Never present another
+        # page's thumbnail as if it belonged to the requested image.
+        thumb = derived.get((work_id, "thumbnail", 0, "v1")) if page == 0 else None
+        return media_url(thumb.relative_path) if thumb and thumb.state == "verified" else None
 
     @staticmethod
     def _revision_page(session, work_id, *, before_ordinal=None, limit=100, default_revision_id=None):
@@ -856,6 +970,7 @@ class Library:
             for index in range(page_offset, min(count, page_offset + page_limit)):
                 record = preview if view["type"] == "ugoira" else originals.get((work_id, "image", index))
                 view["pages"].append({"index": index, "src": readable_page_url(record, animation=view["type"] == "ugoira"),
+                    "preview": self._page_preview(derived, work_id, index),
                     "width": record.width if record else None, "height": record.height if record else None,
                     "state": record.state if record else "missing", "error": record.error if record else None})
             view["assets"] = [{"id": asset.id, "role": role, "page": page,

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="11" time="96.555" timestamp="2026-10-20T11:46:35.852332+08:00" hostname="Baseline"><testcase classname="tests.test_bookmarks_v022" name="test_explicit_write_queues_behind_refresh_with_its_own_receipt" time="6.663" /><testcase classname="tests.test_bookmarks_v022" name="test_queued_write_keeps_bound_account_and_never_writes_after_switch" time="5.635" /><testcase classname="tests.test_bookmarks_v022" name="test_restart_serializes_refresh_and_queued_write_as_readback_only" time="4.414" /><testcase classname="tests.test_bookmarks_v022" name="test_write_confirmed_only_after_readback_and_duplicate_suppressed" time="4.241" /><testcase classname="tests.test_bookmarks_v022" name="test_unknown_readback_preserves_last_fact_and_never_retries_write" time="5.292" /><testcase classname="tests.test_bookmarks_v022" name="test_lost_write_response_can_confirm_without_repeating_write" time="3.383" /><testcase classname="tests.test_check_writer_fairness" name="test_background_cannot_retake_writer_ahead_of_waiting_interaction" time="1.847" /><testcase classname="tests.test_check_writer_fairness" name="test_check_observation_batches_are_small_and_resume_without_duplicates" time="4.141"><failure message="ValueError: 只能暂停或继续尚未结束的手动检查并补齐">tmp_path = WindowsPath('D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261020.1/work/tmp/reading-interactions/integration/bookmark-writer-final/test_check_observation_batches0')
+
+    def test_check_observation_batches_are_small_and_resume_without_duplicates(tmp_path):
+        db = ArchiveDatabase.create(tmp_path / "synthetic.db")
+        bookmarks = BookmarkService(db, Remote(), current_account=lambda: "synthetic")
+        handler = ArchiveHandler("check", db, Publisher(db, tmp_path / "images"), Remote(), bookmarks=bookmarks)
+        queue = TaskQueue(db, {"check": handler})
+        try:
+            with db.write() as session:
+                session.add(Artist(id=1, pixiv_user_id="10", name="synthetic"))
+                session.flush()
+                for ident in range(1, 18):
+                    session.add(Work(id=ident, pixiv_illust_id=str(100 + ident), artist_id=1,
+                                     title="synthetic", type="illust", page_count=1))
+                    session.add(ArchiveIntent(pixiv_illust_id=str(100 + ident), mode="keep", revision=1))
+            ident = queue.submit("check", {"artist_ids": [1]}, "synthetic", "manual")["operation_id"]
+            assert queue._plan(ident)
+            with db.read() as session:
+                cursor = session.get(Operation, ident).result["planning_cursor"]
+                assert cursor["observation_after"] == 8
+                assert not cursor["observations_complete"]
+                assert len(list(session.scalars(select(RemoteBookmark)))) == 8
+&gt;           queue.set_manual_paused(ident, True)
+
+tests\test_check_writer_fairness.py:118: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;src.core.tasks.TaskQueue object at 0x00000255A6760B60&gt;
+operation_id = 'c7f46b0890f74865a8083bda2b18b039', paused = True
+
+    def set_manual_paused(self, operation_id, paused):
+        if type(paused) is not bool:
+            raise ValueError("暂停设置必须是布尔值")
+        _task_event('task.pause_requested', operation_id, paused=paused)
+        with self.database.write() as session:
+            operation = session.get(Operation, operation_id)
+            if operation is None:
+                raise KeyError(operation_id)
+            if operation.kind != "reconcile" or operation.source != "manual" or operation.state == "finished":
+&gt;               raise ValueError("只能暂停或继续尚未结束的手动检查并补齐")
+E               ValueError: 只能暂停或继续尚未结束的手动检查并补齐
+
+src\core\tasks.py:550: ValueError</failure></testcase><testcase classname="tests.test_check_writer_fairness" name="test_incremental_check_plans_at_most_eight_items_and_retains_artist_cursor" time="4.703" /><testcase classname="tests.test_planning_fairness" name="test_pause_offline_and_restart_preserve_cursor_and_pending_checks" time="8.695" /><testcase classname="tests.test_incremental_check" name="test_suppression_duplicate_page_and_registration_resume_count_once" time="32.401" /></testsuite></testsuites>

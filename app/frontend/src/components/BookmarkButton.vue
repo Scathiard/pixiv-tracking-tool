@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
-import { bookmarkAcknowledging, bookmarkBusy, bookmarkState, ingestBookmark, refreshBookmark, toggleBookmark } from '../state/bookmarks'
+import { bookmarkAcknowledging, bookmarkBusy, bookmarkWriting, bookmarkState, ingestBookmark, refreshBookmark, toggleBookmark } from '../state/bookmarks'
 import { showsBookmarkFact } from '../state/bookmarkRules'
 import type { BookmarkState } from '../types'
 import Icon from './Icon.vue'
@@ -15,11 +15,13 @@ const lastValue = computed(() => state.value?.value === true)
 const on = computed(() => showsBookmarkFact(state.value))
 const pending = computed(() => bookmarkBusy(props.workId))
 const acknowledging = computed(() => bookmarkAcknowledging(props.workId))
+const disabled = computed(() => bookmarkWriting(props.workId) || acknowledging.value)
 const problem = computed(() => state.value?.status === 'failed' || state.value?.status === 'unconfirmed')
 const confirmedAt = computed(() => state.value?.confirmed_at ? new Date(state.value.confirmed_at).toLocaleString('zh-CN') : '')
 const title = computed(() => {
   const current = state.value
   const action = !current?.current_account_id ? '连接 Pixiv 后可操作收藏' :
+    current.local_unknown || current.status === 'unconfirmed' ? '点击重新核对 Pixiv 收藏状态，不会重复写入' :
     sameAccount.value && lastValue.value ? '取消 Pixiv 收藏' : '收藏到 Pixiv'
   const status = pending.value ? current?.error || '正在核对 Pixiv 收藏状态' :
     problem.value ? current?.error || '收藏状态未确认' :
@@ -40,4 +42,4 @@ async function click() {
   } catch (failure) { emit('message', failure instanceof Error ? failure.message : '收藏状态未能确认') }
 }
 </script>
-<template><button type="button" class="bookmark-button" :class="{on: on || acknowledging, acknowledging, pending: pending && !acknowledging, problem: problem && !acknowledging, cached: state?.cached && !acknowledging, unknown: !known && !acknowledging}" :disabled="pending || acknowledging" :title="title" :aria-label="title" :aria-pressed="sameAccount && known ? on : undefined" :aria-busy="pending" @click.stop="click"><Icon name="heart" /></button></template>
+<template><button type="button" class="bookmark-button" :class="{on: on || acknowledging, acknowledging, pending: pending && !acknowledging, problem: problem && !acknowledging, cached: state?.cached && !acknowledging, unknown: !known && !acknowledging}" :disabled="disabled" :title="title" :aria-label="title" :aria-pressed="sameAccount && known ? on : undefined" :aria-busy="pending" @click.stop="click"><Icon name="heart" /></button></template>

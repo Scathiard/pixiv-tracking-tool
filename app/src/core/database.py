@@ -1,9 +1,10 @@
 """Explicit database lifetime; no configuration import or implicit legacy migration."""
 from __future__ import annotations
 
+from collections import deque
 from contextlib import contextmanager
 from pathlib import Path
-from threading import RLock, local
+from threading import Condition, RLock, local
 from time import monotonic
 
 from alembic.migration import MigrationContext
@@ -35,6 +36,8 @@ class ArchiveDatabase:
         if not self.path.is_file():
             raise FileNotFoundError(self.path)
         self._write_lock = RLock()
+        self._writer_admission = Condition()
+        self._writer_waiters = deque()
         self._writer_state = local()
         self.reads = ReadController()
         self.engine = self._engine(self.path)
@@ -263,12 +266,31 @@ class ArchiveDatabase:
 
     @contextmanager
     def _write_gate(self):
+        # RLock alone lets a busy check worker repeatedly reacquire ahead of
+        # existing user writes. Keep a ticket until its transaction releases
+        # the writer, so every already waiting caller gets a turn first.
+        ticket = object()
+        acquired = False
         with diagnostics.span("db.write.lock_wait"):
-            self._write_lock.acquire()
+            try:
+                with self._writer_admission:
+                    self._writer_waiters.append(ticket)
+                    self._writer_admission.wait_for(lambda: self._writer_waiters[0] is ticket)
+                self._write_lock.acquire()
+                acquired = True
+            except BaseException:
+                with self._writer_admission:
+                    self._writer_waiters.remove(ticket)
+                    self._writer_admission.notify_all()
+                raise
         try:
             yield
         finally:
-            self._write_lock.release()
+            if acquired:
+                self._write_lock.release()
+            with self._writer_admission:
+                self._writer_waiters.popleft()
+                self._writer_admission.notify_all()
 
     @contextmanager
     def write(self):

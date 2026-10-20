@@ -1,7 +1,7 @@
 import { test, type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { setImmediate as nextTurn } from 'node:timers/promises'
-import { api, ApiReadError, prepareImage, write } from '../src/api.ts'
+import { api, ApiReadError, prepareImage, preparePageImage, write } from '../src/api.ts'
 
 function simulatedDeadlines(t: TestContext) {
   t.mock.timers.enable({apis: ['setTimeout']})
@@ -377,44 +377,50 @@ test('a read_busy write is sent once', async t => {
   assert.equal(fetchMock.mock.callCount(), 1)
 })
 
-test('image decode remains pending after 10 seconds, can finish later, and can be cancelled', async (t) => {
-  t.mock.timers.enable({apis: ['setTimeout']})
+test('loaded images are ready even when decode would never settle; shared consumers retain one load', async t => {
   const images: {onload: (() => void) | null; onerror: (() => void) | null; src: string; removed: boolean; decode: () => Promise<void>; removeAttribute: () => void}[] = []
-  const decoded: (() => void)[] = []
+  let decodes = 0
   class PendingImage {
     onload: (() => void) | null = null; onerror: (() => void) | null = null; src = ''; removed = false
-    decode() { return new Promise<void>(resolve => { decoded.push(resolve) }) }
+    decode() { decodes++; return new Promise<void>(() => {}) }
     removeAttribute() { this.removed = true }
     constructor() { images.push(this) }
   }
   Object.defineProperty(globalThis, 'Image', {value: PendingImage, configurable: true})
   t.after(() => { Reflect.deleteProperty(globalThis, 'Image') })
-  let settled = false
-  const ready = prepareImage('/synthetic.png', new AbortController().signal)
-  ready.then(() => { settled = true }, () => { settled = true })
-  images[0]!.onload?.()
-  t.mock.timers.tick(10001)
-  await nextTurn()
-  assert.equal(settled, false)
-  assert.equal(images[0]!.removed, false)
-  decoded[0]!()
-  await ready
-  assert.equal(images[0]!.onload, null)
-  assert.equal(images[0]!.onerror, null)
-  assert.equal(images[0]!.removed, false)
   const controller = new AbortController()
-  const retry = assert.rejects(prepareImage('/synthetic.png', controller.signal), {name: 'AbortError'})
-  images[1]!.onload?.()
-  t.mock.timers.tick(10001)
-  await nextTurn()
-  controller.abort()
-  await retry
-  decoded[1]!()
-  await nextTurn()
-  assert.equal(images[1]!.removed, true)
-  assert.equal(images[1]!.onload, null)
-  assert.equal(images[1]!.onerror, null)
-  assert.equal(images.length, 2)
+  const first = prepareImage('/shared-synthetic.png', controller.signal)
+  const rejected = assert.rejects(first, {name: 'AbortError'})
+  const second = prepareImage('/shared-synthetic.png', new AbortController().signal)
+  assert.equal(images.length, 1)
+  controller.abort(); await rejected
+  assert.equal(images[0]!.removed, false)
+  images[0]!.onload?.(); await second
+  assert.equal(decodes, 0, 'no extra decode barrier after onload')
+  assert.equal(images[0]!.onload, null)
+  await prepareImage('/shared-synthetic.png', new AbortController().signal)
+  assert.equal(images.length, 1, 'a ready adjacent image is reused')
+})
+
+test('a failed preview falls back to the original and cancellation never starts that fallback', async t => {
+  const images: {src: string; onload: (() => void) | null; onerror: (() => void) | null}[] = []
+  class FixtureImage {
+    src = ''; onload: (() => void) | null = null; onerror: (() => void) | null = null
+    constructor() { images.push(this) }
+    removeAttribute() {}
+  }
+  Object.defineProperty(globalThis, 'Image', {value: FixtureImage, configurable: true})
+  t.after(() => { Reflect.deleteProperty(globalThis, 'Image') })
+  const page = {src: '/fallback-original.png', preview: '/broken-preview.png' as string | null}
+  const ready = preparePageImage(page, new AbortController().signal)
+  images[0]!.onerror?.(); await nextTurn()
+  assert.equal(images[1]!.src, '/fallback-original.png')
+  images[1]!.onload?.(); await ready
+  assert.equal(page.preview, null)
+  const controller = new AbortController()
+  const cancelled = assert.rejects(preparePageImage({src: '/unwanted-original.png', preview: '/cancelled-preview.png'}, controller.signal), {name: 'AbortError'})
+  controller.abort(); await cancelled
+  assert.equal(images.length, 3)
 })
 
 test('image loading remains pending after 10 seconds, can finish later, and can be cancelled', async t => {

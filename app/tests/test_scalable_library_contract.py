@@ -217,25 +217,103 @@ def test_compact_product_cards_leave_unused_large_source_json_deferred(library):
             assert "work_revisions.source_metadata" not in columns
 
 
-@pytest.mark.parametrize("mutation", ["insert", "delete", "hidden", "sort"])
-def test_committed_changes_expire_cursor_and_anchor_can_recover(library, mutation):
+@pytest.mark.parametrize("mutation", ["delete", "hidden", "sort"])
+def test_changed_anchor_expires_cursor_and_identity_can_recover(library, mutation):
     page = library.list_cursor(limit=7)
-    anchor = page["items"][2]["id"]
+    anchor = page["items"][-1]["id"]
     with library.database.write() as session:
-        if mutation == "insert":
-            session.add(Work(id=62, pixiv_illust_id="1062", artist_id=1, title="inserted", posted_at=REFERENCE))
-        elif mutation == "delete":
-            session.delete(session.get(Work, page["items"][0]["id"]))
+        if mutation == "delete":
+            session.delete(session.get(Work, anchor))
         elif mutation == "hidden":
-            work_id = page["items"][0]["id"]
-            session.add(LocalPreference(work_id=work_id, is_hidden=True))
+            session.add(LocalPreference(work_id=anchor, is_hidden=True))
         else:
-            session.get(Work, page["items"][0]["id"]).posted_at = None
+            session.get(Work, anchor).posted_at = None
     with pytest.raises(CursorExpired):
         library.list_cursor(limit=7, cursor=page["next_cursor"])
-    recovered = library.list_cursor(limit=7, anchor_work_id=anchor)
+    with pytest.raises(CursorExpired):
+        library.cursor_neighbors(anchor, cursor=page["next_cursor"])
+    retained = anchor if mutation == "sort" else page["items"][2]["id"]
+    recovered = library.list_cursor(limit=7, anchor_work_id=retained, ceiling=page["ceiling"])
     assert recovered["generation"] > page["generation"]
-    assert recovered["items"][0]["id"] == anchor
+    assert recovered["items"][0]["id"] == retained
+
+
+@pytest.mark.parametrize("mutation", ["insert", "bookmark", "title"])
+def test_unrelated_changes_continue_cursor_with_original_ceiling(library, mutation):
+    page = library.list_cursor(limit=7)
+    expected = _expected_ids(library, LibraryFilter(), page["ceiling"])
+    anchor = page["items"][-1]["id"]
+    with library.database.write() as session:
+        if mutation == "insert":
+            session.add(Work(id=62, pixiv_illust_id="1062", artist_id=1, title="new", posted_at=REFERENCE))
+        elif mutation == "bookmark":
+            session.get(RemoteBookmark, 1).value = False
+        else:
+            session.get(Work, anchor).title = "New title does not change newest order"
+    tail = library.list_cursor(limit=7, cursor=page["next_cursor"])
+    assert tail["continuation_rebased"] and tail["generation"] > page["generation"]
+    assert tail["ceiling"] == page["ceiling"]
+    assert [item["id"] for item in tail["items"]] == expected[7:14]
+    near = library.cursor_neighbors(anchor, cursor=page["next_cursor"],
+        from_cursor=page["items"][-2]["cursor"])
+    assert near["continuation_rebased"] and near["next"]["work_id"] == expected[7]
+    # The browser can reuse another old boundary after a second normal write.
+    with library.database.write() as session:
+        session.get(RemoteBookmark, 1).value = True if mutation == "bookmark" else False
+    back = library.list_cursor(limit=7, cursor=tail["previous_cursor"], direction="previous")
+    assert [item["id"] for item in back["items"]] == expected[:7]
+
+
+def test_direct_neighbor_revalidates_origin_and_adjacency(library):
+    page = library.list_cursor(limit=3)
+    first, middle, _ = page["items"]
+    with library.database.write() as session:
+        # A new position between the original pair changes adjacency although
+        # both cached boundary keys themselves are still valid.
+        session.get(LocalPreference, 2).is_hidden = False
+    with pytest.raises(CursorExpired):
+        library.cursor_neighbors(first["id"], cursor=first["cursor"],
+            from_cursor=middle["cursor"], from_direction="previous")
+    fresh = library.cursor_neighbors(middle["id"])
+    assert fresh["previous"]["work_id"] == 2
+    # Moving the origin itself must also trigger identity recovery.
+    with library.database.write() as session:
+        session.get(Work, middle["id"]).posted_at = None
+    with pytest.raises(CursorExpired):
+        library.cursor_neighbors(first["id"], cursor=first["cursor"],
+            from_cursor=middle["cursor"], from_direction="previous")
+
+
+def test_favorite_anchor_must_still_belong_to_scope(library):
+    filters = LibraryFilter(favorites=True)
+    first = library.list_cursor(filters, limit=1)
+    anchor = first["items"][0]["id"]
+    with library.database.write() as session:
+        session.get(RemoteBookmark, anchor).value = False
+    with pytest.raises(CursorExpired):
+        library.list_cursor(filters, cursor=first["next_cursor"])
+
+
+def test_feed_keeps_one_snapshot_while_background_changes_scope(library, monkeypatch):
+    original = library.query_cursor
+    changed = False
+
+    def update_after_cards(*args, **kwargs):
+        nonlocal changed
+        result = original(*args, **kwargs)
+        if not changed:
+            changed = True
+            with library.database.write() as session:
+                session.add(LocalPreference(work_id=result["items"][0]["id"], is_hidden=True))
+        return result
+
+    expected = library.cursor_feed(limit=5)
+    monkeypatch.setattr(library, "query_cursor", update_after_cards)
+    batch = library.cursor_feed(limit=5)
+    assert [(p["work_id"], p["page"]) for p in batch["items"]] == [
+        (p["work_id"], p["page"]) for p in expected["items"]]
+    assert batch["generation"] == expected["generation"]
+    assert library.list_cursor(limit=1)["items"][0]["id"] != batch["items"][0]["work_id"]
 
 
 def test_cursor_filter_fence_and_http_expiry_are_explicit(library):
@@ -248,7 +326,7 @@ def test_cursor_filter_fence_and_http_expiry_are_explicit(library):
         body = response.json()
         _assert_cursor_shape(body)
         with library.database.write() as session:
-            session.get(Work, 1).title = "changed synthetic title"
+            session.get(Work, body["items"][-1]["id"]).posted_at = None
         expired = client.get("/api/library/cursor", params={"cursor": body["next_cursor"], "limit": 7})
         assert expired.status_code == 409, expired.text
 

@@ -4,14 +4,14 @@ import { useVirtualizer } from '@tanstack/vue-virtual'
 import { archiveNotice, isOlderCatalogue, needsPageRefresh, type Anchor, type PageData, type PageLoader } from './types'
 import { DirectionGesture, LatestIntent } from './interaction'
 import { discardedSignal } from './diagnostics'
-import { ApiReadError, prepareImage } from './api'
+import { ApiReadError, preparePageImage } from './api'
 import { observeCatalogueData } from './state/catalogue'
 import MediaImage from './MediaImage.vue'
 import RestrictionBadge from './components/RestrictionBadge.vue'
 import Icon from './components/Icon.vue'
 
 const props = defineProps<{mode: 'reader' | 'feed'; loader: PageLoader; initial: Anchor | null; sessionKey: string; inactive?: boolean}>()
-const emit = defineEmits<{focus: [page: PageData, anchor: Anchor]; navigate: [delta: number]; artist: [id: number]; zoom: [page: PageData]; bookmark: [page: PageData]; manage: [page: PageData]; recover: [page: PageData | null]}>()
+const emit = defineEmits<{focus: [page: PageData, anchor: Anchor]; navigate: [delta: number]; artist: [id: number]; zoom: [page: PageData]; bookmark: [page: PageData]; manage: [page: PageData]; recover: [page: PageData | null]; activity: [state: {phase: string; error: string}]}>()
 const heartPage = ref<number | null>(null), expired = ref(false)
 let heartTimer = 0
 function bookmark(page: PageData) {
@@ -22,6 +22,9 @@ function bookmark(page: PageData) {
 const viewport = ref<HTMLDivElement | null>(null), pages = ref<PageData[]>([]), total = ref(0)
 const before = ref<HTMLDivElement | null>(null), beforeHeight = ref(0)
 const size = ref({width: 1000, height: 760}), loading = ref(false), error = ref('')
+const phase = ref('')
+watch([loading, phase, error], () => emit('activity', {phase: loading.value ? phase.value : '', error: error.value}))
+let adjacentPreload: AbortController | null = null
 const gesture = new DirectionGesture(), intent = new LatestIntent()
 let observer: ResizeObserver | null = null, restoring = false, frame = 0, lastAnchor: Anchor | null = null
 let refreshTimer = 0, refreshController: AbortController | null = null, refreshing = false, forceRefreshPending = false
@@ -77,10 +80,11 @@ async function restore(anchor: Anchor | null, ownsView: () => boolean = () => tr
 async function jump(index: number, offset = 0, showIntro = true) {
   if (props.inactive) return
   index = Math.max(0, total.value ? Math.min(total.value - 1, index) : index)
+  if (loading.value && targetIndex === index) return
   stopRefresh()
   const request = intent.begin()
   targetIndex = index
-  loading.value = true; restoring = true; error.value = ''; expired.value = false
+  phase.value = '正在定位图片页…'; loading.value = true; restoring = true; error.value = ''; expired.value = false
   failedAction = () => { void jump(index, offset, showIntro) }
   try {
     const cached = pages.value.find(page => page.index === index)
@@ -89,7 +93,12 @@ async function jump(index: number, offset = 0, showIntro = true) {
     if (!request.current() || isOlderCatalogue(batch.catalogue_revision, catalogueRevision)) { discardedSignal(request.signal, 'other'); return }
     const target = batch.items.find(page => page.index === index)
     if (!target && batch.total) throw new Error('目标图片页已不在当前范围内，请重试')
-    if (target && pages.value.length) await prepareImage(target.src, request.signal)
+    if (target && pages.value.length) {
+      phase.value = '正在准备图片，当前画面会保留…'
+      const displayReady = preparePageImage(target, request.signal)
+      adjacentPreload?.abort()
+      await displayReady
+    }
     if (!request.current()) return
     catalogueRevision = batch.catalogue_revision ?? catalogueRevision
     pages.value = batch.items; total.value = batch.total
@@ -99,6 +108,12 @@ async function jump(index: number, offset = 0, showIntro = true) {
       viewport.value?.scrollTo({top: 0, behavior: 'instant'}); await paint()
     } else if (target) await restore({work_id: target.work_id, page: target.page, offset, index: target.index, work_index: target.work_index}, request.current)
     else viewport.value?.scrollTo({top: 0})
+    if (request.current() && target) {
+      const controller = adjacentPreload = new AbortController()
+      for (const neighbor of batch.items.filter(page => Math.abs(page.index - target.index) === 1)) {
+        void preparePageImage(neighbor, controller.signal).catch(() => {})
+      }
+    }
   } catch (failure) {
     if (request.current()) { expired.value = failure instanceof ApiReadError && failure.code === 'cursor_expired'; error.value = failure instanceof Error ? failure.message : '图片页未能载入' }
   } finally {
@@ -118,7 +133,7 @@ async function extend(direction: number) {
   if (direction < 0 && first === 0 || direction > 0 && end >= total.value) return
   stopRefresh()
   const request = intent.begin()
-  loading.value = true; error.value = ''; expired.value = false
+  phase.value = '正在读取相邻图片页…'; loading.value = true; error.value = ''; expired.value = false
   failedAction = () => { void extend(direction) }
   try {
     const offset = direction > 0 ? end : Math.max(0, first - CHUNK)
@@ -254,6 +269,7 @@ function move(event: PointerEvent) { if (gesture.move(event.pointerId, event.cli
 function up(event: PointerEvent) { const direction = gesture.up(event.pointerId); if (direction && !props.inactive) emit('navigate', direction) }
 function dimensions(page: PageData, width: number, height: number) { page.width = width; page.height = height }
 function retry() { if (expired.value) emit('recover', current()?.page || pages.value[0] || null); else failedAction?.() }
+function cancel() { intent.cancel(); adjacentPreload?.abort(); targetIndex = null; loading.value = false; restoring = false; error.value = ''; report(); queueRefresh() }
 watch(() => props.sessionKey, () => { lastAnchor = null; catalogueRevision = undefined; void jump(props.initial?.index || 0, props.initial?.offset || 0) })
 onMounted(() => {
   observer = new ResizeObserver(entries => { for (const entry of entries) { const rect = entry.contentRect; if (entry.target === viewport.value) size.value = {width: rect.width, height: rect.height}; else if (entry.target === before.value) beforeHeight.value = rect.height } })
@@ -263,8 +279,8 @@ onMounted(() => {
   window.addEventListener('archive-updated', archiveUpdated)
   void jump(props.initial?.index || 0, props.initial?.offset || 0)
 })
-onBeforeUnmount(() => { clearTimeout(heartTimer); intent.cancel(); stopRefresh(); observer?.disconnect(); cancelAnimationFrame(frame); document.removeEventListener('visibilitychange', visibilityChanged); window.removeEventListener('archive-updated', archiveUpdated) })
-defineExpose({readAnchor, jump, stepPage, scrollBy: (delta: number) => viewport.value?.scrollBy({top: delta, behavior: 'auto'})})
+onBeforeUnmount(() => { clearTimeout(heartTimer); adjacentPreload?.abort(); intent.cancel(); stopRefresh(); observer?.disconnect(); cancelAnimationFrame(frame); document.removeEventListener('visibilitychange', visibilityChanged); window.removeEventListener('archive-updated', archiveUpdated) })
+defineExpose({readAnchor, jump, stepPage, cancel, retry, scrollBy: (delta: number) => viewport.value?.scrollBy({top: delta, behavior: 'auto'})})
 </script>
 <template>
   <div class="reading-surface">
@@ -283,7 +299,7 @@ defineExpose({readAnchor, jump, stepPage, scrollBy: (delta: number) => viewport.
             <span v-if="mode === 'feed' && pages[row.index]!.page === 0 && archiveNotice(pages[row.index]!)" class="page-source">{{ archiveNotice(pages[row.index]!) }}</span>
           </figcaption>
           <div class="page-picture" :style="mode === 'reader' ? {height: `${height(pages[row.index])}px`} : undefined">
-            <MediaImage :src="pages[row.index]!.src" :state="pages[row.index]!.state" :recovery="pages[row.index]!.recovery" :processing="pages[row.index]!.processing" :archive="pages[row.index]!.archive" :animation="pages[row.index]!.type === 'ugoira'" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
+            <MediaImage :src="pages[row.index]!.src" :preview="pages[row.index]!.preview" :state="pages[row.index]!.state" :recovery="pages[row.index]!.recovery" :processing="pages[row.index]!.processing" :archive="pages[row.index]!.archive" :animation="pages[row.index]!.type === 'ugoira'" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
               :width="mode === 'feed' ? pages[row.index]!.width || 1000 : undefined"
               :height="mode === 'feed' ? pages[row.index]!.height || 1350 : undefined"
               :flow-taps="mode === 'feed'" @bookmark="bookmark(pages[row.index]!)"
@@ -296,7 +312,6 @@ defineExpose({readAnchor, jump, stepPage, scrollBy: (delta: number) => viewport.
       <p v-if="!loading && !pages.length" class="empty">当前范围没有可阅读的作品。</p>
       <p v-if="pages.length && pages.at(-1)!.index + 1 === total" class="end-mark">已到{{ mode === 'feed' ? '当前图库范围' : '这件作品' }}末尾</p>
     </div>
-    <div v-if="loading || error" class="reader-notice" role="status">{{ error || '正在载入图片页…' }} <button v-if="error" @click="retry">{{ expired ? '重新定位后继续' : '重试' }}</button></div>
   </div>
 </template>
 <style scoped>

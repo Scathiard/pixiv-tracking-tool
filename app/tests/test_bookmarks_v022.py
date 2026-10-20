@@ -55,6 +55,83 @@ def wait_result(service, operation_id):
     pytest.fail("bookmark operation did not finish")
 
 
+def test_explicit_write_queues_behind_refresh_with_its_own_receipt(database):
+    remote = Remote()
+    entered, release = Event(), Event()
+    original_read = remote.read_bookmark_bound
+
+    def blocked_read(*args):
+        entered.set()
+        assert release.wait(3)
+        return original_read(*args)
+
+    remote.read_bookmark_bound = blocked_read
+    service = BookmarkService(database, remote, current_account=lambda: remote.account)
+    service.start()
+    try:
+        refresh = service.refresh(2)
+        assert entered.wait(2)
+        identity = str(uuid4())
+        write = service.submit(2, True, identity, expected_account_id="123")
+        assert write["operation_id"] != refresh["operation_id"]
+        assert write["kind"] == "write" and write["desired"] is True
+        assert remote.writes == 0  # The earlier remote read still owns this work.
+        assert service.submit(2, True, identity, expected_account_id="123")["operation_id"] == write["operation_id"]
+        release.set()
+        assert wait_result(service, refresh["operation_id"])["status"] == "confirmed"
+        final = wait_result(service, write["operation_id"])
+        assert final["status"] == "confirmed" and final["value"] is True
+        assert remote.writes == 1 and remote.reads == 2
+    finally:
+        release.set()
+        assert service.stop()
+
+
+def test_queued_write_keeps_bound_account_and_never_writes_after_switch(database):
+    remote = Remote()
+    entered, release = Event(), Event()
+
+    def blocked_read(*_args):
+        entered.set()
+        assert release.wait(3)
+        return False
+
+    remote.read_bookmark_bound = blocked_read
+    service = BookmarkService(database, remote, current_account=lambda: remote.account)
+    service.start()
+    try:
+        service.refresh(2)
+        assert entered.wait(2)
+        queued = service.submit(2, True, str(uuid4()), expected_account_id="123")
+        remote.account = "999"
+        release.set()
+        assert wait_result(service, queued["operation_id"])["status"] == "unconfirmed"
+        assert remote.writes == 0
+    finally:
+        release.set()
+        assert service.stop()
+
+
+def test_restart_serializes_refresh_and_queued_write_as_readback_only(database):
+    with database.write() as session:
+        session.add(RemoteBookmark(work_id=2, value=None, source="legacy_cache", version=2))
+        for identity, version, kind, desired in [
+                ("old-refresh", 1, "refresh", None), ("queued-write", 2, "write", True)]:
+            session.add(BookmarkOperation(id=identity, request_id=str(uuid4()), work_id=2,
+                version=version, kind=kind, desired=desired, account_id="123",
+                status="pending", phase="queued"))
+    remote = Remote()
+    remote.value = True
+    service = BookmarkService(database, remote)
+    service.start()
+    try:
+        assert wait_result(service, "old-refresh")["status"] == "confirmed"
+        assert wait_result(service, "queued-write")["status"] == "confirmed"
+        assert remote.writes == 0 and remote.reads == 2
+    finally:
+        assert service.stop()
+
+
 def test_durable_fact_survives_expiry_restart_and_account_switch(database):
     remote = Remote()
     clock = [100.0]

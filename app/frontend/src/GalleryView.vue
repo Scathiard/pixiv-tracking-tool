@@ -33,6 +33,21 @@ const REFRESH_MS = 12000
 const ANIMATION_RESUME_MS = 220
 let catalogueRevision: number | undefined
 let consumedSeed: GallerySeed | null | undefined
+async function cursorRange(extras: Record<string, string | number>, signal: AbortSignal, anchorId?: number) {
+  try {
+    const data = await api<CursorGalleryBatch>(url('/api/library/cursor', props.query, extras), {signal})
+    if (extras.cursor && generation !== undefined && data.generation !== generation && !data.continuation_rebased) throw new ApiReadError('图库定位需要更新', 'cursor_expired')
+    return data
+  } catch (failure) {
+    signal.throwIfAborted()
+    if (!(failure instanceof ApiReadError) || failure.code !== 'cursor_expired' || !extras.cursor || !anchorId) throw failure
+    // A single identity rebase preserves this window's original scope, ceiling
+    // and direction. A removed anchor remains an explicit recoverable failure.
+    const anchor = await api<{anchor_cursor: string}>(url(`/api/works/${anchorId}/cursor-neighbors`, props.query), {signal})
+    const data = await api<CursorGalleryBatch>(url('/api/library/cursor', props.query, {...extras, cursor: anchor.anchor_cursor}), {signal})
+    return {...data, continuation_rebased: true}
+  }
+}
 const rowHeight = computed(() => ((width.value - 16 * (columns.value - 1)) / columns.value) * 1.225 + 84)
 const virtual = useVirtualizer(computed(() => ({count: Math.ceil(works.value.length / columns.value),
   getScrollElement: () => viewport.value, estimateSize: () => rowHeight.value, overscan: 2, scrollMargin: profileHeight.value})))
@@ -103,8 +118,8 @@ async function fetchRange(offset: number, limit: number, anchor: number, backgro
   try {
     const anchorWork = background ? works.value[0] : null
     const useCursor = offset === 0 || !!anchorWork?.cursor
-    const data = prepared || normalizeGalleryBatch(await api<CursorGalleryBatch>(url(useCursor ? '/api/library/cursor' : '/api/library', props.query, {limit, compact: 1, ...(anchorWork?.cursor ? {cursor: anchorWork.cursor, anchor_work_id: anchorWork.id} : useCursor ? {} : {offset})}), {signal: ticket.signal}), offset)
-    if (generation !== undefined && data.generation !== undefined && generation !== data.generation && background) throw new ApiReadError('图库已变化，当前位置仍保留；重新定位后可继续', 'cursor_expired')
+    const extras = {limit, compact: 1, ...(anchorWork?.cursor ? {cursor: anchorWork.cursor, anchor_work_id: anchorWork.id} : useCursor ? {} : {offset})}
+    const data = prepared || normalizeGalleryBatch(useCursor ? await cursorRange(extras, ticket.signal, anchorWork?.id) : await api<CursorGalleryBatch>(url('/api/library', props.query, extras), {signal: ticket.signal}), offset)
     generation = data.generation ?? generation
     expired.value = false; totalExact.value = data.total_exact !== false; ordinalExact.value = data.ordinal_exact !== false
     hasMore.value = data.has_more ?? offset + data.items.length < data.total
@@ -176,13 +191,13 @@ async function extend(direction: number) {
     const limit = direction > 0 ? amount : start.value - offset
     const edge = direction > 0 ? works.value.at(-1) : works.value[0]
     if (!edge?.cursor) throw new Error('当前窗口缺少定位信息，请重新定位')
-    const data = normalizeGalleryBatch(await api<CursorGalleryBatch>(url('/api/library/cursor', props.query, {limit, compact: 1, cursor: edge.cursor, direction: direction > 0 ? 'next' : 'previous'}), {signal: ticket.signal}), offset)
-    if (generation !== undefined && data.generation !== generation) throw new ApiReadError('图库已变化，当前位置仍保留；重新定位后可继续', 'cursor_expired')
+    const data = normalizeGalleryBatch(await cursorRange({limit, compact: 1, cursor: edge.cursor, direction: direction > 0 ? 'next' : 'previous'}, ticket.signal, edge.id), offset)
     if (direction > 0) hasMore.value = data.has_more ?? offset + data.items.length < data.total
     else hasPrevious.value = data.has_previous ?? offset > 0
     totalExact.value = data.total_exact !== false
     if (!ticket.current() || isOlderCatalogue(data.catalogue_revision, catalogueRevision)) { discardedSignal(ticket.signal, 'other'); return }
     catalogueRevision = data.catalogue_revision ?? catalogueRevision
+    generation = data.generation ?? generation
     const row = rows.value.find(row => row.end > (viewport.value?.scrollTop || 0))
     const anchor = start.value + (row?.index || 0) * columns.value
     const pixel = (viewport.value?.scrollTop || 0) - (row?.start || 0)
@@ -207,7 +222,7 @@ async function recoverRange() {
   const anchorWork = works.value[(row?.index || 0) * columns.value] || works.value[0]
   const ticket = request.begin(); loading.value = true
   try {
-    const params = new URLSearchParams(props.query); params.delete('ceiling'); params.delete('as_of')
+    const params = new URLSearchParams(props.query)
     const data = normalizeGalleryBatch(await api<CursorGalleryBatch>(url('/api/library/cursor', params.toString(), {limit: props.continuous ? 240 : props.pageSize, compact: 1, ...(anchorWork ? {anchor_work_id: anchorWork.id} : {})}), {signal: ticket.signal}))
     if (!ticket.current()) return
     params.set('ceiling', String(data.ceiling)); params.set('as_of', data.as_of)

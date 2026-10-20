@@ -184,8 +184,52 @@ export function url(path: string, query: string, extra: Record<string, string | 
   for (const [key, value] of Object.entries(extra)) params.set(key, String(value))
   return path + '?' + params.toString()
 }
+const readyImages = new Map<string, HTMLImageElement>()
+const imageFlights = new Map<string, {controller: AbortController; promise: Promise<HTMLImageElement>; users: number}>()
+/** A missing/broken derived preview must not hide an available original. */
+export async function preparePageImage(page: {src: string | null; preview?: string | null} | undefined, signal: AbortSignal): Promise<void> {
+  if (!page) { signal.throwIfAborted(); return }
+  try { await prepareImage(page.preview || page.src, signal) }
+  catch (error) {
+    signal.throwIfAborted()
+    if (!page.preview || !page.src || page.preview === page.src) throw error
+    page.preview = null
+    await prepareImage(page.src, signal)
+  }
+}
+/** Share in-flight targets and retain at most eight ready adjacent images. */
 export function prepareImage(src: string | null, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.reject(signal.reason)
   if (!src) return Promise.resolve()
+  const ready = readyImages.get(src)
+  if (ready) { readyImages.delete(src); readyImages.set(src, ready); return Promise.resolve() }
+  let flight = imageFlights.get(src)
+  if (!flight) {
+    const controller = new AbortController()
+    const promise = loadImage(src, controller.signal).then(image => {
+      readyImages.set(src, image)
+      while (readyImages.size > 8) readyImages.delete(readyImages.keys().next().value!)
+      return image
+    }).finally(() => { if (imageFlights.get(src)?.controller === controller) imageFlights.delete(src) })
+    flight = {controller, promise, users: 0}; imageFlights.set(src, flight)
+  }
+  const owned = flight
+  owned.users++
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const finish = (error?: unknown) => {
+      if (settled) return
+      settled = true; signal.removeEventListener('abort', abort)
+      if (--owned.users === 0 && imageFlights.get(src) === owned) { imageFlights.delete(src); owned.controller.abort() }
+      if (error) reject(error); else resolve()
+    }
+    const abort = () => finish(signal.reason)
+    signal.addEventListener('abort', abort, {once: true})
+    owned.promise.then(() => finish(), error => finish(error))
+    if (signal.aborted) abort()
+  })
+}
+function loadImage(src: string, signal: AbortSignal): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image()
     const observation = mediaObservation(src)
@@ -199,12 +243,14 @@ export function prepareImage(src: string | null, signal: AbortSignal): Promise<v
         else observation?.error(failure)
         image.removeAttribute('src'); reject(failure)
       }
-      else resolve()
+      else resolve(image)
     }
     const abort = () => finish(new DOMException('Aborted', 'AbortError'))
-    image.onload = async () => {
+    image.onload = () => {
       observation?.loaded(image)
-      try { await image.decode(); observation?.decoded('ok') } catch (error) { observation?.decoded('error', error) /* onload already confirms a renderable image */ }
+      // load confirms display readiness. A separate decode promise must never
+      // hold the old view indefinitely after the resource has loaded.
+      observation?.decoded('unsupported')
       if (signal.aborted) { abort(); return }
       finish()
     }

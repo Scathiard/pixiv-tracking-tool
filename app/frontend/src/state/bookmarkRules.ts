@@ -1,4 +1,5 @@
 export interface VersionedBookmark {
+  local_unknown?: boolean
   version: number; status: string; operation_id?: string | null
   account_epoch?: number; current_account_id?: string | null
 }
@@ -23,6 +24,6 @@ export function acceptsBookmarkUpdate(previous: VersionedBookmark | undefined, i
   if (!Number.isSafeInteger(incoming.version) || incoming.version < 0 || incoming.version < previous.version) return false
   if (incoming.version > previous.version) return true
   if (previous.operation_id && incoming.operation_id !== previous.operation_id) return false
-  if (previous.status !== 'pending' && incoming.status === 'pending') return false
+  if (previous.status !== 'pending' && incoming.status === 'pending' && !previous.local_unknown) return false
   return true
 }

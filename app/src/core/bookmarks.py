@@ -42,6 +42,7 @@ def bookmark_snapshot(bookmark, operation=None, account_id=None, work_id=None,
         "operation_id": operation.id if operation_is_current else None,
         "status": status,
         "desired": operation.desired if operation_is_current else None,
+        "kind": operation.kind if operation_is_current else None,
         "value": bookmark.value if bookmark else None,
         "confirmed_at": bookmark.confirmed_at.isoformat() + "Z" if verified and bookmark.confirmed_at else None,
         "error": error,
@@ -83,6 +84,10 @@ class BookmarkService:
         self._executor = None
         self._futures = set()
         self._scheduled_ids = set()
+        self._scheduled_works = {}
+        # Only operations accepted in this process may still send their write.
+        # Persisted operations discovered at startup are always readback-only.
+        self._live_writes = set()
         self._accepting = True
         self._stopping = Event()
 
@@ -214,6 +219,7 @@ class BookmarkService:
             executor.shutdown(wait=True, cancel_futures=self._stopping.is_set())
         with self._lock:
             self._executor = None
+            self._live_writes.clear()
             self._fresh.clear()
             self._last_account_id = None
         return True
@@ -231,12 +237,28 @@ class BookmarkService:
 
     def _schedule(self, operation_id, readback_only=False):
         with self._lock:
+            if self._executor is None or not self._accepting:
+                return False
+        with self.database.read() as session:
+            operation = session.get(BookmarkOperation, operation_id)
+            if operation is None or operation.status != "pending":
+                return False
+            work_id = operation.work_id
+            if session.scalar(select(BookmarkOperation.id).where(
+                    BookmarkOperation.work_id == work_id,
+                    BookmarkOperation.status == "pending",
+                    BookmarkOperation.version < operation.version).limit(1)):
+                return False
+        with self._lock:
             if (self._executor is None or not self._accepting
                     or operation_id in self._scheduled_ids
+                    or work_id in self._scheduled_works.values()
                     or sum(not future.done() for future in self._futures) >= self.max_pending
                     or readback_only and self._submitting):
                 return False
             self._scheduled_ids.add(operation_id)
+            self._scheduled_works[operation_id] = work_id
+            readback_only = readback_only and operation_id not in self._live_writes
             future = self._executor.submit(self._run, operation_id, readback_only)
             self._futures.add(future)
         # A completed Future calls its callback immediately. Register after
@@ -249,6 +271,8 @@ class BookmarkService:
             self._callbacks += 1
             self._futures.discard(future)
             self._scheduled_ids.discard(operation_id)
+            self._scheduled_works.pop(operation_id, None)
+            self._live_writes.discard(operation_id)
             recover = self._accepting and self._executor is not None and self._is_available()
         try:
             if not future.cancelled() and future.exception() is not None:
@@ -333,6 +357,7 @@ class BookmarkService:
             with self._idle:
                 self._submitting -= 1
                 self._idle.notify_all()
+            self._refill_recovery()
 
     def _persist_submission(self, work_id, desired, request_id, kind, expected_account_id):
         operation_id = None
@@ -340,6 +365,9 @@ class BookmarkService:
             operation_id = self._enqueue_in_session(session, work_id, desired, request_id, kind, expected_account_id)
             records = self._state_records(session, work_id)
         if operation_id is not None:
+            if kind == "write":
+                with self._lock:
+                    self._live_writes.add(operation_id)
             self._schedule(operation_id)
         return self.snapshot(*records, work_id=work_id)
 
@@ -363,8 +391,13 @@ class BookmarkService:
             BookmarkOperation.version.desc()).limit(1))
         if existing:
             if expected_account_id is not None and existing.account_id != str(expected_account_id):
-                raise ValueError("另一账号的收藏操作尚未核对，请稍后重试")
-            return None
+                if existing.account_id is not None:
+                    raise ValueError("另一账号的收藏操作尚未核对，请稍后重试")
+            # Reads may share a pending operation; a refresh can never serve as
+            # the receipt for a deliberate write. Distinct write targets queue
+            # behind the earlier operation, while repeats remain idempotent.
+            if kind == "refresh" or existing.kind == "write" and existing.desired == desired:
+                return None
         pending_total = session.scalar(select(func.count()).select_from(
             BookmarkOperation).where(BookmarkOperation.status == "pending"))
         if pending_total >= self.max_pending:
@@ -642,14 +675,19 @@ class BookmarkService:
         with self.database.write() as session:
             item = session.get(BookmarkOperation, operation_id)
             fact = session.get(RemoteBookmark, item.work_id)
-            if item.status != "pending" or fact.version != item.version:
+            if item.status != "pending":
                 return
-            fact.value, fact.account_id, fact.source = value, account, "readback"
-            fact.confirmed_at, fact.error = utcnow(), None
+            # A queued newer intent reserves a version before this read ends.
+            # Finish this operation without publishing its older fact over it.
+            current = fact.version == item.version
+            if current:
+                fact.value, fact.account_id, fact.source = value, account, "readback"
+                fact.confirmed_at, fact.error = utcnow(), None
             item.status, item.phase, item.error = "confirmed", "finished", None
             item.finished_at = utcnow()
             confirmed = (item.work_id, item.version)
-        self._mark_fresh(*confirmed, account)
+        if current:
+            self._mark_fresh(*confirmed, account)
 
     def _finish(self, operation_id, status, error):
         with self.database.write() as session:
