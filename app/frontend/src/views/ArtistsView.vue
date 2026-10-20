@@ -4,6 +4,7 @@ import { api, url, write } from '../api'
 import { sourceInaccessible, sourceStatusLabel, type Artist } from '../types'
 import { LatestIntent, ReadLifecycle } from '../interaction'
 import { activeStates, phaseStatus, type Operation } from '../state/taskProgress'
+import { invalidateFilterCatalogue } from '../state/filterCatalogue'
 import Icon from '../components/Icon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import MediaImage from '../MediaImage.vue'
@@ -140,7 +141,7 @@ async function addArtist() {
   if (!identity || previewLoading.value) return
   if (identity.artist_id) { adding.value = false; emit('works', identity.artist_id); emit('message', '这位画师已在本地，已打开现有存档'); return }
   busy.value = true
-  try { const result = await write<{operation_id?: string}>('/api/artists', {pixiv_id: identity.user_id}); if (result.operation_id) emit('taskQueued', result.operation_id); newPixivId.value = ''; identityInput(); adding.value = false; emit('message', '画师已加入，正在检查新作'); await load(true) }
+  try { const result = await write<{operation_id?: string}>('/api/artists', {pixiv_id: identity.user_id}); invalidateFilterCatalogue('artists'); if (result.operation_id) emit('taskQueued', result.operation_id); newPixivId.value = ''; identityInput(); adding.value = false; emit('message', '画师已加入，正在检查新作'); await load(true) }
   catch (failure) { emit('message', failure instanceof Error ? failure.message : '未能添加画师', true) }
   finally { busy.value = false }
 }
@@ -169,7 +170,7 @@ function checkLabel(artist: Artist) {
 }
 async function track(artist: Artist, mode: Artist['mode']) {
   busy.value = true
-  try { await write(`/api/artists/${artist.id}/tracking`, {mode}, 'PATCH'); artist.mode = mode; emit('message', mode === 'active' ? '已恢复追踪' : '已暂停追踪') }
+  try { await write(`/api/artists/${artist.id}/tracking`, {mode}, 'PATCH'); artist.mode = mode; invalidateFilterCatalogue('artists'); emit('message', mode === 'active' ? '已恢复追踪' : '已暂停追踪') }
   catch (failure) { emit('message', failure instanceof Error ? failure.message : '画师状态未能更改', true) }
   finally { busy.value = false }
 }
@@ -177,7 +178,7 @@ async function deleteArtist() {
   const artist = deleteTarget.value
   if (!artist) return
   deleteTarget.value = null; busy.value = true
-  try { await api(`/api/artists/${artist.id}?delete_files=true`, {method: 'DELETE'}); emit('message', `${artist.name} 的删除任务已提交，结果可在设置的处理日志查看`); await load(true) }
+  try { await api(`/api/artists/${artist.id}?delete_files=true`, {method: 'DELETE'}); invalidateFilterCatalogue(); emit('message', `${artist.name} 的删除任务已提交，结果可在设置的处理日志查看`); await load(true) }
   catch (failure) { emit('message', failure instanceof Error ? failure.message : '画师存档未能删除', true) }
   finally { busy.value = false }
 }

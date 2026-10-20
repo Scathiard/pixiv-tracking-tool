@@ -1,0 +1,24 @@
+{
+  "checks": [],
+  "failures": [
+    {
+      "name": "detail-enters-current-work",
+      "error": "Locator expected to have attribute '2'\nActual value: 3 \nCall log:\n  - Expect \"to_have_attribute\" with timeout 5000ms\n  - waiting for locator(\".stream-reader\")\n    - locator resolved to <div data-v-c0537c81=\"\" data-v-e4ebd640=\"\" class=\"stream-reader\" data-stream-entry=\"0\">…</div>\n    - unexpected value \"null\"\n    11 × locator resolved to <div data-v-c0537c81=\"\" data-v-e4ebd640=\"\" data-stream-work=\"3\" class=\"stream-reader\" data-stream-entry=\"0\">…</div>\n       - unexpected value \"3\"\n"
+    },
+    {
+      "name": "random-prepared-before-click",
+      "error": "No random session prepared before choosing random"
+    },
+    {
+      "name": "stream-no-navigation-buttons",
+      "error": "Stream still has previous/next buttons"
+    },
+    {
+      "name": "filter-reopen-reuses-result",
+      "error": "Opened twice: tags requests=2, expected one reusable result"
+    }
+  ],
+  "metrics": {},
+  "real_account": false,
+  "real_library": false
+}

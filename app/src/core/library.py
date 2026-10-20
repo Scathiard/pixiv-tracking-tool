@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass, replace
 import base64
 import hashlib
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import PurePosixPath
 from urllib.parse import quote
 
@@ -227,10 +227,31 @@ class Library:
                 "last_checked_at": artist.last_checked_at.isoformat() if artist.last_checked_at else None}
                 for artist in artists]
 
-    def artist_page(self, *, offset=0, limit=50, q=""):
+    def artist_page(self, *, offset=0, limit=50, q="", compact=False):
         if offset < 0 or limit is not None and not 1 <= limit <= 100:
             raise ValueError("画师分页范围不合法")
         with self.database.read() as session:
+            if compact:
+                # Filter choices need identity and tracking state, never profile
+                # text, work totals, version snapshots or recent-work media.
+                statement = select(Artist.id, Artist.pixiv_user_id, Artist.name,
+                    func.coalesce(TrackingPolicy.mode, "stopped")).outerjoin(
+                        TrackingPolicy, TrackingPolicy.artist_id == Artist.id)
+                if q.strip():
+                    statement = statement.where(or_(Artist.name.contains(q.strip(), autoescape=True),
+                        Artist.account.contains(q.strip(), autoescape=True)))
+                    total = session.scalar(select(func.count()).select_from(statement.subquery())) or 0
+                else:
+                    from .source_read_projection import artist_count
+                    total = artist_count(session.connection())
+                statement = statement.order_by(Artist.name, Artist.id).offset(offset)
+                if limit is not None:
+                    statement = statement.limit(limit)
+                with track_read_stage("filter_artists"):
+                    items = [{"id": row[0], "pixiv_id": row[1], "name": row[2], "mode": row[3]}
+                             for row in session.execute(statement)]
+                return {"items": items, "total": total, "offset": offset,
+                        "limit": limit if limit is not None else total}
             statement = select(Artist).options(selectinload(Artist.policy))
             if q.strip():
                 statement = statement.where(or_(Artist.name.contains(q.strip(), autoescape=True),
@@ -1005,11 +1026,62 @@ class Library:
                 ranked.c.position.in_((position - 1, position + 1)))).all())
             return {"previous": nearby.get(position - 1), "next": nearby.get(position + 1), "index": position - 1}
 
-    def tags(self, filters=LibraryFilter(), *, ceiling=None):
-        with self.database.read() as session:
+    def _tag_values(self, session, filters, ceiling):
+        if replace(filters, as_of=None, sort="newest", tz_offset_minutes=0) == LibraryFilter(show_hidden=True):
+            # Full local choices can walk the narrow tag index directly. The
+            # old Work PK-range subquery visited wide source-metadata pages.
+            suppressed_ids = select(Work.id).select_from(ArchiveIntent).join(
+                Work, Work.pixiv_illust_id == ArchiveIntent.pixiv_illust_id).where(
+                    ArchiveIntent.mode == "suppressed")
+            statement = select(WorkTag.tag).where(~WorkTag.work_id.in_(suppressed_ids))
+            if ceiling is not None:
+                statement = statement.where(WorkTag.work_id <= ceiling)
+        else:
             ceiling = ceiling if ceiling is not None else session.scalar(select(func.max(Work.id))) or 0
             selected = self._statement(filters, ceiling).with_only_columns(Work.id)
-            return list(session.scalars(select(WorkTag.tag).where(WorkTag.work_id.in_(selected)).distinct().order_by(WorkTag.tag)))
+            statement = select(WorkTag.tag).where(WorkTag.work_id.in_(selected))
+        with track_read_stage("filter_tags"):
+            return list(session.scalars(statement.distinct().order_by(WorkTag.tag)))
+
+    def tags(self, filters=LibraryFilter(), *, ceiling=None):
+        with self.database.read() as session:
+            return self._tag_values(session, filters, ceiling)
+
+    def tag_catalogue(self, filters=LibraryFilter(), *, ceiling=None):
+        """Current local choices and already stored Pixiv translations only."""
+        with self.database.read() as session:
+            names = self._tag_values(session, filters, ceiling)
+            wanted, records, dates = set(names), {}, {}
+            if names:
+                # The display projection contains translations separately from
+                # URL/frame manifests. Its PK range excludes all revision history.
+                rows = session.connection().exec_driver_sql("""SELECT d.scope,d.translations
+                    FROM read_display_metadata d JOIN read_source_work_local l
+                      ON l.work_id=CAST(substr(d.scope,6) AS INTEGER) AND l.included=1
+                    WHERE d.scope>='work:' AND d.scope<'work;'
+                      AND d.translations NOT IN ('null','{}') ORDER BY d.scope""")
+                with track_read_stage("filter_translations"):
+                    for scope, payload in rows:
+                        translations = json.loads(payload)
+                        if not isinstance(translations, dict):
+                            continue
+                        for name, record in translations.items():
+                            if (name not in wanted or not isinstance(record, dict)
+                                    or record.get("source") != "pixiv" or record.get("language") != "zh-cn"
+                                    or not isinstance(record.get("translated_name"), str)
+                                    or not record["translated_name"].strip()):
+                                continue
+                            try:
+                                checked = datetime.fromisoformat(record.get("checked_at", ""))
+                                checked = checked.replace(tzinfo=timezone.utc) if checked.tzinfo is None else checked
+                                stamp = checked.timestamp()
+                            except (TypeError, ValueError, OverflowError, OSError):
+                                stamp = float("-inf")
+                            score = (stamp, scope)
+                            if name not in dates or score > dates[name]:
+                                records[name], dates[name] = record, score
+            return {"tags": names, "tag_details": tag_details(
+                [name for name in names if name in records], {"tag_translations": records})}
 
     def _page_ranges(self, filters, ceiling):
         pages = case((Work.type == "ugoira", 1), else_=Work.page_count)

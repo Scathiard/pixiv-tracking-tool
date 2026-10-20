@@ -1,0 +1,16 @@
+{
+  "checks": [
+    "rebased-predecessor-opening-reused-with-new-session"
+  ],
+  "failures": [],
+  "metrics": {
+    "rebased-predecessor-opening-reused-with-new-session": {
+      "prepared_previous": 3,
+      "opened_previous": 3,
+      "foreground_64_reads": 0,
+      "repeated_identity_reads": 0
+    }
+  },
+  "real_account": false,
+  "real_library": false
+}

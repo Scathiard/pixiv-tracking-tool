@@ -85,6 +85,31 @@ test('opening and forward windows use identity tokens and retain the frozen filt
   assert.deepEqual(reading.locate(2), {work_id: 2, page: 0, index: 2, work_index: 1, offset: 0})
 })
 
+test('a background fork preserves snapshot identity without cancelling or mutating foreground reads', async () => {
+  const server = fixture([2000, 3]), held = deferred<void>()
+  let backgroundSignal: AbortSignal | undefined
+  const request: CursorPageRequest = async (path, options) => {
+    const result = await server.request(path, options)
+    if (Number(new URL(path, 'http://synthetic.test').searchParams.get('index')) === 2000) {
+      backgroundSignal = options.signal
+      await held.promise
+    }
+    return result
+  }
+  const foreground = new CursorReading('tags=blue', {request})
+  await foreground.load(0, 1, signal())
+  const fork = foreground.fork(), background = fork.load(2000, 3, signal())
+  await nextTurn()
+  assert.equal(backgroundSignal?.aborted, false)
+  await foreground.load(1, 2, signal())
+  assert.equal(backgroundSignal?.aborted, false, 'foreground owns a separate cancellation controller')
+  held.resolve(); await background
+  assert.equal(foreground.anchorAt(2000), null, 'background metadata does not overwrite the visible identity window')
+  assert.equal(fork.anchorAt(2000)?.work_id, 2)
+  assert.equal(server.calls[1]!.params.get('ceiling'), '999')
+  assert.equal(server.calls[1]!.params.get('as_of'), 'snapshot-7')
+})
+
 test('a long work can be skipped using its span without loading its middle', async () => {
   const server = fixture([2000, 2])
   const reading = new CursorReading('', server)

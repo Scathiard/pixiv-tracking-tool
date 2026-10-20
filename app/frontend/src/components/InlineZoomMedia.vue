@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import MediaImage from '../MediaImage.vue'
 import type { PageData } from '../types'
-import { boundInlineTransform, inlineZoomAt, type InlineTransform } from '../state/inlineZoom'
+import { boundInlineTransform, inlineZoomAt, inlineZoomFrame, INLINE_ZOOM_DURATION, type InlineTransform } from '../state/inlineZoom'
 
 const props = defineProps<{page: PageData; inactive?: boolean}>()
 const emit = defineEmits<{size: [width: number, height: number]; engaged: [value: boolean]}>()
@@ -14,6 +14,8 @@ const consumed = computed(() => touchOwned.value || mouseOwned.value || wheelOwn
 const mediaStyle = computed(() => ({transform: `translate(${transform.value.x}px, ${transform.value.y}px) scale(${transform.value.scale})`}))
 let observer: ResizeObserver | null = null, wheelTimer = 0, lastWheel = 0
 let engaged = false, ignoreDoubleClickUntil = 0
+let motionQuery: MediaQueryList | null = null, animationFrame = 0
+let animation: {from: InlineTransform; to: InlineTransform; start: number} | null = null
 let mouse: {id: number; x: number; y: number; target: HTMLElement} | null = null
 type TouchGesture = {mode: 'tap' | 'pan' | 'pinch' | 'blocked'; x: number; y: number; startX: number; startY: number;
   moved: boolean; distance: number; scale: number; imageX: number; imageY: number}
@@ -41,12 +43,29 @@ function claim(kind: 'pointer' | 'wheel') {
   frame.value?.dispatchEvent(new CustomEvent('inline-zoom-gesture', {bubbles: true, detail: {kind}}))
 }
 function consume(event: Event) { if (event.cancelable) event.preventDefault(); event.stopPropagation() }
-function update(value: InlineTransform) { transform.value = boundInlineTransform(value, dimensions()); publish() }
+function stopAnimation() { cancelAnimationFrame(animationFrame); animationFrame = 0; animation = null }
+function apply(value: InlineTransform) { transform.value = boundInlineTransform(value, dimensions()); publish() }
+function update(value: InlineTransform) { stopAnimation(); apply(value) }
+function animate(value: InlineTransform) {
+  stopAnimation()
+  if (motionQuery?.matches) { apply(value); return }
+  animation = {from: {...transform.value}, to: value, start: performance.now()}
+  const step = (now: number) => {
+    const current = animation
+    if (!current) return
+    apply(inlineZoomFrame(current.from, current.to, now - current.start))
+    if (now - current.start < INLINE_ZOOM_DURATION) animationFrame = requestAnimationFrame(step)
+    else { apply(current.to); stopAnimation() }
+  }
+  animationFrame = requestAnimationFrame(step)
+}
+function reducedMotionChanged() { if (motionQuery?.matches && animation) update(animation.to) }
 function zoomAt(scale: number, clientX: number, clientY: number) {
   update(inlineZoomAt(transform.value, scale, local(clientX, clientY), dimensions()))
 }
 function toggle(clientX: number, clientY: number) {
-  claim('pointer'); zoomAt(active.value ? 1 : 2.25, clientX, clientY); lastTap = null
+  const enlarged = animation ? animation.to.scale > 1 : active.value
+  claim('pointer'); animate(inlineZoomAt(transform.value, enlarged ? 1 : 2.25, local(clientX, clientY), dimensions())); lastTap = null
 }
 function doubleClick(event: MouseEvent) {
   if (props.inactive || !imageTarget(event.target)) return
@@ -55,7 +74,8 @@ function doubleClick(event: MouseEvent) {
   toggle(event.clientX, event.clientY)
 }
 function pointerDown(event: PointerEvent) {
-  if (props.inactive || event.pointerType === 'touch' || event.button !== 0 || !active.value || !imageTarget(event.target)) return
+  if (props.inactive || event.pointerType === 'touch' || event.button !== 0 || (!active.value && !animation) || !imageTarget(event.target)) return
+  stopAnimation()
   consume(event); lastTap = null
   const target = event.target as HTMLElement
   mouse = {id: event.pointerId, x: event.clientX, y: event.clientY, target}
@@ -92,6 +112,7 @@ function beginPinch(touches: TouchList) {
 }
 function touchStart(event: TouchEvent) {
   if (props.inactive || !imageTarget(event.target)) return
+  stopAnimation()
   if (event.touches.length >= 2) { beginPinch(event.touches); consume(event); return }
   const first = event.touches[0]
   if (!first) return
@@ -136,19 +157,22 @@ function touchEnd(event: TouchEvent) {
   } else lastTap = {time: now, x: previous.x, y: previous.y}
 }
 function wheel(event: WheelEvent) {
-  if (props.inactive || (!active.value && !wheelOwned.value)) return
-  const now = performance.now(), continuing = wheelOwned.value && now - lastWheel <= 220
+  if (props.inactive || (!active.value && !wheelOwned.value && !animation)) return
+  const wasAnimating = !!animation
+  stopAnimation()
+  const now = performance.now(), continuing = wasAnimating || (wheelOwned.value && now - lastWheel <= 220)
   if (!active.value && !continuing) { wheelOwned.value = false; publish(); return }
   consume(event)
   wheelOwned.value = true; lastWheel = now; claim('wheel')
   clearTimeout(wheelTimer)
   wheelTimer = window.setTimeout(() => { wheelOwned.value = false; publish() }, 220)
-  if (active.value) {
+  if (active.value || wasAnimating) {
     const delta = event.deltaY * (event.deltaMode === 1 ? 18 : event.deltaMode === 2 ? dimensions().height : 1)
     zoomAt(transform.value.scale * Math.exp(-delta * .002), event.clientX, event.clientY)
   }
 }
 function reset() {
+  stopAnimation()
   clearTimeout(wheelTimer); wheelTimer = 0; lastWheel = 0; lastTap = null; touch = null
   releaseMouse(); touchOwned.value = false; wheelOwned.value = false
   update({scale: 1, x: 0, y: 0})
@@ -160,10 +184,12 @@ function keydown(event: KeyboardEvent) {
 watch([() => props.page.work_id, () => props.page.page, () => props.page.revision_id, () => props.page.src, () => props.page.preview], reset)
 watch(() => props.inactive, value => { if (value) reset() })
 onMounted(() => {
+  motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+  motionQuery.addEventListener('change', reducedMotionChanged)
   observer = new ResizeObserver(() => update(transform.value))
   if (frame.value) observer.observe(frame.value)
 })
-onBeforeUnmount(() => { observer?.disconnect(); reset() })
+onBeforeUnmount(() => { motionQuery?.removeEventListener('change', reducedMotionChanged); observer?.disconnect(); reset() })
 </script>
 
 <template>

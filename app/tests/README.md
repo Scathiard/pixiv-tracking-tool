@@ -1,5 +1,7 @@
 # 测试目录约定
 
+- `stream_polish_browser.py --dist FRONTEND_DIST --out NEW_DIRECTORY`：R-074 实机反馈的短交互回归；3 件合成作品，当前作品入口、邻件缓存、随机预备、缩放动画、鼠标／触摸拖简介、触摸阈值及筛选复用／主站译名。浏览器使用实际编译 UI 与隔离 API，手机为 Chromium 触摸模拟；不调用真实账号。临时项归本工作树 `work/tmp/stream-polish/`，保留必要证据后清理；`app/frontend/node_modules` 为复用已有依赖的 junction，只清理链接本身。
+
 - `stream_reader_browser.py --artifacts NEW_DIRECTORY [--url ISOLATED_LOCAL_URL | --exe EXE_PATH] [--frontend-dist DIST_PATH]`：R-074 正式编译界面的单轮定向浏览器检查；源码只建 3 件／5 页合成库，2000 页长作和短随机顺序仅作明确标注的接口回放。1440／390px 验证边界手势分次切件、图内缩放与留白滚动、完整本地简介／标签、单心目标和普通详情回归，320px 只查几何；实际滚轮与 CDP 触摸不等于实体手机验收。产物放本轮 `work/tmp/stream-reader/browser-*` 新目录，主会话统一运行与选取正式证据，不读真实账号或图库。
 
 2026-10-20 R-073：本轮工作树的 `work/tmp/reading-interactions/` 下 `reader/`、`bookmark/`、`writer/`、`integration/`、`package/` 分别存放合成回归与构建运行临时项，TEMP/TMP、pytest 基目录按执行范围隔离。前端依赖复用既有 `.worktrees/v0.2.0-build20261004.3/app/frontend/node_modules` junction；本轮首次生成的 `app/frontend/dist/`、pytest 缓存、Python缓存和依赖链接登记为临时项，完成后清理，在用日常 EXE 解包目录保留。只验证后台变化中阅览、后台核对中收藏、图片等待／失败和查询恢复及最终包必要交互；不跑全套或长测，不碰真实账号写操作，不改 schema。证据归 `docs/审查/证据/2026-10-20-阅览与收藏修订/`。

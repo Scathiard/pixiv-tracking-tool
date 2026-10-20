@@ -4,8 +4,8 @@ import { candidateRows } from '../state/candidateRows'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { invertSelection, selectionCount, toggleSelection, type FilterSelection } from '../state/filterSelection'
 const props = defineProps<{
-  label: string; candidates: {value: string; label: string; detail?: string}[]
-  selection: FilterSelection; loading: boolean; error: string; scrollElement: HTMLElement | null
+  label: string; candidates: {value: string; label: string; detail?: string; translated?: boolean}[]
+  selection: FilterSelection; loading: boolean; refreshing?: boolean; error: string; scrollElement: HTMLElement | null
 }>()
 const emit = defineEmits<{change: [value: FilterSelection]; retry: []}>()
 const search = ref(''), viewport = ref<HTMLElement | null>(null), width = ref(320), margin = ref(0)
@@ -24,7 +24,7 @@ watch(() => [props.loading, filtered.value.length, props.scrollElement, props.se
 const catalogue = computed(() => props.candidates.map(item => item.value))
 const filtered = computed(() => {
   const term = search.value.trim().toLocaleLowerCase()
-  return props.candidates.filter(item => !term || `${item.label} ${item.value}`.toLocaleLowerCase().includes(term))
+  return props.candidates.filter(item => !term || `${item.label} ${item.value} ${item.detail || ''}`.toLocaleLowerCase().includes(term))
 })
 const selectedValues = computed(() => new Set(props.selection.values))
 const count = computed(() => selectionCount(props.selection, catalogue.value))
@@ -49,15 +49,16 @@ function toggle(value: string) { emit('change', toggleSelection(props.selection,
   </div>
   <p class="candidate-summary" aria-live="polite">{{ selection.all ? `全部${label}` : count ? `已选 ${count} 项` : `未选择${label}，应用后无作品` }}<span v-if="!loading && !error"> · 共 {{ candidates.length }} 项</span></p>
   <p v-if="!selection.all && selectedLabels.length" class="selected-labels">{{ selection.excluded ? '未选：' : '已选：' }}{{ selectedLabels.slice(0, 8).join('、') }}{{ selectedLabels.length > 8 ? '…' : '' }}</p>
+  <div v-if="error" class="candidate-status error" role="alert">{{ error }} <button @click="emit('retry')">重试</button></div>
+  <p v-if="refreshing" class="candidate-status" role="status">正在更新{{ label }}候选…</p>
   <p v-if="loading" class="candidate-status" role="status">正在载入全部{{ label }}…</p>
-  <div v-else-if="error" class="candidate-status error" role="alert">{{ error }} <button @click="emit('retry')">重试</button></div>
-  <p v-else-if="!candidates.length" class="candidate-status">本地图库暂无{{ label }}</p>
-  <p v-else-if="!filtered.length" class="candidate-status">没有匹配的{{ label }}，请换个搜索词</p>
+  <p v-else-if="!candidates.length && !error" class="candidate-status">本地图库暂无{{ label }}</p>
+  <p v-else-if="!filtered.length && !error" class="candidate-status">没有匹配的{{ label }}，请换个搜索词</p>
   <div v-else ref="viewport" class="candidate-viewport" :aria-label="`${label}候选列表`" :data-candidate-total="candidates.length">
     <div class="candidate-window" :style="{height: `${virtual.getTotalSize()}px`}">
       <div v-for="row in rows" :key="row.index" :ref="element => { if (element) virtual.measureElement(element as Element) }" :data-index="row.index" class="candidate-row" :style="{transform: `translateY(${row.start - margin}px)`}">
         <button v-for="item in packed[row.index]" :key="item.value" class="filter-candidate" :class="{active: isSelected(item.value)}" :data-value="item.value" :aria-pressed="isSelected(item.value)" @click="toggle(item.value)">
-          <span class="candidate-mark" aria-hidden="true">{{ isSelected(item.value) ? '✓' : '' }}</span><span class="candidate-label">{{ item.label }}</span><small v-if="item.detail">{{ item.detail }}</small>
+          <span class="candidate-mark" aria-hidden="true">{{ isSelected(item.value) ? '✓' : '' }}</span><span class="candidate-label">{{ item.label }}</span><small v-if="item.detail" :data-source="item.translated ? 'pixiv' : undefined" :title="item.translated ? 'Pixiv 中文译名' : undefined">{{ item.detail }}</small>
         </button>
       </div>
     </div>

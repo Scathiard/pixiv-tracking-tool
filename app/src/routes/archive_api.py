@@ -261,7 +261,7 @@ def create_router(get_runtime):
     @router.get("/api/library/tags")
     @local_read(get_runtime)
     def tags(request: Request, ceiling: int | None = Query(None, ge=0)):
-        return {"tags": runtime().library.tags(filters(request), ceiling=ceiling)}
+        return runtime().library.tag_catalogue(filters(request), ceiling=ceiling)
 
     @router.get("/api/library/missing-originals")
     @local_read(get_runtime)
@@ -348,8 +348,8 @@ def create_router(get_runtime):
     @router.get("/api/artists")
     @local_read(get_runtime)
     def artists(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=100),
-                q: str = Query("", max_length=200)):
-        return runtime().library.artist_page(offset=offset, limit=limit, q=q)
+                q: str = Query("", max_length=200), compact: bool = False):
+        return runtime().library.artist_page(offset=offset, limit=limit, q=q, compact=compact)
 
     @router.get("/api/artists/search")
     def search_artist(query: str = Query(..., min_length=1, max_length=200)):

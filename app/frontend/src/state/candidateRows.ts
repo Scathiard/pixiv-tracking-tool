@@ -1,4 +1,4 @@
-export interface Candidate {value: string; label: string; detail?: string}
+export interface Candidate {value: string; label: string; detail?: string; translated?: boolean}
 /** Pack complete labels into continuous rows, keeping the original catalogue order. */
 export function candidateRows(values: Candidate[], width: number, measure: (text: string) => number): Candidate[][] {
   const rows: Candidate[][] = []

@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from src.core.database import ArchiveDatabase
 from src.core.library import Library
-from src.core.models import ArchiveIntent, Artist, LocalPreference, RemoteBookmark, TrackingPolicy, Work, WorkTag, utcnow
+from src.core.models import ArchiveIntent, Artist, LocalPreference, RemoteBookmark, TrackingPolicy, Work, WorkTag, WorkRevision, utcnow
 from src.routes.archive_api import create_router
 
 
@@ -92,4 +92,80 @@ def test_inverse_any_tag_and_shared_reading_scope(tmp_path):
         assert client.get(f"/api/library/locate?{query}&ceiling={ceiling}&work_id=2").json()["work_index"] == 0
         assert client.get(f"/api/works/2/neighbors?{query}&ceiling={ceiling}").json()["next"] is None
         assert client.get(f"/api/library/locate?{query}&ceiling={ceiling}&work_id=1").status_code == 404
+    database.close()
+
+
+def test_compact_artist_choices_skip_profiles_previews_and_keep_mode_updates(tmp_path, monkeypatch):
+    from sqlalchemy import event
+    database = ArchiveDatabase.create(tmp_path / "compact-artists.db")
+    library = Library(database)
+    with database.write() as session:
+        session.add_all([Artist(id=i, pixiv_user_id=str(i), name=f"artist {i:03}",
+                               biography="large unused profile" * 100) for i in range(1, 138)])
+        session.add(TrackingPolicy(artist_id=137, mode="paused"))
+    monkeypatch.setattr(library, "_artist_views", lambda *_: (_ for _ in ()).throw(AssertionError("previews read")))
+    statements = []
+    def capture(_connection, _cursor, statement, _parameters, _context, _many):
+        if statement.lstrip().upper().startswith("SELECT"):
+            statements.append(statement.lower())
+    event.listen(database.engine, "before_cursor_execute", capture)
+    app = FastAPI()
+    app.include_router(create_router(lambda: SimpleNamespace(database=database, library=library)))
+    with TestClient(app) as client:
+        first = client.get("/api/artists?compact=1&limit=100").json()
+        last = client.get("/api/artists?compact=1&limit=100&offset=100").json()
+        assert first["total"] == 137 and len(first["items"]) == 100 and len(last["items"]) == 37
+        assert last["items"][-1] == {"id": 137, "pixiv_id": "137", "name": "artist 137", "mode": "paused"}
+        assert not any("biography" in sql or "work_revisions" in sql or "read_gallery_cards" in sql for sql in statements)
+        library.set_tracking(137, "stopped")
+        assert client.get("/api/artists?compact=1&offset=136").json()["items"][0]["mode"] == "stopped"
+    database.close()
+
+
+def test_filter_translations_are_current_local_narrow_and_keep_original_tag_identity(tmp_path):
+    from sqlalchemy import event
+    database = ArchiveDatabase.create(tmp_path / "filter-translations.db")
+    def metadata(name, checked, **extra):
+        return {"urls": ["unused-large-manifest" * 1000], "tag_translations": {
+            "tag": {"translated_name": name, "source": "pixiv", "language": "zh-cn",
+                    "checked_at": checked, **extra}}}
+    with database.write() as session:
+        session.add(Artist(id=1, pixiv_user_id="1", name="artist"))
+        for identity, data in enumerate([
+                metadata("旧译名", "2026-10-20T10:00:00+08:00"),
+                metadata("较新译名", "2026-10-20T03:00:00+00:00"),
+                metadata("被删除作品译名", "2026-10-21T00:00:00+00:00"),
+                metadata("非主站译名", "2026-10-22T00:00:00+00:00", source="other")], 1):
+            session.add(Work(id=identity, pixiv_illust_id=str(identity), artist_id=1,
+                             title=str(identity), source_metadata=data))
+            session.add(WorkTag(work_id=identity, tag="tag"))
+        session.add(WorkTag(work_id=1, tag="no-translation"))
+        session.add(WorkTag(work_id=3, tag="only-suppressed"))
+        session.add(LocalPreference(work_id=2, is_hidden=True))
+        session.add(ArchiveIntent(pixiv_illust_id="3", mode="suppressed"))
+        session.add(WorkRevision(id="history", work_id=1, ordinal=1, title="history",
+            type="illust", page_count=1, tags=["history-only"], source_signature="synthetic",
+            source_metadata=metadata("历史译名", "2026-10-23T00:00:00+00:00")))
+    statements = []
+    def capture(_connection, _cursor, statement, _parameters, _context, _many):
+        if statement.lstrip().upper().startswith("SELECT"):
+            statements.append(statement.lower())
+    event.listen(database.engine, "before_cursor_execute", capture)
+    app = FastAPI()
+    library = Library(database)
+    app.include_router(create_router(lambda: SimpleNamespace(database=database, library=library)))
+    with TestClient(app) as client:
+        result = client.get("/api/library/tags?show_hidden=1").json()
+        assert result["tags"] == ["no-translation", "tag"]
+        details = {value["name"]: value for value in result["tag_details"]}
+        assert details["tag"]["translated_name"] == "较新译名"
+        assert "no-translation" not in details
+        assert not any("source_metadata" in sql or "work_revisions" in sql for sql in statements)
+        assert not any("max(works.id)" in sql for sql in statements)
+        assert client.get("/api/library/tags?tags=absent&show_hidden=1").json()["tags"] == []
+        assert client.get("/api/library/tags?show_hidden=1&ceiling=1").json()["tags"] == ["no-translation", "tag"]
+        with database.write() as session:
+            session.get(Work, 2).source_metadata = metadata("更新后译名", "2026-10-24T00:00:00+00:00")
+        updated = client.get("/api/library/tags?show_hidden=1").json()
+        assert next(tag for tag in updated["tag_details"] if tag["name"] == "tag")["translated_name"] == "更新后译名"
     database.close()

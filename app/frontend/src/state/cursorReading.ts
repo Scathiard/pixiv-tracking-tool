@@ -37,6 +37,15 @@ export class CursorReading {
   get generation() { return this.currentGeneration }
   get retainedPages() { return this.pages.size }
 
+  /** Background reads own their cancellation and cannot invalidate the visible reader. */
+  fork(): CursorReading {
+    const copy = new CursorReading(this.query.toString(), {request: this.request, maxPages: this.maximum})
+    copy.remember([...this.pages.values()])
+    copy.currentGeneration = this.currentGeneration
+    copy.extent = this.extent; copy.finalExtent = this.finalExtent
+    return copy
+  }
+
   anchorAt(index: number): PageData | null {
     const page = this.pages.get(index)
     return page ? {...page} : null

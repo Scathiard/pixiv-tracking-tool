@@ -19,6 +19,86 @@ export function visitPages(visit: ReadingVisit, order: ReadingOrder, offset: num
   return api<PageBatch>(url(`/api/reading-sessions/${visit.session_id}/feed`, '', {mode: order, offset, limit}), {signal})
 }
 
+interface RandomPreparationIO {
+  start: typeof startVisit
+  pages: typeof visitPages
+  release: typeof releaseVisit
+}
+interface RandomSlot {
+  query: string; controller: AbortController; promise: Promise<ReadingVisit>
+  ready: ReadingVisit | null; foreground: number
+}
+
+/** One spare visit for this scope. The first feed prepares the actual first shuffle. */
+export class RandomReadingPreparation {
+  private slot: RandomSlot | null = null
+  private readonly io: RandomPreparationIO
+  constructor(io: RandomPreparationIO = {start: startVisit, pages: visitPages, release: releaseVisit}) { this.io = io }
+  warm(query: string) { return this.get(query).promise }
+  peek(query: string) { return this.slot?.query === query ? this.slot.ready : null }
+  async take(query: string, signal: AbortSignal): Promise<ReadingVisit> {
+    signal.throwIfAborted()
+    const slot = this.get(query)
+    slot.foreground++
+    try {
+      const visit = await waitForPreparation(slot.promise, signal)
+      signal.throwIfAborted()
+      if (this.slot !== slot) throw new DOMException('阅读范围已切换', 'AbortError')
+      // The caller now owns release, including when it later switches back to sequential.
+      this.slot = null
+      return visit
+    } finally {
+      slot.foreground--
+      if (signal.aborted && this.slot === slot && !slot.ready && !slot.foreground) this.clear()
+    }
+  }
+  pause() { if (this.slot && !this.slot.ready && !this.slot.foreground) this.clear() }
+  clear() {
+    const slot = this.slot; this.slot = null
+    if (slot) { slot.controller.abort(); if (slot.ready) this.io.release(slot.ready) }
+  }
+  private get(query: string): RandomSlot {
+    if (this.slot?.query === query) return this.slot
+    this.clear()
+    const controller = new AbortController()
+    const slot: RandomSlot = {query, controller, ready: null, foreground: 0, promise: null!}
+    this.slot = slot
+    slot.promise = (async () => {
+      let visit: ReadingVisit | null = null
+      try {
+        visit = await this.io.start(query, controller.signal)
+        controller.signal.throwIfAborted()
+        await this.io.pages(visit, 'random', 0, 1, controller.signal)
+        controller.signal.throwIfAborted()
+        if (this.slot !== slot) throw new DOMException('阅读范围已切换', 'AbortError')
+        slot.ready = visit
+        return visit
+      } catch (failure) {
+        if (visit) this.io.release(visit)
+        if (this.slot === slot) this.slot = null
+        throw failure
+      }
+    })()
+    return slot
+  }
+}
+
+function waitForPreparation<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const abort = () => { signal.removeEventListener('abort', abort); reject(signal.reason) }
+    signal.addEventListener('abort', abort, {once: true})
+    promise.then(value => { signal.removeEventListener('abort', abort); resolve(value) }, error => {
+      signal.removeEventListener('abort', abort); reject(error)
+    })
+    if (signal.aborted) abort()
+  })
+}
+
+/** Existing routes return 410 text; 404 also covers an older service's expired token. */
+export function expiredReadingVisit(failure: unknown): boolean {
+  return failure instanceof Error && (/^阅读范围已过期/.test(failure.message) || /[（(](404|410)[）)]/.test(failure.message))
+}
+
 /** A rebased identity window has no negative ordinal for its predecessor. */
 export function needsIdentityPrevious(page: PageData): boolean {
   return page.previous_work_index === 0 && page.index - page.page === 0

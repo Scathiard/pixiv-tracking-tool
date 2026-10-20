@@ -8,9 +8,11 @@ import { readLibraryEntry, type GallerySeed } from './state/libraryEntry'
 import { normalizeGalleryBatch, archiveNotice, archiveStatus, localAssetReason, hasNewWorks, isOlderCatalogue, type Anchor, type CursorGalleryBatch, type GalleryBatch, type WorkCard, type Mode, type PageData, type PageLoader, type WorkDetail } from './types'
 import { observeCatalogueData, queueCatalogueUpdate } from './state/catalogue'
 import { writeTagValues } from './state/filterSelection'
+import { warmFilterCatalogue, invalidateFilterCatalogue, disposeFilterCatalogue } from './state/filterCatalogue'
 import { invalidateWorkCache, workDetail, workPath } from './state/workCache'
-import { startVisit, releaseVisit, locateVisit, visitPages, needsIdentityPrevious, type ReadingVisit, type ReadingOrder } from './state/reading'
+import { startVisit, releaseVisit, locateVisit, visitPages, needsIdentityPrevious, RandomReadingPreparation, expiredReadingVisit, type ReadingVisit, type ReadingOrder } from './state/reading'
 import { CursorReading, type CursorPageBatch } from './state/cursorReading'
+import { StreamPreviousOpening, STREAM_OPENING_PAGES, type StreamInitialOpening, type StreamPreviousOwner } from './state/streamReader'
 import { observeVisibleViewport } from './state/viewport'
 import FilterPanel from './FilterPanel.vue'
 import GalleryView from './GalleryView.vue'
@@ -62,6 +64,11 @@ const streamPanelOpen = ref(false)
 const reader = ref<InstanceType<typeof PageReader> | InstanceType<typeof StreamReader> | null>(null), taskPanel = ref<InstanceType<typeof TaskPanel> | null>(null)
 const navigation = new LatestIntent(), infoRequest = new LatestIntent(), statusRequest = new LatestIntent()
 const navigationPhase = ref('正在定位作品…'), readerActivity = ref({phase: '', error: ''})
+const randomPreparation = new RandomReadingPreparation()
+const previousOpening = new StreamPreviousOpening(), streamInitialOpening = ref<StreamInitialOpening | null>(null)
+let previousWarmTimer = 0, previousWarm: AbortController | null = null
+let randomWarmTimer = 0, randomWarm: AbortController | null = null
+let randomLocation: {session: string; work: number; anchor: Anchor} | null = null
 let openingKey: string | null = null, adjacentPreload: AbortController | null = null
 const readingActivity = computed(() => pending.value ? {phase: navigationPhase.value, error: ''} : error.value ? {phase: '', error: error.value} : readerActivity.value)
 function cancelNavigation() {
@@ -84,8 +91,15 @@ let newContentAgain = false, revealNewContent = false, hiddenCatalogueUpdate = f
 let toastTimer = 0, lastKeyTime = 0, failedNavigation: (() => void) | null = null
 const sessionKey = computed(() => mode.value + ':' + (mode.value === 'reader' ? currentWork.value?.id : '') + ':' + scope.value + ':' + readerReset.value)
 let stopViewport: (() => void) | undefined
+let filterWarmTimer = 0
+function queueFilterWarm() {
+  clearTimeout(filterWarmTimer)
+  if (!ready.value || pending.value || section.value !== 'library' || document.hidden) return
+  filterWarmTimer = window.setTimeout(() => { void warmFilterCatalogue() }, 450)
+}
+watch([ready, pending, section], queueFilterWarm, {flush: 'post'})
 onMounted(() => { stopViewport = observeVisibleViewport() })
-onBeforeUnmount(() => { stopViewport?.() })
+onBeforeUnmount(() => { stopViewport?.(); clearTimeout(filterWarmTimer); disposeFilterCatalogue() })
 const heading = computed(() => mode.value === 'gallery' ? new URLSearchParams(scope.value).has('favorites') ? '收藏作品' : new URLSearchParams(scope.value).has('recent') ? '最近存入' : '我的图库' : activePage.value?.title || currentWork.value?.title || '阅览')
 const filterSummary = computed(() => {
   const params = new URLSearchParams(scope.value)
@@ -117,7 +131,8 @@ function navHome() { closeMobileMenu(); brandHome() }
 function navArtists() { closeMobileMenu(); showArtists() }
 function navFeed() {
   closeMobileMenu()
-  void initialize(section.value === 'library' ? scope.value : homeScope.value, '/flow', true)
+  if (section.value === 'library') { if (mode.value !== 'feed') void enterFeed(true, mode.value === 'reader'); return }
+  void initialize(homeScope.value, '/flow', true)
 }
 function navSettings() { closeMobileMenu(); showSettings() }
 function navRail(rail: 'all' | 'recent' | 'favorites') { closeMobileMenu(); changeRail(rail) }
@@ -171,7 +186,6 @@ async function initialize(query: string, path = '/', push = false, saveHome = fa
       openingAnchor = {work_id: id, work_index: 0, page: 0, index: 0, offset: 0}
     } else if (path === '/flow' && batch.total) {
       if (readingOrder.value === 'random') {
-        message('随机阅览会按需读取并冻结当前范围，作品较多时需要稍候')
         preparedVisit = await startVisit(seed.query, ticket.signal)
       } else preparedFeed = new CursorReading(seed.query)
       const first = (preparedFeed ? await preparedFeed.load(0, 1, ticket.signal) : await visitPages(preparedVisit!, readingOrder.value, 0, 1, ticket.signal)).items[0]
@@ -217,11 +231,57 @@ async function initialize(query: string, path = '/', push = false, saveHome = fa
 }
 async function ensureVisit(signal: AbortSignal) {
   if (readingVisit.value) return readingVisit.value
-  message('随机阅览会按需读取并冻结当前范围，作品较多时需要稍候')
-  const visit = await startVisit(scope.value, signal)
+  navigationPhase.value = '正在准备随机阅览，当前画面会保留…'
+  const visit = await randomPreparation.take(scope.value, signal)
   if (signal.aborted) { releaseVisit(visit); signal.throwIfAborted() }
   readingVisit.value = visit
   return visit
+}
+function stopRandomWarm() {
+  clearTimeout(randomWarmTimer); randomWarmTimer = 0
+  randomWarm?.abort(); randomWarm = null; randomPreparation.pause()
+}
+function queueRandomWarm() {
+  stopRandomWarm()
+  if (section.value !== 'library' || mode.value === 'gallery' || readingOrder.value !== 'sequential' || pending.value || readerActivity.value.phase || document.visibilityState !== 'visible') return
+  const query = scope.value, id = activePage.value?.work_id || currentWork.value?.id
+  randomWarmTimer = window.setTimeout(() => {
+    randomWarmTimer = 0
+    const controller = randomWarm = new AbortController()
+    void (async () => {
+      const visit = readingVisit.value || await randomPreparation.warm(query)
+      if (controller.signal.aborted || query !== scope.value) return
+      if (id && (randomLocation?.session !== visit.session_id || randomLocation.work !== id)) {
+        const anchor = await locateVisit(visit, id, 'random', 0, controller.signal)
+        if (!controller.signal.aborted && query === scope.value) randomLocation = {session: visit.session_id, work: id, anchor}
+      }
+    })().catch(failure => {
+      if (!controller.signal.aborted && expiredReadingVisit(failure)) {
+        randomPreparation.clear(); randomLocation = null
+        if (readingOrder.value === 'sequential' && readingVisit.value) { releaseVisit(readingVisit.value); readingVisit.value = null }
+      }
+    }).finally(() => { if (randomWarm === controller) randomWarm = null })
+  }, 350)
+}
+async function randomTarget(page: PageData | null, signal: AbortSignal) {
+  for (let attempt = 0; ; attempt++) {
+    const visit = await ensureVisit(signal)
+    try {
+      const found = page ? randomLocation?.session === visit.session_id && randomLocation.work === page.work_id
+        ? randomLocation.anchor : await locateVisit(visit, page.work_id, 'random', 0, signal) : null
+      const index = found ? found.index + (page?.page || 0) : 0
+      const batch = await visitPages(visit, 'random', index, 1, signal)
+      const first = batch.items[0]
+      if (!first || page && (first.work_id !== page.work_id || first.page !== page.page)) throw new Error('当前作品页已不在此阅读范围内，请返回后重试')
+      await preparePageImage(first, signal)
+      return {batch, first}
+    } catch (failure) {
+      signal.throwIfAborted()
+      if (attempt || !expiredReadingVisit(failure)) throw failure
+      if (readingVisit.value === visit) { releaseVisit(visit); readingVisit.value = null }
+      randomPreparation.clear(); randomLocation = null
+    }
+  }
 }
 async function openWork(index: number, push = true, selectedRevision?: string | null, identity?: {id: number; cursor?: string; revision_id?: string | null}) {
   if (!total.value && !identity) return
@@ -310,31 +370,77 @@ function navigate(delta: number) {
     else if (target != null) void reader.value?.jump(target)
   } else void openWork(ordinaryIndex.value + delta)
 }
+function previousOwner(page: PageData): StreamPreviousOwner {
+  return {sessionKey: sessionKey.value, scope: scope.value, workId: page.work_id, revisionId: page.revision_id,
+    cursor: page.work_cursor, generation: cursorFeed?.generation}
+}
+function stopPreviousWarm() {
+  clearTimeout(previousWarmTimer); previousWarmTimer = 0
+  previousWarm?.abort(); previousWarm = null
+}
+function queuePreviousWarm() {
+  stopPreviousWarm()
+  const page = activePage.value
+  if (section.value !== 'library' || mode.value !== 'feed' || readingOrder.value !== 'sequential' || !page || !needsIdentityPrevious(page)) {
+    previousOpening.clear(); return
+  }
+  const owner = previousOwner(page), feed = cursorFeed
+  if (previousOpening.matches(owner)) return
+  previousOpening.clear()
+  if (pending.value || readerActivity.value.phase || streamPanelOpen.value || infoOpen.value || removePrompt.value || document.hidden) return
+  previousWarmTimer = window.setTimeout(() => {
+    previousWarmTimer = 0
+    const controller = previousWarm = new AbortController()
+    const owns = () => !controller.signal.aborted && cursorFeed === feed && sessionKey.value === owner.sessionKey && scope.value === owner.scope &&
+      activePage.value?.work_id === owner.workId && activePage.value?.revision_id === owner.revisionId && cursorFeed?.generation === owner.generation
+    void (async () => {
+      const nearby = await api<CursorNeighbors>(url(`/api/works/${page.work_id}/cursor-neighbors`, owner.scope,
+        page.work_cursor ? {cursor: page.work_cursor} : {}), {signal: controller.signal})
+      if (!owns() || nearby.generation !== owner.generation || !nearby.previous) return
+      const previous = nearby.previous
+      const batch = await api<CursorPageBatch>(url('/api/library/cursor/feed', owner.scope, {
+        cursor: previous.cursor, anchor_work_id: previous.work_id, page: 0, index: 0, work_index: 0, limit: STREAM_OPENING_PAGES,
+      }), {signal: controller.signal})
+      if (!owns()) return
+      await preparePageImage(batch.items[0], controller.signal)
+      if (owns()) previousOpening.store(owner, previous, batch)
+    })().catch(() => { /* A foreground identity read remains the retry path. */ })
+      .finally(() => { if (previousWarm === controller) previousWarm = null })
+  }, 220)
+}
 async function previousFeedIdentity(page: PageData) {
+  stopPreviousWarm()
+  const cached = previousOpening.take(previousOwner(page))
   navigationPhase.value = '正在定位上一件作品…'
   const ticket = navigation.begin(); pending.value = true; error.value = ''
   failedNavigation = () => { void previousFeedIdentity(page) }
   try {
-    let nearby: CursorNeighbors
-    try { nearby = await api<CursorNeighbors>(url(`/api/works/${page.work_id}/cursor-neighbors`, scope.value, page.work_cursor ? {cursor: page.work_cursor} : {}), {signal: ticket.signal}) }
-    catch (failure) {
-      if (!(failure instanceof ApiReadError) || failure.code !== 'cursor_expired' || !page.work_cursor) throw failure
-      ticket.signal.throwIfAborted()
-      nearby = await api<CursorNeighbors>(url(`/api/works/${page.work_id}/cursor-neighbors`, scope.value), {signal: ticket.signal})
+    let batch = cached
+    if (!batch) {
+      let nearby: CursorNeighbors
+      try { nearby = await api<CursorNeighbors>(url(`/api/works/${page.work_id}/cursor-neighbors`, scope.value, page.work_cursor ? {cursor: page.work_cursor} : {}), {signal: ticket.signal}) }
+      catch (failure) {
+        if (!(failure instanceof ApiReadError) || failure.code !== 'cursor_expired' || !page.work_cursor) throw failure
+        ticket.signal.throwIfAborted()
+        nearby = await api<CursorNeighbors>(url(`/api/works/${page.work_id}/cursor-neighbors`, scope.value), {signal: ticket.signal})
+      }
+      if (!nearby.previous) return
+      const previous = nearby.previous
+      batch = await api<CursorPageBatch>(url('/api/library/cursor/feed', scope.value, {cursor: previous.cursor, anchor_work_id: previous.work_id, page: 0, index: 0, work_index: 0, limit: STREAM_OPENING_PAGES}), {signal: ticket.signal})
     }
-    if (!nearby.previous) return
-    const previous = nearby.previous
-    const batch = await api<CursorPageBatch>(url('/api/library/cursor/feed', scope.value, {cursor: previous.cursor, anchor_work_id: previous.work_id, page: 0, index: 0, work_index: 0, limit: 1}), {signal: ticket.signal})
-    if (!ticket.current()) return
     const first = batch.items[0]
     if (!first) throw new Error('上一件作品已移出这个范围')
+    await preparePageImage(first, ticket.signal)
+    if (!ticket.current()) return
     const feed = new CursorReading(scope.value); feed.seed(batch); cursorFeed = feed
     initialAnchor.value = {work_id: first.work_id, work_index: first.work_index, page: first.page, index: first.index, offset: 0}
     activePage.value = null; flowOrdinalKnown.value = false; readerReset.value++
+    streamInitialOpening.value = {sessionKey: sessionKey.value, batch: {...batch,
+      items: batch.items.filter(page => page.work_id === first.work_id && page.revision_id === first.revision_id)}}
   } catch (failure) { if (ticket.current()) { cursorExpired.value = failure instanceof ApiReadError && failure.code === 'cursor_expired'; error.value = failure instanceof Error ? failure.message : '上一件作品未能读取' } }
   finally { if (ticket.current()) pending.value = false }
 }
-async function enterFeed(push = true) {
+async function enterFeed(push = true, fromCurrent = true) {
   if (!total.value) return
   clearTimeout(searchTimer); railRequest.cancel()
   navigationPhase.value = '正在打开流式阅览…'
@@ -342,12 +448,25 @@ async function enterFeed(push = true) {
   failedNavigation = () => { void enterFeed(push) }
   try {
     let prepared: CursorReading | null = null
-    const batch = readingOrder.value === 'sequential' ? await (prepared = new CursorReading(scope.value)).load(0, 1, ticket.signal) : await visitPages(await ensureVisit(ticket.signal), readingOrder.value, 0, 1, ticket.signal)
-    const first = batch.items[0]
+    const detail = currentWork.value, detailPage = detail?.pages.find(page => page.index === (currentAnchor.value?.page || 0)) || detail?.pages[0]
+    const selected: PageData | null = fromCurrent && mode.value === 'reader' ? activePage.value || (detail && detailPage ? {
+      ...detailPage, work_id: detail.id, work_index: 0, page: detailPage.index, page_count: detail.display_page_count,
+      next_work_index: detail.display_page_count, title: detail.title, artist_name: detail.artist_name,
+      artist_id: detail.artist_id, pixiv_id: detail.pixiv_id, type: detail.type, x_restrict: detail.x_restrict, revision_id: detail.revision_id,
+    } : null) : null
+    let first: PageData | undefined
+    if (readingOrder.value === 'random') first = (await randomTarget(selected, ticket.signal)).first
+    else {
+      prepared = new CursorReading(scope.value)
+      if (selected) prepared.recover({...selected, index: selected.page, work_index: 0, next_work_index: selected.page_count})
+      first = (await prepared.load(selected?.page || 0, 4, ticket.signal)).items[0]
+      if (selected && (first?.work_id !== selected.work_id || first.page !== selected.page)) throw new Error('当前作品页已不在此阅读范围内，请返回后重试')
+      await preparePageImage(first, ticket.signal)
+    }
     if (!first) throw new Error('当前范围已变化，请刷新图库')
     const found = {work_id: first.work_id, page: first.page, index: first.index, work_index: first.work_index}
     if (!ticket.current()) return
-    cursorFeed = prepared; flowOrdinalKnown.value = true; cursorExpired.value = false
+    cursorFeed = prepared; flowOrdinalKnown.value = !selected || readingOrder.value === 'random'; cursorExpired.value = false
     initialAnchor.value = {...found, offset: 0}; currentAnchor.value = initialAnchor.value
     readerReset.value++
     readingEnded.value = false
@@ -375,7 +494,11 @@ function gallery(push = true) {
 const loader = computed<PageLoader>(() => {
   const visit = readingVisit.value, order = readingOrder.value
   readerReset.value // Rebind the bounded cursor loader after explicit recovery.
-  if (mode.value === 'feed') return order === 'sequential' ? cursorFeed!.loader : (offset, limit, signal) => visitPages(visit!, order, offset, limit, signal)
+  if (mode.value === 'feed') {
+    const feed = cursorFeed!
+    return order === 'sequential' ? (offset, limit, signal) => { stopPreviousWarm(); return feed.load(offset, limit, signal) }
+      : (offset, limit, signal) => visitPages(visit!, order, offset, limit, signal)
+  }
   const work = currentWork.value!, workIndex = ordinaryIndex.value
   return async (offset, limit, signal) => {
     // The prepared opening response already contains a complete one-page work.
@@ -388,7 +511,25 @@ const loader = computed<PageLoader>(() => {
       recovery: detail.recovery, availability: detail.availability, archive: detail.archive, processing: detail.processing, source_update: detail.source_update, next_work_index: detail.display_page_count}))}
   }
 })
+const createStreamPreloadLoader = computed<() => PageLoader>(() => {
+  readerReset.value
+  const feed = cursorFeed, visit = readingVisit.value, order = readingOrder.value, query = scope.value
+  return () => {
+    if (order === 'random') return (offset, limit, signal) => visitPages(visit!, order, offset, limit, signal)
+    const fork = feed!.fork()
+    return async (offset, limit, signal) => {
+      const batch = await fork.load(offset, limit, signal)
+      signal.throwIfAborted()
+      if (cursorFeed !== feed || scope.value !== query) throw new DOMException('阅读范围已切换', 'AbortError')
+      // Only identity anchors flow back; each reader still owns its request controller.
+      if (feed!.generation === fork.generation) feed!.remember(batch.items)
+      return batch
+    }
+  }
+})
 function focused(page: PageData, anchor: Anchor) {
+  if (streamInitialOpening.value?.sessionKey === sessionKey.value) streamInitialOpening.value = null
+  if (mode.value === 'feed' && readingOrder.value === 'sequential') cursorFeed?.remember([page])
   const changedWork = activePage.value?.work_id !== page.work_id
   if (mode.value === 'feed' && (page.round || 0) > (activePage.value?.round || 0)) message('新一轮随机阅览')
   if (page.bookmark) ingestBookmark(page.work_id, page.bookmark)
@@ -477,25 +618,28 @@ async function remove() {
 async function changeReadingOrder(value: string) {
   const order: ReadingOrder = value === 'random' ? 'random' : 'sequential'
   if (order === readingOrder.value) return
-  const page = activePage.value, ticket = navigation.begin()
-  pending.value = true
+  const page = activePage.value, offset = currentAnchor.value?.offset || 0, ticket = navigation.begin()
+  pending.value = true; error.value = ''; navigationPhase.value = '正在准备阅览顺序，当前画面会保留…'
+  failedNavigation = () => { void changeReadingOrder(value) }
   try {
     let anchor: Anchor | null = null, prepared: CursorReading | null = null
     if (order === 'random') {
-      const visit = await ensureVisit(ticket.signal)
-      anchor = page ? await locateVisit(visit, page.work_id, order, 0, ticket.signal) : null
+      const first = (await randomTarget(page, ticket.signal)).first
+      anchor = {work_id: first.work_id, work_index: first.work_index, index: first.index, page: first.page, offset}
     } else {
       prepared = new CursorReading(scope.value)
       if (page) prepared.recover({...page, index: page.page, work_index: 0, next_work_index: page.page_count})
-      const first = (await prepared.load(page?.page || 0, 1, ticket.signal)).items[0]
-      if (first) anchor = {work_id: first.work_id, work_index: first.work_index, index: first.index, page: first.page, offset: 0}
+      const first = (await prepared.load(page?.page || 0, 4, ticket.signal)).items[0]
+      if (!first || page && (first.work_id !== page.work_id || first.page !== page.page)) throw new Error('当前作品页已不在此阅读范围内，请返回后重试')
+      await preparePageImage(first, ticket.signal)
+      anchor = {work_id: first.work_id, work_index: first.work_index, index: first.index, page: first.page, offset}
     }
     if (!ticket.current()) return
     cursorFeed = prepared; flowOrdinalKnown.value = order === 'random'; readingOrder.value = order
     try { localStorage.setItem('pixiv-local-reading-order', order) } catch { /* optional preference */ }
-    initialAnchor.value = anchor ? {...anchor, index: anchor.index + (order === 'random' ? page?.page || 0 : 0), page: page?.page || 0, offset: 0} : null
+    initialAnchor.value = anchor
     readerReset.value++; readingEnded.value = false
-  } catch (failure) { if (ticket.current()) message(failure instanceof Error ? failure.message : '切换顺序失败', true) }
+  } catch (failure) { if (ticket.current()) error.value = failure instanceof Error ? failure.message : '切换顺序失败' }
   finally { if (ticket.current()) pending.value = false }
 }
 async function earlierRevisions() {
@@ -611,7 +755,7 @@ function backFromDetail() {
   gallery()
 }
 function brandHome() { detailOrigin.value = 'gallery'; void initialize(homeScope.value, '/', true) }
-function foreground() { resumeBookmarkPolling(); if (hiddenCatalogueUpdate) void checkForNewWorks(); if (section.value === 'library' && mode.value !== 'gallery') { const id = activePage.value?.work_id || currentWork.value?.id; if (id) refreshBookmark(id) } }
+function foreground() { queueFilterWarm(); resumeBookmarkPolling(); if (hiddenCatalogueUpdate) void checkForNewWorks(); if (section.value === 'library' && mode.value !== 'gallery') { const id = activePage.value?.work_id || currentWork.value?.id; if (id) refreshBookmark(id) } }
 function chooseTheme(theme: 'dark' | 'light', _event: MouseEvent) {
   document.body.dataset.theme = theme
   try { localStorage.setItem('pixiv-local-theme', theme) } catch { /* optional */ }
@@ -620,6 +764,16 @@ watch(() => browserRoute.fullPath, path => {
   if (path === internalRoute) { internalRoute = ''; return }
   void initialize(browserRoute.fullPath.slice(browserRoute.path.length).replace(/^\?/, ''), browserRoute.path, false)
 })
+watch([scope, section], () => {
+  stopRandomWarm(); randomPreparation.clear(); randomLocation = null
+  stopPreviousWarm(); previousOpening.clear(); streamInitialOpening.value = null
+  if (section.value !== 'library') { releaseVisit(readingVisit.value); readingVisit.value = null }
+})
+watch([scope, section, mode, pending, readingOrder, () => readerActivity.value.phase, () => activePage.value?.work_id, () => currentWork.value?.id], queueRandomWarm, {flush: 'post'})
+watch([sessionKey, section, readingOrder, pending, streamPanelOpen, infoOpen, removePrompt, () => readerActivity.value.phase,
+  () => activePage.value?.work_id, () => activePage.value?.revision_id, () => activePage.value?.work_cursor], queuePreviousWarm, {flush: 'post'})
+watch(sessionKey, key => { if (streamInitialOpening.value?.sessionKey !== key) streamInitialOpening.value = null })
+onBeforeUnmount(() => { stopPreviousWarm(); previousOpening.clear() })
 onMounted(async () => {
   try { document.body.dataset.theme = localStorage.getItem('pixiv-local-theme') === 'light' ? 'light' : 'dark' } catch { document.body.dataset.theme = 'dark' }
   try { sidebarCollapsed.value = localStorage.getItem('pixiv-local-sidebar-collapsed') === '1' } catch { /* optional preference */ }
@@ -644,7 +798,7 @@ onMounted(async () => {
   window.addEventListener('archive-updated', archiveUpdated)
   document.addEventListener('visibilitychange', catalogueVisibilityChanged)
 })
-onBeforeUnmount(() => { adjacentPreload?.abort(); navigation.cancel(); infoRequest.cancel(); statusRequest.cancel(); newContentRequest.cancel(); railRequest.cancel(); releaseVisit(readingVisit.value); clearTimeout(toastTimer); clearTimeout(searchTimer); window.removeEventListener('keydown', key); window.removeEventListener('focus', foreground); window.removeEventListener('archive-updated', archiveUpdated); document.removeEventListener('visibilitychange', catalogueVisibilityChanged) })
+onBeforeUnmount(() => { stopRandomWarm(); randomPreparation.clear(); adjacentPreload?.abort(); navigation.cancel(); infoRequest.cancel(); statusRequest.cancel(); newContentRequest.cancel(); railRequest.cancel(); releaseVisit(readingVisit.value); clearTimeout(toastTimer); clearTimeout(searchTimer); window.removeEventListener('keydown', key); window.removeEventListener('focus', foreground); window.removeEventListener('archive-updated', archiveUpdated); document.removeEventListener('visibilitychange', catalogueVisibilityChanged) })
 function changePageSize(value: string) {
   continuous.value = value === 'scroll'
   if (!continuous.value) pageSize.value = Number(value)
@@ -698,12 +852,15 @@ async function checkForNewWorks(reveal = false) {
   }
 }
 function archiveUpdated() {
+  stopPreviousWarm(); previousOpening.clear()
+  invalidateFilterCatalogue()
   invalidateWorkCache()
   refreshCurrentWork()
   if (mode.value === 'feed' && infoOpen.value && infoWork.value) void loadInfo(infoWork.value.id, false)
   void checkForNewWorks()
+  queuePreviousWarm()
 }
-function catalogueVisibilityChanged() { if (hiddenCatalogueUpdate && !document.hidden) void checkForNewWorks() }
+function catalogueVisibilityChanged() { if (document.hidden) { stopRandomWarm(); stopPreviousWarm() } else { queueRandomWarm(); queuePreviousWarm(); if (hiddenCatalogueUpdate) void checkForNewWorks() } }
 function updated() { queueCatalogueUpdate() }
 </script>
 <template>
@@ -732,7 +889,7 @@ function updated() { queueCatalogueUpdate() }
       </template>
       <template v-else><main class="reader-layout" :class="{'stream-layout': mode === 'feed'}" :inert="mobileMenuOpen ? true : undefined">
         <StreamChrome v-if="mode === 'feed'" :page="activePage" :order="readingOrder" :total="total" :total-exact="totalExact" :ordinal-known="flowOrdinalKnown" :activity="readingActivity" :ended="readingEnded" :inactive="infoOpen" @back="gallery()" @order="changeReadingOrder" @artist="openArtistGallery" @tag="tagFilter" @manage="activePage && managePage(activePage)" @navigate="navigate" @message="message($event, true)" @retry="retryReading" @cancel="error = ''; cancelNavigation()" @panel="streamPanelOpen = $event">
-          <StreamReader ref="reader" :loader="loader" :session-key="sessionKey" :initial="initialAnchor" :inactive="streamPanelOpen || infoOpen || removePrompt" @focus="focused" @activity="readerActivity = $event" @recover="recoverFeed" @navigate="navigate" />
+          <StreamReader ref="reader" :loader="loader" :create-preload-loader="createStreamPreloadLoader" :preload-paused="pending" :initial-opening="streamInitialOpening" :session-key="sessionKey" :initial="initialAnchor" :inactive="streamPanelOpen || infoOpen || removePrompt" @focus="focused" @activity="readerActivity = $event" @recover="recoverFeed" @navigate="navigate" />
         </StreamChrome>
         <div v-if="mode !== 'feed' && readingEnded" class="empty reading-finished"><p>已到当前范围末尾</p><button @click="gallery()">返回图库</button></div><div v-if="mode !== 'feed'" class="reader-stage"><Transition name="work"><PageReader v-if="!readingEnded" :key="sessionKey" ref="reader" mode="reader" :loader="loader" :session-key="sessionKey" :initial="initialAnchor" :inactive="!!zoomPage" @focus="focused" @activity="readerActivity = $event" @recover="recoverFeed" @navigate="navigate" @artist="openArtistGallery" @zoom="zoomPage = $event" @bookmark="bookmarkPage" @manage="managePage">
           <template #before><div v-if="mode === 'reader' && currentWork" class="detail-head"><div class="detail-nav"><button class="detail-back" @click="backFromDetail"><Icon name="left" />{{ detailOrigin === 'artists' ? '返回画师' : detailOrigin === 'feed' ? '返回流式阅览' : '返回图库' }}</button><span>{{ ordinaryRankKnown && totalExact ? ordinaryIndex + 1 + ' / ' + total : '当前范围阅览' }}</span></div><div class="detail-title-row"><h1>{{ currentWork.title }}</h1><RestrictionBadge :value="currentWork.x_restrict" /><span class="detail-badge">{{ currentWork.type === 'ugoira' ? '动图' : currentWork.type === 'manga' ? '漫画' : '插画' }}</span><span v-if="currentWork.display_page_count > 1" class="detail-badge">{{ currentWork.display_page_count }} 页</span></div><div class="detail-meta"><span>画师：<button class="text-link" @click="openArtistGallery(currentWork.artist_id)">{{ currentWork.artist_name }}</button></span><span v-if="currentWork.posted_at">发布于 {{ currentWork.posted_at.slice(0, 10) }}</span></div><p v-if="archiveNotice(currentWork)" class="source-notice">{{ archiveNotice(currentWork) }}</p><label v-if="currentWork.revisions && currentWork.revisions.length > 1" class="revision-picker">存档版本 <select :value="currentWork.revision_id" aria-label="存档版本" @change="selectRevision(($event.target as HTMLSelectElement).value)"><option v-for="revision in currentWork.revisions" :key="revision.id" :value="revision.id">{{ revision.change_kind === 'legacy' ? '升级前存档' : `版本 ${revision.ordinal}` }} · {{ revision.created_at.slice(0, 16).replace('T', ' ') }}{{ revision.current ? ' · 默认' : '' }}{{ revision.state !== 'complete' ? ' · 未完整' : '' }}</option></select></label><button v-if="currentWork.revisions_has_more" class="text-link" :disabled="revisionLoading" @click="earlierRevisions">{{ revisionLoading ? '正在读取…' : '加载更早版本' }}</button><div class="detail-tags"><button v-for="tag in currentWork.tags" :key="tag" class="tag" @click="tagFilter(tag)"><TagLabel :name="tag" :details="currentWork.tag_details" /></button></div><div class="detail-actions"><a class="text-link" :href="`https://www.pixiv.net/artworks/${currentWork.pixiv_id}`" target="_blank" rel="noopener noreferrer">在 Pixiv 查看 <Icon name="external" /></a><button class="softbtn" @click="openFolder(currentWork.id)"><Icon name="folder" />本地文件</button><div class="detail-action-right"><button class="softbtn" @click="infoOpen = true; loadInfo(currentWork.id)">整理作品</button></div></div></div><div v-else class="stream-head"><div><h1>流式阅览</h1><p>当前图库范围 · {{ totalExact ? total + ' 件作品' : '数量按需统计' }}</p></div><label class="reading-order">顺序 <select :value="readingOrder" aria-label="流式阅览顺序" @change="changeReadingOrder(($event.target as HTMLSelectElement).value)"><option value="sequential">顺序阅览</option><option value="random">随机阅览</option></select></label><button class="softbtn" @click="gallery()"><Icon name="grid" />返回图库</button></div></template>

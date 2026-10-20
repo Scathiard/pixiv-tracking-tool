@@ -6,22 +6,25 @@ import {LatestIntent} from './interaction'
 import {discardedSignal} from './diagnostics'
 import {ApiReadError, preparePageImage} from './api'
 import {observeCatalogueData} from './state/catalogue'
-import {sameStreamWork, streamPageWindow, streamTouchDirection, StreamPositions, StreamWheel, STREAM_PULL_DISTANCE} from './state/streamReader'
+import {sameStreamWork, streamPageWindow, streamTouchDirection, StreamPositions, StreamWheel, StreamOpenings, STREAM_NEARBY_WORKS, STREAM_OPENING_PAGES, STREAM_PULL_DISTANCE, type StreamInitialOpening} from './state/streamReader'
 import InlineZoomMedia from './components/InlineZoomMedia.vue'
 
-const props = defineProps<{loader: PageLoader; initial: Anchor | null; sessionKey: string; inactive?: boolean}>()
+const props = defineProps<{loader: PageLoader; createPreloadLoader?: () => PageLoader; preloadPaused?: boolean; initialOpening?: StreamInitialOpening | null; initial: Anchor | null; sessionKey: string; inactive?: boolean}>()
 const emit = defineEmits<{
   focus: [page: PageData, anchor: Anchor]; navigate: [delta: number]
   activity: [state: {phase: string; error: string}]; recover: [page: PageData | null]
 }>()
 const viewport = ref<HTMLDivElement | null>(null), pages = ref<PageData[]>([]), total = ref(0)
-const size = ref({width: 1000, height: 760}), loading = ref(false), phase = ref(''), error = ref('')
+const size = ref({width: 1000, height: 760}), loading = ref(false), switching = ref(false), phase = ref(''), error = ref('')
 const expired = ref(false), pull = ref(0), enter = ref(0)
 const intent = new LatestIntent(), positions = new StreamPositions(), wheelGesture = new StreamWheel()
+const openings = new StreamOpenings()
 let observer: ResizeObserver | null = null, frame = 0, restoring = false, lastAnchor: Anchor | null = null
 let targetIndex: number | null = null, catalogueRevision: number | undefined
 let installedSession = ''
+let consumedOpeningSession = ''
 let adjacentPreload: AbortController | null = null, preloadIndex: number | null = null
+let workPreload: AbortController | null = null, workPreloadKey = '', workPreloadTimer = 0
 let failedAction: (() => void) | null = null
 let refreshTimer = 0, refreshController: AbortController | null = null, forceRefreshPending = false
 let touch: {id: number; x: number; y: number; delta: number; top: boolean; bottom: boolean; blocked: boolean} | null = null
@@ -74,7 +77,7 @@ function remember() {
   if (selected) positions.remember(selected.page, selected.anchor)
 }
 function report() {
-  if (restoring || props.inactive) return
+  if (restoring || props.inactive || installedSession !== props.sessionKey) return
   const selected = current()
   if (!selected) return
   lastAnchor = selected.anchor; positions.remember(selected.page, selected.anchor)
@@ -82,6 +85,7 @@ function report() {
   prefetch(selected.page)
 }
 function prefetch(page: PageData) {
+  queueNearby(page)
   if (loading.value || preloadIndex === page.index) return
   adjacentPreload?.abort(); preloadIndex = page.index
   const controller = adjacentPreload = new AbortController()
@@ -89,23 +93,74 @@ function prefetch(page: PageData) {
     void preparePageImage(neighbor, controller.signal).catch(() => {})
   }
 }
+function stopWorkPreload() {
+  clearTimeout(workPreloadTimer); workPreloadTimer = 0
+  workPreload?.abort(); workPreload = null; workPreloadKey = ''
+}
+function queueNearby(page: PageData) {
+  if (!props.createPreloadLoader || loading.value || props.inactive || props.preloadPaused || document.visibilityState !== 'visible') return
+  const key = `${props.sessionKey}:${page.work_id}:${page.revision_id}:${page.index - page.page}`
+  if (workPreloadKey === key) return
+  stopWorkPreload(); workPreloadKey = key
+  workPreloadTimer = window.setTimeout(() => {
+    workPreloadTimer = 0
+    const controller = workPreload = new AbortController(), session = props.sessionKey
+    const loader = props.createPreloadLoader!()
+    const owns = () => !controller.signal.aborted && session === props.sessionKey
+    void (async () => {
+      const visited = new Set<number>([page.index - page.page])
+      const queue: {index: number; direction: number}[] = []
+      const enqueue = (target: PageData, direction: number) => {
+        const index = direction > 0 ? target.has_next_work === false ? null : target.next_work_index : target.previous_work_index
+        if (index != null && index >= 0 && !visited.has(index)) { visited.add(index); queue.push({index, direction}) }
+      }
+      enqueue(page, 1); enqueue(page, -1)
+      const rebasedPrevious = page.previous_work_index === 0 && page.index - page.page === 0
+      const budget = STREAM_NEARBY_WORKS - 1 - Number(rebasedPrevious)
+      // One metadata/image request at a time; long works are skipped by their identity span.
+      for (let count = 0; owns() && queue.length && count < budget; count++) {
+        const target = queue.shift()!
+        try {
+          const batch = openings.read(target.index, catalogueRevision) || await loader(target.index, STREAM_OPENING_PAGES, controller.signal)
+          if (!owns() || isOlderCatalogue(batch.catalogue_revision, catalogueRevision)) return
+          const first = batch.items.find(candidate => candidate.index === target.index)
+          if (!first) continue
+          await preparePageImage(first, controller.signal)
+          if (!owns()) return
+          openings.remember(batch, first)
+          enqueue(first, target.direction)
+        } catch { if (!owns()) return /* Navigation and the 12s repair path own visible failures. */ }
+      }
+    })().finally(() => { if (workPreload === controller) workPreload = null })
+  }, 180)
+}
 function fail(failure: unknown, fallback: string) {
   expired.value = failure instanceof ApiReadError && failure.code === 'cursor_expired'
   error.value = failure instanceof Error ? failure.message : fallback
+}
+function takeInitialOpening(index: number) {
+  const opening = props.initialOpening
+  if (!opening || opening.sessionKey !== props.sessionKey || consumedOpeningSession === props.sessionKey) return null
+  consumedOpeningSession = props.sessionKey
+  const target = opening.batch.items.find(page => page.index === index && page.work_id === props.initial?.work_id)
+  return target && opening.batch.items.every(page => sameStreamWork(page, target) && page.src && page.state === 'verified')
+    ? {...opening.batch, items: opening.batch.items.map(page => ({...page}))} : null
 }
 async function jump(index: number, offset = 0, showIntro = true) {
   if (props.inactive) return
   index = Math.max(0, index)
   if (loading.value && targetIndex === index) return
-  remember(); stopRefresh(); adjacentPreload?.abort(); preloadIndex = null; resetTouch()
+  remember(); stopRefresh(); stopWorkPreload(); adjacentPreload?.abort(); preloadIndex = null; resetTouch()
+  const previous = current()?.page
+  if (previous && installedSession === props.sessionKey) openings.remember({items: pages.value, total: total.value, offset: pages.value[0]!.index, catalogue_revision: catalogueRevision}, previous)
   const request = intent.begin()
-  targetIndex = index; phase.value = '正在定位作品…'; loading.value = true; restoring = true
+  targetIndex = index; phase.value = '正在定位作品…'; loading.value = true; switching.value = true; restoring = true
   error.value = ''; expired.value = false
   failedAction = () => { void jump(index, offset, showIntro) }
   try {
     const cached = installedSession === props.sessionKey ? pages.value.find(page => page.index === index) : undefined
-    let batch = cached ? {items: pages.value, total: total.value, catalogue_revision: catalogueRevision}
-      : await props.loader(Math.max(0, index - 16), 64, request.signal)
+    let batch = cached ? {items: pages.value, total: total.value, offset: pages.value[0]!.index, catalogue_revision: catalogueRevision}
+      : openings.read(index, catalogueRevision) || takeInitialOpening(index) || await props.loader(Math.max(0, index - 16), 64, request.signal)
     if (!request.current() || isOlderCatalogue(batch.catalogue_revision, catalogueRevision)) { discardedSignal(request.signal, 'other'); return }
     let target = batch.items.find(page => page.index === index)
     if (!target && batch.total) throw new Error('目标作品已不在当前范围内，请重试')
@@ -127,6 +182,7 @@ async function jump(index: number, offset = 0, showIntro = true) {
     if (!request.current()) return
     catalogueRevision = batch.catalogue_revision ?? catalogueRevision
     pages.value = target ? streamPageWindow(batch.items, target) : []; total.value = batch.total
+    if (target) openings.remember(batch, target)
     installedSession = props.sessionKey
     observeCatalogueData(batch.catalogue_revision)
     if (changing) enter.value++
@@ -135,7 +191,7 @@ async function jump(index: number, offset = 0, showIntro = true) {
   } catch (failure) { if (request.current()) fail(failure, '作品暂时无法载入') }
   finally {
     if (request.current()) {
-      targetIndex = null; loading.value = false; restoring = false; report(); queueRefresh()
+      targetIndex = null; loading.value = false; switching.value = false; restoring = false; report(); queueRefresh()
       if (!error.value) queueMicrotask(extendIfNeeded)
     }
   }
@@ -153,7 +209,7 @@ async function extend(direction: number) {
   if (props.inactive || loading.value || restoring || !pages.value.length || refreshController) return
   const first = pages.value[0]!, last = pages.value.at(-1)!
   if (direction < 0 && first.page === 0 || direction > 0 && last.page + 1 >= last.page_count) return
-  stopRefresh()
+  stopRefresh(); stopWorkPreload()
   const request = intent.begin(), selected = first
   phase.value = '正在读取本作品的相邻页…'; loading.value = true; error.value = ''; expired.value = false
   failedAction = () => { void extend(direction) }
@@ -214,6 +270,7 @@ async function refreshMissing(force = false) {
   const offset = Math.max(selected.index, first - 2)
   const limit = Math.min(REFRESH_LIMIT, pages.value.at(-1)!.index - offset + 1)
   const session = props.sessionKey, controller = refreshController = new AbortController()
+  stopWorkPreload()
   try {
     const batch = await props.loader(offset, limit, controller.signal)
     if (controller.signal.aborted || session !== props.sessionKey || isOlderCatalogue(batch.catalogue_revision, catalogueRevision)) return
@@ -232,14 +289,14 @@ async function refreshMissing(force = false) {
     }
   } catch { /* Background repair keeps the current display and retries later. */ }
   finally {
-    if (refreshController === controller) { refreshController = null; queueRefresh(); extendIfNeeded() }
+    if (refreshController === controller) { refreshController = null; report(); queueRefresh(); extendIfNeeded() }
   }
 }
 function visibilityChanged() {
-  if (document.visibilityState === 'visible') queueRefresh()
-  else stopRefresh()
+  if (document.visibilityState === 'visible') { report(); queueRefresh() }
+  else { stopRefresh(); stopWorkPreload(); adjacentPreload?.abort(); preloadIndex = null }
 }
-function archiveUpdated() { if (pages.value.length) { forceRefreshPending = true; queueRefresh() } }
+function archiveUpdated() { openings.clear(); stopWorkPreload(); if (pages.value.length) { forceRefreshPending = true; queueRefresh() } }
 function atEdge(direction: number) {
   const element = viewport.value, first = pages.value[0], last = pages.value.at(-1)
   if (!element || !first || !last) return false
@@ -303,14 +360,15 @@ function dimensions(page: PageData, width: number, imageHeight: number) {
 }
 function retry() { if (expired.value) emit('recover', current()?.page || pages.value[0] || null); else failedAction?.() }
 function cancel() {
-  intent.cancel(); stopRefresh(); adjacentPreload?.abort(); targetIndex = null; loading.value = false; restoring = false
+  intent.cancel(); stopRefresh(); stopWorkPreload(); adjacentPreload?.abort(); targetIndex = null; loading.value = false; switching.value = false; restoring = false
   error.value = ''; resetTouch(); report(); queueRefresh()
 }
 watch(() => props.sessionKey, () => {
-  positions.clear(); lastAnchor = null; catalogueRevision = undefined; wheelGesture.reset()
+  openings.clear(); stopWorkPreload(); positions.clear(); lastAnchor = null; catalogueRevision = undefined; wheelGesture.reset()
   void jump(props.initial?.index || 0, props.initial?.offset || 0)
 })
-watch(() => props.inactive, inactive => { if (inactive) { resetTouch(); wheelGesture.block(performance.now()); stopRefresh() } else { report(); queueRefresh() } })
+watch(() => props.inactive, inactive => { if (inactive) { resetTouch(); wheelGesture.block(performance.now()); stopRefresh(); stopWorkPreload() } else { report(); queueRefresh() } })
+watch(() => props.preloadPaused, paused => { if (paused) stopWorkPreload(); else report() })
 watch(size, () => { virtual.value.measure() })
 onMounted(() => {
   observer = new ResizeObserver(entries => {
@@ -322,7 +380,7 @@ onMounted(() => {
   void jump(props.initial?.index || 0, props.initial?.offset || 0)
 })
 onBeforeUnmount(() => {
-  adjacentPreload?.abort(); intent.cancel(); stopRefresh(); observer?.disconnect(); cancelAnimationFrame(frame)
+  adjacentPreload?.abort(); stopWorkPreload(); openings.clear(); intent.cancel(); stopRefresh(); observer?.disconnect(); cancelAnimationFrame(frame)
   document.removeEventListener('visibilitychange', visibilityChanged); window.removeEventListener('archive-updated', archiveUpdated)
 })
 defineExpose({readAnchor, jump, stepPage, cancel, retry, scrollBy: (delta: number) => viewport.value?.scrollBy({top: delta, behavior: 'auto'})})
@@ -332,12 +390,12 @@ defineExpose({readAnchor, jump, stepPage, cancel, retry, scrollBy: (delta: numbe
     <div ref="viewport" class="stream-viewport" tabindex="0" aria-label="流式图片阅读区" :aria-busy="loading"
       @scroll.passive="scroll" @touchstart="touchStart" @touchmove="touchMove" @touchend="touchEnd" @touchcancel="resetTouch"
       @wheel="wheel" @inline-zoom-gesture="zoomOwned">
-      <div :key="`${pages[0]?.work_id}:${pages[0]?.revision_id}`" class="stream-window" :data-window-size="pages.length" :style="{height: `${fullHeight}px`, transform: `translateY(${pull}px)`}">
+      <div :key="`${pages[0]?.work_id}:${pages[0]?.revision_id}`" class="stream-window" :class="{'is-pulling': !!pull}" :data-window-size="pages.length" :style="{height: `${fullHeight}px`, transform: `translateY(${pull}px)`}">
         <figure v-for="row in rows" :key="String(row.key)" :ref="measure" class="stream-page" :data-index="row.index"
           :data-global-index="pages[row.index]!.index" :data-work-id="pages[row.index]!.work_id" :data-page="pages[row.index]!.page"
           :style="{height: `${height(pages[row.index])}px`, transform: `translateY(${row.start}px)`}">
           <div class="stream-picture" :class="{'stream-single': pages[row.index]!.page_count === 1}">
-            <InlineZoomMedia :page="pages[row.index]!" :inactive="inactive || loading" @size="(width, imageHeight) => dimensions(pages[row.index]!, width, imageHeight)" />
+            <InlineZoomMedia :page="pages[row.index]!" :inactive="inactive || switching" @size="(width, imageHeight) => dimensions(pages[row.index]!, width, imageHeight)" />
           </div>
         </figure>
       </div>
@@ -349,9 +407,10 @@ defineExpose({readAnchor, jump, stepPage, cancel, retry, scrollBy: (delta: numbe
 <style scoped>
 .stream-reader { position: absolute; inset: 0; min-width: 0; }
 .stream-viewport { height: 100%; overflow: auto; overflow-anchor: none; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; scrollbar-width: thin; }
-.stream-window { position: relative; width: 100%; animation: stream-work-in 160ms ease-out; }
+.stream-window { position: relative; width: 100%; animation: stream-work-in 160ms ease-out; transition: transform 180ms ease-out; }
+.stream-window.is-pulling { transition: none; }
 @keyframes stream-work-in { from { opacity: .45; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .stream-window { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .stream-window { animation: none; transition: none; } }
 .stream-page { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0 16px; }
 .stream-picture { width: 100%; height: 100%; max-width: 1100px; margin: auto; overflow: hidden; background: var(--art-bg); }
 .stream-single { background: transparent; }

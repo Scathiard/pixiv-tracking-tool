@@ -1,0 +1,59 @@
+{
+  "checks": [],
+  "failures": [
+    {
+      "name": "background-page-extension-preserves-live-zoom",
+      "error": "Locator expected to have attribute '2.25'\nActual value: 1 \nCall log:\n  - Expect \"to_have_attribute\" with timeout 5000ms\n  - waiting for locator(\".stream-page[data-page=\\\"50\\\"] .inline-zoom-media\")\n    14 × locator resolved to <div tabindex=\"0\" data-v-ad884971=\"\" data-v-6d2ca2ef=\"\" class=\"inline-zoom-media\" data-inline-zoom-scale=\"1\" data-inline-zoom-active=\"false\" data-inline-zoom-consumed=\"false\" aria-label=\"R074 synthetic work 1，第 51 页；双击放大，再次双击还原\">…</div>\n       - unexpected value \"1\"\n"
+    }
+  ],
+  "metrics": {
+    "extension_setup": {
+      "initial_window": 64,
+      "total_pages": 80,
+      "trigger_page": 52,
+      "zoom_page": 51,
+      "held_limit": 16,
+      "scale_during_extension": "1"
+    }
+  },
+  "real_account": false,
+  "real_library": false,
+  "failure_state": {
+    "active": {
+      "tag": "DIV",
+      "classes": "inline-zoom-media"
+    },
+    "detail": null,
+    "stream": "当前 / 3 件 · 52 / 80 页",
+    "activity": null,
+    "busy": "true",
+    "window": "64",
+    "zoom": [
+      {
+        "page": "49",
+        "scale": "1"
+      },
+      {
+        "page": "50",
+        "scale": "1"
+      },
+      {
+        "page": "51",
+        "scale": "1"
+      },
+      {
+        "page": "52",
+        "scale": "1"
+      },
+      {
+        "page": "53",
+        "scale": "1"
+      }
+    ]
+  },
+  "feed_requests": [
+    "http://127.0.0.1:50585/api/library/cursor/feed?ceiling=3&as_of=2026-10-20T15%3A55%3A51.962834&limit=4&direction=next&page=0&index=0&work_index=0&anchor_work_id=1",
+    "http://127.0.0.1:50585/api/library/cursor/feed?ceiling=3&as_of=2026-10-20T15%3A55%3A51.962834&limit=64&direction=next&page=0&index=0&work_index=0&anchor_work_id=1&cursor=eyJ2IjoxLCJmaWx0ZXIiOiI0OTAzOWU1ZWQ5ZmFlZTM4MmRjYjRiYzFkZGE2ZDRlNSIsImdlbmVyYXRpb24iOjMsImNlaWxpbmciOjMsImlkIjoxLCJrZXkiOiIyMDI2LTEwLTAxVDAwOjAwOjAwIiwiYXNfb2YiOiIyMDI2LTEwLTIwVDE1OjU1OjUxLjk2MjgzNCJ9",
+    "http://127.0.0.1:50585/api/library/cursor/feed?ceiling=3&as_of=2026-10-20T15%3A55%3A51.962834&limit=16&direction=next&page=64&index=64&work_index=0&anchor_work_id=1&cursor=eyJ2IjoxLCJmaWx0ZXIiOiI0OTAzOWU1ZWQ5ZmFlZTM4MmRjYjRiYzFkZGE2ZDRlNSIsImdlbmVyYXRpb24iOjMsImNlaWxpbmciOjMsImlkIjoxLCJrZXkiOiIyMDI2LTEwLTAxVDAwOjAwOjAwIiwiYXNfb2YiOiIyMDI2LTEwLTIwVDE1OjU1OjUxLjk2MjgzNCJ9"
+  ]
+}

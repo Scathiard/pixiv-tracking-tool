@@ -1,0 +1,11 @@
+{
+  "checks": [
+    "detail-page-two-and-repeated-random-toggle-retain-page"
+  ],
+  "failures": [],
+  "metrics": {
+    "detail-page-two-and-repeated-random-toggle-retain-page": null
+  },
+  "real_account": false,
+  "real_library": false
+}
