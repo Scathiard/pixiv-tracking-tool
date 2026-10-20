@@ -1,0 +1,28 @@
+{
+  "cleaned_at": "2026-10-20T12:09:06.7979611+08:00",
+  "worktree": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1",
+  "removed_owned_paths": [
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\app\\.pytest_cache",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\app\\frontend\\dist",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\app\\src\\__pycache__",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\app\\src\\core\\__pycache__",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\app\\tests\\__pycache__",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\app\\work",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\work\\tmp\\reading-interactions\\bookmark",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\work\\tmp\\reading-interactions\\integration",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\work\\tmp\\reading-interactions\\package\\b20261020.1-package",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\work\\tmp\\reading-interactions\\package\\enable.ps1",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\work\\tmp\\reading-interactions\\package\\enabled-runtime.json",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\work\\tmp\\reading-interactions\\package\\exe-check",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\work\\tmp\\reading-interactions\\package\\exe-check-2",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\work\\tmp\\reading-interactions\\package\\exe-check-3",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\work\\tmp\\reading-interactions\\package\\exe-check-4",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\work\\tmp\\reading-interactions\\package\\live-checks.json",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\work\\tmp\\reading-interactions\\reader",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\work\\tmp\\reading-interactions\\writer"
+  ],
+  "removed_junction_only": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\app\\frontend\\node_modules",
+  "shared_target_preserved": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261004.3\\app\\frontend\\node_modules",
+  "retained_active_runtime": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.1\\work\\tmp\\reading-interactions\\package\\enabled-runtime",
+  "reason": "Active daily EXE extraction; retained while in use. Old worktrees, releases, data, credentials and logs untouched."
+}

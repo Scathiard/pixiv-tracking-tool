@@ -1,0 +1,21 @@
+Traceback (most recent call last):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261020.1\app\frontend\tests\reading-interactions-browser.py", line 47, in <module>
+    expect(heart).to_have_attribute('aria-busy', 'true')
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\playwright\sync_api\_generated.py", line 21518, in to_have_attribute
+    self._sync(
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\playwright\_impl\_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\playwright\_impl\_assertions.py", line 335, in to_have_attribute
+    await self._expect_impl(
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\playwright\_impl\_assertions.py", line 123, in _expect_impl
+    _record_soft_or_raise(
+  File "D:\claude_sandbox\pixiv-tracking-tool\.devtools\v012-env\Lib\site-packages\playwright\_impl\_assertions.py", line 60, in _record_soft_or_raise
+    raise error
+AssertionError: Locator expected to have attribute 'true'
+Actual value: false
+Call log:
+  - Expect "to_have_attribute" with timeout 5000ms
+  - waiting for locator(".reading-toolbar").locator(".bookmark-button")
+    14 × locator resolved to <button type="button" aria-busy="false" data-v-b21c0596="" aria-pressed="false" class="bookmark-button" title="最近核实：2026/10/20 08:00:00。收藏到 Pixiv" aria-label="最近核实：2026/10/20 08:00:00。收藏到 Pixiv">…</button>
+       - unexpected value "false"

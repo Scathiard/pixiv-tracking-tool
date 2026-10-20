@@ -57,7 +57,7 @@ def main():
                     page.goto(origin, wait_until="domcontentloaded")
                     page.locator('.work-card[data-work-id="2"] .card-picture').click()
                     detail = page.request.get(origin + "/api/works/2").json()
-                    expect(page.locator(".detail-title-row h1")).to_have_text(detail["title"])
+                    expect(page.locator(".detail-title-row h1").last).to_have_text(detail["title"])
                     page.wait_for_function("""() => {
                         const image = document.querySelector('.image-page img');
                         return image?.complete && image.naturalWidth > 0;
@@ -66,9 +66,10 @@ def main():
                     assert nearby["previous"] and nearby["next"]
                     next_work = page.request.get(origin + f"/api/works/{nearby['next']['work_id']}").json()
                     page.locator(".reading-toolbar").get_by_role("button", name="下一件作品", exact=True).click()
-                    expect(page.locator(".detail-title-row h1")).to_have_text(next_work["title"])
+                    expect(page.locator(".detail-title-row h1").last).to_have_text(next_work["title"])
+                    expect(page.locator(".detail-title-row h1")).to_have_count(1)
                     page.locator(".reading-toolbar").get_by_role("button", name="上一件作品", exact=True).click()
-                    expect(page.locator(".detail-title-row h1")).to_have_text(detail["title"])
+                    expect(page.locator(".detail-title-row h1").last).to_have_text(detail["title"])
                     result["checks"].append("Final EXE: real synthetic HTTP gallery -> detail -> next -> previous")
                     page.screenshot(path=str(artifacts / "actual-exe-reader.png"))
                 finally:

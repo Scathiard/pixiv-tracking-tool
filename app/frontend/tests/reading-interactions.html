@@ -38,7 +38,7 @@ window.fetch = (target, options = {}) => {
   const json = value => Promise.resolve(Response.json(value))
   if (path === '/api/startup') return json({state:'ready'})
   if (path === '/api/status') return json({page_size:100,pagination_mode:'pages'})
-  if (path === '/api/tasks/progress') return json({tasks:[],active:[],recent:[]})
+  if (path === '/api/progress') return json({operations:[],round:null,worker_error:null,catalogue_revision:fixture.generation,active_operation_count:0,automatic_paused:false})
   if (path === '/api/library/counts') return json({all:6,recent:0,favorites:0})
   if (path === '/api/library' || path === '/api/library/cursor') {
     const offset = Number(params.get('offset') || 0), limit = Number(params.get('limit') || 100)
@@ -62,13 +62,13 @@ window.fetch = (target, options = {}) => {
     const id = Number(path.split('/')[3])
     if (path.endsWith('/refresh')) {
       const current = bookmark(id)
-      const pending = {...current, operation_id:`refresh-${id}`, desired:null, kind:'refresh', status:'pending'}
+      const pending = {...current, operation_id:`refresh-${id}`, desired:null, kind:'refresh', status:'pending', version:current.version+1}
       if (current.version === 1) fixture.bookmarkFacts.set(id, pending)
     } else if (options.method === 'POST') {
       const request = JSON.parse(options.body)
       fixture.bookmarkWrites.push({id, ...request})
       fixture.bookmarkFacts.set(id, {...bookmark(id), operation_id:`write-${id}`, kind:'write',
-        desired:request.desired, value:request.desired, status:'confirmed', version:2})
+        desired:request.desired, value:request.desired, status:'confirmed', version:bookmark(id).version+1})
     }
     return json(bookmark(id))
   }

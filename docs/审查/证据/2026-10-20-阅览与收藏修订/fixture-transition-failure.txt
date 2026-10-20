@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "D:\claude_sandbox\pixiv-tracking-tool\.worktrees\v0.2.0-build20261020.1\app\frontend\tests\reading-interactions-browser.py", line 64, in <module>
+    assert page.locator('.image-page img').first.get_attribute('src').startswith('data:image/svg+xml,')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'startswith'

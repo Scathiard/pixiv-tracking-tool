@@ -35,7 +35,8 @@ with sync_playwright() as pw:
             page.goto(args.url.rstrip('/') + '/' if args.bundle else args.url)
             expect(page.locator('.work-card strong').first).to_have_text('合成作品 1')
             page.locator('.work-card strong').first.click()
-            title = page.locator('.detail-title-row h1')
+            # Vue's short work transition temporarily retains the old reader.
+            title = page.locator('.detail-title-row h1').last
             expect(title).to_have_text('合成作品 1')
             dock = page.locator('.reading-toolbar')
             next_work = dock.get_by_role('button', name='下一件作品', exact=True)
@@ -59,8 +60,9 @@ with sync_playwright() as pw:
             next_work.click()
             expect(title).to_have_text('合成作品 2')
             page.wait_for_function("readingFixture.pending.has('/synthetic-reading/2.svg')")
-            expect(page.locator('.image-page img').first).to_be_visible()
-            assert page.locator('.image-page img').first.get_attribute('src').startswith('data:image/svg+xml,')
+            preview = page.locator('.image-page[data-work-id="2"] img').last
+            expect(preview).to_be_visible()
+            expect(preview).to_have_attribute('src', re.compile(r'^data:image/svg\+xml,'))
             assert page.evaluate("readingFixture.requests.filter(x=>x.startsWith('/api/library/cursor?')).length") == reads_before
             result['checks'].append(f'{width}: validated generation continuation; single step uses neighbor identity; preview displays before original; no decode barrier')
 
