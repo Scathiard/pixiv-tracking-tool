@@ -1,0 +1,12 @@
+{
+  "checks": [
+    "packaged-local-tags-and-official-translation",
+    "packaged-compact-artists",
+    "same-served-ui-bytes-as-browser-verified-20261020.4"
+  ],
+  "errors": [],
+  "real_account_used": false,
+  "real_library_used": false,
+  "exe_sha256": "9cda0392823f645fc3fd12fbc600fff559bebd1c1464bf59b9c2246bbeacce7b",
+  "exit_code": 0
+}

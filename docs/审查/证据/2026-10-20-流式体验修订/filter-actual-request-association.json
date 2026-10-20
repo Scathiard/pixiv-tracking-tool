@@ -1,0 +1,118 @@
+{
+  "source_volume": "diagnostic-20261021-003246-22188-032b6ff82cc1-part0001.jsonl",
+  "scope": "Existing requests only; no new HTTP or database aggregate invoked. UTC source times and Asia/Shanghai local times retained.",
+  "sql_definitions": {
+    "d57c8406a99f0ead": {
+      "sql_id": "d57c8406a99f0ead",
+      "command": "SELECT",
+      "tables": [
+        "archive_intents",
+        "work_tags",
+        "works"
+      ],
+      "caller": "src/core/library.py:1044:_tag_values"
+    },
+    "a9f6f4a79b1b6b61": {
+      "sql_id": "a9f6f4a79b1b6b61",
+      "command": "SELECT",
+      "tables": [
+        "read_display_metadata",
+        "read_source_work_local"
+      ],
+      "caller": "src/core/library.py:1065:tag_catalogue"
+    }
+  },
+  "requests": {
+    "ad208c799867": [
+      {
+        "event": "http.request.begin",
+        "utc": "2026-10-20T16:33:34.062+00:00",
+        "trace": "ad208c799867",
+        "local_time": "2026-10-21T00:33:34.062+08:00"
+      },
+      {
+        "event": "http.disconnect",
+        "utc": "2026-10-20T16:33:54.064+00:00",
+        "trace": "ad208c799867",
+        "local_time": "2026-10-21T00:33:54.064+08:00"
+      },
+      {
+        "event": "read.consumer_disconnected",
+        "utc": "2026-10-20T16:33:54.064+00:00",
+        "trace": "ad208c799867",
+        "endpoint": "tags",
+        "local_time": "2026-10-21T00:33:54.064+08:00"
+      },
+      {
+        "event": "sql.error",
+        "utc": "2026-10-20T16:33:54.105+00:00",
+        "trace": "ad208c799867",
+        "sql_id": "d57c8406a99f0ead",
+        "duration_ms": 20047.0,
+        "error_type": "OperationalError",
+        "local_time": "2026-10-21T00:33:54.105+08:00"
+      },
+      {
+        "event": "read.completed",
+        "utc": "2026-10-20T16:33:54.106+00:00",
+        "trace": "ad208c799867",
+        "endpoint": "tags",
+        "outcome": "read_cancelled",
+        "queue_ms": 0.0,
+        "pool_ms": 0.0,
+        "database_ms": 20047.00000002049,
+        "execute_ms": 20047.00000002049,
+        "total_ms": 20047.00000002049,
+        "statement_count": 4,
+        "last_read_stage": null,
+        "last_stage_ms": 0.0,
+        "local_time": "2026-10-21T00:33:54.106+08:00"
+      },
+      {
+        "event": "http.request.end",
+        "utc": "2026-10-20T16:33:54.106+00:00",
+        "trace": "ad208c799867",
+        "route": "/api/library/tags",
+        "status": 499,
+        "duration_ms": 20047.0,
+        "local_time": "2026-10-21T00:33:54.106+08:00"
+      }
+    ],
+    "aff7e1da2147": [
+      {
+        "event": "http.request.begin",
+        "utc": "2026-10-20T16:33:38.394+00:00",
+        "trace": "aff7e1da2147",
+        "local_time": "2026-10-21T00:33:38.394+08:00"
+      },
+      {
+        "event": "read.admitted",
+        "utc": "2026-10-20T16:33:38.429+00:00",
+        "trace": "aff7e1da2147",
+        "endpoint": "tags",
+        "queue_ms": 32.00000000651926,
+        "local_time": "2026-10-21T00:33:38.429+08:00"
+      },
+      {
+        "event": "sql.slow",
+        "utc": "2026-10-20T16:34:06.020+00:00",
+        "trace": "aff7e1da2147",
+        "sql_id": "d57c8406a99f0ead",
+        "duration_ms": 27593.0,
+        "error_type": null,
+        "local_time": "2026-10-21T00:34:06.020+08:00"
+      },
+      {
+        "event": "sql.slow",
+        "utc": "2026-10-20T16:34:07.005+00:00",
+        "trace": "aff7e1da2147",
+        "sql_id": "a9f6f4a79b1b6b61",
+        "duration_ms": 969.0,
+        "error_type": null,
+        "local_time": "2026-10-21T00:34:07.005+08:00"
+      }
+    ]
+  },
+  "diagnostic_limit": "filter_tags and filter_translations are not in the read-stage allowlist, so last_read_stage is null. SQL fingerprints identify the actual waits. cursor.execute timing excludes subsequent fetch/JSON parsing.",
+  "interpretation": "The 00:33:34 external request spent 20047ms in the first tag SQL before cancellation; queue/pool were 0ms. Startup IO contention has not been excluded. No comparable warm/cold disk benchmark is claimed."
+}
