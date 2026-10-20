@@ -293,3 +293,16 @@ button,input,select,.card-picture{transition:background-color .18s ease,color .1
 .reading-toolbar .reading-activity button{flex:none;min-height:32px;padding:3px 7px;font-size:11px;color:var(--text)}
 .reading-activity.error{color:var(--danger)}
 .gallery-navigation-status{display:flex;align-items:center;gap:12px;padding:6px 0;color:var(--muted);font-size:12px}
+
+/* The stream owns its viewport; ordinary detail layout stays unchanged. */
+.app-shell.stream-immersive { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr); }
+.stream-immersive > .app-header { display: none; }
+.stream-immersive .stream-layout { grid-column: 1; grid-row: 1; width: 100%; min-height: 0; }
+.stream-immersive .info-panel { z-index: 20; }
+.stream-immersive:has(.task-status) .stream-shell { top: 50px; }
+.stream-immersive .task-status { top: 0; left: 50%; right: auto; transform: translateX(-50%); width: min(500px, calc(100% - 32px)); height: 50px; box-sizing: border-box; padding: 2px 4px; border: 0; border-radius: 0; background: var(--bg); box-shadow: none; }
+.stream-immersive .task-status .task-primary { min-height: 42px; }
+.stream-immersive .task-status .task-timing, .stream-immersive .task-status .task-stages, .stream-immersive .task-status .task-secondary[title], .stream-immersive .task-status .status-dot { display: none; }
+.stream-immersive .task-status .task-track { margin: 0; height: 2px; }
+.stream-immersive .task-status .task-result, .stream-immersive .task-status .task-error { max-height: 44px; overflow: hidden; margin: 0; }
+.stream-immersive .task-status .task-primary ~ .task-result, .stream-immersive .task-status .task-primary ~ .task-error { display: none; }

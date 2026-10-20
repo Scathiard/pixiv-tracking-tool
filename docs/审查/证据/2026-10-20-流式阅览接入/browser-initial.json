@@ -1,0 +1,172 @@
+{
+  "checks": [
+    "1440-edge-gesture-latch",
+    "1440-inline-zoom-and-gutter-scroll",
+    "1440-full-local-caption-tags-and-shared-heart",
+    "1440-geometry",
+    "1440-long-work-bounded-window-replay",
+    "1440-short-random-next-previous-replay",
+    "1440-ordinary-detail-doubleclick-and-arrows",
+    "390-edge-gesture-latch",
+    "390-inline-zoom-and-gutter-scroll",
+    "390-full-local-caption-tags-and-shared-heart",
+    "390-geometry",
+    "390-ordinary-detail-doubleclick-and-arrows",
+    "320-geometry-only"
+  ],
+  "failures": [],
+  "errors": [],
+  "metrics": {
+    "1440-edge-gesture-latch": {
+      "first_gesture_work": 1,
+      "second_edge_gesture_work": 2
+    },
+    "1440-inline-zoom-and-gutter-scroll": {
+      "double_action_scale": 2.25,
+      "wheel_or_pinch_scale": 3.3566055696928583,
+      "gutter_scrolled_while_image_zoomed": true,
+      "gutter_scroll_top": 260
+    },
+    "1440-full-local-caption-tags-and-shared-heart": {
+      "target_work": 1,
+      "writes": [
+        {
+          "work_id": 1,
+          "desired": true
+        }
+      ],
+      "cached_reopen": true
+    },
+    "1440-geometry": {
+      "overflow": false,
+      "boxes": [
+        {
+          "name": "stream-top",
+          "x": 0,
+          "right": 1440,
+          "y": 0,
+          "bottom": 48
+        },
+        {
+          "name": "stream-dock",
+          "x": 0,
+          "right": 1440,
+          "y": 821,
+          "bottom": 900
+        },
+        {
+          "name": "stream-caption-trigger",
+          "x": 324,
+          "right": 1114,
+          "y": 833,
+          "bottom": 888
+        }
+      ]
+    },
+    "1440-long-work-bounded-window-replay": {
+      "window": 120,
+      "images": 6,
+      "pages": 6,
+      "range": [
+        122,
+        123,
+        124,
+        125,
+        126,
+        127
+      ],
+      "metadata_only_pages": 2000,
+      "actual_source_pages": 5
+    },
+    "1440-short-random-next-previous-replay": {
+      "first": 1,
+      "next": 3,
+      "previous": 1,
+      "scope": "deterministic session API replay, not random distribution acceptance"
+    },
+    "390-edge-gesture-latch": {
+      "first_gesture_work": 1,
+      "second_edge_gesture_work": 2
+    },
+    "390-inline-zoom-and-gutter-scroll": {
+      "double_action_scale": 2.25,
+      "wheel_or_pinch_scale": 4.564285714285714,
+      "gutter_scrolled_while_image_zoomed": true,
+      "gutter_scroll_top": 235
+    },
+    "390-full-local-caption-tags-and-shared-heart": {
+      "target_work": 1,
+      "writes": [
+        {
+          "work_id": 1,
+          "desired": true
+        }
+      ],
+      "cached_reopen": true
+    },
+    "390-geometry": {
+      "overflow": false,
+      "boxes": [
+        {
+          "name": "stream-top",
+          "x": 0,
+          "right": 390,
+          "y": 0,
+          "bottom": 48
+        },
+        {
+          "name": "stream-dock",
+          "x": 0,
+          "right": 390,
+          "y": 825,
+          "bottom": 900
+        },
+        {
+          "name": "stream-caption-trigger",
+          "x": 68,
+          "right": 320,
+          "y": 835,
+          "bottom": 890
+        }
+      ]
+    },
+    "320-geometry-only": {
+      "overflow": false,
+      "boxes": [
+        {
+          "name": "stream-top",
+          "x": 0,
+          "right": 320,
+          "y": 0,
+          "bottom": 48
+        },
+        {
+          "name": "stream-dock",
+          "x": 0,
+          "right": 320,
+          "y": 825,
+          "bottom": 900
+        },
+        {
+          "name": "stream-caption-trigger",
+          "x": 68,
+          "right": 250,
+          "y": 835,
+          "bottom": 890
+        }
+      ]
+    }
+  },
+  "real_library_used": false,
+  "real_account_used": false,
+  "real_phone_tested": false,
+  "mode": "source",
+  "backend": "isolated local service; reader metadata/bookmarks replayed in browser",
+  "fixture": "3 works / 5 actual pages in source mode; 2000-page metadata is replay only",
+  "input": "Chromium actual mouse wheel and CDP touch; no physical phone",
+  "frontend_sha256": {
+    "index.html": "d1f3d84ee2b71818a77eee36174d537f1b0c2e1f23467962e2e3fca92cdfb46d",
+    "/reader/assets/index-aMiWG-MD.js": "621e0d26c8d728eb39fa1bd9e7bdafe0f284aad0c7e93870d6944147284cd722",
+    "/reader/assets/index-BmMOSMVG.css": "0401f09cd78747f573ae23cda7afd5ec40360645784a4faf2a856bab9078759d"
+  }
+}
