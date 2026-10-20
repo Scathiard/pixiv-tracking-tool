@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "build": "20261021.3",
+  "enabled_at": "2026-10-21T03:47:15.0599785+08:00",
+  "forced_shutdown": false,
+  "real_account_writes": false,
+  "runtime_temp": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\work\\tmp\\continuous-stream\\enabled-runtime-20261021.3",
+  "before": {
+    "build": "20261021.2",
+    "version": "0.2.0",
+    "login": "logged_in",
+    "automatic_paused": false,
+    "check_interval_minutes": 360,
+    "current_port": 1919,
+    "next_port": 1919,
+    "data_root": "D:\\PixivTracker"
+  },
+  "exe_sha256": "a05844283fc34043eb0f1fb384ebdb023efb9c5f63f6d3d399e5a7ac10e72b59",
+  "error": "Exception calling \"StopTray\" with \"1\" argument(s): \"Expected one owned tray, found 2\""
+}

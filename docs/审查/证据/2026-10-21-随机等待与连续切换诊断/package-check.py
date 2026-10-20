@@ -28,7 +28,7 @@ result = {"checks": [], "errors": [], "real_account": False, "real_library": Fal
 
 
 def read(path, method="GET"):
-    with urlopen(Request(origin + path, method=method), timeout=15) as response:
+    with urlopen(Request(origin + path, method=method, headers={"Origin": origin}), timeout=15) as response:
         return response.read()
 
 

@@ -1,0 +1,13 @@
+{
+  "removed": [
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\app\\frontend\\node_modules",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\work\\tmp\\continuous-stream\\package",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\work\\tmp\\continuous-stream\\package-check",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\work\\tmp\\continuous-stream\\package-check-origin",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\work\\tmp\\continuous-stream\\activate.py",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\work\\tmp\\continuous-stream\\activate.ps1",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\app\\frontend\\dist"
+  ],
+  "preserved_live_runtime": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\work\\tmp\\continuous-stream\\enabled-runtime-20261021.3",
+  "other_worktrees_unchanged": true
+}
