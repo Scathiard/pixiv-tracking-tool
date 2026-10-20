@@ -6,6 +6,7 @@ import type {Artist, PageData, WorkDetail} from '../types'
 import Icon from './Icon.vue'
 import BookmarkButton from './BookmarkButton.vue'
 import TagLabel from './TagLabel.vue'
+import RestrictionBadge from './RestrictionBadge.vue'
 
 const props = defineProps<{
   page: PageData | null; order: string; total: number; totalExact: boolean; ordinalKnown: boolean
@@ -79,6 +80,7 @@ onBeforeUnmount(() => { request?.abort(); emit('panel', false) })
     </header>
     <div class="stream-canvas" :inert="opened || inactive ? true : undefined">
       <slot v-if="!ended" />
+      <RestrictionBadge v-if="!ended" class="stream-rating" :value="page?.x_restrict" />
       <div v-else class="stream-finished"><p>已到当前范围末尾</p><button @click="emit('back')">返回图库</button></div>
       <nav v-if="page && !ended" class="stream-navigation" aria-label="切换作品">
         <button aria-label="上一件作品" title="上一件作品（←）" :disabled="!previous" @click="emit('navigate', -1)"><Icon name="left" /></button>
@@ -121,6 +123,7 @@ onBeforeUnmount(() => { request?.abort(); emit('panel', false) })
 .stream-counter { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 11px; }
 .stream-top select { padding: 6px; min-height: 40px; font-size: 12px; }
 .stream-canvas { position: relative; min-height: 0; min-width: 0; overflow: hidden; }
+.stream-rating { position: absolute; top: 12px; left: 28px; z-index: 2; pointer-events: none; }
 .stream-finished { height: 100%; display: grid; place-content: center; text-align: center; gap: 16px; }
 .stream-navigation { position: absolute; inset: 50% 24px auto; display: flex; justify-content: space-between; pointer-events: none; }
 .stream-navigation button { pointer-events: auto; width: 44px; height: 44px; display: grid; place-items: center; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 50%; opacity: .68; padding: 10px; }
