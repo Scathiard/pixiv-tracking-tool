@@ -1,0 +1,40 @@
+{
+  "synthetic_root": "D:\\claude_sandbox\\pixiv-tracking-tool\\work\\tmp\\reading-ux-20261019\\navigation\\library-615aa183dc2e406cb3ce89d7303f129b",
+  "observations": [
+    {
+      "case": "normal-next",
+      "outcome": "ok",
+      "ids": [
+        3,
+        2
+      ],
+      "generation": 2
+    },
+    {
+      "case": "unrelated-bookmark-insert-default-sort",
+      "outcome": "cursor_expired"
+    },
+    {
+      "case": "identity-recovery",
+      "outcome": "ok",
+      "ids": [
+        3,
+        2
+      ],
+      "generation": 3
+    },
+    {
+      "case": "unrelated-bookmark-value-change-default-sort",
+      "outcome": "cursor_expired"
+    },
+    {
+      "case": "artist-last-checked-write",
+      "outcome": "ok",
+      "ids": [
+        3,
+        2
+      ],
+      "generation": 4
+    }
+  ]
+}

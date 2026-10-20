@@ -1,5 +1,7 @@
 # 测试目录约定
 
+2026-10-20 R-073：本轮工作树的 `work/tmp/reading-interactions/` 下 `reader/`、`bookmark/`、`writer/`、`integration/`、`package/` 分别存放合成回归与构建运行临时项，TEMP/TMP、pytest 基目录按执行范围隔离。前端依赖复用既有 `.worktrees/v0.2.0-build20261004.3/app/frontend/node_modules` junction；本轮首次生成的 `app/frontend/dist/`、pytest 缓存、Python缓存和依赖链接登记为临时项，完成后清理，在用日常 EXE 解包目录保留。只验证后台变化中阅览、后台核对中收藏、图片等待／失败和查询恢复及最终包必要交互；不跑全套或长测，不碰真实账号写操作，不改 schema。证据归 `docs/审查/证据/2026-10-20-阅览与收藏修订/`。
+
 2026-10-17 R-072：本工作树 `work/tmp/tailscale-startup-dock/` 为本轮临时根目录，`network/`、`startup/`、`dock/`、`package/` 分别保存来源规则、恢复查询、底栏和最终包的合成验证；各自设置进程级 TEMP/TMP，pytest使用自己的basetemp。前端 `node_modules` 复用 `.worktrees/v0.2.0-build20261004.3/app/frontend/node_modules` 的junction，只清理链接本身。必要小回归及最终包320／390／1440px检查后交付，不做全套或长测；证据归入 `docs/审查/证据/2026-10-17-Tailscale启动与手机底栏/`，真实库只核对元数据和有限只读对照，不迁移或修改schema。
 
 本轮新工作树首次生成的 `app/frontend/dist/`、`app/.pytest_cache/` 与 `app/` 内Python `__pycache__/` 也登记为本轮构建／测试缓存，交付后清理；日常实例使用中的 `work/tmp/tailscale-startup-dock/package/enabled-runtime/` 暂留，不在运行中清理。
