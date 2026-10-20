@@ -1,0 +1,12 @@
+{
+  "checks": [],
+  "errors": [
+    "Synthetic EXE did not become ready",
+    "Synthetic EXE did not exit within 30 seconds"
+  ],
+  "real_account": false,
+  "real_library": false,
+  "exe_sha256": "38f49384332d3c379d1e7bb6dfffb6be31d80cc7a2ccf4f65dd8fd7d1dce59d9",
+  "ui_sha256": {},
+  "exit_code": null
+}

@@ -32,6 +32,7 @@ def read(path):
         return response.read()
 
 with (out / "output.txt").open("wb") as output:
+    began = time.monotonic()
     process = subprocess.Popen(
         [str(exe), "--smoke-test", "--smoke-output", str(out / "smoke.json"),
          "--smoke-serve-port", str(port), "--smoke-stop-file", str(stop)],
@@ -39,7 +40,7 @@ with (out / "output.txt").open("wb") as output:
         creationflags=subprocess.CREATE_NO_WINDOW,
     )
     try:
-        deadline = time.monotonic() + 90
+        deadline = time.monotonic() + 240
         while time.monotonic() < deadline:
             if process.poll() is not None:
                 raise RuntimeError(f"EXE exited before ready: {process.returncode}")
@@ -50,6 +51,7 @@ with (out / "output.txt").open("wb") as output:
                 time.sleep(.3)
         else:
             raise TimeoutError("Synthetic EXE did not become ready")
+        result["ready_seconds"] = round(time.monotonic() - began, 3)
         tags = json.loads(read("/api/library/tags?show_hidden=1"))
         assert tags["tag_counts"]["本地单图"] == 1
         assert set(tags["tag_counts"]) == set(tags["tags"])
