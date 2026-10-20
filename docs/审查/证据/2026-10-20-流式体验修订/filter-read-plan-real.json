@@ -1,0 +1,291 @@
+{
+  "sqlite_version": "3.53.1",
+  "scope": "read-only schema metadata and EXPLAIN QUERY PLAN; no real aggregation executed",
+  "indexes": {
+    "work_tags": [
+      {
+        "index": "ix_work_tags_tag",
+        "columns": [
+          [
+            0,
+            1,
+            "tag"
+          ]
+        ]
+      },
+      {
+        "index": "sqlite_autoindex_work_tags_1",
+        "columns": [
+          [
+            0,
+            0,
+            "work_id"
+          ],
+          [
+            1,
+            1,
+            "tag"
+          ]
+        ]
+      }
+    ],
+    "works": [
+      {
+        "index": "ix_works_settings_shape",
+        "columns": [
+          [
+            0,
+            17,
+            "default_revision_id"
+          ],
+          [
+            1,
+            1,
+            "pixiv_illust_id"
+          ],
+          [
+            2,
+            4,
+            "type"
+          ],
+          [
+            3,
+            5,
+            "page_count"
+          ]
+        ]
+      },
+      {
+        "index": "ix_works_artist_order",
+        "columns": [
+          [
+            0,
+            2,
+            "artist_id"
+          ],
+          [
+            1,
+            12,
+            "posted_at"
+          ],
+          [
+            2,
+            0,
+            "id"
+          ]
+        ]
+      },
+      {
+        "index": "ix_works_default_revision_id",
+        "columns": [
+          [
+            0,
+            17,
+            "default_revision_id"
+          ]
+        ]
+      },
+      {
+        "index": "ix_works_order",
+        "columns": [
+          [
+            0,
+            12,
+            "posted_at"
+          ],
+          [
+            1,
+            0,
+            "id"
+          ]
+        ]
+      },
+      {
+        "index": "ix_works_type_order",
+        "columns": [
+          [
+            0,
+            4,
+            "type"
+          ],
+          [
+            1,
+            12,
+            "posted_at"
+          ],
+          [
+            2,
+            0,
+            "id"
+          ]
+        ]
+      },
+      {
+        "index": "ix_works_latest_revision_id",
+        "columns": [
+          [
+            0,
+            18,
+            "latest_revision_id"
+          ]
+        ]
+      },
+      {
+        "index": "sqlite_autoindex_works_1",
+        "columns": [
+          [
+            0,
+            1,
+            "pixiv_illust_id"
+          ]
+        ]
+      }
+    ],
+    "archive_intents": [
+      {
+        "index": "sqlite_autoindex_archive_intents_1",
+        "columns": [
+          [
+            0,
+            0,
+            "pixiv_illust_id"
+          ]
+        ]
+      }
+    ],
+    "read_display_metadata": [
+      {
+        "index": "sqlite_autoindex_read_display_metadata_1",
+        "columns": [
+          [
+            0,
+            0,
+            "scope"
+          ]
+        ]
+      }
+    ],
+    "read_source_work_local": [
+      {
+        "index": "ix_read_source_artist_recent",
+        "columns": [
+          [
+            0,
+            1,
+            "artist_id"
+          ],
+          [
+            1,
+            2,
+            "included"
+          ],
+          [
+            2,
+            3,
+            "order_key"
+          ],
+          [
+            3,
+            0,
+            "work_id"
+          ]
+        ]
+      }
+    ]
+  },
+  "queries": {
+    "original_tags": {
+      "sql": "SELECT DISTINCT t.tag FROM work_tags t WHERE t.work_id NOT IN (\n    SELECT w.id FROM archive_intents i\n    JOIN works w ON w.pixiv_illust_id=i.pixiv_illust_id\n    WHERE i.mode='suppressed') ORDER BY t.tag",
+      "plan": [
+        [
+          8,
+          0,
+          225,
+          "SCAN t USING INDEX ix_work_tags_tag"
+        ],
+        [
+          14,
+          0,
+          0,
+          "LIST SUBQUERY 1"
+        ],
+        [
+          18,
+          14,
+          216,
+          "SCAN i"
+        ],
+        [
+          22,
+          14,
+          44,
+          "SEARCH w USING COVERING INDEX sqlite_autoindex_works_1 (pixiv_illust_id=?)"
+        ],
+        [
+          30,
+          14,
+          0,
+          "CREATE BLOOM FILTER"
+        ]
+      ]
+    },
+    "sequential_tags": {
+      "sql": "SELECT DISTINCT t.tag FROM work_tags t NOT INDEXED WHERE t.work_id NOT IN (\n    SELECT w.id FROM archive_intents i\n    JOIN works w ON w.pixiv_illust_id=i.pixiv_illust_id\n    WHERE i.mode='suppressed') ORDER BY t.tag",
+      "plan": [
+        [
+          7,
+          0,
+          216,
+          "SCAN t"
+        ],
+        [
+          12,
+          0,
+          0,
+          "LIST SUBQUERY 1"
+        ],
+        [
+          16,
+          12,
+          216,
+          "SCAN i"
+        ],
+        [
+          20,
+          12,
+          44,
+          "SEARCH w USING COVERING INDEX sqlite_autoindex_works_1 (pixiv_illust_id=?)"
+        ],
+        [
+          28,
+          12,
+          0,
+          "CREATE BLOOM FILTER"
+        ],
+        [
+          40,
+          0,
+          0,
+          "USE TEMP B-TREE FOR DISTINCT"
+        ]
+      ]
+    },
+    "translations": {
+      "sql": "SELECT d.scope,d.translations\n        FROM read_display_metadata d JOIN read_source_work_local l\n        ON l.work_id=CAST(substr(d.scope,6) AS INTEGER) AND l.included=1\n        WHERE d.scope>='work:' AND d.scope<'work;'\n        AND d.translations NOT IN ('null','{}') ORDER BY d.scope",
+      "plan": [
+        [
+          4,
+          0,
+          155,
+          "SEARCH d USING PRIMARY KEY (scope>? AND scope<?)"
+        ],
+        [
+          16,
+          0,
+          45,
+          "SEARCH l USING INTEGER PRIMARY KEY (rowid=?)"
+        ]
+      ]
+    }
+  }
+}

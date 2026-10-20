@@ -1,0 +1,88 @@
+{
+  "works": 600,
+  "tag_relations": 7200,
+  "suppressed_works": 12,
+  "queries": {
+    "original_tags": {
+      "plan": [
+        [
+          8,
+          0,
+          226,
+          "SCAN t USING INDEX ix_work_tags_tag"
+        ],
+        [
+          14,
+          0,
+          0,
+          "LIST SUBQUERY 1"
+        ],
+        [
+          18,
+          14,
+          216,
+          "SCAN i"
+        ],
+        [
+          22,
+          14,
+          45,
+          "SEARCH w USING COVERING INDEX sqlite_autoindex_works_1 (pixiv_illust_id=?)"
+        ],
+        [
+          31,
+          14,
+          0,
+          "CREATE BLOOM FILTER"
+        ]
+      ],
+      "deferred_seek_opcodes": 1,
+      "result_count": 1800,
+      "equal_to_original": true
+    },
+    "sequential_tags": {
+      "plan": [
+        [
+          7,
+          0,
+          216,
+          "SCAN t"
+        ],
+        [
+          12,
+          0,
+          0,
+          "LIST SUBQUERY 1"
+        ],
+        [
+          16,
+          12,
+          216,
+          "SCAN i"
+        ],
+        [
+          20,
+          12,
+          45,
+          "SEARCH w USING COVERING INDEX sqlite_autoindex_works_1 (pixiv_illust_id=?)"
+        ],
+        [
+          29,
+          12,
+          0,
+          "CREATE BLOOM FILTER"
+        ],
+        [
+          41,
+          0,
+          0,
+          "USE TEMP B-TREE FOR DISTINCT"
+        ]
+      ],
+      "deferred_seek_opcodes": 0,
+      "result_count": 1800,
+      "equal_to_original": true
+    }
+  },
+  "boundary": "In-memory comparison proves equivalent results and no per-tag table back-lookup; it does not measure real disk latency."
+}

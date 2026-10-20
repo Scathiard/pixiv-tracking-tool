@@ -81,8 +81,9 @@ with (out / "output.txt").open("wb") as output:
             page.mouse.up()
             expect(page.get_by_role("dialog", name="作品简介", exact=True)).to_be_visible()
             page.get_by_role("button", name="关闭作品简介", exact=True).click()
+            expect(page.locator(".stream-sheet-overlay")).to_have_count(0)
             result["checks"].append("packaged-caption-drag")
-            page.keyboard.press("ArrowRight")
+            page.locator(".stream-viewport").press("ArrowRight")
             page.wait_for_function(
                 "old => document.querySelector('.stream-reader')?.dataset.streamWork !== old",
                 arg=detail_id,

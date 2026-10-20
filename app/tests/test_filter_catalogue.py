@@ -140,6 +140,7 @@ def test_filter_translations_are_current_local_narrow_and_keep_original_tag_iden
                              title=str(identity), source_metadata=data))
             session.add(WorkTag(work_id=identity, tag="tag"))
         session.add(WorkTag(work_id=1, tag="no-translation"))
+        session.add(WorkTag(work_id=2, tag="hidden-only"))
         session.add(WorkTag(work_id=3, tag="only-suppressed"))
         session.add(LocalPreference(work_id=2, is_hidden=True))
         session.add(ArchiveIntent(pixiv_illust_id="3", mode="suppressed"))
@@ -156,12 +157,18 @@ def test_filter_translations_are_current_local_narrow_and_keep_original_tag_iden
     app.include_router(create_router(lambda: SimpleNamespace(database=database, library=library)))
     with TestClient(app) as client:
         result = client.get("/api/library/tags?show_hidden=1").json()
-        assert result["tags"] == ["no-translation", "tag"]
+        assert result["tags"] == ["hidden-only", "no-translation", "tag"]
         details = {value["name"]: value for value in result["tag_details"]}
         assert details["tag"]["translated_name"] == "较新译名"
         assert "no-translation" not in details
         assert not any("source_metadata" in sql or "work_revisions" in sql for sql in statements)
         assert not any("max(works.id)" in sql for sql in statements)
+        tag_sql = next(sql for sql in statements if "from work_tags t not indexed" in sql)
+        with database.read() as session:
+            plan = [row[3].lower() for row in session.connection().exec_driver_sql("EXPLAIN QUERY PLAN " + tag_sql)]
+        assert "scan t" in plan
+        assert not any("scan t using index" in step for step in plan)
+        assert client.get("/api/library/tags").json()["tags"] == ["no-translation", "tag"]
         assert client.get("/api/library/tags?tags=absent&show_hidden=1").json()["tags"] == []
         assert client.get("/api/library/tags?show_hidden=1&ceiling=1").json()["tags"] == ["no-translation", "tag"]
         with database.write() as session:

@@ -1028,14 +1028,21 @@ class Library:
 
     def _tag_values(self, session, filters, ceiling):
         if replace(filters, as_of=None, sort="newest", tz_offset_minutes=0) == LibraryFilter(show_hidden=True):
-            # Full local choices can walk the narrow tag index directly. The
-            # old Work PK-range subquery visited wide source-metadata pages.
-            suppressed_ids = select(Work.id).select_from(ArchiveIntent).join(
-                Work, Work.pixiv_illust_id == ArchiveIntent.pixiv_illust_id).where(
-                    ArchiveIntent.mode == "suppressed")
-            statement = select(WorkTag.tag).where(~WorkTag.work_id.in_(suppressed_ids))
+            # The tag-only index cannot supply work_id for suppression checks:
+            # scanning it caused a table lookup for every tag relation. Read
+            # the narrow two-column table sequentially, then deduplicate/sort.
+            # NOT INDEXED deliberately prevents that non-covering access path.
+            statement = """SELECT DISTINCT t.tag FROM work_tags t NOT INDEXED
+                WHERE t.work_id NOT IN (SELECT w.id FROM archive_intents i
+                    JOIN works w ON w.pixiv_illust_id=i.pixiv_illust_id
+                    WHERE i.mode='suppressed')"""
+            parameters = ()
             if ceiling is not None:
-                statement = statement.where(WorkTag.work_id <= ceiling)
+                statement += " AND t.work_id<=?"
+                parameters = (ceiling,)
+            with track_read_stage("filter_tags"):
+                return list(session.connection().exec_driver_sql(
+                    statement + " ORDER BY t.tag", parameters).scalars())
         else:
             ceiling = ceiling if ceiling is not None else session.scalar(select(func.max(Work.id))) or 0
             selected = self._statement(filters, ceiling).with_only_columns(Work.id)
