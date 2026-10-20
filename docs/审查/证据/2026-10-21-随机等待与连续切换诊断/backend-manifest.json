@@ -1,0 +1,348 @@
+{
+  "synthetic_works": 501,
+  "metadata_bytes_per_work": 8192,
+  "timing_limit": "Small synthetic database; legacy measured first, no OS cache eviction; not physical HDD performance.",
+  "cases": [
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 497,
+      "complete_legacy_fetch_ms": 129.39130002632737,
+      "complete_projected_fetch_ms": 1.3870999682694674
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=(1,), types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 248,
+      "complete_legacy_fetch_ms": 3.3617999870330095,
+      "complete_projected_fetch_ms": 1.218200079165399
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=('manga',), tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 142,
+      "complete_legacy_fetch_ms": 2.0379999186843634,
+      "complete_projected_fetch_ms": 1.0085999965667725
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=True, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 3,
+      "complete_legacy_fetch_ms": 2.069299924187362,
+      "complete_projected_fetch_ms": 0.5952999927103519
+    },
+    {
+      "sort": "oldest",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='oldest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 497,
+      "complete_legacy_fetch_ms": 2.049700007773936,
+      "complete_projected_fetch_ms": 1.147200004197657
+    },
+    {
+      "sort": "oldest",
+      "scope": "LibraryFilter(artist_ids=(1,), types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='oldest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 248,
+      "complete_legacy_fetch_ms": 2.167699974961579,
+      "complete_projected_fetch_ms": 0.7811000104993582
+    },
+    {
+      "sort": "oldest",
+      "scope": "LibraryFilter(artist_ids=None, types=('manga',), tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='oldest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 142,
+      "complete_legacy_fetch_ms": 1.6988000134006143,
+      "complete_projected_fetch_ms": 0.7680000271648169
+    },
+    {
+      "sort": "oldest",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='oldest', q='', favorites=True, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 3,
+      "complete_legacy_fetch_ms": 1.4768000692129135,
+      "complete_projected_fetch_ms": 0.5680000176653266
+    },
+    {
+      "sort": "added",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='added', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 497,
+      "complete_legacy_fetch_ms": 1.9549999851733446,
+      "complete_projected_fetch_ms": 1.636600005440414
+    },
+    {
+      "sort": "added",
+      "scope": "LibraryFilter(artist_ids=(1,), types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='added', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 248,
+      "complete_legacy_fetch_ms": 2.51290004234761,
+      "complete_projected_fetch_ms": 1.1193000245839357
+    },
+    {
+      "sort": "added",
+      "scope": "LibraryFilter(artist_ids=None, types=('manga',), tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='added', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 142,
+      "complete_legacy_fetch_ms": 2.0605999743565917,
+      "complete_projected_fetch_ms": 0.7341000018641353
+    },
+    {
+      "sort": "added",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='added', q='', favorites=True, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 3,
+      "complete_legacy_fetch_ms": 1.5423999866470695,
+      "complete_projected_fetch_ms": 0.5906999576836824
+    },
+    {
+      "sort": "title",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='title', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 497,
+      "complete_legacy_fetch_ms": 2.4074000539258122,
+      "complete_projected_fetch_ms": 1.9450000254437327
+    },
+    {
+      "sort": "title",
+      "scope": "LibraryFilter(artist_ids=(1,), types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='title', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 248,
+      "complete_legacy_fetch_ms": 2.5136000476777554,
+      "complete_projected_fetch_ms": 1.0985999833792448
+    },
+    {
+      "sort": "title",
+      "scope": "LibraryFilter(artist_ids=None, types=('manga',), tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='title', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 142,
+      "complete_legacy_fetch_ms": 1.9336999393999577,
+      "complete_projected_fetch_ms": 0.7190000033006072
+    },
+    {
+      "sort": "title",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='title', q='', favorites=True, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": true,
+      "members": 3,
+      "complete_legacy_fetch_ms": 1.6780999721959233,
+      "complete_projected_fetch_ms": 0.5824998952448368
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=True, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": false,
+      "members": 499,
+      "complete_legacy_fetch_ms": 1.762300031259656,
+      "complete_projected_fetch_ms": 1.3642000267282128
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=True, as_of=datetime.datetime(2026, 10, 21, 12, 0), artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": false,
+      "members": 182,
+      "complete_legacy_fetch_ms": 1.8971998943015933,
+      "complete_projected_fetch_ms": 1.616499968804419
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='alpha', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": false,
+      "members": 497,
+      "complete_legacy_fetch_ms": 3.446200047619641,
+      "complete_projected_fetch_ms": 1.9911000272259116
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=('A',), show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": false,
+      "members": 248,
+      "complete_legacy_fetch_ms": 1.9113000016659498,
+      "complete_projected_fetch_ms": 1.2094000121578574
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=(), show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": false,
+      "members": 0,
+      "complete_legacy_fetch_ms": 0.8394999895244837,
+      "complete_projected_fetch_ms": 0.9977000299841166
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=('A',), tz_offset_minutes=0)",
+      "fast": false,
+      "members": 249,
+      "complete_legacy_fetch_ms": 1.8726000562310219,
+      "complete_projected_fetch_ms": 1.1882999679073691
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=(), tz_offset_minutes=0)",
+      "fast": false,
+      "members": 497,
+      "complete_legacy_fetch_ms": 1.708200084976852,
+      "complete_projected_fetch_ms": 1.7822999507188797
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=(1,), tags_exclude=None, tz_offset_minutes=0)",
+      "fast": false,
+      "members": 249,
+      "complete_legacy_fetch_ms": 2.4436000967398286,
+      "complete_projected_fetch_ms": 1.1575999669730663
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=(), types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": false,
+      "members": 0,
+      "complete_legacy_fetch_ms": 0.8413000032305717,
+      "complete_projected_fetch_ms": 0.9779001120477915
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=(1, 2), types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": false,
+      "members": 497,
+      "complete_legacy_fetch_ms": 1.7926000291481614,
+      "complete_projected_fetch_ms": 1.4147000620141625
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=(), tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": false,
+      "members": 0,
+      "complete_legacy_fetch_ms": 0.8296000305563211,
+      "complete_projected_fetch_ms": 0.7328999927267432
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=('illust', 'manga'), tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": false,
+      "members": 426,
+      "complete_legacy_fetch_ms": 1.9148000283166766,
+      "complete_projected_fetch_ms": 2.304099965840578
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=(1,), types=None, tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=True, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": false,
+      "members": 3,
+      "complete_legacy_fetch_ms": 2.0625999895855784,
+      "complete_projected_fetch_ms": 1.1657999129965901
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=('illust',), tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=True, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": false,
+      "members": 3,
+      "complete_legacy_fetch_ms": 1.8271999433636665,
+      "complete_projected_fetch_ms": 1.2702998938038945
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=(1,), types=('illust',), tags=None, show_hidden=False, posted_after=None, posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=0)",
+      "fast": false,
+      "members": 142,
+      "complete_legacy_fetch_ms": 1.99859996791929,
+      "complete_projected_fetch_ms": 1.3270999770611525
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=datetime.datetime(2026, 10, 18, 12, 0), posted_before=None, sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=-480)",
+      "fast": false,
+      "members": 11,
+      "complete_legacy_fetch_ms": 2.2817000281065702,
+      "complete_projected_fetch_ms": 0.9404000593349338
+    },
+    {
+      "sort": "newest",
+      "scope": "LibraryFilter(artist_ids=None, types=None, tags=None, show_hidden=False, posted_after=None, posted_before=datetime.datetime(2026, 10, 21, 12, 0), sort='newest', q='', favorites=False, recent=False, as_of=None, artist_ids_exclude=None, tags_exclude=None, tz_offset_minutes=-480)",
+      "fast": false,
+      "members": 450,
+      "complete_legacy_fetch_ms": 3.135299892164767,
+      "complete_projected_fetch_ms": 1.5090000815689564
+    }
+  ],
+  "query_plans": {
+    "SELECT work_id,order_key FROM read_work_order INDEXED BY ix_read_work_order WHERE visible=1 AND work_id<=? ORDER BY order_key DESC,work_id DESC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_order (visible=?)"
+    ],
+    "SELECT work_id,order_key FROM read_work_order INDEXED BY ix_read_work_order WHERE visible=1 AND order_key=? AND work_id<=? ORDER BY order_key DESC,work_id DESC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_order (visible=? AND order_key=? AND work_id<?)"
+    ],
+    "SELECT work_id,order_key FROM read_work_order INDEXED BY ix_read_work_order WHERE visible=1 AND work_id<=? AND order_key < ? ORDER BY order_key DESC,work_id DESC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_order (visible=? AND order_key<?)"
+    ],
+    "SELECT id,default_revision_id,type,page_count FROM works INDEXED BY ix_works_settings_shape WHERE id<=?": [
+      "SCAN works USING COVERING INDEX ix_works_settings_shape"
+    ],
+    "SELECT work_id,order_key FROM read_work_order INDEXED BY ix_read_work_artist WHERE visible=1 AND work_id<=? AND artist_id=? ORDER BY order_key DESC,work_id DESC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_artist (visible=? AND artist_id=?)"
+    ],
+    "SELECT work_id,order_key FROM read_work_order INDEXED BY ix_read_work_type WHERE visible=1 AND work_id<=? AND work_type=? ORDER BY order_key DESC,work_id DESC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_type (visible=? AND work_type=?)"
+    ],
+    "SELECT work_id,order_key FROM read_work_order INDEXED BY ix_read_work_favorite WHERE visible=1 AND work_id<=? AND favorite=1 ORDER BY order_key DESC,work_id DESC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_favorite (visible=? AND favorite=?)"
+    ],
+    "SELECT work_id,order_key FROM read_work_order INDEXED BY ix_read_work_order WHERE visible=1 AND work_id<=? ORDER BY order_key ASC,work_id ASC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_order (visible=?)"
+    ],
+    "SELECT work_id,order_key FROM read_work_order INDEXED BY ix_read_work_order WHERE visible=1 AND order_key=? AND work_id>=? AND work_id<=? ORDER BY order_key ASC,work_id ASC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_order (visible=? AND order_key=? AND work_id>? AND work_id<?)"
+    ],
+    "SELECT work_id,order_key FROM read_work_order INDEXED BY ix_read_work_order WHERE visible=1 AND work_id<=? AND order_key > ? ORDER BY order_key ASC,work_id ASC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_order (visible=? AND order_key>?)"
+    ],
+    "SELECT work_id,order_key FROM read_work_order INDEXED BY ix_read_work_artist WHERE visible=1 AND work_id<=? AND artist_id=? ORDER BY order_key ASC,work_id ASC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_artist (visible=? AND artist_id=?)"
+    ],
+    "SELECT work_id,order_key FROM read_work_order INDEXED BY ix_read_work_type WHERE visible=1 AND work_id<=? AND work_type=? ORDER BY order_key ASC,work_id ASC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_type (visible=? AND work_type=?)"
+    ],
+    "SELECT work_id,order_key FROM read_work_order INDEXED BY ix_read_work_favorite WHERE visible=1 AND work_id<=? AND favorite=1 ORDER BY order_key ASC,work_id ASC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_favorite (visible=? AND favorite=?)"
+    ],
+    "SELECT work_id,added_key FROM read_work_order INDEXED BY ix_read_work_added WHERE visible=1 AND work_id<=? ORDER BY added_key DESC,work_id DESC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_added (visible=?)"
+    ],
+    "SELECT work_id,added_key FROM read_work_order INDEXED BY ix_read_work_added WHERE visible=1 AND added_key=? AND work_id<=? ORDER BY added_key DESC,work_id DESC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_added (visible=? AND added_key=? AND work_id<?)"
+    ],
+    "SELECT work_id,added_key FROM read_work_order INDEXED BY ix_read_work_added WHERE visible=1 AND work_id<=? AND added_key < ? ORDER BY added_key DESC,work_id DESC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_added (visible=? AND added_key<?)"
+    ],
+    "SELECT work_id,added_key FROM read_work_order INDEXED BY ix_read_work_added_artist WHERE visible=1 AND work_id<=? AND artist_id=? ORDER BY added_key DESC,work_id DESC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_added_artist (visible=? AND artist_id=?)"
+    ],
+    "SELECT work_id,added_key FROM read_work_order INDEXED BY ix_read_work_added_type WHERE visible=1 AND work_id<=? AND work_type=? ORDER BY added_key DESC,work_id DESC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_added_type (visible=? AND work_type=?)"
+    ],
+    "SELECT work_id,added_key FROM read_work_order INDEXED BY ix_read_work_added_favorite WHERE visible=1 AND work_id<=? AND favorite=1 ORDER BY added_key DESC,work_id DESC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_added_favorite (visible=? AND favorite=?)"
+    ],
+    "SELECT work_id,title_key FROM read_work_order INDEXED BY ix_read_work_title WHERE visible=1 AND work_id<=? ORDER BY title_key ASC,work_id ASC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_title (visible=?)"
+    ],
+    "SELECT work_id,title_key FROM read_work_order INDEXED BY ix_read_work_title WHERE visible=1 AND title_key=? AND work_id>=? AND work_id<=? ORDER BY title_key ASC,work_id ASC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_title (visible=? AND title_key=? AND work_id>? AND work_id<?)"
+    ],
+    "SELECT work_id,title_key FROM read_work_order INDEXED BY ix_read_work_title WHERE visible=1 AND work_id<=? AND title_key > ? ORDER BY title_key ASC,work_id ASC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_title (visible=? AND title_key>?)"
+    ],
+    "SELECT work_id,title_key FROM read_work_order INDEXED BY ix_read_work_title_artist WHERE visible=1 AND work_id<=? AND artist_id=? ORDER BY title_key ASC,work_id ASC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_title_artist (visible=? AND artist_id=?)"
+    ],
+    "SELECT work_id,title_key FROM read_work_order INDEXED BY ix_read_work_title_type WHERE visible=1 AND work_id<=? AND work_type=? ORDER BY title_key ASC,work_id ASC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_title_type (visible=? AND work_type=?)"
+    ],
+    "SELECT work_id,title_key FROM read_work_order INDEXED BY ix_read_work_title_favorite WHERE visible=1 AND work_id<=? AND favorite=1 ORDER BY title_key ASC,work_id ASC LIMIT ?": [
+      "SEARCH read_work_order USING COVERING INDEX ix_read_work_title_favorite (visible=? AND favorite=?)"
+    ]
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "checks": [],
+  "metrics": {},
+  "requests": [
+    {
+      "url": "http://127.0.0.1:56560/api/diagnostics",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876501.609
+    },
+    {
+      "url": "http://127.0.0.1:56560/api/progress",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876501.609
+    },
+    {
+      "url": "http://127.0.0.1:56560/api/startup",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876501.843
+    },
+    {
+      "url": "http://127.0.0.1:56560/api/status",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876506.859
+    },
+    {
+      "url": "http://127.0.0.1:56560/api/library/cursor?limit=240&compact=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876506.859
+    },
+    {
+      "url": "http://127.0.0.1:56560/api/artists?offset=0&limit=100&compact=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876508.25
+    },
+    {
+      "url": "http://127.0.0.1:56560/api/library/tags?show_hidden=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876508.25
+    }
+  ],
+  "request_failures": [
+    {
+      "url": "http://127.0.0.1:56560/api/diagnostics",
+      "error": "net::ERR_ABORTED",
+      "phase": "mobile-entry-and-neighbors"
+    }
+  ],
+  "errors": [],
+  "failures": [
+    {
+      "name": "mobile-entry-and-neighbors",
+      "error": "Locator expected to have count '3'\nActual value: 0 \nCall log:\n  - Expect \"to_have_count\" with timeout 5000ms\n  - waiting for locator(\".work-card\")\n    5 × locator resolved to 0 elements\n      - unexpected value \"0\"\n",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\app\\tests\\stream_continuous_browser.py\", line 197, in main\n    check(\"mobile-entry-and-neighbors\", enter)\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\app\\tests\\stream_continuous_browser.py\", line 142, in check\n    metric = action()\n             ^^^^^^^^\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\app\\tests\\stream_continuous_browser.py\", line 180, in enter\n    expect(page.locator(\".work-card\")).to_have_count(3)\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Lib\\site-packages\\playwright\\sync_api\\_generated.py\", line 21776, in to_have_count\n    self._sync(\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Lib\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ^^^^^^^^^^^^^\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Lib\\site-packages\\playwright\\_impl\\_assertions.py\", line 451, in to_have_count\n    await self._expect_impl(\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Lib\\site-packages\\playwright\\_impl\\_assertions.py\", line 123, in _expect_impl\n    _record_soft_or_raise(\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Lib\\site-packages\\playwright\\_impl\\_assertions.py\", line 60, in _record_soft_or_raise\n    raise error\nAssertionError: Locator expected to have count '3'\nActual value: 0 \nCall log:\n  - Expect \"to_have_count\" with timeout 5000ms\n  - waiting for locator(\".work-card\")\n    5 × locator resolved to 0 elements\n      - unexpected value \"0\"\n\n"
+    }
+  ],
+  "temporary_path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\work\\tmp\\continuous-stream\\browser-20261021-remaining",
+  "temporary_cleaned": true,
+  "fixture": "3 synthetic works / 5 pages; original media and APIs from real local runtime",
+  "real_library": false,
+  "real_account": false,
+  "physical_phone": false,
+  "input": "Chromium CDP touch, real mouse wheel/double-click and keyboard",
+  "remaining_only": true,
+  "baseline": "Prior diagnosis/source: one current viewport, no adjacent rendered track; no old-browser red run",
+  "frontend_sha256": {
+    "index.html": "0600653e6807de176431de261bbc198c3b6400ce051c20271232af288ed4313d",
+    "assets\\index-CnkztzVC.js": "fdffba6a49287e577fab9a4ad8fa710ed0c015898779d1db6435e6481a78debb",
+    "assets\\index-DIWT06VP.css": "9b00bd8d653feb8751cdb21f57fdf8b2f90627b906f2e6dd6dab1be2e7a61b43"
+  },
+  "failure_state": {
+    "work": null,
+    "counter": null,
+    "currentScroll": [],
+    "slots": []
+  },
+  "backend_create_calls": []
+}

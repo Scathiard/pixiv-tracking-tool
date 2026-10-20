@@ -21,7 +21,6 @@ export function visitPages(visit: ReadingVisit, order: ReadingOrder, offset: num
 
 interface RandomPreparationIO {
   start: typeof startVisit
-  pages: typeof visitPages
   release: typeof releaseVisit
 }
 interface RandomSlot {
@@ -29,11 +28,11 @@ interface RandomSlot {
   ready: ReadingVisit | null; foreground: number
 }
 
-/** One spare visit for this scope. The first feed prepares the actual first shuffle. */
+/** Scope-owned list preparation. Per-work locate cancellation never cancels the shared list. */
 export class RandomReadingPreparation {
   private slot: RandomSlot | null = null
   private readonly io: RandomPreparationIO
-  constructor(io: RandomPreparationIO = {start: startVisit, pages: visitPages, release: releaseVisit}) { this.io = io }
+  constructor(io: RandomPreparationIO = {start: startVisit, release: releaseVisit}) { this.io = io }
   warm(query: string) { return this.get(query).promise }
   peek(query: string) { return this.slot?.query === query ? this.slot.ready : null }
   async take(query: string, signal: AbortSignal): Promise<ReadingVisit> {
@@ -49,10 +48,9 @@ export class RandomReadingPreparation {
       return visit
     } finally {
       slot.foreground--
-      if (signal.aborted && this.slot === slot && !slot.ready && !slot.foreground) this.clear()
     }
   }
-  pause() { if (this.slot && !this.slot.ready && !this.slot.foreground) this.clear() }
+  pause() { /* Only clear() at scope/exit owns cancellation of shared preparation. */ }
   clear() {
     const slot = this.slot; this.slot = null
     if (slot) { slot.controller.abort(); if (slot.ready) this.io.release(slot.ready) }
@@ -67,8 +65,6 @@ export class RandomReadingPreparation {
       let visit: ReadingVisit | null = null
       try {
         visit = await this.io.start(query, controller.signal)
-        controller.signal.throwIfAborted()
-        await this.io.pages(visit, 'random', 0, 1, controller.signal)
         controller.signal.throwIfAborted()
         if (this.slot !== slot) throw new DOMException('阅读范围已切换', 'AbortError')
         slot.ready = visit

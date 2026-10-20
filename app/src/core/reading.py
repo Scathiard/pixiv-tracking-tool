@@ -68,11 +68,15 @@ class ReadingSessions:
     def create(self, filters, ceiling=None):
         members = tuple(Member(**item) for item in self.library.reading_manifest(filters, ceiling=ceiling))
         now, token = self.clock(), uuid4().hex
+        visit = Visit(members, uuid4().hex, now)
+        # Ready means the first shuffle exists, without hydrating an unrelated
+        # first page. Do O(N) preparation before taking the shared visit lock.
+        visit.order("random", 0)
         with self._lock:
             for key in list(self._visits):
                 if now - self._visits[key].touched > self.TTL:
                     self._visits.pop(key)
-            self._visits[token] = Visit(members, uuid4().hex, now)
+            self._visits[token] = visit
             while len(self._visits) > self.MAX_VISITS:
                 self._visits.popitem(last=False)
         return {"session_id": token, "total": len(members), "page_total": sum(m.page_count for m in members)}

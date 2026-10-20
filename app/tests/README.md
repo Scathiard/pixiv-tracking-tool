@@ -1,5 +1,7 @@
 # 测试目录约定
 
+- 2026-10-21 随机准备与连续流式：`test_reading_manifest_projection.py` 对照完整清单与现有覆盖索引；`stream_continuous_browser.py` 使用三件／五页合成库检查真实拖动、回弹、相邻画面复用、多页边界及准备期间换件。临时项归本工作树 `work/tmp/continuous-stream/`，新建依赖 junction、dist 和 Python 缓存用后清理；在用 EXE 解包目录保留。证据归 `docs/审查/证据/2026-10-21-随机等待与连续切换诊断/`；不扩展全量测试或真实账号写入。
+
 - 2026-10-21 标签排序与原图阅览：本轮只验证本地作品计数／排序偏好、两种阅览直接使用原图、慢图／失败／取消及卡片缩略图不受影响。临时项放工作树 `work/tmp/tag-order-originals/`；`app/frontend/node_modules` junction 复用已有依赖，只移除链接；本轮 dist、Python／pytest 缓存用后清理。必要证据归 `docs/审查/证据/2026-10-21-标签排序与原图阅览/`，不读取真实图库聚合或使用真实账号写入。
 
 - `stream_polish_browser.py --dist FRONTEND_DIST --out NEW_DIRECTORY`：R-074 实机反馈的短交互回归；3 件合成作品，当前作品入口、邻件缓存、随机预备、缩放动画、鼠标／触摸拖简介、触摸阈值及筛选复用／主站译名。浏览器使用实际编译 UI 与隔离 API，手机为 Chromium 触摸模拟；不调用真实账号。临时项归本工作树 `work/tmp/stream-polish/`，保留必要证据后清理；`app/frontend/node_modules` 为复用已有依赖的 junction，只清理链接本身。

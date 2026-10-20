@@ -1,0 +1,291 @@
+{
+  "checks": [
+    "mobile-entry-and-neighbors",
+    "mobile-multipage-boundary-new-gesture",
+    "mobile-zoom-caption-do-not-navigate"
+  ],
+  "metrics": {
+    "mobile-entry-and-neighbors": {
+      "entered": 2,
+      "adjacent": [
+        3,
+        1
+      ],
+      "random_create_blocked": true
+    },
+    "mobile-multipage-boundary-new-gesture": {
+      "internal_scroll": 485,
+      "return_drags": [
+        {
+          "before": 485,
+          "after": 0
+        }
+      ],
+      "same_gesture_at_top_stayed": 1,
+      "new_boundary_gesture_entered": 2
+    },
+    "mobile-zoom-caption-do-not-navigate": {
+      "zoom_and_caption_work": 2
+    }
+  },
+  "requests": [
+    {
+      "url": "http://127.0.0.1:63059/api/diagnostics",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876963.703
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/progress",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876963.703
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/startup",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876963.703
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/status",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876966.046
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/library/cursor?limit=240&compact=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876966.281
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/works/2/cursor-neighbors?ceiling=3&as_of=2026-10-20T19%3A30%3A09.357079&cursor=eyJ2IjoxLCJmaWx0ZXIiOiI0OTAzOWU1ZWQ5ZmFlZTM4MmRjYjRiYzFkZGE2ZDRlNSIsImdlbmVyYXRpb24iOjIsImNlaWxpbmciOjMsImlkIjoyLCJrZXkiOiIyMDI2LTEwLTAyVDAwOjAwOjAwIiwiYXNfb2YiOiIyMDI2LTEwLTIwVDE5OjMwOjA5LjM1NzA3OSJ9",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876967.156
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/works/2?page_offset=0&page_limit=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876967.343
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/works/3?page_offset=0&page_limit=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876967.421
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/works/1?page_offset=0&page_limit=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876967.421
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/works/2/bookmark/refresh?automatic=1",
+      "method": "POST",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876967.484
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/reading-sessions?ceiling=3&as_of=2026-10-20T19%3A30%3A09.357079",
+      "method": "POST",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876967.765
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/artists?offset=0&limit=100&compact=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876967.859
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/library/tags?show_hidden=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876967.859
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/library/cursor/feed?ceiling=3&as_of=2026-10-20T19%3A30%3A09.357079&limit=4&direction=next&page=0&index=0&work_index=0&anchor_work_id=2",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876968.046
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/artists/1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876968.078
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/works/2/cursor-neighbors?ceiling=3&as_of=2026-10-20T19%3A30%3A09.357079&cursor=eyJ2IjoxLCJmaWx0ZXIiOiI0OTAzOWU1ZWQ5ZmFlZTM4MmRjYjRiYzFkZGE2ZDRlNSIsImdlbmVyYXRpb24iOjIsImNlaWxpbmciOjMsImlkIjoyLCJrZXkiOiIyMDI2LTEwLTAyVDAwOjAwOjAwIiwiYXNfb2YiOiIyMDI2LTEwLTIwVDE5OjMwOjA5LjM1NzA3OSJ9",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876968.171
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/library/cursor/feed?ceiling=3&as_of=2026-10-20T19%3A30%3A09.357079&limit=4&direction=next&page=0&index=1&work_index=1&anchor_work_id=1&cursor=eyJ2IjoxLCJmaWx0ZXIiOiI0OTAzOWU1ZWQ5ZmFlZTM4MmRjYjRiYzFkZGE2ZDRlNSIsImdlbmVyYXRpb24iOjIsImNlaWxpbmciOjMsImlkIjoxLCJrZXkiOiIyMDI2LTEwLTAxVDAwOjAwOjAwIiwiYXNfb2YiOiIyMDI2LTEwLTIwVDE5OjMwOjA5LjM1NzA3OSJ9",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876968.171
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/library/cursor/feed?ceiling=3&as_of=2026-10-20T19%3A30%3A09.357079&cursor=eyJ2IjoxLCJmaWx0ZXIiOiI0OTAzOWU1ZWQ5ZmFlZTM4MmRjYjRiYzFkZGE2ZDRlNSIsImdlbmVyYXRpb24iOjIsImNlaWxpbmciOjMsImlkIjozLCJrZXkiOiIyMDI2LTEwLTAzVDAwOjAwOjAwIiwiYXNfb2YiOiIyMDI2LTEwLTIwVDE5OjMwOjA5LjM1NzA3OSJ9&anchor_work_id=3&page=0&index=0&work_index=0&limit=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876968.187
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/bookmark-operations/fa1b1e190512488293f14898570738a6",
+      "method": "GET",
+      "phase": "mobile-multipage-boundary-new-gesture",
+      "at": 876969.203
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/works/1/bookmark/refresh?automatic=1",
+      "method": "POST",
+      "phase": "mobile-multipage-boundary-new-gesture",
+      "at": 876969.921
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/bookmark-operations/b653f5de64da4190ad4aa4a499c64fca",
+      "method": "GET",
+      "phase": "mobile-multipage-boundary-new-gesture",
+      "at": 876971.25
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/works/2/cursor-neighbors?ceiling=3&as_of=2026-10-20T19%3A30%3A09.357079&cursor=eyJ2IjoxLCJmaWx0ZXIiOiI0OTAzOWU1ZWQ5ZmFlZTM4MmRjYjRiYzFkZGE2ZDRlNSIsImdlbmVyYXRpb24iOjIsImNlaWxpbmciOjMsImlkIjoyLCJrZXkiOiIyMDI2LTEwLTAyVDAwOjAwOjAwIiwiYXNfb2YiOiIyMDI2LTEwLTIwVDE5OjMwOjA5LjM1NzA3OSJ9",
+      "method": "GET",
+      "phase": "mobile-multipage-boundary-new-gesture",
+      "at": 876972.171
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/library/cursor/feed?ceiling=3&as_of=2026-10-20T19%3A30%3A09.357079&cursor=eyJ2IjoxLCJmaWx0ZXIiOiI0OTAzOWU1ZWQ5ZmFlZTM4MmRjYjRiYzFkZGE2ZDRlNSIsImdlbmVyYXRpb24iOjYsImNlaWxpbmciOjMsImlkIjozLCJrZXkiOiIyMDI2LTEwLTAzVDAwOjAwOjAwIiwiYXNfb2YiOiIyMDI2LTEwLTIwVDE5OjMwOjA5LjM1NzA3OSJ9&anchor_work_id=3&page=0&index=0&work_index=0&limit=1",
+      "method": "GET",
+      "phase": "mobile-multipage-boundary-new-gesture",
+      "at": 876972.171
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/progress",
+      "method": "GET",
+      "phase": "mobile-multipage-boundary-new-gesture",
+      "at": 876972.421
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/reading-sessions/6e4442949f2947a59b027f5228e18819/locate?work_id=2&mode=random&round=0",
+      "method": "GET",
+      "phase": "random-preparation-survives-navigation-and-retains-page",
+      "at": 876974.343
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/reading-sessions/6e4442949f2947a59b027f5228e18819/locate?work_id=1&mode=random&round=0",
+      "method": "GET",
+      "phase": "random-preparation-survives-navigation-and-retains-page",
+      "at": 876975.734
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/reading-sessions/6e4442949f2947a59b027f5228e18819/feed?mode=random&offset=3&limit=1",
+      "method": "GET",
+      "phase": "random-preparation-survives-navigation-and-retains-page",
+      "at": 876976.625
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/reading-sessions/6e4442949f2947a59b027f5228e18819/feed?mode=random&offset=4&limit=1",
+      "method": "GET",
+      "phase": "random-preparation-survives-navigation-and-retains-page",
+      "at": 876976.64
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/reading-sessions/6e4442949f2947a59b027f5228e18819/feed?mode=random&offset=2&limit=1",
+      "method": "GET",
+      "phase": "random-preparation-survives-navigation-and-retains-page",
+      "at": 876976.656
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/reading-sessions/6e4442949f2947a59b027f5228e18819/feed?mode=random&offset=1&limit=4",
+      "method": "GET",
+      "phase": "random-preparation-survives-navigation-and-retains-page",
+      "at": 876976.75
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/reading-sessions/6e4442949f2947a59b027f5228e18819/feed?mode=random&offset=5&limit=4",
+      "method": "GET",
+      "phase": "random-preparation-survives-navigation-and-retains-page",
+      "at": 876976.75
+    },
+    {
+      "url": "http://127.0.0.1:63059/api/reading-sessions/6e4442949f2947a59b027f5228e18819/feed?mode=random&offset=1&limit=1",
+      "method": "GET",
+      "phase": "random-preparation-survives-navigation-and-retains-page",
+      "at": 876976.765
+    }
+  ],
+  "request_failures": [
+    {
+      "url": "http://127.0.0.1:63059/api/diagnostics",
+      "error": "net::ERR_ABORTED",
+      "phase": "mobile-entry-and-neighbors"
+    }
+  ],
+  "errors": [],
+  "failures": [
+    {
+      "name": "random-preparation-survives-navigation-and-retains-page",
+      "error": "Changing order moved the current page's scroll offset",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\app\\tests\\stream_continuous_browser.py\", line 329, in main\n    check(\"random-preparation-survives-navigation-and-retains-page\", random_preparation)\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\app\\tests\\stream_continuous_browser.py\", line 142, in check\n    metric = action()\n             ^^^^^^^^\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\app\\tests\\stream_continuous_browser.py\", line 322, in random_preparation\n    assert abs(viewport().evaluate(\"e=>e.scrollTop\") - before_scroll) < 3, \"Changing order moved the current page's scroll offset\"\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: Changing order moved the current page's scroll offset\n"
+    }
+  ],
+  "temporary_path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\work\\tmp\\continuous-stream\\browser-20261021-zero-lock",
+  "temporary_cleaned": true,
+  "fixture": "3 synthetic works / 5 pages; original media and APIs from real local runtime",
+  "real_library": false,
+  "real_account": false,
+  "physical_phone": false,
+  "input": "Chromium CDP touch, real mouse wheel/double-click and keyboard",
+  "remaining_only": true,
+  "baseline": "Prior diagnosis/source: one current viewport, no adjacent rendered track; no old-browser red run",
+  "frontend_sha256": {
+    "index.html": "56262cdb22390449319d2ed53e8b85099269c78b93fe22641a6af24c504952d2",
+    "assets\\index-B42d2G9v.css": "7ddbe9e4d59c3ec9c598bc62fd1d08bbef428abf4b54bd3809ce640bc02eab20",
+    "assets\\index-B9OA_19E.js": "5a08914cb6925a47ea04b3db3eef1dd3e555e99cc32c09b7b93a3aaf2be8c4e0"
+  },
+  "failure_state": {
+    "work": "1",
+    "counter": "3 / 3 件 · 2 / 3 页",
+    "currentScroll": [
+      {
+        "top": 497,
+        "height": 732,
+        "total": 1475
+      }
+    ],
+    "slots": [
+      {
+        "slot": "current",
+        "work": "1",
+        "round": "0",
+        "html": "<div data-v-7721d062=\"\" class=\"stream-slot\" data-stream-slot=\"current\" data-work-id=\"1\" data-round=\"0\" data-panel-ready=\"true\" style=\"transform: translateY(0%);\"><div data-v-ea0aaab7=\"\" data-v-7721d062=\"\" class=\"stream-work-panel\"><div data-v-ea0aaab7=\"\" class=\"stream-viewport\" tabindex=\"0\" aria-label=\"流式图片阅读区\" aria-busy=\"false\"><div data-v-ea0aaab7=\"\" class=\"stream-window\" data-window-size=\"3\" style=\"height: 1475px;\"><figure data-v-ea0aaab7=\"\" class=\"stream-page\" data-index=\"0\" data-global-index=\"2\" data-work-id=\"1\" data-page=\"0\" style=\"height: 481.062px; transform: translateY(0px);\"><div dat"
+      },
+      {
+        "slot": "next",
+        "work": "2",
+        "round": "1",
+        "html": "<div data-v-7721d062=\"\" class=\"stream-slot\" data-stream-slot=\"next\" data-work-id=\"2\" data-round=\"1\" data-panel-ready=\"true\" aria-hidden=\"true\" inert=\"\" style=\"transform: translateY(100%);\"><div data-v-ea0aaab7=\"\" data-v-7721d062=\"\" class=\"stream-work-panel\"><div data-v-ea0aaab7=\"\" class=\"stream-viewport is-suspended\" tabindex=\"-1\" aria-label=\"流式图片阅读区\" aria-busy=\"false\"><div data-v-ea0aaab7=\"\" class=\"stream-window\" data-window-size=\"1\" style=\"height: 732px;\"><figure data-v-ea0aaab7=\"\" class=\"stream-page\" data-index=\"0\" data-global-index=\"5\" data-work-id=\"2\" data-page=\"0\" style=\"height: 732px; t"
+      },
+      {
+        "slot": "previous",
+        "work": "2",
+        "round": "0",
+        "html": "<div data-v-7721d062=\"\" class=\"stream-slot\" data-stream-slot=\"previous\" data-work-id=\"2\" data-round=\"0\" data-panel-ready=\"true\" aria-hidden=\"true\" inert=\"\" style=\"transform: translateY(-100%);\"><div data-v-ea0aaab7=\"\" data-v-7721d062=\"\" class=\"stream-work-panel\"><div data-v-ea0aaab7=\"\" class=\"stream-viewport is-suspended\" tabindex=\"-1\" aria-label=\"流式图片阅读区\" aria-busy=\"false\"><div data-v-ea0aaab7=\"\" class=\"stream-window\" data-window-size=\"1\" style=\"height: 732px;\"><figure data-v-ea0aaab7=\"\" class=\"stream-page\" data-index=\"0\" data-global-index=\"1\" data-work-id=\"2\" data-page=\"0\" style=\"height: 732"
+      }
+    ]
+  },
+  "backend_create_calls": [
+    {
+      "started": 876967.765,
+      "completed": 876974.343
+    }
+  ]
+}

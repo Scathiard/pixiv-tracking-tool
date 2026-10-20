@@ -1,0 +1,221 @@
+{
+  "checks": [
+    "mobile-entry-and-neighbors"
+  ],
+  "metrics": {
+    "mobile-entry-and-neighbors": {
+      "entered": 2,
+      "adjacent": [
+        3,
+        1
+      ],
+      "random_create_blocked": true
+    }
+  },
+  "requests": [
+    {
+      "url": "http://127.0.0.1:54146/api/diagnostics",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876638.687
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/progress",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876638.687
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/startup",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876639.14
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/status",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876642.156
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/library/cursor?limit=240&compact=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876642.359
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/works/2/cursor-neighbors?ceiling=3&as_of=2026-10-20T19%3A24%3A45.455573&cursor=eyJ2IjoxLCJmaWx0ZXIiOiI0OTAzOWU1ZWQ5ZmFlZTM4MmRjYjRiYzFkZGE2ZDRlNSIsImdlbmVyYXRpb24iOjIsImNlaWxpbmciOjMsImlkIjoyLCJrZXkiOiIyMDI2LTEwLTAyVDAwOjAwOjAwIiwiYXNfb2YiOiIyMDI2LTEwLTIwVDE5OjI0OjQ1LjQ1NTU3MyJ9",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876643.281
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/works/2?page_offset=0&page_limit=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876643.562
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/works/3?page_offset=0&page_limit=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876644.25
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/works/1?page_offset=0&page_limit=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876644.25
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/works/2/bookmark/refresh?automatic=1",
+      "method": "POST",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876644.5
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/reading-sessions?ceiling=3&as_of=2026-10-20T19%3A24%3A45.455573",
+      "method": "POST",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876644.609
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/artists?offset=0&limit=100&compact=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876644.734
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/library/tags?show_hidden=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876644.75
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/library/cursor/feed?ceiling=3&as_of=2026-10-20T19%3A24%3A45.455573&limit=4&direction=next&page=0&index=0&work_index=0&anchor_work_id=2",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876645.046
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/artists/1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876645.078
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/works/2/cursor-neighbors?ceiling=3&as_of=2026-10-20T19%3A24%3A45.455573&cursor=eyJ2IjoxLCJmaWx0ZXIiOiI0OTAzOWU1ZWQ5ZmFlZTM4MmRjYjRiYzFkZGE2ZDRlNSIsImdlbmVyYXRpb24iOjIsImNlaWxpbmciOjMsImlkIjoyLCJrZXkiOiIyMDI2LTEwLTAyVDAwOjAwOjAwIiwiYXNfb2YiOiIyMDI2LTEwLTIwVDE5OjI0OjQ1LjQ1NTU3MyJ9",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876645.187
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/library/cursor/feed?ceiling=3&as_of=2026-10-20T19%3A24%3A45.455573&limit=4&direction=next&page=0&index=1&work_index=1&anchor_work_id=1&cursor=eyJ2IjoxLCJmaWx0ZXIiOiI0OTAzOWU1ZWQ5ZmFlZTM4MmRjYjRiYzFkZGE2ZDRlNSIsImdlbmVyYXRpb24iOjIsImNlaWxpbmciOjMsImlkIjoxLCJrZXkiOiIyMDI2LTEwLTAxVDAwOjAwOjAwIiwiYXNfb2YiOiIyMDI2LTEwLTIwVDE5OjI0OjQ1LjQ1NTU3MyJ9",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876645.187
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/library/cursor/feed?ceiling=3&as_of=2026-10-20T19%3A24%3A45.455573&cursor=eyJ2IjoxLCJmaWx0ZXIiOiI0OTAzOWU1ZWQ5ZmFlZTM4MmRjYjRiYzFkZGE2ZDRlNSIsImdlbmVyYXRpb24iOjIsImNlaWxpbmciOjMsImlkIjozLCJrZXkiOiIyMDI2LTEwLTAzVDAwOjAwOjAwIiwiYXNfb2YiOiIyMDI2LTEwLTIwVDE5OjI0OjQ1LjQ1NTU3MyJ9&anchor_work_id=3&page=0&index=0&work_index=0&limit=1",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876645.187
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/bookmark-operations/54a2f7397af04652acb47f152f4a1dfd",
+      "method": "GET",
+      "phase": "mobile-entry-and-neighbors",
+      "at": 876648.796
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/works/1/bookmark/refresh?automatic=1",
+      "method": "POST",
+      "phase": "mobile-multipage-boundary-new-gesture",
+      "at": 876649.859
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/progress",
+      "method": "GET",
+      "phase": "mobile-multipage-boundary-new-gesture",
+      "at": 876649.937
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/bookmark-operations/523f330b03934c5598520bada20637ff",
+      "method": "GET",
+      "phase": "mobile-multipage-boundary-new-gesture",
+      "at": 876651.343
+    },
+    {
+      "url": "http://127.0.0.1:54146/api/progress",
+      "method": "GET",
+      "phase": "mobile-multipage-boundary-new-gesture",
+      "at": 876656.953
+    }
+  ],
+  "request_failures": [
+    {
+      "url": "http://127.0.0.1:54146/api/diagnostics",
+      "error": "net::ERR_ABORTED",
+      "phase": "mobile-entry-and-neighbors"
+    }
+  ],
+  "errors": [],
+  "failures": [
+    {
+      "name": "mobile-multipage-boundary-new-gesture",
+      "error": "Locator expected to have attribute '2'\nActual value: 1 \nCall log:\n  - Expect \"to_have_attribute\" with timeout 5000ms\n  - waiting for locator(\".stream-reader\")\n    4 × locator resolved to <div data-v-6880eb69=\"\" data-v-941fd7b9=\"\" data-stream-work=\"1\" class=\"stream-reader\" data-stream-entry=\"1\" data-track-offset=\"0\" data-track-settling=\"true\">…</div>\n      - unexpected value \"1\"\n    10 × locator resolved to <div data-v-6880eb69=\"\" data-v-941fd7b9=\"\" data-stream-work=\"1\" class=\"stream-reader\" data-stream-entry=\"1\" data-track-offset=\"0\" data-track-settling=\"false\">…</div>\n       - unexpected value \"1\"\n",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\app\\tests\\stream_continuous_browser.py\", line 262, in main\n    check(\"mobile-multipage-boundary-new-gesture\", multipage)\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\app\\tests\\stream_continuous_browser.py\", line 142, in check\n    metric = action()\n             ^^^^^^^^\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\app\\tests\\stream_continuous_browser.py\", line 257, in multipage\n    identity(2)\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\app\\tests\\stream_continuous_browser.py\", line 121, in identity\n    expect(page.locator(\".stream-reader\")).to_have_attribute(\"data-stream-work\", str(value))\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Lib\\site-packages\\playwright\\sync_api\\_generated.py\", line 21518, in to_have_attribute\n    self._sync(\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Lib\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ^^^^^^^^^^^^^\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Lib\\site-packages\\playwright\\_impl\\_assertions.py\", line 335, in to_have_attribute\n    await self._expect_impl(\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Lib\\site-packages\\playwright\\_impl\\_assertions.py\", line 123, in _expect_impl\n    _record_soft_or_raise(\n  File \"D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\v012-env\\Lib\\site-packages\\playwright\\_impl\\_assertions.py\", line 60, in _record_soft_or_raise\n    raise error\nAssertionError: Locator expected to have attribute '2'\nActual value: 1 \nCall log:\n  - Expect \"to_have_attribute\" with timeout 5000ms\n  - waiting for locator(\".stream-reader\")\n    4 × locator resolved to <div data-v-6880eb69=\"\" data-v-941fd7b9=\"\" data-stream-work=\"1\" class=\"stream-reader\" data-stream-entry=\"1\" data-track-offset=\"0\" data-track-settling=\"true\">…</div>\n      - unexpected value \"1\"\n    10 × locator resolved to <div data-v-6880eb69=\"\" data-v-941fd7b9=\"\" data-stream-work=\"1\" class=\"stream-reader\" data-stream-entry=\"1\" data-track-offset=\"0\" data-track-settling=\"false\">…</div>\n       - unexpected value \"1\"\n\n"
+    }
+  ],
+  "temporary_path": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.3\\work\\tmp\\continuous-stream\\browser-20261021-remainder-ready",
+  "temporary_cleaned": true,
+  "fixture": "3 synthetic works / 5 pages; original media and APIs from real local runtime",
+  "real_library": false,
+  "real_account": false,
+  "physical_phone": false,
+  "input": "Chromium CDP touch, real mouse wheel/double-click and keyboard",
+  "remaining_only": true,
+  "baseline": "Prior diagnosis/source: one current viewport, no adjacent rendered track; no old-browser red run",
+  "frontend_sha256": {
+    "index.html": "0600653e6807de176431de261bbc198c3b6400ce051c20271232af288ed4313d",
+    "assets\\index-CnkztzVC.js": "fdffba6a49287e577fab9a4ad8fa710ed0c015898779d1db6435e6481a78debb",
+    "assets\\index-DIWT06VP.css": "9b00bd8d653feb8751cdb21f57fdf8b2f90627b906f2e6dd6dab1be2e7a61b43"
+  },
+  "failure_state": {
+    "work": "1",
+    "counter": "当前 / 3 件 · 1 / 3 页",
+    "currentScroll": [
+      {
+        "top": 0,
+        "height": 732,
+        "total": 1475
+      }
+    ],
+    "slots": [
+      {
+        "slot": "previous",
+        "work": "2",
+        "round": "0",
+        "html": "<div data-v-6880eb69=\"\" class=\"stream-slot\" data-stream-slot=\"previous\" data-work-id=\"2\" data-round=\"0\" data-panel-ready=\"true\" style=\"transform: translateY(-100%);\" aria-hidden=\"true\" inert=\"\"><div data-v-ea0aaab7=\"\" data-v-6880eb69=\"\" class=\"stream-work-panel\"><div data-v-ea0aaab7=\"\" class=\"stream-viewport is-suspended\" tabindex=\"-1\" aria-label=\"流式图片阅读区\" aria-busy=\"false\"><div data-v-ea0aaab7=\"\" class=\"stream-window\" data-window-size=\"1\" style=\"height: 732px;\"><figure data-v-ea0aaab7=\"\" class=\"stream-page\" data-index=\"0\" data-global-index=\"0\" data-work-id=\"2\" data-page=\"0\" style=\"height: 732"
+      },
+      {
+        "slot": "current",
+        "work": "1",
+        "round": "0",
+        "html": "<div data-v-6880eb69=\"\" class=\"stream-slot\" data-stream-slot=\"current\" data-work-id=\"1\" data-round=\"0\" data-panel-ready=\"true\" style=\"transform: translateY(0%);\"><div data-v-ea0aaab7=\"\" data-v-6880eb69=\"\" class=\"stream-work-panel\"><div data-v-ea0aaab7=\"\" class=\"stream-viewport\" tabindex=\"0\" aria-label=\"流式图片阅读区\" aria-busy=\"false\"><div data-v-ea0aaab7=\"\" class=\"stream-window\" data-window-size=\"3\" style=\"height: 1475px;\"><figure data-v-ea0aaab7=\"\" class=\"stream-page\" data-index=\"0\" data-global-index=\"1\" data-work-id=\"1\" data-page=\"0\" style=\"height: 481.062px; transform: translateY(0px);\"><div dat"
+      },
+      {
+        "slot": "next",
+        "work": null,
+        "round": null,
+        "html": "<div data-v-6880eb69=\"\" class=\"stream-neighbor-placeholder\" data-stream-slot=\"next\" aria-hidden=\"true\" style=\"transform: translateY(100%);\">已到当前范围末尾</div>"
+      }
+    ]
+  },
+  "backend_create_calls": [
+    {
+      "started": 876644.734,
+      "completed": 876657.859
+    }
+  ]
+}

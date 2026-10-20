@@ -827,6 +827,31 @@ class Library:
     def reading_manifest(self, filters=LibraryFilter(), *, ceiling=None):
         with self.database.read() as session:
             ceiling = ceiling if ceiling is not None else session.scalar(select(func.max(Work.id))) or 0
+            if self._fast_scope(filters) is not None:
+                # Preserve the session's sequential contract without following
+                # the sort index back to every wide source Work row.
+                ordered_ids, boundary = [], None
+                while True:
+                    rows = self._seek_rows(session, filters, ceiling, boundary=boundary, limit=480)
+                    ordered_ids.extend(row[0] for row in rows)
+                    if len(rows) < 480:
+                        break
+                    boundary = rows[-1]
+                if not ordered_ids:
+                    return []
+                selected = set(ordered_ids)
+                # INTEGER PRIMARY KEY is the implicit rowid stored in this
+                # existing covering index. Scan it once, not once per ID batch.
+                shapes = {row[0]: {"work_id": row[0], "revision_id": row[1],
+                    "page_count": 1 if row[2] == "ugoira" else max(1, row[3])}
+                    for row in session.connection().exec_driver_sql(
+                        "SELECT id,default_revision_id,type,page_count FROM works "
+                        "INDEXED BY ix_works_settings_shape WHERE id<=?", (ceiling,))
+                    if row[0] in selected}
+                if len(shapes) != len(ordered_ids):
+                    from .read_projection import ProjectionUnavailable
+                    raise ProjectionUnavailable("阅读范围投影与作品记录不一致")
+                return [shapes[identity] for identity in ordered_ids]
             pages = case((Work.type == "ugoira", 1), else_=Work.page_count)
             statement = self._statement(filters, ceiling).with_only_columns(Work.id,
                 Work.default_revision_id, pages).order_by(*self._order(filters))
