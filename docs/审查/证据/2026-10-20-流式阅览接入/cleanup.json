@@ -1,0 +1,26 @@
+{
+  "retained": [],
+  "cleaned": [
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\work\\tmp\\stream-reader\\browser-01",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\work\\tmp\\stream-reader\\browser-02",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\work\\tmp\\stream-reader\\browser-final-chrome-01",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\work\\tmp\\stream-reader\\browser-final-static-01",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\work\\tmp\\stream-reader\\package",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\work\\tmp\\stream-reader\\package-process",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\work\\tmp\\stream-reader\\packaged-browser",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\work\\tmp\\stream-reader\\enable.py",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\work\\tmp\\stream-reader\\enabled-runtime.json",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\work\\tmp\\stream-reader\\package_check.py",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\app\\frontend\\node_modules",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\app\\frontend\\dist",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\app\\frontend\\work",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\release\\v0.2.0\\build-20261020.2",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\app\\src\\__pycache__",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\app\\src\\core\\__pycache__",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\app\\src\\routes\\__pycache__",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\app\\tests\\__pycache__"
+  ],
+  "retained_active_runtime": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\work\\tmp\\stream-reader\\enabled-runtime",
+  "old_releases_and_real_data_preserved": true,
+  "existing_shared_npm_cache_preserved": true
+}

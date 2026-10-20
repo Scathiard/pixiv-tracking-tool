@@ -1,0 +1,44 @@
+{
+  "parent_pid": 59136,
+  "runtime_temporary": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\work\\tmp\\stream-reader\\enabled-runtime",
+  "installed_exe": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261020.3.exe",
+  "flow_read": {
+    "items": 2,
+    "has_media": true
+  },
+  "stop_seconds": 6.543,
+  "started_at": "2026-10-20T13:50:53.3975901+08:00",
+  "old_pids": [
+    59672,
+    29744
+  ],
+  "before": {
+    "data_root": "D:\\PixivTracker",
+    "check_interval_minutes": 360,
+    "automatic_paused": false,
+    "login": "logged_in",
+    "current_port": 1919,
+    "build": "20261020.1"
+  },
+  "ready_seconds": 49.508,
+  "normal_stop": true,
+  "normal_mode": true,
+  "after": {
+    "data_root": "D:\\PixivTracker",
+    "check_interval_minutes": 360,
+    "automatic_paused": false,
+    "login": "offline",
+    "current_port": 1919,
+    "build": "20261020.3"
+  },
+  "sha256": "a3730c5d1ab63a6eae28822fca88cfa13b2f2e9bf205ea647bdd01c4ab296e1b",
+  "followup": {
+    "build": "20261020.3",
+    "login": "logged_in",
+    "automatic_paused": false,
+    "check_interval_minutes": 360,
+    "current_port": 1919,
+    "data_root": "D:\\PixivTracker",
+    "recorded_at": "2026-10-20T13:53:06"
+  }
+}

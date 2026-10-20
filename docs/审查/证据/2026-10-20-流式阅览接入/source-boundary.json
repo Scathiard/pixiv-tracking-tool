@@ -1,0 +1,24 @@
+{
+  "source_commit": "7fe0b980c4c4ed3e1f8ddc5e3a17e712262f9eb9",
+  "unchanged_detail_components": {
+    "app/frontend/src/PageReader.vue": {
+      "unchanged": true,
+      "sha256": "c23372d8838f4020f330341421b97d2963778db3f17d63bbb971529b97d59034"
+    },
+    "app/frontend/src/MediaImage.vue": {
+      "unchanged": true,
+      "sha256": "cb5770bfecbf58c772a2495420495000da5a1443860149aa21d4c29987fc138a"
+    },
+    "app/frontend/src/ZoomView.vue": {
+      "unchanged": true,
+      "sha256": "e595247c24303ba8385148037e82608396eb689dcb103453df254c6327879941"
+    }
+  },
+  "final_frontend_sha256": {
+    "index.html": "6d5071ab0d7c65d275427673ac9c099366494914639a80688a85bcc20aeb9050",
+    "assets\\index-H5jt3nbx.js": "ccf5dd19a9b99f21d76bca5a0b499bdb957178c22080914ada6079a816db2eff",
+    "assets\\index-Bx490Nt1.css": "55d035c3de74231b78fe5c55c9fa20f07da7cbe36b66003ceae647c9c4df4937"
+  },
+  "database_schema_changed": false,
+  "configuration_changed": false
+}

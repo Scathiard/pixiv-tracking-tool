@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "build": "20261020.3",
+  "exe_file": "PixivTracker_v0.2.0_build20261020.3.exe",
+  "exe_size_bytes": 75648574,
+  "exe_sha256": "a3730c5d1ab63a6eae28822fca88cfa13b2f2e9bf205ea647bdd01c4ab296e1b",
+  "source_commit": "7fe0b980c4c4ed3e1f8ddc5e3a17e712262f9eb9",
+  "source_branch": "codex/stream-reader-20261020",
+  "source_dirty": false,
+  "frontend_dist": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261020.2\\app\\frontend\\dist",
+  "database_schema": "0005_read_cards_tasks",
+  "database_upgrade_required": false,
+  "database_compatible_from": "0005_read_cards_tasks",
+  "explicit_upgrade_supported_from": [
+    "0001_archive",
+    "0002_client",
+    "0003_revisions",
+    "0004_read_projections"
+  ],
+  "older_database_upgrade_required": true,
+  "database_upgrade_entry": "startup-confirmed backup / validate / activate",
+  "build_environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "pyinstaller": "6.20.0"
+  },
+  "published": false,
+  "user_acceptance": false,
+  "validation": "Focused source browser checks and packaged smoke/reader checks passed; normal daily instance enabled; physical-phone acceptance pending"
+}
