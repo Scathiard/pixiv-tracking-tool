@@ -1026,13 +1026,14 @@ class Library:
                 ranked.c.position.in_((position - 1, position + 1)))).all())
             return {"previous": nearby.get(position - 1), "next": nearby.get(position + 1), "index": position - 1}
 
-    def _tag_values(self, session, filters, ceiling):
+    def _tag_counts(self, session, filters, ceiling):
         if replace(filters, as_of=None, sort="newest", tz_offset_minutes=0) == LibraryFilter(show_hidden=True):
             # The tag-only index cannot supply work_id for suppression checks:
             # scanning it caused a table lookup for every tag relation. Read
-            # the narrow two-column table sequentially, then deduplicate/sort.
+            # the narrow two-column table sequentially, then group/sort. The
+            # (work_id, tag) primary key makes each row one work, not one page.
             # NOT INDEXED deliberately prevents that non-covering access path.
-            statement = """SELECT DISTINCT t.tag FROM work_tags t NOT INDEXED
+            statement = """SELECT t.tag, count(*) FROM work_tags t NOT INDEXED
                 WHERE t.work_id NOT IN (SELECT w.id FROM archive_intents i
                     JOIN works w ON w.pixiv_illust_id=i.pixiv_illust_id
                     WHERE i.mode='suppressed')"""
@@ -1041,23 +1042,24 @@ class Library:
                 statement += " AND t.work_id<=?"
                 parameters = (ceiling,)
             with track_read_stage("filter_tags"):
-                return list(session.connection().exec_driver_sql(
-                    statement + " ORDER BY t.tag", parameters).scalars())
+                return dict(session.connection().exec_driver_sql(
+                    statement + " GROUP BY t.tag ORDER BY t.tag", parameters).all())
         else:
             ceiling = ceiling if ceiling is not None else session.scalar(select(func.max(Work.id))) or 0
             selected = self._statement(filters, ceiling).with_only_columns(Work.id)
-            statement = select(WorkTag.tag).where(WorkTag.work_id.in_(selected))
+            statement = select(WorkTag.tag, func.count()).where(WorkTag.work_id.in_(selected))
         with track_read_stage("filter_tags"):
-            return list(session.scalars(statement.distinct().order_by(WorkTag.tag)))
+            return dict(session.execute(statement.group_by(WorkTag.tag).order_by(WorkTag.tag)).all())
 
     def tags(self, filters=LibraryFilter(), *, ceiling=None):
         with self.database.read() as session:
-            return self._tag_values(session, filters, ceiling)
+            return list(self._tag_counts(session, filters, ceiling))
 
     def tag_catalogue(self, filters=LibraryFilter(), *, ceiling=None):
         """Current local choices and already stored Pixiv translations only."""
         with self.database.read() as session:
-            names = self._tag_values(session, filters, ceiling)
+            counts = self._tag_counts(session, filters, ceiling)
+            names = list(counts)
             wanted, records, dates = set(names), {}, {}
             if names:
                 # The display projection contains translations separately from
@@ -1087,7 +1089,7 @@ class Library:
                             score = (stamp, scope)
                             if name not in dates or score > dates[name]:
                                 records[name], dates[name] = record, score
-            return {"tags": names, "tag_details": tag_details(
+            return {"tags": names, "tag_counts": counts, "tag_details": tag_details(
                 [name for name in names if name in records], {"tag_translations": records})}
 
     def _page_ranges(self, filters, ceiling):

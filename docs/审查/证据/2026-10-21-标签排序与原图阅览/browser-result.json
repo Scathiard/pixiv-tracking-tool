@@ -1,0 +1,19 @@
+{
+  "checks": [
+    "default-count-order-settings-switch-cache-reuse-and-reload",
+    "real-synthetic-tag-count-and-official-translation",
+    "ordinary-navigation-retains-current-until-original-no-thumbnail",
+    "stream-entry-navigation-and-adjacent-preload-original-only",
+    "mobile-390-320-reader-and-settings-geometry"
+  ],
+  "errors": [],
+  "real_library": false,
+  "real_account": false,
+  "real_phone": false,
+  "metrics": {
+    "tag_counts": {
+      "aaa": 1,
+      "zzz": 3
+    }
+  }
+}

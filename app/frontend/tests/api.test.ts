@@ -402,7 +402,7 @@ test('loaded images are ready even when decode would never settle; shared consum
   assert.equal(images.length, 1, 'a ready adjacent image is reused')
 })
 
-test('a failed preview falls back to the original and cancellation never starts that fallback', async t => {
+test('reader preparation uses only the original, preserving failure and cancellation', async t => {
   const images: {src: string; onload: (() => void) | null; onerror: (() => void) | null}[] = []
   class FixtureImage {
     src = ''; onload: (() => void) | null = null; onerror: (() => void) | null = null
@@ -411,14 +411,21 @@ test('a failed preview falls back to the original and cancellation never starts 
   }
   Object.defineProperty(globalThis, 'Image', {value: FixtureImage, configurable: true})
   t.after(() => { Reflect.deleteProperty(globalThis, 'Image') })
-  const page = {src: '/fallback-original.png', preview: '/broken-preview.png' as string | null}
+  const page = {src: '/direct-original.png', preview: '/unused-thumbnail.png'}
   const ready = preparePageImage(page, new AbortController().signal)
-  images[0]!.onerror?.(); await nextTurn()
-  assert.equal(images[1]!.src, '/fallback-original.png')
-  images[1]!.onload?.(); await ready
-  assert.equal(page.preview, null)
+  assert.equal(images[0]!.src, '/direct-original.png')
+  assert.equal(images.length, 1, 'the thumbnail is never prepared')
+  images[0]!.onload?.(); await ready
+  assert.equal(page.preview, '/unused-thumbnail.png', 'preparation does not mutate metadata')
+  await preparePageImage({src: null, preview: '/missing-original-thumbnail.png'}, new AbortController().signal)
+  assert.equal(images.length, 1, 'a missing original stays a missing-file state')
+  const failure = assert.rejects(preparePageImage({src: '/failed-original.png', preview: '/unused-fallback.png'},
+    new AbortController().signal), /目标图片未能载入/)
+  images[1]!.onerror?.(); await failure
+  assert.equal(images.length, 2, 'a failed original does not silently switch to a thumbnail')
   const controller = new AbortController()
-  const cancelled = assert.rejects(preparePageImage({src: '/unwanted-original.png', preview: '/cancelled-preview.png'}, controller.signal), {name: 'AbortError'})
+  const cancelled = assert.rejects(preparePageImage({src: '/cancelled-original.png', preview: '/unused-cancelled-thumbnail.png'}, controller.signal), {name: 'AbortError'})
+  assert.equal(images[2]!.src, '/cancelled-original.png')
   controller.abort(); await cancelled
   assert.equal(images.length, 3)
 })

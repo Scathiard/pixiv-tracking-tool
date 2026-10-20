@@ -3,7 +3,7 @@ import { loadArtistCatalogue } from './filterSelection.ts'
 import type { TagDetail } from '../types.ts'
 
 export interface FilterArtist {id: number; pixiv_id: string; name: string; mode: string}
-export interface FilterTags {tags: string[]; tag_details?: TagDetail[]}
+export interface FilterTags {tags: string[]; tag_details?: TagDetail[]; tag_counts?: Record<string, number>}
 type Values = {artists: FilterArtist[]; tags: FilterTags}
 export type CatalogueKind = keyof Values
 export interface CatalogueEntry<T> {value: T | null; loading: boolean; error: string; stale: boolean}

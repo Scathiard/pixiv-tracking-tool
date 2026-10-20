@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FilterCatalogue } from '../src/state/filterCatalogue.ts'
+import { orderedTags, TagOrderPreference } from '../src/state/tagOrder.ts'
+import { selectionQuery, toggleSelection } from '../src/state/filterSelection.ts'
 
 test('warm, panel remount and concurrent consumers share completed and in-flight choices', async context => {
   const calls: string[] = []
@@ -106,4 +108,51 @@ test('dispose aborts ownership and prevents late responses from publishing', asy
   assert.equal(signal?.aborted, true)
   assert.equal(publications, before)
   assert.equal(cache.snapshot().tags.value, null)
+})
+
+test('tag order switches cached names without new reads, mutation or losing selection and translations', async context => {
+  let calls = 0
+  const source = {tags: ['B', 'A', 'C'], tag_counts: {A: 2, B: 1, C: 2}, tag_details: [
+    {name: 'A', translated_name: '中文译名', source: 'pixiv', language: 'zh-cn'}]}
+  const cache = new FilterCatalogue(async () => { calls++; return source as never })
+  context.after(() => cache.dispose())
+  await cache.load('tags')
+  const catalogue = cache.snapshot().tags.value!
+  const selected = toggleSelection({all: true, values: []}, 'C', catalogue.tags)
+  assert.deepEqual(orderedTags(catalogue.tags, catalogue.tag_counts, 'count'), ['A', 'C', 'B'])
+  assert.deepEqual(orderedTags(catalogue.tags, catalogue.tag_counts, 'name'), ['A', 'B', 'C'])
+  assert.deepEqual(selectionQuery(selected, orderedTags(catalogue.tags, catalogue.tag_counts, 'count')), {values: ['C'], excluded: false})
+  assert.deepEqual(catalogue.tags, ['B', 'A', 'C'])
+  assert.equal(catalogue.tag_details?.[0]?.translated_name, '中文译名')
+  assert.equal(calls, 1)
+  assert.deepEqual(orderedTags(['B', 'A'], undefined, 'count'), ['A', 'B'])
+})
+
+test('tag preference defaults to work count, survives reload, and tolerates blocked browser storage', context => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+  context.after(() => {
+    if (descriptor) Object.defineProperty(globalThis, 'localStorage', descriptor)
+    else Reflect.deleteProperty(globalThis, 'localStorage')
+  })
+  const storage = new Map<string, string>()
+  Object.defineProperty(globalThis, 'localStorage', {configurable: true, value: {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => { storage.set(key, value) },
+  }})
+  const preference = new TagOrderPreference(), events: string[] = []
+  assert.equal(preference.get(), 'count')
+  const unsubscribe = preference.subscribe(value => events.push(value))
+  assert.equal(preference.set('name'), true)
+  assert.equal(new TagOrderPreference().get(), 'name')
+  assert.equal(preference.set('count'), true)
+  assert.deepEqual(events, ['count', 'name', 'count'])
+  unsubscribe(); preference.set('name')
+  assert.deepEqual(events, ['count', 'name', 'count'])
+  preference.set('unknown')
+  assert.equal(new TagOrderPreference().get(), 'count')
+  Object.defineProperty(globalThis, 'localStorage', {configurable: true, get() { throw new Error('blocked') }})
+  const blocked = new TagOrderPreference()
+  assert.equal(blocked.get(), 'count')
+  assert.equal(blocked.set('name'), false)
+  assert.equal(blocked.get(), 'name')
 })

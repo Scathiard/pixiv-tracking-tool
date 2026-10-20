@@ -3,23 +3,11 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { mediaPlaceholder, type ArchiveState, type ProcessingState, type RecoveryState } from './types'
 import { ImageTaps } from './state/imageTaps'
 import { mediaObservation } from './diagnostics'
-import { prepareImage } from './api'
-const props = defineProps<{src: string | null; preview?: string | null; state?: string; label: string; thumbnail?: boolean; width?: number; height?: number; recovery?: RecoveryState | null; processing?: ProcessingState; archive?: ArchiveState; animation?: boolean; flowTaps?: boolean}>()
+const props = defineProps<{src: string | null; state?: string; label: string; thumbnail?: boolean; width?: number; height?: number; recovery?: RecoveryState | null; processing?: ProcessingState; archive?: ArchiveState; animation?: boolean; flowTaps?: boolean}>()
 const emit = defineEmits<{size: [width: number, height: number]; zoom: []; bookmark: []}>()
 const taps = new ImageTaps(() => emit('zoom'), () => emit('bookmark'))
 const image = ref<HTMLImageElement | null>(null), failed = ref(false), revision = ref(0)
-const displaySrc = ref<string | null>(null)
-let originalRequest: AbortController | null = null
-watch([() => props.src, () => props.preview], ([src, preview]) => {
-  originalRequest?.abort()
-  displaySrc.value = preview || src
-  if (preview && src && preview !== src) {
-    const controller = originalRequest = new AbortController()
-    void prepareImage(src, controller.signal).then(() => {
-      if (!controller.signal.aborted) { displaySrc.value = src; failed.value = false }
-    }, () => { /* Keep the displayable preview if the original is slow or fails. */ })
-  }
-}, {immediate: true})
+const displaySrc = computed(() => props.src)
 const placeholder = computed(() => mediaPlaceholder(props, props.state === 'failed' ? 'failed' : 'pending', props.animation))
 watch(() => props.src, () => { taps.cancel(); failed.value = false; revision.value++ })
 watch(() => props.state, (state, previous) => {
@@ -40,16 +28,13 @@ watch([displaySrc, revision, failed], () => {
 function loaded() {
   if (!image.value) return
   observation?.loaded(image.value); observation?.decoded('unsupported')
-  // A cropped thumbnail is not the page's aspect ratio. Keep the original
-  // metadata dimensions until the actual original is on screen.
-  if (!props.preview || displaySrc.value === props.src) emit('size', image.value.naturalWidth, image.value.naturalHeight)
+  emit('size', image.value.naturalWidth, image.value.naturalHeight)
 }
 function loadFailed() {
   observation?.error()
-  if (displaySrc.value !== props.src && props.src) { displaySrc.value = props.src; failed.value = false }
-  else failed.value = true
+  failed.value = true
 }
-onBeforeUnmount(() => { originalRequest?.abort(); observation?.cancel('unmounted'); taps.cancel(); image.value?.removeAttribute('src') })
+onBeforeUnmount(() => { observation?.cancel('unmounted'); taps.cancel(); image.value?.removeAttribute('src') })
 </script>
 <template>
   <div class="media-image" :class="{'media-thumbnail': thumbnail}">

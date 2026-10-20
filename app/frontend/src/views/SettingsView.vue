@@ -2,6 +2,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { api, write } from '../api'
 import { ReadLifecycle } from '../interaction'
+import { tagOrderPreference } from '../state/tagOrder'
 import SourceStatusOverview from '../components/SourceStatusOverview.vue'
 import Icon from '../components/Icon.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -21,6 +22,12 @@ const settings = ref<Settings | null>(null), loading = ref(true), error = ref(''
 const sourcesOpen = ref(false), interval = ref(''), intervalUnit = ref<'minutes' | 'hours'>('minutes')
 function openSources(open: boolean) { sourcesOpen.value = open; void nextTick(() => document.querySelector('.settings-page')?.scrollTo({top:0})) }
 const theme = ref<'dark' | 'light'>('dark')
+const tagOrder = ref(tagOrderPreference.get())
+function changeTagOrder(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  if (!tagOrderPreference.set(value)) emit('message', '标签排序已切换；浏览器未允许保存，刷新后可能恢复默认。', true)
+  tagOrder.value = tagOrderPreference.get()
+}
 interface AuthStatus {logged_in: boolean; login_url: string | null; login_error: string | null}
 interface Logs {lines: string[]; truncated: boolean; details_complete: boolean; next_cursor: string | null}
 const auth = ref<AuthStatus | null>(null), authError = ref('')
@@ -156,6 +163,7 @@ onBeforeUnmount(() => { stopped = true; clearTimeout(statusTimer); settingsReads
       <div class="settings-card"><div><h3>访问端口</h3><p>当前使用 {{ settings.current_port }}；修改后重启程序才会生效。</p></div><div class="settings-controls"><input v-model="port" type="number" min="1024" max="65535" aria-label="下次启动端口"><button :disabled="busy" @click="savePort">保存端口</button></div></div>
       <div class="settings-card settings-stack"><div><h3>手机访问</h3><p>电脑和手机连接同一局域网，在手机浏览器打开以下当前端口地址。</p></div><div v-for="address in settings.lan_urls || []" :key="address" class="lan-address"><a :href="address">{{ address }}</a><button @click="copyAddress(address)">复制地址</button></div><p v-if="!settings.lan_urls?.length">暂未发现可用局域网地址，请检查电脑的网络连接。</p></div>
       <h2 class="settings-section-title">界面</h2>
+      <div class="settings-card"><div><h3>筛选标签排序</h3><p>按本地作品数量或标签名称排列，偏好保存在当前浏览器。</p></div><select :value="tagOrder" aria-label="筛选标签排序" @change="changeTagOrder"><option value="count">按作品量从多到少</option><option value="name">按标签名称</option></select></div>
       <div class="settings-card"><div><h3>图库浏览方式</h3><p>连续滚动会按需读取作品；页码模式可直接跳页。</p></div><select :value="galleryMode" aria-label="图库浏览方式" @change="emit('galleryMode', ($event.target as HTMLSelectElement).value)"><option value="scroll">连续滚动</option><option value="50">50 件 / 页</option><option value="100">100 件 / 页</option><option value="200">200 件 / 页</option><option value="500">500 件 / 页</option></select></div>
       <div class="settings-card"><div><h3>外观</h3><p>选择适合当前环境的阅读配色。</p></div><div class="theme-choices"><button :class="{active: theme === 'dark'}" :aria-pressed="theme === 'dark'" @click="theme = 'dark'; emit('theme', 'dark', $event)">深色</button><button :class="{active: theme === 'light'}" :aria-pressed="theme === 'light'" @click="theme = 'light'; emit('theme', 'light', $event)">浅色</button></div></div>
       <p v-if="settings.version" class="settings-version muted">版本 {{ settings.version }}<template v-if="settings.build"> · 内部构建 {{ settings.build }}</template></p>

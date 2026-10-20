@@ -186,16 +186,10 @@ export function url(path: string, query: string, extra: Record<string, string | 
 }
 const readyImages = new Map<string, HTMLImageElement>()
 const imageFlights = new Map<string, {controller: AbortController; promise: Promise<HTMLImageElement>; users: number}>()
-/** A missing/broken derived preview must not hide an available original. */
+/** Readers and their adjacent prefetch prepare the final image, never a thumbnail. */
 export async function preparePageImage(page: {src: string | null; preview?: string | null} | undefined, signal: AbortSignal): Promise<void> {
   if (!page) { signal.throwIfAborted(); return }
-  try { await prepareImage(page.preview || page.src, signal) }
-  catch (error) {
-    signal.throwIfAborted()
-    if (!page.preview || !page.src || page.preview === page.src) throw error
-    page.preview = null
-    await prepareImage(page.src, signal)
-  }
+  await prepareImage(page.src, signal)
 }
 /** Share in-flight targets and retain at most eight ready adjacent images. */
 export function prepareImage(src: string | null, signal: AbortSignal): Promise<void> {

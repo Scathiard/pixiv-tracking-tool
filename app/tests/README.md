@@ -1,5 +1,7 @@
 # 测试目录约定
 
+- 2026-10-21 标签排序与原图阅览：本轮只验证本地作品计数／排序偏好、两种阅览直接使用原图、慢图／失败／取消及卡片缩略图不受影响。临时项放工作树 `work/tmp/tag-order-originals/`；`app/frontend/node_modules` junction 复用已有依赖，只移除链接；本轮 dist、Python／pytest 缓存用后清理。必要证据归 `docs/审查/证据/2026-10-21-标签排序与原图阅览/`，不读取真实图库聚合或使用真实账号写入。
+
 - `stream_polish_browser.py --dist FRONTEND_DIST --out NEW_DIRECTORY`：R-074 实机反馈的短交互回归；3 件合成作品，当前作品入口、邻件缓存、随机预备、缩放动画、鼠标／触摸拖简介、触摸阈值及筛选复用／主站译名。浏览器使用实际编译 UI 与隔离 API，手机为 Chromium 触摸模拟；不调用真实账号。临时项归本工作树 `work/tmp/stream-polish/`，保留必要证据后清理；`app/frontend/node_modules` 为复用已有依赖的 junction，只清理链接本身。
 
 - `stream_reader_browser.py --artifacts NEW_DIRECTORY [--url ISOLATED_LOCAL_URL | --exe EXE_PATH] [--frontend-dist DIST_PATH]`：R-074 正式编译界面的单轮定向浏览器检查；源码只建 3 件／5 页合成库，2000 页长作和短随机顺序仅作明确标注的接口回放。1440／390px 验证边界手势分次切件、图内缩放与留白滚动、完整本地简介／标签、单心目标和普通详情回归，320px 只查几何；实际滚轮与 CDP 触摸不等于实体手机验收。产物放本轮 `work/tmp/stream-reader/browser-*` 新目录，主会话统一运行与选取正式证据，不读真实账号或图库。

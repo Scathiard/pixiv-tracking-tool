@@ -299,7 +299,7 @@ defineExpose({readAnchor, jump, stepPage, cancel, retry, scrollBy: (delta: numbe
             <span v-if="mode === 'feed' && pages[row.index]!.page === 0 && archiveNotice(pages[row.index]!)" class="page-source">{{ archiveNotice(pages[row.index]!) }}</span>
           </figcaption>
           <div class="page-picture" :style="mode === 'reader' ? {height: `${height(pages[row.index])}px`} : undefined">
-            <MediaImage :src="pages[row.index]!.src" :preview="pages[row.index]!.preview" :state="pages[row.index]!.state" :recovery="pages[row.index]!.recovery" :processing="pages[row.index]!.processing" :archive="pages[row.index]!.archive" :animation="pages[row.index]!.type === 'ugoira'" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
+            <MediaImage :src="pages[row.index]!.src" :state="pages[row.index]!.state" :recovery="pages[row.index]!.recovery" :processing="pages[row.index]!.processing" :archive="pages[row.index]!.archive" :animation="pages[row.index]!.type === 'ugoira'" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
               :width="mode === 'feed' ? pages[row.index]!.width || 1000 : undefined"
               :height="mode === 'feed' ? pages[row.index]!.height || 1350 : undefined"
               :flow-taps="mode === 'feed'" @bookmark="bookmark(pages[row.index]!)"

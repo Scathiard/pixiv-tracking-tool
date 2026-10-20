@@ -1,0 +1,32 @@
+✖ reader preparation uses only the original, preserving failure and cancellation (1.4852ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 94.4088
+
+✖ failing tests:
+
+test at tests\api.test.ts:405:1
+✖ reader preparation uses only the original, preserving failure and cancellation (1.4852ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '/unused-thumbnail.png'
+  - '/direct-original.png'
+  
+      at TestContext.<anonymous> (file:///D:/claude_sandbox/pixiv-tracking-tool/.worktrees/v0.2.0-build20261021.2/app/frontend/tests/api.test.ts:416:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '/unused-thumbnail.png',
+    expected: '/direct-original.png',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

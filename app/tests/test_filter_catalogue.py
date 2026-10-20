@@ -29,9 +29,12 @@ def test_full_catalogue_and_empty_selection(tmp_path):
             artists.extend(client.get(f"/api/artists?offset={offset}&limit=100").json()["items"])
         assert len(artists) == 137
         assert any(a["id"] == 137 for a in artists)
-        tags = client.get("/api/library/tags?show_hidden=1").json()["tags"]
+        catalogue = client.get("/api/library/tags?show_hidden=1").json()
+        tags = catalogue["tags"]
         assert len(tags) == 301 and tags.count("重复标签") == 1
         assert "中文标签 301" in tags and "中文标签 300" not in tags
+        assert catalogue["tag_counts"]["重复标签"] == 300
+        assert catalogue["tag_counts"]["中文标签 301"] == 1
         assert client.get("/api/library?tags=").json()["total"] == 0
         assert client.get("/api/library?artist_ids=").json()["total"] == 0
         assert client.get("/api/library?types=").json()["total"] == 0
@@ -137,7 +140,8 @@ def test_filter_translations_are_current_local_narrow_and_keep_original_tag_iden
                 metadata("被删除作品译名", "2026-10-21T00:00:00+00:00"),
                 metadata("非主站译名", "2026-10-22T00:00:00+00:00", source="other")], 1):
             session.add(Work(id=identity, pixiv_illust_id=str(identity), artist_id=1,
-                             title=str(identity), source_metadata=data))
+                             title=str(identity), page_count=40 if identity == 1 else 1,
+                             source_metadata=data))
             session.add(WorkTag(work_id=identity, tag="tag"))
         session.add(WorkTag(work_id=1, tag="no-translation"))
         session.add(WorkTag(work_id=2, tag="hidden-only"))
@@ -158,19 +162,27 @@ def test_filter_translations_are_current_local_narrow_and_keep_original_tag_iden
     with TestClient(app) as client:
         result = client.get("/api/library/tags?show_hidden=1").json()
         assert result["tags"] == ["hidden-only", "no-translation", "tag"]
+        assert result["tag_counts"] == {"hidden-only": 1, "no-translation": 1, "tag": 3}
         details = {value["name"]: value for value in result["tag_details"]}
         assert details["tag"]["translated_name"] == "较新译名"
         assert "no-translation" not in details
         assert not any("source_metadata" in sql or "work_revisions" in sql for sql in statements)
         assert not any("max(works.id)" in sql for sql in statements)
+        assert sum("from work_tags" in sql for sql in statements) == 1
         tag_sql = next(sql for sql in statements if "from work_tags t not indexed" in sql)
         with database.read() as session:
             plan = [row[3].lower() for row in session.connection().exec_driver_sql("EXPLAIN QUERY PLAN " + tag_sql)]
         assert "scan t" in plan
         assert not any("scan t using index" in step for step in plan)
-        assert client.get("/api/library/tags").json()["tags"] == ["no-translation", "tag"]
-        assert client.get("/api/library/tags?tags=absent&show_hidden=1").json()["tags"] == []
-        assert client.get("/api/library/tags?show_hidden=1&ceiling=1").json()["tags"] == ["no-translation", "tag"]
+        visible = client.get("/api/library/tags").json()
+        assert visible["tags"] == ["no-translation", "tag"]
+        assert visible["tag_counts"] == {"no-translation": 1, "tag": 2}
+        absent = client.get("/api/library/tags?tags=absent&show_hidden=1").json()
+        assert absent["tags"] == [] and absent["tag_counts"] == {}
+        bounded = client.get("/api/library/tags?show_hidden=1&ceiling=1").json()
+        assert bounded["tags"] == ["no-translation", "tag"]
+        assert bounded["tag_counts"] == {"no-translation": 1, "tag": 1}
+        assert library.tags() == visible["tags"]
         with database.write() as session:
             session.get(Work, 2).source_metadata = metadata("更新后译名", "2026-10-24T00:00:00+00:00")
         updated = client.get("/api/library/tags?show_hidden=1").json()

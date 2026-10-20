@@ -181,7 +181,7 @@ function keydown(event: KeyboardEvent) {
   if (event.key !== 'Escape' || !active.value) return
   consume(event); update({scale: 1, x: 0, y: 0})
 }
-watch([() => props.page.work_id, () => props.page.page, () => props.page.revision_id, () => props.page.src, () => props.page.preview], reset)
+watch([() => props.page.work_id, () => props.page.page, () => props.page.revision_id, () => props.page.src], reset)
 watch(() => props.inactive, value => { if (value) reset() })
 onMounted(() => {
   motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -201,7 +201,7 @@ onBeforeUnmount(() => { motionQuery?.removeEventListener('change', reducedMotion
     @touchstart="touchStart" @touchmove="touchMove" @touchend="touchEnd" @touchcancel="touchEnd" @wheel="wheel" @keydown="keydown"
     @error.capture="reset">
     <div class="inline-zoom-content" :style="mediaStyle">
-      <MediaImage :src="page.src" :preview="page.preview" :label="page.title" :state="page.state"
+      <MediaImage :src="page.src" :label="page.title" :state="page.state"
         :width="page.width || undefined" :height="page.height || undefined" :recovery="page.recovery"
         :processing="page.processing" :archive="page.archive" :animation="page.type === 'ugoira'"
         @size="(width, height) => emit('size', width, height)" />
