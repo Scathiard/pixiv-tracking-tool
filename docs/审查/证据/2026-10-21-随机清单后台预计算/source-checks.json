@@ -1,0 +1,32 @@
+{
+  "source_commit": "0efc42afa7f374fce14cbdec60c74ddf4a66a45d",
+  "focused_cases": 26,
+  "passed_final": 26,
+  "first_run": {
+    "reason": "New API test fixture omitted mandatory title; no application failure",
+    "failed": 1,
+    "passed": 25
+  },
+  "rerun": {
+    "cases": 1,
+    "scope": "test_startup_and_waiting_browsers_do_not_block_library",
+    "passed": 1
+  },
+  "checks": [
+    "startup_without_browser",
+    "single_shared_narrow_scan",
+    "incremental_changes_and_fixed_old_visits",
+    "commit_rollback_and_publication_barrier",
+    "cancelled_waiter_does_not_cancel_common_work",
+    "frontend_slots_free_while_preparing",
+    "bounded_waiters_and_filter_cache",
+    "shutdown_during_io_and_memory_work",
+    "existing_manifest_scope_and_random_rounds"
+  ],
+  "real_library": false,
+  "real_account": false,
+  "repeated_full_suite": false,
+  "frontend_source_changed": false,
+  "frontend_validation": "Type checking and production build; browser UX not retested in this backend-only change",
+  "environment_note": "D drive had queue length 12 during concurrent dependency loading; no speed conclusion from test elapsed time"
+}

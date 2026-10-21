@@ -1,0 +1,23 @@
+{
+  "checks": [
+    "packaged-manifest-create-random-locate-and-current-page",
+    "unchanged-compiled-ui-served-by-exe"
+  ],
+  "errors": [],
+  "real_account": false,
+  "real_library": false,
+  "exe_sha256": "9ecdc11f60bd47fa9f3c0265eec46038dc12a5fac255d4e329471d09909ce4a6",
+  "ui_sha256": {
+    "/": "e9bb3fec7c6c730845f15f7e8f8417602ef2a2eee0d77b3f1082f52d453c4019",
+    "/reader/assets/index-CIKzSGwX.js": "ce0757e3711e2bef7554d7167e2192ff672eb180fc6f92d5c1d8a4c256fe0a82",
+    "/reader/assets/index-Dk4Im9oF.css": "7184e389f20703dabfefca4ebac5930c7e84ebcd43fa36a9032926a157565564"
+  },
+  "ready_seconds": 54.032,
+  "manifest": {
+    "members": 3,
+    "pages": 3,
+    "create_locate_feed_seconds": 0.047
+  },
+  "exit_code": 0,
+  "smoke": "SMOKE_OK"
+}

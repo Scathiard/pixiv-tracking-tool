@@ -1,0 +1,7 @@
+{
+  "source": "D:\\PixivTracker\\data\\tracker.log",
+  "lines": [
+    "[2026-10-21T11:56:35.496+08:00] local_read id=4adbd5639ef8 endpoint=reading_preparation outcome=ok lane=background total_ms=24578.0 queue_ms=31.0 pool_ms=0.0 database_ms=24531.0 execute_ms=421.0 statements=5",
+    "[2026-10-21T11:57:10.673+08:00] local_read id=49e44cae9302 endpoint=cursor_library outcome=ok lane=frontend total_ms=19422.0 queue_ms=0.0 pool_ms=0.0 database_ms=19422.0 execute_ms=2312.0 statements=26 last_read_stage=library_media last_stage_ms=5094.0 slowest_read_stage=library_revisions slowest_stage_ms=12157.0"
+  ]
+}

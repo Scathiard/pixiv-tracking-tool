@@ -1,0 +1,2 @@
+D:\claude_sandbox\pixiv-tracking-tool\release\v0.2.0\build-20261021.4\PixivTracker_v0.2.0_build20261021.4.exe
+SHA-256 9ecdc11f60bd47fa9f3c0265eec46038dc12a5fac255d4e329471d09909ce4a6

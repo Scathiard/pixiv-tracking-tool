@@ -1,0 +1,93 @@
+{
+  "build": "20261021.4",
+  "observed_at": "2026-10-21T11:56:45.180382+08:00",
+  "errors": [],
+  "real_library": true,
+  "account_writes": false,
+  "full_library_repeated_query": false,
+  "observed_ready_seconds_after_launch": 60.994,
+  "diagnostic_run": "45c1fab2f15f",
+  "before_manual_session_events": [
+    {
+      "event": "reading.preparation.full",
+      "utc": "2026-10-21T03:56:35.498+00:00",
+      "elapsed_ms": 32235.0,
+      "seq": 2613,
+      "generation": 1763,
+      "count": 16676,
+      "duration_ms": 24577.99999997951
+    },
+    {
+      "event": "reading.preparation.prepared",
+      "utc": "2026-10-21T03:56:35.515+00:00",
+      "elapsed_ms": 32250.0,
+      "seq": 2614,
+      "generation": 1763,
+      "count": 16676,
+      "duration_ms": 15.000000013969839
+    }
+  ],
+  "prepared_session": {
+    "works": 16676,
+    "pages": 53008,
+    "seconds": 0.14
+  },
+  "random_entry_valid": true,
+  "gallery": {
+    "items": 24,
+    "seconds": 19.547
+  },
+  "settings": {
+    "login": "logged_in",
+    "automatic_paused": false,
+    "current_port": 1919,
+    "check_interval_minutes": 360,
+    "data_root": "D:\\PixivTracker"
+  },
+  "final_preparation_events": [
+    {
+      "event": "reading.preparation.full",
+      "utc": "2026-10-21T03:56:35.498+00:00",
+      "elapsed_ms": 32235.0,
+      "seq": 2613,
+      "generation": 1763,
+      "count": 16676,
+      "duration_ms": 24577.99999997951
+    },
+    {
+      "event": "reading.preparation.prepared",
+      "utc": "2026-10-21T03:56:35.515+00:00",
+      "elapsed_ms": 32250.0,
+      "seq": 2614,
+      "generation": 1763,
+      "count": 16676,
+      "duration_ms": 15.000000013969839
+    },
+    {
+      "event": "reading.preparation.claim",
+      "utc": "2026-10-21T03:56:51.104+00:00",
+      "elapsed_ms": 47844.0,
+      "seq": 3472,
+      "generation": 1763,
+      "count": 16676,
+      "duration_ms": 0.0
+    },
+    {
+      "event": "reading.preparation.prepared",
+      "utc": "2026-10-21T03:56:51.230+00:00",
+      "elapsed_ms": 47969.0,
+      "seq": 3473,
+      "generation": 1763,
+      "count": 16676,
+      "duration_ms": 125.0
+    },
+    {
+      "event": "reading.prepare.response",
+      "utc": "2026-10-21T03:56:51.230+00:00",
+      "elapsed_ms": 47969.0,
+      "seq": 3474,
+      "total_ms": 125.0,
+      "outcome": "ok"
+    }
+  ]
+}
