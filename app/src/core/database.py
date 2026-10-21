@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 from collections import deque
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
+import logging
 from pathlib import Path
-from threading import Condition, RLock, local
+from threading import Condition, Lock, RLock, local
 from time import monotonic
+from typing import Callable
 
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
@@ -39,6 +41,9 @@ class ArchiveDatabase:
         self._writer_admission = Condition()
         self._writer_waiters = deque()
         self._writer_state = local()
+        self._catalogue_publication = Lock()
+        self._catalogue_subscribers_lock = RLock()
+        self._catalogue_subscribers = {}
         self.reads = ReadController()
         self.engine = self._engine(self.path)
         try:
@@ -292,6 +297,54 @@ class ArchiveDatabase:
                 self._writer_waiters.popleft()
                 self._writer_admission.notify_all()
 
+    def subscribe_catalogue_changes(
+        self, callback: Callable[[int, frozenset[int]], None]
+    ) -> Callable[[], None]:
+        """Subscribe to committed catalogue generations, without an initial event.
+
+        Callbacks run in commit order while the write gate is held. They must
+        only enqueue short in-memory updates: no SQL, sorting or nested writes.
+        Unsubscribe is idempotent; an already captured callback may still run.
+        Callback failures are logged after commit, never reported as rollback.
+        Subscribers must recover their own cache if their enqueue can fail.
+        """
+        if not callable(callback):
+            raise TypeError("catalogue change callback must be callable")
+        token = object()
+        with self._catalogue_subscribers_lock:
+            if self._closed:
+                raise RuntimeError("数据库已关闭")
+            self._catalogue_subscribers[token] = callback
+
+        def unsubscribe():
+            with self._catalogue_subscribers_lock:
+                self._catalogue_subscribers.pop(token, None)
+
+        return unsubscribe
+
+    def _publish_catalogue_changes(self, generation, work_ids):
+        with self._catalogue_subscribers_lock:
+            callbacks = tuple(self._catalogue_subscribers.values())
+        for callback in callbacks:
+            try:
+                callback(generation, work_ids)
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "Catalogue subscriber failed after committed generation %s; "
+                    "its cache must recover before reuse", generation)
+
+    def catalogue_commit_barrier(self, checkpoint: Callable[[], None]) -> None:
+        """Worker-only fence for any commit whose notification is still pending.
+
+        This uses neither the writer gate nor SQL. Keep cancellation responsive
+        while waiting, without holding a subscriber's queue/condition lock.
+        """
+        checkpoint()
+        while not self._catalogue_publication.acquire(timeout=.05):
+            checkpoint()
+        self._catalogue_publication.release()
+        checkpoint()
+
     @contextmanager
     def write(self):
         if getattr(self._writer_state, "active", False):
@@ -310,7 +363,8 @@ class ArchiveDatabase:
                 self._check_schema(session.connection())
                 # Pre-existing dirty records came from an external writer. Do
                 # not turn an ordinary transaction into an implicit repair.
-                require_ready(session.connection())
+                generation = require_ready(session.connection())
+                session.info['catalogue_change_generation'] = generation
                 session.info['read_projection_writer'] = True
                 with diagnostics.span("db.write.body"):
                     yield session
@@ -318,19 +372,36 @@ class ArchiveDatabase:
                     session.flush()
                 with diagnostics.span("db.write.projections"):
                     maintain_projections(session)
-                with diagnostics.span("db.write.commit"):
-                    session.commit()
-                # Even an empty successful transaction may conservatively
-                # fence snapshots; detecting DML must not borrow/read SQL here.
-                self.reads.advance_generation()
-                if self._wal_owner is not None:
-                    self._wal_owner.notify_commit()
             except BaseException:
                 with diagnostics.span("db.write.rollback"):
                     session.rollback()
                 raise
+            else:
+                changed_generation = session.info['catalogue_change_generation']
+                changed = changed_generation != generation
+                # A worker cannot claim an old stock after SQL commits but
+                # before the corresponding in-memory notification is queued.
+                publication = self._catalogue_publication if changed else nullcontext()
+                with publication:
+                    try:
+                        with diagnostics.span("db.write.commit"):
+                            session.commit()
+                    except BaseException:
+                        with diagnostics.span("db.write.rollback"):
+                            session.rollback()
+                        raise
+                    # Notification failures happen after commit; they must
+                    # never claim the persisted write was rolled back.
+                    self.reads.advance_generation()
+                    if changed:
+                        self._publish_catalogue_changes(changed_generation,
+                            frozenset(session.info.get('catalogue_change_work_ids', ())))
+                if self._wal_owner is not None:
+                    self._wal_owner.notify_commit()
             finally:
                 session.info.pop('read_projection_writer', None)
+                session.info.pop('catalogue_change_generation', None)
+                session.info.pop('catalogue_change_work_ids', None)
                 self._writer_state.active = False
 
     def enable_wal_maintenance(self, owner):

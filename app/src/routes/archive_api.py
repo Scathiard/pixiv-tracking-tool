@@ -1,7 +1,9 @@
-"""Structured synchronous endpoints; blocking library/network work uses FastAPI's pool."""
+"""Structured endpoints; blocking reads use admission and preparation waits asynchronously."""
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta
+from time import monotonic
 from typing import Literal
 from uuid import UUID
 
@@ -11,7 +13,8 @@ from starlette.datastructures import QueryParams
 
 from ..core.library import LibraryFilter
 from ..core.read_projection import CursorExpired
-from ..core.read_control import local_read
+from ..core.read_control import local_read, ReadCancelled, LocalReadBusy
+from ..core import diagnostics
 from ..core.models import utcnow
 from ..core.tasks import safe_failure
 
@@ -209,9 +212,52 @@ def create_router(get_runtime):
         return runtime().library.counts(filters(request), ceiling=ceiling)
 
     @router.post("/api/reading-sessions")
-    @local_read(get_runtime)
-    def reading_session(request: Request, ceiling: int | None = Query(None, ge=0)):
-        return runtime().reading.create(filters(request), ceiling=ceiling)
+    async def reading_session(request: Request, ceiling: int | None = Query(None, ge=0)):
+        # Waiting for the shared worker is not a database read. In particular,
+        # four browsers waiting at startup must not occupy all frontend slots.
+        current = runtime()
+        selected = filters(request)
+        pending = waiting = None
+        began = monotonic()
+        outcome = "ok"
+        try:
+            pending = current.reading.prepare(selected, ceiling=ceiling)
+            waiting = asyncio.wrap_future(pending)
+            while not waiting.done():
+                await asyncio.wait({waiting}, timeout=.1)
+                if await request.is_disconnected():
+                    raise ReadCancelled("当前页面已关闭，已取消等待随机清单")
+            visit = await waiting
+            if await request.is_disconnected():
+                raise ReadCancelled("当前页面已关闭，已取消等待随机清单")
+            return current.reading.install(visit)
+        except (ReadCancelled, asyncio.CancelledError) as exc:
+            outcome = "cancelled"
+            if isinstance(exc, asyncio.CancelledError):
+                raise
+            raise HTTPException(499, {"code": "read_cancelled", "message": str(exc)}) from exc
+        except LocalReadBusy as exc:
+            outcome = "busy"
+            raise HTTPException(503, {"code": "read_busy", "message": str(exc)},
+                                headers={"Retry-After": "1"}) from exc
+        except Exception as exc:
+            outcome = "failed"
+            diagnostics.emit("reading.prepare.error", error_type=type(exc).__name__)
+            raise HTTPException(503, {"code": "reading_prepare_failed",
+                "message": "随机清单准备失败，请重试；当前画面仍保留"},
+                headers={"Retry-After": "1"}) from exc
+        finally:
+            # Each consumer owns only its Future; cancellation never stops the
+            # runtime's scan, cache refresh or another browser's preparation.
+            if pending is not None:
+                pending.cancel()
+            if waiting is not None:
+                waiting.cancel()
+                if waiting.done() and not waiting.cancelled():
+                    waiting.exception()
+            diagnostics.emit("reading.prepare.response", outcome=outcome,
+                             total_ms=(monotonic() - began) * 1000)
+            request.scope.setdefault("state", {})["diagnostic_business_ready_at"] = monotonic()
 
     @router.delete("/api/reading-sessions/{session_id}")
     def close_reading(session_id: str):

@@ -688,6 +688,14 @@ def maintain_projections(session):
     with diagnostics.span("projection.finalize", count=len(dirty)):
         connection.exec_driver_sql('DELETE FROM read_model_dirty')
         store.finish_verified_batch(connection, advance_generation="generation" in entities)
+    if "generation" in entities and 'catalogue_change_generation' in session.info:
+        # Keep the original captured identities before task/artist expansion.
+        # An artist-name-only change intentionally sends an empty work set:
+        # complex filters still need to discard the previous generation.
+        changed_ids = session.info.setdefault('catalogue_change_work_ids', set())
+        for entity in ("work", "resource_work", "source_work", "display_work", "card_work"):
+            changed_ids.update(int(value) for value in entities.get(entity, ()))
+        session.info['catalogue_change_generation'] += 1
     return {"works": len(works | task_works), "revisions": len(revisions),
         "operations": len(operations), "items": len(entities.get("item", ()))}
 

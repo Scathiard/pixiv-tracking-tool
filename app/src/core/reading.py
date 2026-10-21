@@ -64,14 +64,71 @@ class ReadingSessions:
         self.library, self.clock = library, clock
         self._lock = RLock()
         self._visits: OrderedDict[str, Visit] = OrderedDict()
+        self._preparation = None
+        self._stop_requested = False
+
+    def start(self):
+        from .reading_cache import ReadingPreparation
+        with self._lock:
+            if self._stop_requested:
+                from .read_control import ReadCancelled
+                raise ReadCancelled("阅读清单准备已停止")
+            if self._preparation is None:
+                self._preparation = ReadingPreparation(self.library, self._make_visit)
+            preparation = self._preparation
+        preparation.start()
+
+    def request_stop(self):
+        with self._lock:
+            self._stop_requested = True
+            preparation = self._preparation
+        if preparation is not None:
+            preparation.request_stop()
+
+    def stop(self, timeout=None):
+        self.request_stop()
+        return self._preparation is None or self._preparation.stop(timeout)
+
+    def prepare(self, filters, ceiling=None):
+        self.start()
+        return self._preparation.prepare(filters, ceiling)
+
+    def _make_visit(self, manifest):
+        self._checkpoint()
+        members = []
+        for index, item in enumerate(manifest):
+            if index % 256 == 0:
+                self._checkpoint()
+            members.append(Member(**item))
+        self._checkpoint()
+        visit = Visit(tuple(members), uuid4().hex, self.clock())
+        visit.order("random", 0)
+        self._checkpoint()
+        return visit
+
+    def _checkpoint(self):
+        with self._lock:
+            if self._stop_requested:
+                from .read_control import ReadCancelled
+                raise ReadCancelled("阅读清单准备已停止")
 
     def create(self, filters, ceiling=None):
-        members = tuple(Member(**item) for item in self.library.reading_manifest(filters, ceiling=ceiling))
+        from .read_control import current_read
+        visit = None
+        if self._preparation is not None:
+            if current_read.get() is None:
+                visit = self.prepare(filters, ceiling).result()
+            else:
+                # Legacy decorated callers own a read slot, so they must not
+                # wait for the background commit fence and preparation worker.
+                visit = self._preparation.try_claim(filters, ceiling)
+        if visit is None:
+            visit = self._make_visit(self.library.reading_manifest(filters, ceiling=ceiling))
+        return self.install(visit)
+
+    def install(self, visit):
         now, token = self.clock(), uuid4().hex
-        visit = Visit(members, uuid4().hex, now)
-        # Ready means the first shuffle exists, without hydrating an unrelated
-        # first page. Do O(N) preparation before taking the shared visit lock.
-        visit.order("random", 0)
+        visit.touched = now
         with self._lock:
             for key in list(self._visits):
                 if now - self._visits[key].touched > self.TTL:
@@ -79,7 +136,8 @@ class ReadingSessions:
             self._visits[token] = visit
             while len(self._visits) > self.MAX_VISITS:
                 self._visits.popitem(last=False)
-        return {"session_id": token, "total": len(members), "page_total": sum(m.page_count for m in members)}
+        return {"session_id": token, "total": len(visit.members),
+                "page_total": sum(m.page_count for m in visit.members)}
 
     def _visit(self, token):
         visit = self._visits.get(token)

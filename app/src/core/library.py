@@ -826,37 +826,87 @@ class Library:
 
     def reading_manifest(self, filters=LibraryFilter(), *, ceiling=None):
         with self.database.read() as session:
-            ceiling = ceiling if ceiling is not None else session.scalar(select(func.max(Work.id))) or 0
-            if self._fast_scope(filters) is not None:
-                # Preserve the session's sequential contract without following
-                # the sort index back to every wide source Work row.
-                ordered_ids, boundary = [], None
-                while True:
-                    rows = self._seek_rows(session, filters, ceiling, boundary=boundary, limit=480)
-                    ordered_ids.extend(row[0] for row in rows)
-                    if len(rows) < 480:
-                        break
-                    boundary = rows[-1]
-                if not ordered_ids:
-                    return []
-                selected = set(ordered_ids)
-                # INTEGER PRIMARY KEY is the implicit rowid stored in this
-                # existing covering index. Scan it once, not once per ID batch.
-                shapes = {row[0]: {"work_id": row[0], "revision_id": row[1],
-                    "page_count": 1 if row[2] == "ugoira" else max(1, row[3])}
-                    for row in session.connection().exec_driver_sql(
-                        "SELECT id,default_revision_id,type,page_count FROM works "
-                        "INDEXED BY ix_works_settings_shape WHERE id<=?", (ceiling,))
-                    if row[0] in selected}
-                if len(shapes) != len(ordered_ids):
-                    from .read_projection import ProjectionUnavailable
-                    raise ProjectionUnavailable("阅读范围投影与作品记录不一致")
-                return [shapes[identity] for identity in ordered_ids]
-            pages = case((Work.type == "ugoira", 1), else_=Work.page_count)
-            statement = self._statement(filters, ceiling).with_only_columns(Work.id,
-                Work.default_revision_id, pages).order_by(*self._order(filters))
-            return [{"work_id": row[0], "revision_id": row[1], "page_count": max(1, row[2])}
-                    for row in session.execute(statement)]
+            return self._reading_manifest(session, filters, ceiling)
+
+    def reading_manifest_snapshot(self, filters, *, ceiling=None):
+        """Complex scopes keep their existing SQL semantics and snapshot fence."""
+        from .read_projection import session_generation
+        with self.database.read() as session:
+            return session_generation(session), self._reading_manifest(session, filters, ceiling)
+
+    def reading_basis(self, work_ids=None):
+        """Read only ordering and shape fields, then release the SQL snapshot.
+
+        Full startup scans each narrow source once. Updates use primary-key
+        lookups, including absent IDs so deleted members can be removed.
+        """
+        from .read_projection import session_generation, ProjectionUnavailable
+        from .read_control import current_read
+        with self.database.read() as session:
+            generation = session_generation(session)
+            connection = session.connection()
+            order_sql = ("SELECT work_id,visible,artist_id,work_type,favorite,"
+                         "order_key,title_key,added_key FROM read_work_order")
+            shape_sql = "SELECT id,default_revision_id,type,page_count FROM works"
+            if work_ids is None:
+                orders = connection.exec_driver_sql(order_sql).all()
+                shapes = connection.exec_driver_sql(
+                    shape_sql + " INDEXED BY ix_works_settings_shape").all()
+            else:
+                ids = tuple(work_ids)
+                orders, shapes = [], []
+                for offset in range(0, len(ids), 400):
+                    batch = ids[offset:offset + 400]
+                    marks = ",".join("?" for _ in batch)
+                    orders.extend(connection.exec_driver_sql(
+                        order_sql + f" WHERE work_id IN ({marks})", batch).all())
+                    shapes.extend(connection.exec_driver_sql(
+                        shape_sql + f" WHERE id IN ({marks})", batch).all())
+        # No sorting or object construction while holding a read connection.
+        shape_map = {row[0]: row for row in shapes}
+        result = {}
+        budget = current_read.get()
+        for index, row in enumerate(orders):
+            if budget is not None and index % 256 == 0:
+                budget.checkpoint()
+            shape = shape_map.get(row[0])
+            if shape is None:
+                raise ProjectionUnavailable("阅读范围投影与作品记录不一致")
+            result[row[0]] = (*row, shape[1], 1 if shape[2] == "ugoira" else max(1, shape[3]))
+        return generation, result
+
+    def _reading_manifest(self, session, filters, ceiling):
+        ceiling = ceiling if ceiling is not None else session.scalar(select(func.max(Work.id))) or 0
+        if self._fast_scope(filters) is not None:
+            # Preserve the session's sequential contract without following
+            # the sort index back to every wide source Work row.
+            ordered_ids, boundary = [], None
+            while True:
+                rows = self._seek_rows(session, filters, ceiling, boundary=boundary, limit=480)
+                ordered_ids.extend(row[0] for row in rows)
+                if len(rows) < 480:
+                    break
+                boundary = rows[-1]
+            if not ordered_ids:
+                return []
+            selected = set(ordered_ids)
+            # INTEGER PRIMARY KEY is the implicit rowid stored in this
+            # existing covering index. Scan it once, not once per ID batch.
+            shapes = {row[0]: {"work_id": row[0], "revision_id": row[1],
+                "page_count": 1 if row[2] == "ugoira" else max(1, row[3])}
+                for row in session.connection().exec_driver_sql(
+                    "SELECT id,default_revision_id,type,page_count FROM works "
+                    "INDEXED BY ix_works_settings_shape WHERE id<=?", (ceiling,))
+                if row[0] in selected}
+            if len(shapes) != len(ordered_ids):
+                from .read_projection import ProjectionUnavailable
+                raise ProjectionUnavailable("阅读范围投影与作品记录不一致")
+            return [shapes[identity] for identity in ordered_ids]
+        pages = case((Work.type == "ugoira", 1), else_=Work.page_count)
+        statement = self._statement(filters, ceiling).with_only_columns(Work.id,
+            Work.default_revision_id, pages).order_by(*self._order(filters))
+        return [{"work_id": row[0], "revision_id": row[1], "page_count": max(1, row[2])}
+                for row in session.execute(statement)]
 
     @staticmethod
     def _revision_archive(session, snapshot):

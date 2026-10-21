@@ -284,12 +284,17 @@ class Runtime:
                 raise RuntimeError("图库正在关闭，未启动任务工作者")
             with _startup_phase("workers_start"):
                 self.queue.start()
+            # Register one process-owned preparation worker. It does not wait
+            # for a browser or delay service readiness until the scan completes.
+            with _startup_phase("reading_prepare_start"):
+                self.reading.start()
             self._started = True
 
     def request_stop(self, *, cancel_remote=False):
         self._closing.set()
         self.queue.request_stop()
         self.bookmarks.request_stop()
+        self.reading.request_stop()
         self.database.reads.request_stop()
         # A replacement runtime can reuse the client's connection. Only actual
         # application exit cancels that client's request/retry boundaries.
@@ -314,6 +319,9 @@ class Runtime:
                 return False
             remaining = None if deadline is None else max(0, deadline - time.monotonic())
             if not self.bookmarks.stop(timeout=remaining):
+                return False
+            remaining = None if deadline is None else max(0, deadline - time.monotonic())
+            if not self.reading.stop(timeout=remaining):
                 return False
             remaining = None if deadline is None else max(0, deadline - time.monotonic())
             if not self.wal_maintenance.stop(timeout=remaining):
