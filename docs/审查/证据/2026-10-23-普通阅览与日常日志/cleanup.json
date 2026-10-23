@@ -9,5 +9,7 @@
   "retained_old_runtime": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.4\\work\\tmp\\random-precompute\\enabled-runtime-20261021.4",
   "retained_existing_logs": true,
   "formal_evidence_retained": true,
-  "shared_dependency_target_retained": true
+  "shared_dependency_target_retained": true,
+  "new_runtime_retained_after_activation": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261023.1\\work\\tmp\\ordinary-reader\\enabled-runtime-20261023.1",
+  "runtime_retention_reason": "In use by the enabled EXE; remove only after normal exit and ownership check"
 }

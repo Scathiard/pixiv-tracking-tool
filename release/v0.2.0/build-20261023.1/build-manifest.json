@@ -26,5 +26,7 @@
   },
   "published": false,
   "user_acceptance": false,
-  "validation": "focused source, compiled UI, packaged smoke and HTTP asset equality passed; copied, awaiting old instance exit"
+  "validation": "focused source, compiled UI, packaged smoke and HTTP asset equality passed; enabled normally on original library; diagnostic capture off",
+  "enabled": true,
+  "enabled_exe": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261023.1.exe"
 }
