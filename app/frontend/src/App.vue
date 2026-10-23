@@ -10,6 +10,7 @@ import { observeCatalogueData, queueCatalogueUpdate } from './state/catalogue'
 import { writeTagValues } from './state/filterSelection'
 import { warmFilterCatalogue, invalidateFilterCatalogue, disposeFilterCatalogue } from './state/filterCatalogue'
 import { invalidateWorkCache, workDetail, workPath } from './state/workCache'
+import { ORDINARY_OPENING_PAGES, OrdinaryReadingCache, ordinaryOpeningWindow, type CursorNeighbors, type OrdinaryTarget } from './state/ordinaryReading'
 import { startVisit, releaseVisit, locateVisit, visitPages, needsIdentityPrevious, RandomReadingPreparation, expiredReadingVisit, type ReadingVisit, type ReadingOrder } from './state/reading'
 import { CursorReading, type CursorPageBatch } from './state/cursorReading'
 import { type StreamInitialOpening, type StreamNeighborLoader, type StreamCandidate } from './state/streamReader'
@@ -30,7 +31,7 @@ import RestrictionBadge from './components/RestrictionBadge.vue'
 import Icon from './components/Icon.vue'
 import BrandMark from './components/BrandMark.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
-import { ingestBookmark, refreshBookmark, resumeBookmarkPolling, syncBookmark, addBookmark } from './state/bookmarks'
+import { bookmarkState, ingestBookmark, refreshBookmark, resumeBookmarkPolling, syncBookmark, addBookmark } from './state/bookmarks'
 
 const mode = ref<Mode>('gallery'), scope = ref(''), ready = ref(false), pending = ref(false), total = ref(0)
 const section = ref<'library' | 'artists' | 'settings'>('library'), artistId = ref<number | null>(null)
@@ -53,8 +54,6 @@ const readingVisit = ref<ReadingVisit | null>(null), readingOrder = ref<ReadingO
 const flowOrdinalKnown = ref(true)
 const readingEnded = ref(false), totalExact = ref(true), cursorExpired = ref(false), revisionLoading = ref(false)
 let cursorFeed: CursorReading | null = null
-interface Neighbor {work_id: number; revision_id: string | null; page_count: number; cursor: string}
-interface CursorNeighbors {anchor_cursor: string; generation: number; continuation_rebased?: boolean; previous: Neighbor | null; next: Neighbor | null}
 const galleryOrdinalKnown = ref(true), ordinaryRankKnown = ref(false)
 const ordinaryCursor = ref<string | null>(null), ordinaryNeighbors = ref<CursorNeighbors | null>(null)
 const galleryView = ref<InstanceType<typeof GalleryView> | null>(null), checkingNewContent = ref(false)
@@ -69,6 +68,11 @@ const streamInitialOpening = ref<StreamInitialOpening | null>(null)
 let randomWarmTimer = 0, randomWarm: AbortController | null = null
 let randomLocation: {session: string; work: number; anchor: Anchor} | null = null
 let openingKey: string | null = null, adjacentPreload: AbortController | null = null
+const ordinaryReading = new OrdinaryReadingCache({
+  neighbors: (path, signal, readScope) => api<CursorNeighbors>(path, {signal, readScope}),
+  opening: (id, revision, signal, readScope) => api<WorkDetail>(workPath(id, revision, 0, ORDINARY_OPENING_PAGES), {signal, readScope}),
+})
+function invalidateOrdinaryReading() { adjacentPreload?.abort(); ordinaryReading.clear() }
 const readingActivity = computed(() => pending.value ? {phase: navigationPhase.value, error: ''} : error.value ? {phase: '', error: error.value} : readerActivity.value)
 function cancelNavigation() {
   navigation.cancel(); adjacentPreload?.abort(); pending.value = false; openingKey = null; desiredIndex.value = ordinaryIndex.value
@@ -78,10 +82,17 @@ function retryReading() { if (error.value) retryNavigation(); else reader.value?
 function preloadAdjacent(neighbors: CursorNeighbors) {
   adjacentPreload?.abort()
   const controller = adjacentPreload = new AbortController()
-  // Two opening responses and two display images at most; no full-work scan.
-  for (const neighbor of [neighbors.previous, neighbors.next]) if (neighbor) {
-    void workDetail(neighbor.work_id, neighbor.revision_id, controller.signal).then(detail =>
-      preparePageImage(detail.pages[0], controller.signal)).catch(() => {})
+  const query = scope.value
+  // Only the two immediate neighbors; never recurse through their neighbors.
+  for (const direction of ['previous', 'next'] as const) {
+    const neighbor = neighbors[direction]
+    if (!neighbor) continue
+    const target = {id: neighbor.work_id, cursor: neighbor.cursor, revision_id: neighbor.revision_id}
+    void Promise.all([
+      ordinaryReading.readNeighbors(query, target, neighbors.generation, controller.signal, {cursor: neighbors.anchor_cursor, direction}),
+      ordinaryReading.readOpening(query, target.id, target.revision_id, controller.signal).then(detail =>
+        preparePageImage(detail.pages[0], controller.signal)),
+    ]).catch(() => {})
   }
 }
 const newContentRequest = new LatestIntent()
@@ -167,7 +178,7 @@ async function initialize(query: string, path = '/', push = false, saveHome = fa
     if (push) route(true)
     return
   }
-  openingKey = null; adjacentPreload?.abort(); navigationPhase.value = '正在定位作品…'
+  openingKey = null; invalidateOrdinaryReading(); navigationPhase.value = '正在定位作品…'
   const ticket = navigation.begin(); infoRequest.cancel(); pending.value = true; error.value = ''
   failedNavigation = () => { void initialize(query, path, push, saveHome) }
   let preparedVisit: ReadingVisit | null = null, preparedFeed: CursorReading | null = null, preparedNeighbors: CursorNeighbors | null = null
@@ -179,7 +190,7 @@ async function initialize(query: string, path = '/', push = false, saveHome = fa
     if (match) {
       const id = Number(match[1])
       preparedNeighbors = await api<CursorNeighbors>(url(`/api/works/${id}/cursor-neighbors`, seed.query), {signal: ticket.signal})
-      openingDetail = await workDetail(id, new URLSearchParams(query).get('revision_id'), ticket.signal)
+      openingDetail = await ordinaryReading.readOpening(seed.query, id, new URLSearchParams(query).get('revision_id'), ticket.signal)
       navigationPhase.value = '正在准备图片，当前画面会保留…'
       await preparePageImage(openingDetail.pages[0], ticket.signal)
       openingAnchor = {work_id: id, work_index: 0, page: 0, index: 0, offset: 0}
@@ -220,6 +231,10 @@ async function initialize(query: string, path = '/', push = false, saveHome = fa
       } else { mode.value = 'feed'; flowOrdinalKnown.value = true; infoWork.value = null }
     }
     route(push)
+    if (openingDetail && preparedNeighbors) {
+      await nextTick()
+      if (ticket.current()) preloadAdjacent(preparedNeighbors)
+    }
   } catch (failure) {
     if (ticket.current()) {
       error.value = failure instanceof Error ? failure.message : '图库未能载入'; pending.value = false
@@ -285,7 +300,7 @@ async function randomTarget(page: PageData | null, signal: AbortSignal) {
     }
   }
 }
-async function openWork(index: number, push = true, selectedRevision?: string | null, identity?: {id: number; cursor?: string; revision_id?: string | null}) {
+async function openWork(index: number, push = true, selectedRevision?: string | null, identity?: OrdinaryTarget) {
   if (!total.value && !identity) return
   if (identity) index = Math.max(0, index)
   const key = `${identity?.id || 'index:' + index}:${selectedRevision || identity?.revision_id || ''}`
@@ -295,6 +310,7 @@ async function openWork(index: number, push = true, selectedRevision?: string | 
   clearTimeout(searchTimer); railRequest.cancel()
   const ticket = navigation.begin(); pending.value = true; error.value = ''
   failedNavigation = () => { void openWork(index, push, selectedRevision, identity) }
+  const query = scope.value
   try {
     let target = identity
     const difference = index - ordinaryIndex.value
@@ -318,11 +334,8 @@ async function openWork(index: number, push = true, selectedRevision?: string | 
     }
     let neighbors: CursorNeighbors
     try {
-      neighbors = await api<CursorNeighbors>(url(`/api/works/${target.id}/cursor-neighbors`, scope.value, {
-        ...(target.cursor ? {cursor: target.cursor} : {}),
-        ...(!identity && Math.abs(difference) === 1 && ordinaryCursor.value
-          ? {from_cursor: ordinaryCursor.value, from_direction: direction} : {}),
-      }), {signal: ticket.signal})
+      neighbors = await ordinaryReading.readNeighbors(query, target, target.cursor ? ordinaryNeighbors.value?.generation : undefined, ticket.signal,
+        !identity && Math.abs(difference) === 1 && ordinaryCursor.value ? {cursor: ordinaryCursor.value, direction} : undefined)
       if (target.cursor && ordinaryNeighbors.value && neighbors.generation !== ordinaryNeighbors.value.generation && !neighbors.continuation_rebased) throw new ApiReadError('图库定位需要更新', 'cursor_expired')
     } catch (failure) {
       if (!(failure instanceof ApiReadError) || failure.code !== 'cursor_expired') throw failure
@@ -330,17 +343,19 @@ async function openWork(index: number, push = true, selectedRevision?: string | 
       // Revalidate once by identity in the original frozen scope, then resume
       // the user's original direction. Invalid/hidden anchors remain explicit.
       const anchorId = !identity && difference ? currentWork.value!.id : target.id
-      const rebased = await api<CursorNeighbors>(url(`/api/works/${anchorId}/cursor-neighbors`, scope.value), {signal: ticket.signal})
+      invalidateOrdinaryReading()
+      const rebased = await ordinaryReading.readNeighbors(query, {id: anchorId}, undefined, ticket.signal)
       ordinaryRankKnown.value = false
       if (!identity && difference) {
         const neighbor = rebased[direction]
         if (!neighbor) throw new Error(direction === 'next' ? '已到当前范围末尾' : '已到当前范围开头')
         target = {id: neighbor.work_id, cursor: neighbor.cursor, revision_id: neighbor.revision_id}
-        neighbors = await api<CursorNeighbors>(url(`/api/works/${target.id}/cursor-neighbors`, scope.value, {cursor: neighbor.cursor}), {signal: ticket.signal})
+        neighbors = await ordinaryReading.readNeighbors(query, target, rebased.generation, ticket.signal)
       } else neighbors = rebased
     }
     navigationPhase.value = '正在读取作品信息…'
-    const detail = await workDetail(target.id, selectedRevision || target.revision_id, ticket.signal)
+    const opening = await ordinaryReading.readOpening(query, target.id, selectedRevision || target.revision_id, ticket.signal)
+    const detail = {...opening, bookmark: bookmarkState(target.id) || opening.bookmark}
     navigationPhase.value = '正在准备图片，当前画面会保留…'
     const displayReady = preparePageImage(detail.pages[0], ticket.signal)
     adjacentPreload?.abort()
@@ -482,6 +497,7 @@ async function recoverFeed(page: PageData | null) {
 function gallery(push = true) {
   void initialize(freshLibraryQuery(section.value === 'library' ? scope.value : homeScope.value, true), '/', push)
 }
+let openingConsumedSession: string | null = null
 const loader = computed<PageLoader>(() => {
   const visit = readingVisit.value, order = readingOrder.value
   readerReset.value // Rebind the bounded cursor loader after explicit recovery.
@@ -490,12 +506,16 @@ const loader = computed<PageLoader>(() => {
     return order === 'sequential' ? (offset, limit, signal) => feed.load(offset, limit, signal)
       : (offset, limit, signal) => visitPages(visit!, order, offset, limit, signal)
   }
-  const work = currentWork.value!, workIndex = ordinaryIndex.value
+  const work = currentWork.value!, workIndex = ordinaryIndex.value, session = sessionKey.value
+  const openingWindow = ordinaryOpeningWindow(work)
   return async (offset, limit, signal) => {
-    // The prepared opening response already contains a complete one-page work.
-    // Missing media still reads again so background repair can appear in place.
-    const reusable = offset === 0 && work.display_page_count <= work.pages.length && work.pages.every(page => page.src && page.state === 'verified')
-    const detail = reusable ? work : await api<WorkDetail>(workPath(work.id, work.revision_id, offset, limit), {signal})
+    signal.throwIfAborted()
+    if (session !== sessionKey.value) throw new DOMException('作品读取已被替换', 'AbortError')
+    // Show the prepared first pages immediately; subsequent extensions and
+    // missing-media refreshes must still read the latest state from the server.
+    const prepared = openingConsumedSession !== session ? openingWindow(offset, limit, signal) : null
+    openingConsumedSession = session
+    const detail = prepared || await api<WorkDetail>(workPath(work.id, work.revision_id, offset, limit), {signal})
     return {offset, total: detail.display_page_count, catalogue_revision: detail.catalogue_revision, items: detail.pages.map(page => ({...page, work_id: work.id, work_index: workIndex,
       page: page.index, page_count: detail.display_page_count, title: detail.title, artist_name: detail.artist_name, revision_id: detail.revision_id,
       artist_id: detail.artist_id, pixiv_id: detail.pixiv_id, type: detail.type, x_restrict: detail.x_restrict,
@@ -544,7 +564,7 @@ async function nextIdentity() {
   return null
 }
 async function continueAfterRemoval(id: number, next: {id: number; round: number} | null) {
-  invalidateWorkCache(id); infoOpen.value = false
+  invalidateWorkCache(id); invalidateOrdinaryReading(); infoOpen.value = false
   total.value = Math.max(0, total.value - 1)
   if (readingVisit.value) await write(`/api/reading-sessions/${readingVisit.value.session_id}/exclude/${id}`, {})
   if (!next) { readingEnded.value = true; return }
@@ -575,7 +595,7 @@ async function hidden() {
     const next = work.is_hidden ? null : await nextIdentity()
     await write(`/api/works/${work.id}/preferences`, {hidden: !work.is_hidden}, 'PATCH')
     if (!work.is_hidden) await continueAfterRemoval(work.id, next)
-    else { work.is_hidden = false; invalidateWorkCache(work.id) }
+    else { work.is_hidden = false; invalidateWorkCache(work.id); invalidateOrdinaryReading() }
     message(hiding ? '已隐藏作品' : '已取消隐藏')
   }
   catch (failure) { message(failure instanceof Error ? failure.message : '操作失败', true) }
@@ -690,7 +710,7 @@ async function openFolder(id: number) {
 }
 async function rate(value: number) {
   if (!infoWork.value) return
-  try { await write(`/api/works/${infoWork.value.id}/preferences`, {rating: value}, 'PATCH'); infoWork.value.rating = value; message('本地评分已保存') }
+  try { await write(`/api/works/${infoWork.value.id}/preferences`, {rating: value}, 'PATCH'); infoWork.value.rating = value; invalidateWorkCache(infoWork.value.id); invalidateOrdinaryReading(); message('本地评分已保存') }
   catch (failure) { message(failure instanceof Error ? failure.message : '评分未能保存', true) }
 }
 function currentRail() { const params = new URLSearchParams(scope.value); return params.has('favorites') ? 'favorites' : params.has('recent') ? 'recent' : 'all' }
@@ -743,10 +763,27 @@ watch(() => browserRoute.fullPath, path => {
   void initialize(browserRoute.fullPath.slice(browserRoute.path.length).replace(/^\?/, ''), browserRoute.path, false)
 })
 watch([scope, section], () => {
+  invalidateOrdinaryReading()
   stopRandomWarm(); randomPreparation.clear(); randomLocation = null
   streamInitialOpening.value = null
   if (section.value !== 'library') { releaseVisit(readingVisit.value); readingVisit.value = null }
 })
+watch(mode, value => { if (value !== 'reader') invalidateOrdinaryReading() })
+watch(() => {
+  if (!new URLSearchParams(scope.value).has('favorites')) return []
+  const ids = [currentWork.value?.id, ordinaryNeighbors.value?.previous?.work_id, ordinaryNeighbors.value?.next?.work_id]
+  return ids.filter((id): id is number => id !== undefined).map(id => {
+    const state = bookmarkState(id)
+    return {id, value: state?.value, account: state?.account_epoch}
+  })
+}, (current, previous) => {
+  const changed = current.some(state => {
+    const before = previous.find(item => item.id === state.id)
+    return before && (before.account !== undefined && state.account !== before.account ||
+      state.value !== before.value && (before.value !== undefined && before.value !== null || state.value === false))
+  })
+  if (changed) invalidateOrdinaryReading()
+}, {flush: 'sync'})
 watch([scope, section, mode, pending, readingOrder, () => readerActivity.value.phase, () => activePage.value?.work_id, () => currentWork.value?.id], queueRandomWarm, {flush: 'post'})
 watch(sessionKey, key => { if (streamInitialOpening.value?.sessionKey !== key) streamInitialOpening.value = null })
 onMounted(async () => {
@@ -829,6 +866,7 @@ async function checkForNewWorks(reveal = false) {
 function archiveUpdated() {
   invalidateFilterCatalogue()
   invalidateWorkCache()
+  invalidateOrdinaryReading()
   refreshCurrentWork()
   if (mode.value === 'feed' && infoOpen.value && infoWork.value) void loadInfo(infoWork.value.id, false)
   void checkForNewWorks()

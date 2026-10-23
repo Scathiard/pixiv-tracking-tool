@@ -1,5 +1,7 @@
 # 测试目录约定
 
+- 2026-10-23 普通阅览与日常日志：只核对图片比例/多页导航、相邻缓存复用/失效/取消、诊断默认关闭与手动开启，以及最终 EXE 的相关流程。临时项归本工作树 `work/tmp/ordinary-reader/`（cache、browser、diagnostics、package、enabled-runtime 子目录）；进程级 TEMP/TMP、Python 缓存和 pytest basetemp 均归这里。本轮新建 `app/frontend/node_modules` junction 复用既有依赖，只清理链接；dist 与构建临时项用后清理，在用 EXE 解包目录保留至正常退出。正式证据归 `docs/审查/证据/2026-10-23-普通阅览与日常日志/`，不自动清理；不读取真实账号或跑全套/长测。
+
 - 2026-10-21 服务端随机预计算：`test_catalogue_commit_events.py`、`test_reading_preparation.py`、`test_reading_preparation_api.py` 定向检查成功提交通知、启动后台准备、增量与快照、取消和前台读取不被等待占位。临时项归本工作树 `work/tmp/random-precompute/`，本轮 Python／pytest 缓存、前端 dist／依赖 junction 和构建临时项用后清理，在用 EXE 解包目录保留；证据归 `docs/审查/证据/2026-10-21-随机清单后台预计算/`。不跑全套或真实账号写操作。
 
 - 2026-10-21 随机准备与连续流式：`test_reading_manifest_projection.py` 对照完整清单与现有覆盖索引；`stream_continuous_browser.py` 使用三件／五页合成库检查真实拖动、回弹、相邻画面复用、多页边界及准备期间换件。临时项归本工作树 `work/tmp/continuous-stream/`，新建依赖 junction、dist 和 Python 缓存用后清理；在用 EXE 解包目录保留。证据归 `docs/审查/证据/2026-10-21-随机等待与连续切换诊断/`；不扩展全量测试或真实账号写入。

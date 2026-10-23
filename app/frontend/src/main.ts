@@ -9,9 +9,9 @@ const router = createRouter({history: createWebHistory(), routes: [
 ]})
 // Capability discovery runs independently; mounting never waits for diagnostics.
 const discovery = diagnostics.start()
-let stopObservers: (() => void) | undefined
-try { stopObservers = installBrowserObservers() } catch { diagnostics.failure() }
-void discovery.then(() => { if (!diagnostics.enabled) stopObservers?.() }).catch(() => diagnostics.failure())
+void discovery.then(() => {
+  if (diagnostics.enabled) installBrowserObservers()
+}).catch(() => diagnostics.failure())
 router.afterEach((to, _from, failure) => diagnostics.emit('browser.navigation', {category: category(to.path), outcome: failure ? 'error' : 'ok'}))
 router.onError(error => browserError(error))
 const app = createApp(App).use(router)

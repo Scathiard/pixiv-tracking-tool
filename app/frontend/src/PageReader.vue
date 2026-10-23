@@ -34,11 +34,10 @@ const MAX_PAGES = 120, CHUNK = 40
 const REFRESH_MS = 12000, REFRESH_LIMIT = 24
 let catalogueRevision: number | undefined
 function height(page: PageData | undefined) {
-  const padding = props.mode === 'feed' ? (size.value.width <= 760 ? 28 : 44) : (size.value.width < 600 ? 16 : 56)
-  const availableWidth = Math.max(1, Math.min(props.mode === 'feed' ? 690 : 1100, size.value.width - padding))
+  const padding = window.matchMedia('(max-width: 760px)').matches ? 24 : props.mode === 'feed' ? 44 : 56
+  const availableWidth = Math.max(1, Math.min(props.mode === 'feed' ? 940 : 960, size.value.width - padding))
   const ratio = page?.width && page.height ? page.height / page.width : 1.35
-  const natural = availableWidth * ratio
-  return props.mode === 'reader' ? Math.max(120, Math.min(natural, size.value.height - 84)) : Math.max(1, natural)
+  return Math.max(1, availableWidth * ratio)
 }
 const virtual = useVirtualizer(computed(() => ({
   count: pages.value.length, getScrollElement: () => viewport.value,
@@ -298,10 +297,10 @@ defineExpose({readAnchor, jump, stepPage, cancel, retry, scrollBy: (delta: numbe
             <button v-if="mode === 'feed' && pages[row.index]!.page === 0" class="quiet" @click="emit('manage', pages[row.index]!)" aria-label="整理此作品">整理</button>
             <span v-if="mode === 'feed' && pages[row.index]!.page === 0 && archiveNotice(pages[row.index]!)" class="page-source">{{ archiveNotice(pages[row.index]!) }}</span>
           </figcaption>
-          <div class="page-picture" :style="mode === 'reader' ? {height: `${height(pages[row.index])}px`} : undefined">
+          <div class="page-picture" :style="mode === 'reader' ? {aspectRatio: `${pages[row.index]!.width || 1000} / ${pages[row.index]!.height || 1350}`} : undefined">
             <MediaImage :src="pages[row.index]!.src" :state="pages[row.index]!.state" :recovery="pages[row.index]!.recovery" :processing="pages[row.index]!.processing" :archive="pages[row.index]!.archive" :animation="pages[row.index]!.type === 'ugoira'" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
-              :width="mode === 'feed' ? pages[row.index]!.width || 1000 : undefined"
-              :height="mode === 'feed' ? pages[row.index]!.height || 1350 : undefined"
+              :width="pages[row.index]!.width || 1000"
+              :height="pages[row.index]!.height || 1350"
               :flow-taps="mode === 'feed'" @bookmark="bookmark(pages[row.index]!)"
               @size="(width, height) => dimensions(pages[row.index]!, width, height)" @zoom="emit('zoom', pages[row.index]!)" />
             <span v-if="heartPage === pages[row.index]!.index" class="tap-heart" role="status" aria-label="已收到收藏操作"><Icon name="heart" /></span>

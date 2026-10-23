@@ -18,6 +18,31 @@ def captured(path):
             for line in part.read_text(encoding='utf-8').splitlines()]
 
 
+def test_daily_mode_leaves_diagnostic_probes_dormant(tmp_path):
+    from src.version import DIAGNOSTIC_BUILD
+
+    diagnostics.stop()
+    assert DIAGNOSTIC_BUILD is False
+    app = FastAPI()
+    app.add_middleware(diagnostics.DiagnosticHTTPMiddleware)
+    app.include_router(create_diagnostic_router())
+
+    @app.get('/api/example')
+    def example():
+        with diagnostics.span('synthetic.dormant'):
+            diagnostics.emit('synthetic.dormant.event')
+            return {'available': True}
+
+    with TestClient(app) as client:
+        response = client.get('/api/example')
+        assert response.json() == {'available': True}
+        assert 'X-Pixiv-Diagnostic-Run' not in response.headers
+        assert client.get('/api/diagnostics').status_code == 404
+        assert client.post('/api/diagnostics/events', json={}).status_code == 404
+    assert diagnostics._recorder is None
+    assert not list(tmp_path.glob('diagnostic-*.jsonl'))
+
+
 def test_span_hierarchy_uses_enclosing_span_not_itself(tmp_path):
     path = diagnostics.start(tmp_path, build='test', version='0.2.0', interval=60)
     try:

@@ -10,7 +10,6 @@ from fastapi.responses import JSONResponse, Response
 from starlette.requests import ClientDisconnect
 
 from ..core import diagnostics
-from ..version import DIAGNOSTIC_BUILD
 
 MAX_BYTES = 32768
 EVENTS = frozenset("browser.start browser.navigation browser.visibility browser.error browser.unhandled browser.longtask browser.summary api.begin api.response api.parsed api.end api.retry api.discarded shared.join shared.leave shared.abandoned media.begin media.loaded media.decoded media.error media.cancel".split())
@@ -54,13 +53,13 @@ def create_diagnostic_router():
 
     @router.get("/api/diagnostics", include_in_schema=False)
     async def capabilities():
-        if not DIAGNOSTIC_BUILD or not diagnostics.enabled():
+        if not diagnostics.enabled():
             return Response(status_code=404, headers={"Cache-Control": "no-store"})
         return JSONResponse(diagnostics.status(), headers={"Cache-Control": "no-store"})
 
     @router.post("/api/diagnostics/events", include_in_schema=False)
     async def browser_events(request: Request):
-        if not DIAGNOSTIC_BUILD or not diagnostics.enabled():
+        if not diagnostics.enabled():
             return Response(status_code=404)
         now = monotonic()
         if now - rate["start"] >= 1:
