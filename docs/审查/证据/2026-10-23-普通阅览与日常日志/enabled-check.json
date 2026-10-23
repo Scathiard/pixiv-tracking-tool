@@ -1,0 +1,17 @@
+{
+  "candidate": "20261023.1",
+  "copied_exe": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261023.1.exe",
+  "candidate_hash": "10a95c380a170a701ad7ce50595173e0a828d96af11a67775239013f63c63fe8",
+  "enabled": false,
+  "old_service_pid": 45752,
+  "old_build": "20261021.4",
+  "normal_shutdown_request": "Windows PostMessageW rejected with ERROR_ACCESS_DENIED (5)",
+  "forced": false,
+  "settings_before": {
+    "current_port": 1919,
+    "check_interval_minutes": 360,
+    "login": "logged_in",
+    "data_root": "D:\\PixivTracker",
+    "automatic_paused": false
+  }
+}

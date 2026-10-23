@@ -1,0 +1,15 @@
+{
+  "exe_sha256": "10a95c380a170a701ad7ce50595173e0a828d96af11a67775239013f63c63fe8",
+  "assets": {
+    "/reader/assets/index-lQtoHmLu.js": "40b98c5bf8c24230a7c4dd027eb1b7e1ea67dabd0db43f27b5be3a024c49ab0c",
+    "/reader/assets/index-BSsTxKqW.css": "c5ddcf494b348de10bac0061e90a7bcc29a6030a3d277cceaeaf7e547ead848e"
+  },
+  "real_library": false,
+  "real_account": false,
+  "diagnostics_enabled": false,
+  "exit_code": 0,
+  "smoke_status": "SMOKE_OK",
+  "version": "0.2.0",
+  "build": "20261023.1",
+  "diagnostic_files": 0
+}
