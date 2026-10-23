@@ -13,6 +13,20 @@
 - 日常默认关闭全面诊断，普通 `tracker.log` 保留带时间戳的启动、错误和任务结果。需要取证时，正常退出后以 `PixivTracker_v0.2.0_build20261023.2.exe --diagnostic` 启动；前后端探针才会启用，诊断日志按约 64 MiB 持续分卷。诊断日志不自动清理，本次仅按用户明确授权清理已有分卷；写入失败明确提示，不记录令牌、请求参数、图片内容或线程变量。
 - 程序支持作品历史版本和持久读取汇总。旧图库通过启动时的确认、备份、转换与核验流程接入当前 `0005_read_cards_tasks`，原图片路径保留；本机此前已升级，本轮无新增结构或迁移。旧 EXE、备份与候选保留，已有新版写入时不会自动拿旧快照覆盖。
 
+## 本地换包（维护流程）
+
+正常退出统一使用 [stop_release.ps1](app/stop_release.ps1)，直接在同一桌面用户的 PowerShell 7 宿主执行，不经 Python 转发、不要求管理员权限：
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$result = & .\app\stop_release.ps1 -ExePath 'D:\PixivTracker\PixivTracker_v0.2.0_build20261023.2.exe' -TimeoutSeconds 120
+if ($result.status -notin @('stopped', 'already_stopped')) { throw 'Old release has not stopped' }
+```
+
+换包时把路径替换为实际运行的旧 EXE；可先加 `-InspectOnly` 只核对进程、托盘与监听。脚本只给该 EXE 的托盘发正常停止消息，等待程序收尾及启动器一同退出，返回退出码和监听释放结果。请求已发送不代表已经退出；进程无法读取、权限不足、托盘不可用或等待超时会明确报错，禁止接着启动新包。工具执行的沙箱如不允许访问 Windows 进程信息，应申请宿主执行，不改变 UAC 或系统消息过滤策略。
+
+确认旧实例退出和日常端口可用后，才按正常流程隐藏启动新包；记录本轮进程级临时路径，保留原工作目录及登录/自动检查设置，不加 `--offline` 或 `--diagnostic`。这项工具修订不需要改动 EXE 或图库。
+
 ## 当前功能
 
 - 图库：本地缩略图与可见轻量动图预览（滚动暂停、停止后恢复）、侧栏搜索、筛选抽屉、排序、连续滚动与页码模式；侧栏可收起，手机使用菜单抽屉，首页可检查新作品。
