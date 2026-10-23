@@ -1,0 +1,13 @@
+{
+  "checked_at": "2026-10-23T19:42:22.7280441+08:00",
+  "removed_task_temporary_items": [
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261023.1\\work\\tmp\\ordinary-reader",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261023.1\\app\\frontend\\dist",
+    "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261023.1\\app\\frontend\\node_modules (junction only)"
+  ],
+  "retained_development_worktree": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261023.1",
+  "retained_old_runtime": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261021.4\\work\\tmp\\random-precompute\\enabled-runtime-20261021.4",
+  "retained_existing_logs": true,
+  "formal_evidence_retained": true,
+  "shared_dependency_target_retained": true
+}
