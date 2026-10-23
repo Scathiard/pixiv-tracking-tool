@@ -81,6 +81,92 @@ def geometry(page, work):
     return metrics
 
 
+def inline_zoom(page, context, width):
+    media = page.locator('.reader .image-page[data-work-id="1"][data-page="0"] .inline-zoom-media')
+    viewport = page.locator('.page-viewport.reader')
+    box = media.bounding_box()
+    x, y = box['x'] + box['width'] / 2, min(box['y'] + 120, 650)
+    cdp = context.new_cdp_session(page) if width < 500 else None
+
+    def touch(kind, points):
+        cdp.send('Input.dispatchTouchEvent', {'type': kind, 'touchPoints': [
+            {'x': px, 'y': py, 'id': index + 1} for index, (px, py) in enumerate(points)]})
+
+    def double_action():
+        if cdp:
+            for _ in range(2):
+                touch('touchStart', [(x, y)]); page.wait_for_timeout(35)
+                touch('touchEnd', []); page.wait_for_timeout(60)
+        else:
+            page.mouse.dblclick(x, y)
+
+    old_url, old_top = page.url, viewport.evaluate('e=>e.scrollTop')
+    double_action()
+    expect(media).to_have_attribute('data-inline-zoom-scale', '2.25')
+    assert page.locator('.zoom-view').count() == 0
+    if cdp:
+        touch('touchStart', [(x-35, y), (x+35, y)])
+        for step in range(1, 6):
+            touch('touchMove', [(x-35-step*6, y), (x+35+step*6, y)])
+            page.wait_for_timeout(20)
+        touch('touchEnd', [])
+    else:
+        page.mouse.move(x, y); page.mouse.wheel(0, -200)
+    page.wait_for_function('e=>Number(e.dataset.inlineZoomScale)>2.5', arg=media.element_handle())
+    enlarged = float(media.get_attribute('data-inline-zoom-scale'))
+    before_pan = media.locator('.inline-zoom-content').get_attribute('style')
+    if cdp:
+        touch('touchStart', [(x, y)])
+        for step in range(1, 6):
+            touch('touchMove', [(x-step*18, y+step*6)]); page.wait_for_timeout(20)
+        touch('touchEnd', [])
+    else:
+        page.mouse.move(x, y); page.mouse.down()
+        page.mouse.move(x-90, y+30, steps=6); page.mouse.up()
+    assert media.locator('.inline-zoom-content').get_attribute('style') != before_pan
+    assert page.url == old_url, 'Panning changed the work'
+    assert abs(viewport.evaluate('e=>e.scrollTop')-old_top) < 2
+    double_action()
+    expect(media).to_have_attribute('data-inline-zoom-scale', '1')
+    double_action()
+    expect(media).to_have_attribute('data-inline-zoom-scale', '2.25')
+    if cdp:
+        touch('touchStart', [(x-60, y), (x+60, y)])
+        for step in range(1, 7):
+            distance = 60-step*9
+            touch('touchMove', [(x-distance, y), (x+distance, y)]); page.wait_for_timeout(20)
+        touch('touchEnd', [])
+    else:
+        page.mouse.move(x, y); page.mouse.wheel(0, 1200)
+    expect(media).to_have_attribute('data-inline-zoom-scale', '1')
+    assert page.url == old_url
+    assert abs(viewport.evaluate('e=>e.scrollTop')-old_top) < 2
+    page.wait_for_timeout(250)  # End the consumed wheel/touch gesture before a new action.
+    double_action()
+    expect(media).to_have_attribute('data-inline-zoom-scale', '2.25')
+    gutter_x = viewport.bounding_box()['x'] + 3
+    if cdp:
+        touch('touchStart', [(gutter_x, 650)])
+        for step in range(1, 9):
+            touch('touchMove', [(gutter_x, 650-step*20)]); page.wait_for_timeout(20)
+        touch('touchEnd', [])
+    else:
+        page.mouse.move(gutter_x, 600); page.mouse.wheel(0, 260)
+    page.wait_for_function('([v,t])=>v.scrollTop>t+20', arg=[viewport.element_handle(), old_top])
+    expect(media).to_have_attribute('data-inline-zoom-scale', '2.25')
+    assert page.url == old_url
+    page.screenshot(path=str(out / f'inline-zoom-{width}.png'))
+    media.focus(); page.keyboard.press('Escape')
+    expect(media).to_have_attribute('data-inline-zoom-scale', '1')
+    assert page.url == old_url
+    page.get_by_role('button', name='放大此页', exact=True).first.click()
+    expect(page.get_by_role('dialog', name='放大查看', exact=True)).to_be_visible()
+    page.get_by_role('button', name='关闭放大', exact=False).click()
+    return {'double_action_scale': 2.25, 'wheel_or_pinch_scale': enlarged,
+            'pan_did_not_navigate': True, 'minimum_restored': True,
+            'gutter_scroll_with_zoom': True, 'explicit_zoom_button_kept': True}
+
+
 try:
     deadline = time.monotonic() + 25
     while not server.started and time.monotonic() < deadline:
@@ -119,6 +205,7 @@ try:
                               ('/api/works/1', '/api/works/1/cursor-neighbors')]
                     assert not during, f'Cached multi-page opening reread on navigation: {during}'
                     assert portrait['scrollHeight'] > portrait['viewportHeight']
+                    zoom_metrics = inline_zoom(page, context, width) if width in (1440, 390) else None
                     if width == 1440:
                         assert portrait['height'] > portrait['viewportHeight'], portrait
                         page.keyboard.press('ArrowDown')
@@ -139,7 +226,7 @@ try:
                     assert not any(urlsplit(url).path == '/api/diagnostics/events' for url in requests)
                     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), page.evaluate('({documentWidth:document.documentElement.scrollWidth,viewport:innerWidth})')
                     result['metrics'][str(width)] = {'landscape': landscape, 'portrait': portrait,
-                        'cached_target_reads_on_switch': len(during)}
+                        'cached_target_reads_on_switch': len(during), 'inline_zoom': zoom_metrics}
                     result['checks'].append(f'{width}: ratio, warm-navigation, back, diagnostic-off')
                     print('PASS', result['checks'][-1], flush=True)
                 finally:

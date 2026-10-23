@@ -65,6 +65,7 @@ function zoomAt(scale: number, clientX: number, clientY: number) {
 }
 function toggle(clientX: number, clientY: number) {
   const enlarged = animation ? animation.to.scale > 1 : active.value
+  frame.value?.focus({preventScroll: true})
   claim('pointer'); animate(inlineZoomAt(transform.value, enlarged ? 1 : 2.25, local(clientX, clientY), dimensions())); lastTap = null
 }
 function doubleClick(event: MouseEvent) {

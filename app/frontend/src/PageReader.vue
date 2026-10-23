@@ -7,6 +7,7 @@ import { discardedSignal } from './diagnostics'
 import { ApiReadError, preparePageImage } from './api'
 import { observeCatalogueData } from './state/catalogue'
 import MediaImage from './MediaImage.vue'
+import InlineZoomMedia from './components/InlineZoomMedia.vue'
 import RestrictionBadge from './components/RestrictionBadge.vue'
 import Icon from './components/Icon.vue'
 
@@ -25,7 +26,8 @@ const size = ref({width: 1000, height: 760}), loading = ref(false), error = ref(
 const phase = ref('')
 watch([loading, phase, error], () => emit('activity', {phase: loading.value ? phase.value : '', error: error.value}))
 let adjacentPreload: AbortController | null = null
-const gesture = new DirectionGesture(), intent = new LatestIntent()
+let gesture = new DirectionGesture()
+const intent = new LatestIntent()
 let observer: ResizeObserver | null = null, restoring = false, frame = 0, lastAnchor: Anchor | null = null
 let refreshTimer = 0, refreshController: AbortController | null = null, refreshing = false, forceRefreshPending = false
 let failedAction: (() => void) | null = null
@@ -259,7 +261,10 @@ function visibilityChanged() {
   } else stopRefresh()
 }
 function archiveUpdated() { if (pages.value.length) void refreshMissing(true) }
+function zoomOwned() { gesture = new DirectionGesture() }
 function down(event: PointerEvent) {
+  // Image zoom owns this gesture, including a pinch that returns to 100%.
+  if ((event.target as Element).closest('[data-inline-zoom-active="true"],[data-inline-zoom-consumed="true"]')) { zoomOwned(); return }
   const blocked = props.mode === 'feed' || props.inactive || event.pointerType === 'mouse' ||
     !!(event.target as Element).closest('button,a,input,select,textarea,[contenteditable]') || (window.visualViewport?.scale || 1) > 1.01
   gesture.down(event.pointerId, event.clientX, event.clientY, !!blocked)
@@ -284,7 +289,8 @@ defineExpose({readAnchor, jump, stepPage, cancel, retry, scrollBy: (delta: numbe
 <template>
   <div class="reading-surface">
     <div ref="viewport" class="page-viewport" :class="mode" tabindex="0" aria-label="图片阅读区"
-      @scroll.passive="scroll" @pointerdown="down" @pointermove="move" @pointerup="up" @pointercancel="gesture.cancel($event.pointerId)">
+      @scroll.passive="scroll" @pointerdown="down" @pointermove="move" @pointerup="up" @pointercancel="gesture.cancel($event.pointerId)"
+      @inline-zoom-gesture="zoomOwned">
       <div ref="before" class="reader-before"><slot name="before" /></div>
       <div class="page-window" :style="{height: `${fullHeight}px`}" :data-window-size="pages.length">
         <figure v-for="row in rows" :key="String(row.key)" :ref="measure" class="image-page" :data-index="row.index"
@@ -298,7 +304,9 @@ defineExpose({readAnchor, jump, stepPage, cancel, retry, scrollBy: (delta: numbe
             <span v-if="mode === 'feed' && pages[row.index]!.page === 0 && archiveNotice(pages[row.index]!)" class="page-source">{{ archiveNotice(pages[row.index]!) }}</span>
           </figcaption>
           <div class="page-picture" :style="mode === 'reader' ? {aspectRatio: `${pages[row.index]!.width || 1000} / ${pages[row.index]!.height || 1350}`} : undefined">
-            <MediaImage :src="pages[row.index]!.src" :state="pages[row.index]!.state" :recovery="pages[row.index]!.recovery" :processing="pages[row.index]!.processing" :archive="pages[row.index]!.archive" :animation="pages[row.index]!.type === 'ugoira'" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
+            <InlineZoomMedia v-if="mode === 'reader'" :page="pages[row.index]!" :inactive="inactive"
+              @size="(width, height) => dimensions(pages[row.index]!, width, height)" />
+            <MediaImage v-else :src="pages[row.index]!.src" :state="pages[row.index]!.state" :recovery="pages[row.index]!.recovery" :processing="pages[row.index]!.processing" :archive="pages[row.index]!.archive" :animation="pages[row.index]!.type === 'ugoira'" :label="`${pages[row.index]!.title} · 第 ${pages[row.index]!.page + 1} 页`"
               :width="pages[row.index]!.width || 1000"
               :height="pages[row.index]!.height || 1350"
               :flow-taps="mode === 'feed'" @bookmark="bookmark(pages[row.index]!)"

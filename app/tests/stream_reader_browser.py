@@ -519,9 +519,11 @@ def main():
                     page.keyboard.press("ArrowUp")
                     expect(page.locator(".reading-counter small")).to_contain_text("第 1 / 3 页")
                     page.locator(".page-viewport.reader .image-page img").first.dblclick()
+                    expect(page.locator(".page-viewport.reader .inline-zoom-media").first).to_have_attribute("data-inline-zoom-scale", "2.25")
+                    page.get_by_role("button",name="放大此页",exact=True).first.click()
                     expect(page.get_by_role("dialog",name="放大查看",exact=True)).to_be_visible()
                     page.get_by_role("button",name="关闭放大",exact=False).click()
-                    assert page.locator(".inline-zoom-media").count()==0
+                    expect(page.locator(".page-viewport.reader .inline-zoom-media").first).to_have_attribute("data-inline-zoom-scale", "1")
                 scenario(f"{width}-ordinary-detail-doubleclick-and-arrows",ordinary_detail)
                 if width==390:
                     fresh(); page.set_viewport_size({"width":320,"height":900}); page.wait_for_timeout(180)
