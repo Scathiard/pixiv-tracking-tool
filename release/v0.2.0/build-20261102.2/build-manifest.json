@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "build": "20261102.2",
+  "exe_file": "PixivTracker_v0.2.0_build20261102.2.exe",
+  "exe_size_bytes": 75316207,
+  "exe_sha256": "a47ec3c9d8518475d5851cf473b4ce015465fb33641e1a06bf99c316a2601a9a",
+  "helper_sha256": {
+    "start_release.ps1": "7bf72303a215a57aad6e4d874e4680c9f49ea5817c444bf866ae809b34247032",
+    "stop_release.ps1": "479671c0225a506be6b817f1b644779ea6a0c04e87f9a60da572ac568c71c71b"
+  },
+  "source_commit": "99a98a148b713878150b08b79cd839674c01d402",
+  "source_branch": "codex/lifecycle-logging-20261102",
+  "source_dirty": false,
+  "frontend_dist": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261102.1\\work\\tmp\\lifecycle\\package\\frontend-dist",
+  "database_schema": "0005_read_cards_tasks",
+  "database_upgrade_required": false,
+  "database_compatible_from": "0005_read_cards_tasks",
+  "explicit_upgrade_supported_from": [
+    "0001_archive",
+    "0002_client",
+    "0003_revisions",
+    "0004_read_projections"
+  ],
+  "older_database_upgrade_required": true,
+  "database_upgrade_entry": "startup-confirmed backup / validate / activate",
+  "build_environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13",
+    "pyinstaller": "6.20.0"
+  },
+  "published": false,
+  "user_acceptance": false,
+  "validation": "Focused source checks and actual EXE normal startup/exit passed; daily enabled with original settings. Unexplained prior exit remains open.",
+  "helper_source_commits": {
+    "stop_release.ps1": "7abce3e",
+    "start_release.ps1": "99a98a148b713878150b08b79cd839674c01d402"
+  }
+}

@@ -1,6 +1,6 @@
 {
   "initial_candidate": "20261102.1",
-  "direct_createprocess": "Low integrity; tray CreateWindow denied",
+  "direct_createprocess": "Low integrity; tray ChangeWindowMessageFilterEx denied",
   "controlled_cleanup_actual_exit_code": -1,
   "controlled_cleanup_is_original_fault": false,
   "shell_start": "Waiting on Open File - Security Warning; no EXE process created",
