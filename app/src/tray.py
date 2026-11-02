@@ -132,10 +132,14 @@ def run_tray(*, offline=False, instance=None):
     web_thread.start()
 
     # 主线程运行托盘图标
+    tray_failed = False
     try:
         icon.run()
+    except BaseException:
+        tray_failed = True
+        raise
     finally:
-        source = "tray_menu" if getattr(icon, "_quit_requested", False) else (
+        source = "tray_error" if tray_failed else "tray_menu" if getattr(icon, "_quit_requested", False) else (
             "service_exit" if web_done.is_set() else "tray_window_message")
         lifecycle.emit("tray_loop_stopped", source=source)
         from src.web import request_shutdown
