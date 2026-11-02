@@ -27,6 +27,16 @@ if ($result.status -notin @('stopped', 'already_stopped')) { throw 'Old release 
 
 确认旧实例退出和日常端口可用后，才按正常流程隐藏启动新包；记录本轮进程级临时路径，保留原工作目录及登录/自动检查设置，不加 `--offline` 或 `--diagnostic`。这项工具修订不需要改动 EXE 或图库。
 
+日常启动统一使用 [start_release.ps1](app/start_release.ps1)，指定实际日志目录及已登记的临时运行目录：
+
+```powershell
+& .\app\start_release.ps1 -ExePath 'D:\PixivTracker\PixivTracker_v0.2.0_build20261102.1.exe' -LogDirectory 'D:\PixivTracker\data' -RuntimeDirectory '<本轮登记的绝对运行目录>'
+```
+
+启动器返回进程身份后，隐藏的 PowerShell 等待这个进程结束，向 `process-exits.jsonl` 追加实际退出码；它不轮询、不自动重启。`started` 仅表示进程已创建，仍须核对网页及登录/检查设置。直接双击 EXE 仍可使用，但没有外部退出码观察。
+
+日常 `lifecycle.jsonl` 记录启动、就绪、主动退出来源、服务结束、脱敏异常与收尾；`lifecycle-state.json` 保存上次是否正常结束，`lifecycle-owner.lock` 防止并发记录覆盖。`lifecycle-fault.log` 仅在严重故障时写栈。这些少量事件始终启用，不受全面诊断开关影响。首次升级的旧运行没有状态标记，明确记为历史未知；进程与启动器一起被结束时，也只能在下次启动确认未收尾，无法凭空确定终止者。记录均不自动删除。
+
 ## 当前功能
 
 - 图库：本地缩略图与可见轻量动图预览（滚动暂停、停止后恢复）、侧栏搜索、筛选抽屉、排序、连续滚动与页码模式；侧栏可收起，手机使用菜单抽屉，首页可检查新作品。

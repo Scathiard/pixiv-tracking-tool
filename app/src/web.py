@@ -157,8 +157,18 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
                 diagnostic_heartbeat.cancel()
                 await asyncio.gather(diagnostic_heartbeat, return_exceptions=True)
 
+    @asynccontextmanager
+    async def recorded_lifespan(application):
+        try:
+            async with lifespan(application):
+                yield
+        except BaseException as exc:
+            from src.core import lifecycle
+            lifecycle.exception("web_lifespan", exc)
+            raise
+
     release = getattr(sys, "frozen", False)
-    application = FastAPI(title="Pixiv Tracking Tool", lifespan=lifespan,
+    application = FastAPI(title="Pixiv Tracking Tool", lifespan=recorded_lifespan,
         docs_url=None if release else "/docs", redoc_url=None if release else "/redoc",
         openapi_url=None if release else "/openapi.json")
     application.state.runtime = None
@@ -377,6 +387,12 @@ def main(*, offline=False, ready_callback=None):
         server.should_exit = True
     try:
         server.run(sockets=socks)
+        # Uvicorn can log a lifespan exception and return normally. A returned
+        # run() is therefore not sufficient evidence of successful cleanup.
+        lifespan = getattr(server, "lifespan", None)
+        if any(getattr(lifespan, name, False) for name in
+               ("startup_failed", "shutdown_failed", "error_occurred")):
+            raise RuntimeError("Web service startup or shutdown failed")
     finally:
         startup_done.set()
         _server = None
@@ -390,6 +406,9 @@ def main(*, offline=False, ready_callback=None):
 def request_shutdown():
     """请求 Web 服务走 Uvicorn lifespan 正常退出。"""
     diagnostics.emit("shutdown.requested", server_exists=_server is not None)
+    if not _shutdown_requested.is_set():
+        from src.core import lifecycle
+        lifecycle.emit("shutdown_requested", source="web_control")
     _shutdown_requested.set()
     cancel_auth()
     if _server is not None:

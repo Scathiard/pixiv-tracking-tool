@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import platform
 import runpy
+import shutil
 import subprocess
 import sys
 from src.core.database import SCHEMA_REVISION
@@ -45,10 +46,16 @@ def main() -> None:
         subprocess.run(command, cwd=APP, stdout=output, stderr=subprocess.STDOUT, check=True, env=build_env)
     executable = destination / (identity["EXE_NAME"] + ".exe")
     digest = hashlib.sha256(executable.read_bytes()).hexdigest()
+    helpers = {}
+    for name in ("start_release.ps1", "stop_release.ps1"):
+        target = destination / name
+        shutil.copy2(APP / name, target)
+        helpers[name] = hashlib.sha256(target.read_bytes()).hexdigest()
     def git(*arguments):
         return subprocess.check_output(["git", *arguments], cwd=APP, text=True, encoding="utf-8").strip()
     manifest = {"version": public, "build": build, "exe_file": executable.name,
                 "exe_size_bytes": executable.stat().st_size, "exe_sha256": digest,
+                "helper_sha256": helpers,
                 "source_commit": git("rev-parse", "HEAD"), "source_branch": git("branch", "--show-current"),
                 "source_dirty": bool(git("status", "--porcelain", "--untracked-files=no")),
                 "frontend_dist": str(frontend_dist), "database_schema": SCHEMA_REVISION, "database_upgrade_required": False,
@@ -60,7 +67,8 @@ def main() -> None:
                                       "pyinstaller": version("pyinstaller")},
                 "published": False, "user_acceptance": False, "validation": "pending packaged validation"}
     (destination / "build-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-    (destination / "SHA256SUMS.txt").write_text(f"{digest}  {executable.name}\n", encoding="utf-8")
+    (destination / "SHA256SUMS.txt").write_text(f"{digest}  {executable.name}\n" +
+        "".join(f"{value}  {name}\n" for name, value in helpers.items()), encoding="utf-8")
     print(str(executable))
     print(f"SHA-256 {digest}")
 

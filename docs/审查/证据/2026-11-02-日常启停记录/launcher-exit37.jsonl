@@ -1,0 +1,3 @@
+{"timestamp":"2026-11-02T21:41:55.7413410+08:00","event":"launch_requested","launch_id":"bf517b12-f10c-41b7-bb3f-9aff2656992c","monitor_pid":26292,"exe_name":"PixivTracker-exitprobe.exe"}
+{"timestamp":"2026-11-02T21:41:55.7964409+08:00","event":"process_started","launch_id":"bf517b12-f10c-41b7-bb3f-9aff2656992c","monitor_pid":26292,"exe_name":"PixivTracker-exitprobe.exe","pid":52712}
+{"timestamp":"2026-11-02T21:41:55.8165460+08:00","event":"process_exited","launch_id":"bf517b12-f10c-41b7-bb3f-9aff2656992c","monitor_pid":26292,"exe_name":"PixivTracker-exitprobe.exe","exit_code_hex":"0x00000025","pid":52712,"exit_code":37}

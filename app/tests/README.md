@@ -1,5 +1,7 @@
 # 测试目录约定
 
+- 2026-11-02 R-076：本工作树 `work/tmp/lifecycle/` 登记为测试、缓存、构建及运行临时根；子目录 core、shutdown、launcher、package、enabled-runtime 分别按用途隔离，TEMP/TMP/Python 缓存仅在任务进程设置。前端 node_modules junction 复用已有依赖，dist 和本轮测试/构建临时项用后清理，在用 EXE 解包目录保留；正式证据归 `docs/审查/证据/2026-11-02-日常启停记录/`。仅测启停记录/少量已有退出路径与最终 EXE，不重跑 UI 或全库压力。
+
 - 2026-10-23 正常退出调用：`app/stop_release.ps1` 在 PowerShell 宿主直接调用托盘正常停止消息；只做语法/目标预检、一次获准日常退出与重启、重复退出及原设置核对，不重测业务。临时项统一归本工作树 `work/tmp/normal-exit/`，启用 EXE 的解包目录在运行时保留，其余本轮临时项用后清理；正式证据续存 `docs/审查/证据/2026-10-23-普通阅览与日常日志/`。不改程序包、图库、配置、令牌或系统权限。
 
 - 2026-10-23 详情双击与诊断日志清理：本轮仅核对详情原地双击/双触、滚轮/双指缩放、图内平移与图外滚动、横向导航隔离，复用 `ordinary_reader_browser.py` 的合成图库。临时项归本工作树 `work/tmp/detail-zoom/`，含 browser、package 和 enabled-runtime；依赖 junction 只清理链接，dist/测试/构建临时项用后清理，在用 EXE 解包目录保留。正式证据续存 `docs/审查/证据/2026-10-23-普通阅览与日常日志/`。按用户本次授权仅删除 `D:\PixivTracker\data\diagnostic-*-part*.jsonl` 诊断分卷，逐项核对普通文件及父路径；保留 `tracker.log` 和其他文件，不跑全套或真实账号专项。

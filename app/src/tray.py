@@ -5,7 +5,7 @@ import webbrowser
 from pathlib import Path
 from PIL import Image
 import pystray
-from .core import diagnostics
+from .core import diagnostics, lifecycle
 from .core.stdio_log import open_stdio_log
 
 
@@ -38,6 +38,7 @@ def _quit_app(icon: pystray.Icon):
     if getattr(icon, "_quit_requested", False):
         return
     diagnostics.emit("tray.quit_requested")
+    lifecycle.emit("quit_requested", source="tray_menu")
     icon._quit_requested = True
     icon.title = "PixivTracker · 正在退出"
     try:
@@ -87,7 +88,8 @@ def run_tray(*, offline=False, instance=None):
     from src.version import DISPLAY_VERSION
 
     # 日志重定向（必须在任何 print 之前）
-    _redirect_stdio(DATA_DIR)
+    if getattr(sys.stdout, "name", None) != str(DATA_DIR / "tracker.log"):
+        _redirect_stdio(DATA_DIR)
 
     print(f"[tray] PixivTracker {DISPLAY_VERSION} 启动")
     print(f"[tray] 端口: {PORT}")
@@ -95,19 +97,32 @@ def run_tray(*, offline=False, instance=None):
         print("[tray] 离线模式：不登录 Pixiv，不启动自动检查")
 
     web_done = threading.Event()
+    service_failed = threading.Event()
     icon = _create_icon()
     icon._shutdown_complete = web_done
     def ready():
+        lifecycle.emit("service_ready", port=PORT, offline=offline)
         if instance is not None:
             instance.mark_ready(f"http://localhost:{PORT}")
         _open_gallery()
     # 保持服务线程存活，直到安全收尾完成。
     def _start_web():
-        from src.web import main, _shutdown_requested
+        shutdown_requested = None
+        lifecycle.emit("service_start", offline=offline)
         try:
-            if not _shutdown_requested.wait(1):  # 等托盘图标就位，可被退出唤醒
+            from src.web import main, _shutdown_requested
+            shutdown_requested = _shutdown_requested
+            if not shutdown_requested.wait(1):  # 等托盘图标就位，可被退出唤醒
                 main(offline=offline, ready_callback=ready)
+        except BaseException as exc:
+            service_failed.set()
+            lifecycle.exception("web_thread", exc)
         finally:
+            expected = shutdown_requested is not None and shutdown_requested.is_set()
+            if not expected:
+                service_failed.set()
+            lifecycle.emit("service_stopped", expected=expected,
+                           outcome="failed" if service_failed.is_set() else "ok")
             web_done.set()
             # A failed bind/lifespan must not leave an orphan tray owning the
             # application lock and preventing the next corrected launch.
@@ -117,8 +132,14 @@ def run_tray(*, offline=False, instance=None):
     web_thread.start()
 
     # 主线程运行托盘图标
-    icon.run()
-    from src.web import request_shutdown
-    request_shutdown()
-    with diagnostics.span("tray.join_web_thread"):
-        web_thread.join()
+    try:
+        icon.run()
+    finally:
+        source = "tray_menu" if getattr(icon, "_quit_requested", False) else (
+            "service_exit" if web_done.is_set() else "tray_window_message")
+        lifecycle.emit("tray_loop_stopped", source=source)
+        from src.web import request_shutdown
+        request_shutdown()
+        with diagnostics.span("tray.join_web_thread"):
+            web_thread.join()
+    return 1 if service_failed.is_set() else 0
