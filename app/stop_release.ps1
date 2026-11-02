@@ -94,16 +94,21 @@ namespace PixivTracker {
             return found.ToArray();
         }
 
-        public static void RequestStop(TrayWindow target) {
+        public static bool RequestStop(TrayWindow target) {
             uint pid;
             GetWindowThreadProcessId(target.Handle, out pid);
+            if (pid == 0) return false; // Already destroyed during normal exit.
             if (pid != target.ProcessId || !IsTray(ClassName(target.Handle)))
                 throw new InvalidOperationException("Tray window changed; no message sent.");
             // pystray WM_STOP (WM_USER + 10). run_tray() then requests service
             // shutdown and joins its worker; this is NOT TerminateProcess.
-            if (!PostMessageW(target.Handle, 0x040A, IntPtr.Zero, IntPtr.Zero))
-                throw new Win32Exception(Marshal.GetLastWin32Error(),
+            if (!PostMessageW(target.Handle, 0x040A, IntPtr.Zero, IntPtr.Zero)) {
+                int error = Marshal.GetLastWin32Error();
+                if (error == 1400) return false; // Window closed after identity check.
+                throw new Win32Exception(error,
                     "Normal tray shutdown was rejected. Use the same desktop user's PowerShell at the same integrity level; do not relay through Python or force-kill.");
+            }
+            return true;
         }
     }
 }
@@ -157,11 +162,16 @@ try {
     if ($windows.Count -eq 0 -and @($processes | Where-Object { -not $_.HasExited }).Count -gt 0) {
         throw 'Target process exists but its tray window is unavailable. Shutdown is NOT confirmed; do not start a replacement.'
     }
-    # pystray creates more than one window on the same loop; one request per
-    # process is sufficient and avoids messaging a second, already closed one.
-    foreach ($group in ($windows | Group-Object ProcessId)) {
-        [PixivTracker.ReleaseControl]::RequestStop($group.Group[0])
-        $result.messages_sent++
+    # pystray's main and menu windows share a class, but only the main window
+    # dispatches WM_STOP. Enumeration order cannot identify it. Address every
+    # verified tray window; a window already destroyed by normal exit is safe
+    # to skip. Permission/identity errors still fail, and completion still
+    # requires the captured processes and listeners to disappear.
+    foreach ($window in $windows) {
+        if ([PixivTracker.ReleaseControl]::RequestStop($window)) { $result.messages_sent++ }
+    }
+    if ($result.messages_sent -eq 0 -and @($processes | Where-Object { -not $_.HasExited }).Count -gt 0) {
+        throw 'No normal stop message was delivered; shutdown is NOT confirmed.'
     }
     Write-Verbose 'Normal stop requested; waiting for service cleanup and process exit.'
     $wait = [Diagnostics.Stopwatch]::StartNew()
