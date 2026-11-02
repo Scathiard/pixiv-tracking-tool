@@ -2,15 +2,15 @@
 
 本地优先的 Pixiv 存档与阅览工具。喜爱画师的原件、动图原包和播放时序保存在本机；电脑和同一局域网的手机都可阅读。
 
-**当前日常 0.2.0 · 内部构建 20261023.2。** 详情已加入原地双击缩放，鼠标/触摸及 EXE 定向检查通过，用户退出旧实例后正常启用，见[交付记录](release/v0.2.0/build-20261023.2/VALIDATION.md)。用户授权的 143 个诊断分卷已清理，普通错误日志保留；此前画幅自适应、附近缓存和诊断默认关闭继续保持。原登录、端口 1919、360 分钟自动检查及图库格式 `0005_read_cards_tasks` 保持；首次标签冷读和持续负载慢读仍开放，未公开发布。
+**当前日常 0.2.0 · 内部构建 20261102.2。** 新增常开的小型启停、异常、上次未正常结束及独立进程退出码记录，详细诊断仍关闭。已核对最终 EXE 启动、正常退出和恢复日常，原登录、1919 端口、360 分钟自动检查及图库格式 `0005_read_cards_tasks` 保持。配套退出脚本修正托盘窗口选择；此前服务消失的原因尚未确定，不能把记录补齐当作崩溃修复，见[交付记录](release/v0.2.0/build-20261102.2/VALIDATION.md)。阅览功能保持，未公开发布。
 
 ## 使用
 
 - Windows EXE 默认使用自身目录下的 `data/` 与 `images/`，默认端口 **1919**。
 - 在电脑访问 `http://localhost:1919`，手机访问 `http://电脑的局域网地址:1919`。
 - 本地浏览无需登录；在设置中连接 Pixiv 后，才可检查、下载和同步收藏。
-- 新包入口为 `D:\PixivTracker\PixivTracker_v0.2.0_build20261023.2.exe`，旧包原样保留；正常退出旧实例后启动新包，复用现有登录、检查周期和待办，不加隔离测试参数。
-- 日常默认关闭全面诊断，普通 `tracker.log` 保留带时间戳的启动、错误和任务结果。需要取证时，正常退出后以 `PixivTracker_v0.2.0_build20261023.2.exe --diagnostic` 启动；前后端探针才会启用，诊断日志按约 64 MiB 持续分卷。诊断日志不自动清理，本次仅按用户明确授权清理已有分卷；写入失败明确提示，不记录令牌、请求参数、图片内容或线程变量。
+- 新包入口为 `D:\PixivTracker\PixivTracker_v0.2.0_build20261102.2.exe`，旧包原样保留；正常退出旧实例后启动新包，复用现有登录、检查周期和待办，不加隔离测试参数。
+- 日常默认关闭全面诊断，普通 `tracker.log` 保留带时间戳的启动、错误和任务结果。需要详细取证时，正常退出后给当前 EXE 加 `--diagnostic` 参数；前后端探针才会启用，诊断日志按约 64 MiB 持续分卷。日志不自动清理；写入失败明确提示，不记录令牌、请求参数、图片内容或线程变量。
 - 程序支持作品历史版本和持久读取汇总。旧图库通过启动时的确认、备份、转换与核验流程接入当前 `0005_read_cards_tasks`，原图片路径保留；本机此前已升级，本轮无新增结构或迁移。旧 EXE、备份与候选保留，已有新版写入时不会自动拿旧快照覆盖。
 
 ## 本地换包（维护流程）
@@ -19,7 +19,7 @@
 
 ```powershell
 $ErrorActionPreference = 'Stop'
-$result = & .\app\stop_release.ps1 -ExePath 'D:\PixivTracker\PixivTracker_v0.2.0_build20261023.2.exe' -TimeoutSeconds 120
+$result = & .\app\stop_release.ps1 -ExePath 'D:\PixivTracker\PixivTracker_v0.2.0_build20261102.2.exe' -TimeoutSeconds 120
 if ($result.status -notin @('stopped', 'already_stopped')) { throw 'Old release has not stopped' }
 ```
 
@@ -30,7 +30,7 @@ if ($result.status -notin @('stopped', 'already_stopped')) { throw 'Old release 
 日常启动统一使用 [start_release.ps1](app/start_release.ps1)，指定实际日志目录及已登记的临时运行目录：
 
 ```powershell
-& .\app\start_release.ps1 -ExePath 'D:\PixivTracker\PixivTracker_v0.2.0_build20261102.1.exe' -LogDirectory 'D:\PixivTracker\data' -RuntimeDirectory '<本轮登记的绝对运行目录>'
+& .\app\start_release.ps1 -ExePath 'D:\PixivTracker\PixivTracker_v0.2.0_build20261102.2.exe' -LogDirectory 'D:\PixivTracker\data' -RuntimeDirectory '<本轮登记的绝对运行目录>'
 ```
 
 启动器返回进程身份后，隐藏的 PowerShell 等待这个进程结束，向 `process-exits.jsonl` 追加实际退出码；它不轮询、不自动重启。`started` 仅表示进程已创建，仍须核对网页及登录/检查设置。直接双击 EXE 仍可使用，但没有外部退出码观察。

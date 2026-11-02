@@ -1,0 +1,42 @@
+{
+  "checked_at": "2026-11-02T22:24:02.2139118+08:00",
+  "status": "running",
+  "version": "0.2.0",
+  "build": "20261102.2",
+  "login": "logged_in",
+  "automatic_paused": false,
+  "check_interval_minutes": 360,
+  "current_port": 1919,
+  "data_root": "D:\\PixivTracker",
+  "home_status": 200,
+  "processes": [
+    {
+      "Name": "PixivTracker_v0.2.0_build20261102.2.exe",
+      "ProcessId": 37340,
+      "ParentProcessId": 29544,
+      "ExecutablePath": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261102.2.exe"
+    },
+    {
+      "Name": "PixivTracker_v0.2.0_build20261102.2.exe",
+      "ProcessId": 26916,
+      "ParentProcessId": 37340,
+      "ExecutablePath": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261102.2.exe"
+    }
+  ],
+  "state": {
+    "run_id": "bc7502a8ac36454e95970e5a726f39f3",
+    "pid": 26916,
+    "ppid": 37340,
+    "version": "0.2.0",
+    "build": "20261102.2",
+    "started_at": "2026-11-02T22:22:41.302+08:00",
+    "clean": false,
+    "ended_at": null,
+    "exit_code": null,
+    "launch_id": "6667a0c4-eadf-4731-99fa-c399c98cde5d"
+  },
+  "diagnostic_files": 0,
+  "lifecycle_log_bytes": 2289,
+  "process_log_bytes": 1521,
+  "diagnostics_status": 404
+}

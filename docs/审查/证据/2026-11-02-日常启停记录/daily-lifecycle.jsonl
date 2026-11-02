@@ -1,0 +1,12 @@
+{"time":"2026-11-02T14:16:01.528+00:00","run_id":"6128be6559c9435d88d13f93ac551158","event":"app_start","version":"0.2.0","build":"20261102.2","pid":54392,"ppid":41760,"launch_id":"a9d94f00-61fe-4df0-be73-5b773efd4b7c"}
+{"time":"2026-11-02T14:16:01.528+00:00","run_id":"6128be6559c9435d88d13f93ac551158","event":"previous_unknown","outcome":"no_marker","launch_id":"a9d94f00-61fe-4df0-be73-5b773efd4b7c"}
+{"time":"2026-11-02T14:16:01.546+00:00","run_id":"6128be6559c9435d88d13f93ac551158","event":"service_start","offline":false,"launch_id":"a9d94f00-61fe-4df0-be73-5b773efd4b7c"}
+{"time":"2026-11-02T14:16:09.285+00:00","run_id":"6128be6559c9435d88d13f93ac551158","event":"service_ready","offline":false,"port":1919,"launch_id":"a9d94f00-61fe-4df0-be73-5b773efd4b7c"}
+{"time":"2026-11-02T14:22:35.065+00:00","run_id":"6128be6559c9435d88d13f93ac551158","event":"tray_loop_stopped","source":"tray_window_message","launch_id":"a9d94f00-61fe-4df0-be73-5b773efd4b7c"}
+{"time":"2026-11-02T14:22:35.066+00:00","run_id":"6128be6559c9435d88d13f93ac551158","event":"shutdown_requested","source":"web_control","launch_id":"a9d94f00-61fe-4df0-be73-5b773efd4b7c"}
+{"time":"2026-11-02T14:22:35.520+00:00","run_id":"6128be6559c9435d88d13f93ac551158","event":"service_stopped","outcome":"ok","expected":true,"launch_id":"a9d94f00-61fe-4df0-be73-5b773efd4b7c"}
+{"time":"2026-11-02T14:22:35.520+00:00","run_id":"6128be6559c9435d88d13f93ac551158","event":"cleanup_completed","outcome":"ok","launch_id":"a9d94f00-61fe-4df0-be73-5b773efd4b7c"}
+{"time":"2026-11-02T14:22:35.521+00:00","run_id":"6128be6559c9435d88d13f93ac551158","event":"app_end","clean":true,"exit_code":0,"launch_id":"a9d94f00-61fe-4df0-be73-5b773efd4b7c"}
+{"time":"2026-11-02T14:22:41.454+00:00","run_id":"bc7502a8ac36454e95970e5a726f39f3","event":"app_start","version":"0.2.0","build":"20261102.2","pid":26916,"ppid":37340,"launch_id":"6667a0c4-eadf-4731-99fa-c399c98cde5d"}
+{"time":"2026-11-02T14:22:41.474+00:00","run_id":"bc7502a8ac36454e95970e5a726f39f3","event":"service_start","offline":false,"launch_id":"6667a0c4-eadf-4731-99fa-c399c98cde5d"}
+{"time":"2026-11-02T14:22:43.895+00:00","run_id":"bc7502a8ac36454e95970e5a726f39f3","event":"service_ready","offline":false,"port":1919,"launch_id":"6667a0c4-eadf-4731-99fa-c399c98cde5d"}
