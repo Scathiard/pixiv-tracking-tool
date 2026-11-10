@@ -28,6 +28,7 @@ _CONTROL_CHARS = re.compile(r"[\x00-\x20\x7f]+")
 # range. Only enable this range when an active Tailscale adapter owns an IP
 # inside it, not for an arbitrary ISP/CGNAT adapter.
 _TAILSCALE_IPV4 = ipaddress.ip_network("100.64.0.0/10")
+_TAILSCALE_IPV6 = ipaddress.ip_network("fd7a:115c:a1e0::/48")
 
 
 def resolve_image_path(images_root: Path, requested_path: str) -> Path | None:
@@ -185,13 +186,18 @@ class NetworkPolicy:
                         interfaces.append((entry.address, entry.netmask))
                     if (name.casefold().startswith("tailscale")
                             and name in stats and stats[name].isup
-                            and entry.family == socket.AF_INET):
+                            and entry.family in (socket.AF_INET, socket.AF_INET6)):
                         try:
-                            tailscale_active |= ipaddress.ip_address(entry.address) in _TAILSCALE_IPV4
+                            addr = ipaddress.ip_address(_strip_scope(entry.address))
+                            tailscale_active |= (
+                                (addr.version == 4 and addr in _TAILSCALE_IPV4)
+                                or (addr.version == 6 and addr in _TAILSCALE_IPV6)
+                            )
                         except ValueError:
                             continue
             if tailscale_active:
                 interfaces.append((str(_TAILSCALE_IPV4.network_address), str(_TAILSCALE_IPV4.netmask)))
+                interfaces.append((str(_TAILSCALE_IPV6.network_address), str(_TAILSCALE_IPV6.netmask)))
             return cls.from_interfaces(interfaces)
         except Exception:
             return cls.from_interfaces([])
@@ -232,6 +238,7 @@ class RequestBoundaryMiddleware:
 
     def __init__(self, app, policy: NetworkPolicy | None = None, cookie_name: str = "pixiv_csrf"):
         self.app = app
+        self._dynamic_policy = policy is None
         self.policy = policy or NetworkPolicy.from_system()
         self.cookie_name = cookie_name
         self.allowed_hostnames = {
@@ -256,7 +263,12 @@ class RequestBoundaryMiddleware:
             return False
         if not hostname:
             return False
-        if hostname.lower() in self.allowed_hostnames:
+        lowered = hostname.lower()
+        if lowered in self.allowed_hostnames:
+            return True
+        if lowered.endswith(".ts.net") and any(
+            net in self.policy.networks for net in (_TAILSCALE_IPV4, _TAILSCALE_IPV6)
+        ):
             return True
         return self.policy.allows(hostname)
 
@@ -279,6 +291,8 @@ class RequestBoundaryMiddleware:
 
         client = scope.get("client")
         client_host = client[0] if client else ""
+        if not self.policy.allows(client_host) and self._dynamic_policy:
+            self.policy = NetworkPolicy.from_system()
         if not self.policy.allows(client_host):
             await self._reject(scope, receive, send, 403, "仅允许当前局域网设备访问")
             return

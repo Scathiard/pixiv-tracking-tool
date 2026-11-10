@@ -1,8 +1,0 @@
-{
-  "note": "Active normal EXE extraction and redirected output retained; other task temporary artifacts removed.",
-  "temporary_root": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261013.1\\work\\tmp\\incremental-check",
-  "dependency_junction_removed": true,
-  "remaining": [
-    "daily-runtime"
-  ]
-}

@@ -1,9 +1,0 @@
-{
-  "sha256": "709714653E1D55AA9869920F75DB6590D7A09AD3E0E5FBE984CA9A1A85FA017E",
-  "data_root": "D:\\claude_sandbox\\pixiv-tracking-tool\\.worktrees\\v0.2.0-build20261013.1\\work\\tmp\\diagnostic-observation\\package\\final-isolated-root",
-  "exe": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261013.3.exe",
-  "mode": "offline synthetic",
-  "pid": 52560,
-  "started": "2026-10-13T19:16:49.7450120+08:00",
-  "port": 21919
-}

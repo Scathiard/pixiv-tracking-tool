@@ -688,6 +688,9 @@ def maintain_projections(session):
     with diagnostics.span("projection.finalize", count=len(dirty)):
         connection.exec_driver_sql('DELETE FROM read_model_dirty')
         store.finish_verified_batch(connection, advance_generation="generation" in entities)
+    if set(entities) & {"generation", "work", "resource_work", "source_work", "source_local_work",
+                        "source_artist", "display_work", "display_revision", "card_work", "card_artist"}:
+        session.info['catalogue_data_changed'] = True
     if "generation" in entities and 'catalogue_change_generation' in session.info:
         # Keep the original captured identities before task/artist expansion.
         # An artist-name-only change intentionally sends an empty work set:
@@ -839,6 +842,39 @@ def verify_projections(session):
     return {"works": len(source_ids), "revisions": len(revision_ids), "generation": generation}
 
 
+_HISTORY_WINNER_LOCK = __import__('threading').Lock()
+_HISTORY_WINNER_KEY = None
+_HISTORY_WINNER_MAP = {}
+
+
+def _cached_task_winners(session, connection, selected, history_ids):
+    global _HISTORY_WINNER_KEY, _HISTORY_WINNER_MAP
+    active = tasks._read_winners(connection, selected, active_only=True) if tasks.has_active_local(connection) else {}
+    pending = [work_id for work_id in selected if work_id in history_ids and work_id not in active]
+    if not pending:
+        return active
+    key = (id(session.bind), session.info.get('read_projection_generation'), tasks._TASK_PROJECTION_GENERATION)
+    with _HISTORY_WINNER_LOCK:
+        if _HISTORY_WINNER_KEY != key:
+            _HISTORY_WINNER_KEY = key
+            _HISTORY_WINNER_MAP = {}
+        cached = {work_id: _HISTORY_WINNER_MAP[work_id] for work_id in pending if work_id in _HISTORY_WINNER_MAP}
+    uncached = [work_id for work_id in pending if work_id not in cached]
+    if uncached:
+        fetched = tasks._read_winners(connection, uncached, active_only=False)
+        with _HISTORY_WINNER_LOCK:
+            if _HISTORY_WINNER_KEY == key:
+                for work_id in uncached:
+                    _HISTORY_WINNER_MAP[work_id] = fetched.get(work_id)
+        for work_id in uncached:
+            cached[work_id] = fetched.get(work_id)
+    result = dict(active)
+    for work_id, winner in cached.items():
+        if winner is not None:
+            result[work_id] = winner
+    return result
+
+
 def read_work_states(session, works):
     """Compose current parent state for only the requested Work identities."""
     from .archive_state import _processing, _recovery
@@ -881,7 +917,10 @@ def read_work_states(session, works):
                 observation.update(row_count=consumed, decode_ms=decode_seconds * 1000)
         # Historical failures only affect processing while a relevant gap
         # remains. Active work is still composed for every requested identity.
-        task_winners = tasks.winners(connection, selected, history_ids=history_ids)
+        if 'read_projection_generation' in session.info:
+            task_winners = _cached_task_winners(session, connection, selected, history_ids)
+        else:
+            task_winners = tasks.winners(connection, selected, history_ids=history_ids)
         with diagnostics.span('read.work_states.assemble', selected_count=len(selected)):
             for work_id, (value, ledger, local_gap) in snapshots.items():
                 archive, source_update = value['archive'], value['source_update']

@@ -1,8 +1,0 @@
-{
-  "synthetic_only": true,
-  "production_source_modified": false,
-  "candidate": "split_narrow",
-  "pytest_exit_code": 0,
-  "tests": "app/tests/test_processing_log.py",
-  "test_count": 3
-}

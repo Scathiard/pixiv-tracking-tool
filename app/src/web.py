@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.gzip import GZipMiddleware
 
 from .config import PORT, resource_path
 from . import config as _cfg
@@ -21,6 +22,20 @@ from .core import diagnostics
 from .scheduler import start_scheduler, stop_scheduler
 from .security import RequestBoundaryMiddleware
 from .networking import access_urls
+
+
+class _ApiAndAssetGZipMiddleware:
+    """Compress JSON API and static assets while skipping binary /images/ responses."""
+
+    def __init__(self, app, minimum_size: int = 1000, compresslevel: int = 5):
+        self.app = app
+        self.gzip = GZipMiddleware(app, minimum_size=minimum_size, compresslevel=compresslevel)
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http" or scope.get("path", "").startswith("/images/"):
+            await self.app(scope, receive, send)
+            return
+        await self.gzip(scope, receive, send)
 
 templates = Jinja2Templates(directory=resource_path("src/templates"))
 _server = None
@@ -178,6 +193,7 @@ def create_app(runtime_factory=None, *, authenticate=True, schedule=True, readin
     application.state.upgrade_required = False
     application.state.startup_upgrade = StartupUpgrade(_cfg.DATA_DIR / "pixiv_tracker.db", _cfg.IMAGES_DIR,
         runtime_factory or default_runtime, stopping=lambda:application.state.stopping or _shutdown_requested.is_set())
+    application.add_middleware(_ApiAndAssetGZipMiddleware, minimum_size=1000, compresslevel=5)
     application.add_middleware(RequestBoundaryMiddleware)
     application.add_middleware(diagnostics.DiagnosticHTTPMiddleware)
     application.include_router(create_diagnostic_router())

@@ -146,7 +146,7 @@ def verify_media(path: Path, role: str, timing: Path | None = None) -> Verificat
     return Verification(path.stat().st_size, file_digest(path), width, height)
 
 
-def build_gif(zip_path: Path, timing_path: Path, destination: Path, max_pixels=80_000_000, *, checkpoint=None):
+def build_gif(zip_path: Path, timing_path: Path, destination: Path, max_pixels=160_000_000, *, checkpoint=None):
     if checkpoint: checkpoint()
     verification = verify_media(zip_path, "ugoira_zip", timing_path)
     frames = read_timing(timing_path)
@@ -441,7 +441,7 @@ class Publisher:
                             revision.change_kind = "metadata"
                 from .catalogue_revision import bump_catalogue_revision
                 bump_catalogue_revision(session)
-                journal.step, journal.error = "committed", None
+                journal.step, journal.error, journal.operation_item_id = "committed", None, None
                 return journal.step
         except SuppressedWork:
             with self.database.write() as session:

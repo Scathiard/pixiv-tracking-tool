@@ -132,7 +132,7 @@ class WalMaintenance:
                 raise RuntimeError("SQLite 3.51.3 或更新版本才支持安全的 NOOP 整理")
             if connection.execute("PRAGMA journal_mode").fetchone()[0].lower() != "wal":
                 raise RuntimeError("后台整理需要已启用 WAL 的数据库")
-            connection.execute("PRAGMA synchronous=FULL")
+            connection.execute("PRAGMA synchronous=NORMAL")
             connection.execute("PRAGMA busy_timeout=0")
             connection.execute("PRAGMA wal_autocheckpoint=0")
             # Open the WAL read view even when the database has no recent writes.

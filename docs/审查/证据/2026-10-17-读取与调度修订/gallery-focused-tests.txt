@@ -1,4 +1,0 @@
-.unrelated_history_vm_steps: before=808, after=665
-.healthy_same_work_history_vm_steps: before=113, after400=50; gap_exact_history_steps=21493
-.....
-7 passed in 22.59s

@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+from collections import OrderedDict
 from dataclasses import asdict, dataclass, replace
 import base64
 import hashlib
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import PurePosixPath
+from threading import Lock
 from urllib.parse import quote
 
 from sqlalchemy import Integer, String, and_, case, cast, func, literal, or_, select
@@ -17,7 +19,8 @@ from ..security import sanitize_caption
 
 from .archive_state import work_states
 from .read_projection import CursorExpired
-from .read_control import track_read_stage
+from .read_control import cache_after_read, current_read, track_read_stage
+from .read_snapshot_cache import ReadSnapshotCache
 from . import diagnostics
 from .tag_translations import tag_details
 from .source_status import ARTIST_PREFIX, availability_snapshot
@@ -27,6 +30,8 @@ from .models import (
     ApplicationState, ArchiveIntent, Artist, Asset, BookmarkOperation, Derivative, LocalPreference, RemoteBookmark,
     TrackingPolicy, Work, WorkTag, WorkRevision, RevisionAsset, RevisionDerivative, utcnow,
 )
+
+_TAG_CACHE_INIT = Lock()
 
 
 @dataclass(frozen=True)
@@ -329,6 +334,7 @@ class Library:
                 artist.policy = TrackingPolicy(mode=mode)
             else:
                 artist.policy.mode, artist.policy.updated_at = mode, utcnow()
+            session.info['catalogue_data_changed'] = True
 
     def set_preferences(self, work_id, *, hidden=None, rating=None):
         if rating is not None and (type(rating) is not int or not 0 <= rating <= 5):
@@ -1102,7 +1108,8 @@ class Library:
             return {"previous": nearby.get(position - 1), "next": nearby.get(position + 1), "index": position - 1}
 
     def _tag_counts(self, session, filters, ceiling):
-        if replace(filters, as_of=None, sort="newest", tz_offset_minutes=0) == LibraryFilter(show_hidden=True):
+        normalized = replace(filters, as_of=None, sort="newest", tz_offset_minutes=0)
+        if normalized in (LibraryFilter(show_hidden=True), LibraryFilter(show_hidden=False)):
             # The tag-only index cannot supply work_id for suppression checks:
             # scanning it caused a table lookup for every tag relation. Read
             # the narrow two-column table sequentially, then group/sort. The
@@ -1112,6 +1119,8 @@ class Library:
                 WHERE t.work_id NOT IN (SELECT w.id FROM archive_intents i
                     JOIN works w ON w.pixiv_illust_id=i.pixiv_illust_id
                     WHERE i.mode='suppressed')"""
+            if not filters.show_hidden:
+                statement += " AND t.work_id NOT IN (SELECT p.work_id FROM local_preferences p WHERE p.is_hidden=1)"
             parameters = ()
             if ceiling is not None:
                 statement += " AND t.work_id<=?"
@@ -1121,7 +1130,7 @@ class Library:
                     statement + " GROUP BY t.tag ORDER BY t.tag", parameters).all())
         else:
             ceiling = ceiling if ceiling is not None else session.scalar(select(func.max(Work.id))) or 0
-            selected = self._statement(filters, ceiling).with_only_columns(Work.id)
+            selected = self._statement(filters, ceiling, for_count=True).with_only_columns(Work.id)
             statement = select(WorkTag.tag, func.count()).where(WorkTag.work_id.in_(selected))
         with track_read_stage("filter_tags"):
             return dict(session.execute(statement.group_by(WorkTag.tag).order_by(WorkTag.tag)).all())
@@ -1132,40 +1141,130 @@ class Library:
 
     def tag_catalogue(self, filters=LibraryFilter(), *, ceiling=None):
         """Current local choices and already stored Pixiv translations only."""
+        filter_key = self.tag_catalogue_key(filters, ceiling)
+        generation = getattr(self.database, '_catalogue_data_generation', self.database.reads.generation)
+        with _TAG_CACHE_INIT:
+            cache = getattr(self, '_tag_catalogue_data', None)
+            if cache is None:
+                cache = self._tag_catalogue_data = ReadSnapshotCache()
         with self.database.read() as session:
+            key = (generation, session.info.get('read_projection_generation'), self.account_id, filter_key)
+            # Read readiness and external schema/dirty checks remain per-call.
+            cached = cache.get(key) if filter_key is not None else None
+            if cached is not None:
+                return cached
+            session.info['catalogue_data_generation'] = generation
+            try:
+                result = self._tag_catalogue_data_read(session, filters, ceiling, generation=generation)
+            finally:
+                session.info.pop('catalogue_data_generation', None)
+                memo_candidate = session.info.pop('tag_translations_memo_candidate', None)
+        budget = current_read.get()
+        if budget is not None:
+            budget.checkpoint()
+        def publish():
+            current_gen = getattr(self.database, '_catalogue_data_generation', self.database.reads.generation)
+            if current_gen == generation:
+                if memo_candidate is not None:
+                    self._tag_translations_memo = memo_candidate
+                if filter_key is not None:
+                    cache.put(key, result)
+        cache_after_read(publish)
+        return result
+
+    @staticmethod
+    def tag_catalogue_key(filters, ceiling=None):
+        # Rolling dates remain uncached. as_of and ordering do not affect a
+        # tag-membership query with no date/recent restriction.
+        if filters.recent or filters.posted_after is not None or filters.posted_before is not None:
+            return None
+        selections = {name: tuple(sorted(set(value))) if value is not None else None
+                      for name in ('artist_ids', 'artist_ids_exclude', 'tags', 'tags_exclude', 'types')
+                      for value in (getattr(filters, name),)}
+        return (replace(filters, **selections, as_of=None, sort='newest', tz_offset_minutes=0), ceiling)
+
+    def _tag_catalogue_data_read(self, session, filters, ceiling, *, generation=None, return_memo=False):
+        with track_read_stage('filter_translations'):
             counts = self._tag_counts(session, filters, ceiling)
             names = list(counts)
-            wanted, records, dates = set(names), {}, {}
+            records = {}
+            memo_candidate = None
             if names:
-                # The display projection contains translations separately from
-                # URL/frame manifests. Its PK range excludes all revision history.
-                rows = session.connection().exec_driver_sql("""SELECT d.scope,d.translations
-                    FROM read_display_metadata d JOIN read_source_work_local l
-                      ON l.work_id=CAST(substr(d.scope,6) AS INTEGER) AND l.included=1
-                    WHERE d.scope>='work:' AND d.scope<'work;'
-                      AND d.translations NOT IN ('null','{}') ORDER BY d.scope""")
-                with track_read_stage("filter_translations"):
-                    for scope, payload in rows:
-                        translations = json.loads(payload)
-                        if not isinstance(translations, dict):
-                            continue
-                        for name, record in translations.items():
-                            if (name not in wanted or not isinstance(record, dict)
-                                    or record.get("source") != "pixiv" or record.get("language") != "zh-cn"
-                                    or not isinstance(record.get("translated_name"), str)
-                                    or not record["translated_name"].strip()):
+                snapshot_gen = (
+                    getattr(self.database, '_catalogue_data_generation', self.database.reads.generation)
+                    if generation is None else generation
+                )
+                translation_key = (
+                    snapshot_gen,
+                    session.info.get('read_projection_generation'),
+                )
+                cached_translations = getattr(self, '_tag_translations_memo', None)
+                if cached_translations is not None and cached_translations[0] == translation_key:
+                    records = cached_translations[1]
+                else:
+                    # The display projection contains translations separately from
+                    # URL/frame manifests. Its PK range excludes all revision history.
+                    # Avoid joining read_source_work_local in lexicographical scope
+                    # order (which causes N non-sequential integer-PK seeks across large
+                    # databases); exclude suppressed works directly via archive_intents.
+                    rows = session.connection().exec_driver_sql("""SELECT d.scope,d.translations
+                        FROM read_display_metadata d
+                        WHERE d.scope>='work:' AND d.scope<'work;'
+                          AND d.translations NOT IN ('null','{}')
+                          AND CAST(substr(d.scope,6) AS INTEGER) NOT IN (
+                              SELECT w.id FROM archive_intents i
+                              JOIN works w ON w.pixiv_illust_id=i.pixiv_illust_id
+                              WHERE i.mode='suppressed'
+                          ) ORDER BY d.scope""")
+                    with track_read_stage('filter_translation_fetch'):
+                        values = rows.all()
+                    with track_read_stage('filter_translation_decode'):
+                        decoded = getattr(self, '_tag_payload_decode_cache', None)
+                        if decoded is None:
+                            decoded = self._tag_payload_decode_cache = OrderedDict()
+                        timestamps = getattr(self, '_tag_timestamp_cache', None)
+                        if timestamps is None:
+                            timestamps = self._tag_timestamp_cache = {}
+                        dates = {}
+                        for scope, payload in values:
+                            translations = decoded.get(payload)
+                            if translations is None:
+                                translations = json.loads(payload)
+                                if len(payload) <= 16384:
+                                    decoded[payload] = translations
+                                    if len(decoded) > 16384:
+                                        decoded.popitem(last=False)
+                            if not isinstance(translations, dict):
                                 continue
-                            try:
-                                checked = datetime.fromisoformat(record.get("checked_at", ""))
-                                checked = checked.replace(tzinfo=timezone.utc) if checked.tzinfo is None else checked
-                                stamp = checked.timestamp()
-                            except (TypeError, ValueError, OverflowError, OSError):
-                                stamp = float("-inf")
-                            score = (stamp, scope)
-                            if name not in dates or score > dates[name]:
-                                records[name], dates[name] = record, score
-            return {"tags": names, "tag_counts": counts, "tag_details": tag_details(
+                            for name, record in translations.items():
+                                if (not isinstance(record, dict)
+                                        or record.get("source") != "pixiv" or record.get("language") != "zh-cn"
+                                        or not isinstance(record.get("translated_name"), str)
+                                        or not record["translated_name"].strip()):
+                                    continue
+                                raw_stamp = record.get('checked_at', '')
+                                stamp = timestamps.get(raw_stamp) if isinstance(raw_stamp, str) else None
+                                if stamp is None:
+                                    try:
+                                        checked = datetime.fromisoformat(raw_stamp)
+                                        checked = checked.replace(tzinfo=timezone.utc) if checked.tzinfo is None else checked
+                                        stamp = checked.timestamp()
+                                    except (TypeError, ValueError, OverflowError, OSError):
+                                        stamp = float('-inf')
+                                    if isinstance(raw_stamp, str):
+                                        if len(timestamps) >= 16384:
+                                            timestamps.clear()
+                                        timestamps[raw_stamp] = stamp
+                                score = (stamp, scope)
+                                if name not in dates or score > dates[name]:
+                                    records[name], dates[name] = record, score
+                        memo_candidate = (translation_key, records)
+                        session.info['tag_translations_memo_candidate'] = memo_candidate
+                        if 'catalogue_data_generation' not in session.info and getattr(self.database, '_catalogue_data_generation', self.database.reads.generation) == snapshot_gen:
+                            self._tag_translations_memo = memo_candidate
+            payload = {"tags": names, "tag_counts": counts, "tag_details": tag_details(
                 [name for name in names if name in records], {"tag_translations": records})}
+            return (payload, memo_candidate) if return_memo else payload
 
     def _page_ranges(self, filters, ceiling):
         pages = case((Work.type == "ugoira", 1), else_=Work.page_count)

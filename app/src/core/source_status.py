@@ -66,9 +66,9 @@ def classify_failure(exc):
     if status in (401, 403, 429, 503) or code in ("api_unauthorized", "api_forbidden", "api_rate_limit", "api_unavailable"):
         return None, "本次网络或登录核对未完成，最近来源事实保留"
     if code in ("work_private", "artist_private", "api_private"):
-        return "private", "主站已无法访问：来源不可公开获取；已有存档保留"
+        return "private", "主站已无法访问：来源已设为非公开或不可公开获取；已有存档保留"
     if code in ("work_unavailable", "artist_unavailable") or status == 404 and code != "ugoira_metadata_unavailable":
-        return "unavailable", "主站已无法访问：对应来源未能取得；已有存档保留"
+        return "unavailable", "主站已无法访问：对应来源未能取得或页面已不存在；已有存档保留"
     if code == "source_identity_mismatch" or code == "api_invalid_response":
         return None, "主站未返回对应记录的有效资料，已有资料保留"
     if status == 429 or code == "api_rate_limit":

@@ -332,10 +332,19 @@ class BookmarkService:
         if automatic:
             account, _ = self._account_context()
             with self.database.read() as session:
-                if session.get(Work, work_id) is None:
+                work = session.get(Work, work_id)
+                if work is None:
                     raise LookupError("作品不存在")
                 fact, operation = self._state_records(session, work_id)
-                cached = (not account or not self._is_available() or
+                from .source_status import availability_snapshot
+                availability = availability_snapshot(
+                    (work.source_metadata or {}).get("remote_availability"), account
+                ) or {}
+                source_blocked = (
+                    availability.get("effective") is True
+                    and availability.get("state") in ("unavailable", "private", "deleted")
+                )
+                cached = (source_blocked or not account or not self._is_available() or
                     fact and fact.source in ("readback", "metadata") and
                     fact.account_id == account and fact.confirmed_at and
                     timedelta(0) <= utcnow() - fact.confirmed_at <
@@ -602,7 +611,7 @@ class BookmarkService:
                     write_reason = f"请求未成功（{status}）" if rejected else None
         last_read = None
         rate_limited = False
-        for attempt in range(1, 4):
+        for attempt in range(1, 2 if kind == "refresh" else 4):
             if self._stopping.is_set():
                 return
             if self._is_suppressed(pixiv_id):

@@ -1,9 +1,0 @@
-{
-  "source": "D:\\claude_sandbox\\pixiv-tracking-tool\\release\\v0.2.0\\build-20260930.3\\PixivTracker_v0.2.0_build20260930.3.exe",
-  "destination": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20260930.3.exe",
-  "sha256": "8122ea1bd4110ab77e060c389d7559d8fc5222d460a3ae42966875fa81b126ab",
-  "hash_matches": true,
-  "started": false,
-  "real_data_modified": false,
-  "config_or_token_modified": false
-}

@@ -21,7 +21,8 @@ from .catalogue_revision import catalogue_revision
 from .models import ApplicationState, Asset, Derivative, Operation, OperationItem, TaskRound, Work, utcnow
 from ..version import __build__
 from ..request_policy import AccountChanged, RequestDeferred, TaskRemoteRetry
-from .read_control import LocalReadError
+from .read_control import LocalReadError, cache_after_read, current_read, track_read_stage
+from .read_snapshot_cache import ReadSnapshotCache
 from . import task_read_projection as task_reads
 from . import diagnostics
 
@@ -267,6 +268,7 @@ class TaskQueue:
         self._validated_phases = set()
         self._scan_context = threading.local()
         self._last_scan_more = False
+        self._snapshot_data = ReadSnapshotCache(max_bytes=4 * 1024 * 1024)
         with self.database.read() as session:
             records = session.execute(select(Operation.id, Operation.pause_requested, Operation.result).where(Operation.state.in_(ACTIVE))).all()
             # Finished intermediates can still connect an active grandchild to
@@ -701,8 +703,16 @@ class TaskQueue:
             # Include finished parents too. Rowid stays in this transaction,
             # so only interrupted items need their full payload loaded.
             row_id = literal_column("operation_items.rowid")
+            recent_finished = select(Operation.id).where(
+                Operation.state == "finished", Operation.finished_at.is_not(None)
+            ).order_by(Operation.finished_at.desc(), Operation.id.desc()).limit(16).subquery()
+            candidate_operations = union_all(
+                select(Operation.id).where(Operation.state.in_(ACTIVE)),
+                select(Operation.id).where(Operation.state == "finished", Operation.finished_at.is_(None)),
+                select(recent_finished.c.id),
+            )
             running_ids = select(row_id).select_from(OperationItem).where(
-                OperationItem.operation_id.in_(select(Operation.id)), OperationItem.state == "running")
+                OperationItem.operation_id.in_(candidate_operations), OperationItem.state == "running")
             for item in session.scalars(select(OperationItem).where(row_id.in_(running_ids))):
                 observation['item_count'] += 1
                 item.state = "pending"
@@ -1475,10 +1485,13 @@ class TaskQueue:
             stored = session.get(OperationItem, item.id)
             previous_state = stored.state
             stored.state, stored.result = result.state, result.detail
+            if (result.state in ("succeeded", "skipped") and stored.kind == "discover_work"
+                    and isinstance(stored.target, dict) and isinstance(stored.target.get("data"), dict)):
+                stored.target = {**stored.target, "data": {"illust_id": stored.target["data"].get("illust_id")}}
             self.record_settlement_in_transaction(session, stored, previous_state)
             session.flush()
             operation = session.get(Operation, operation_id)
-            if operation.source == "automatic" and operation.kind == "check":
+            if operation.kind == "check" and (operation.source == "automatic" or bool((operation.parameters or {}).get("incremental"))):
                 from .incremental_check import record_settlement
                 record_settlement(session, operation, stored, result)
             if result.state == "failed" and (item.kind in ("discover_page", "bookmark_page") or
@@ -1596,9 +1609,18 @@ class TaskQueue:
                 for key in phase_keys:
                     self._validated_phases.discard((operation_id, key))
             session.flush()
+            session.connection().exec_driver_sql(
+                """UPDATE operation_items
+                   SET target = json_set(json_remove(target, '$.data'), '$.data',
+                                         json_object('illust_id', coalesce(json_extract(target, '$.data.id'), json_extract(target, '$.data.illust_id'))))
+                   WHERE operation_id = ? AND json_type(target, '$.data') = 'object'
+                     AND json_extract(target, '$.data.title') IS NOT NULL""",
+                (operation.id,),
+            )
             pending.extend(operation.result.get("parent_operation_ids", []))
         for round_id in rounds:
             self._finalize_round(session, round_id)
+        self.prune_history(session)
 
     def _finalize_round(self, session, round_id):
         current = session.get(TaskRound, round_id)
@@ -1616,6 +1638,100 @@ class TaskQueue:
             current.result = {**counts, "outcome": final_outcome}
             current.state, current.finished_at = "finished", utcnow()
 
+    def prune_history(self, session, *, keep_finished=24, max_delete=32):
+        """Automatically bound settled operation history while preserving active/recent/incomplete-work winners."""
+        connection = session.connection()
+        total_finished = connection.exec_driver_sql(
+            "SELECT count(*) FROM operations WHERE state = 'finished'"
+        ).scalar_one()
+        if total_finished <= keep_finished:
+            return 0
+        # Never prune if any operation is still active/unfinished, so child/parent links stay intact during a round.
+        has_unfinished = connection.exec_driver_sql(
+            "SELECT 1 FROM operations WHERE state != 'finished' LIMIT 1"
+        ).first()
+        if has_unfinished is not None:
+            return 0
+        prunable_ids = list(
+            connection.exec_driver_sql(
+                """WITH protected_ops AS (
+                    SELECT id FROM (
+                        SELECT id FROM operations
+                        WHERE state = 'finished'
+                        ORDER BY finished_at DESC, id DESC
+                        LIMIT ?
+                    )
+                    UNION
+                    SELECT id FROM operations
+                    WHERE round_id IN (
+                        SELECT id FROM (
+                            SELECT id FROM task_rounds ORDER BY created_at DESC LIMIT 2
+                        )
+                    )
+                    UNION
+                    SELECT DISTINCT cand.operation_id
+                    FROM (
+                        SELECT wp.work_id, wp.operation_id, wp.history_id
+                        FROM read_task_work_parent wp
+                        UNION ALL
+                        SELECT s.work_id, s.operation_id, b.history_id
+                        FROM read_operation_scope s
+                        JOIN read_task_scope_best b ON b.operation_id = s.operation_id
+                        WHERE b.history_id IS NOT NULL
+                    ) cand
+                    JOIN read_task_item_fact f ON f.item_id = cand.history_id
+                    LEFT JOIN read_work_state ws ON ws.work_id = cand.work_id
+                    WHERE f.state IN ('failed', 'not_executed')
+                      AND (
+                          json_extract(ws.value, '$.archive.state') != 'complete'
+                          OR json_extract(ws.value, '$.source_update.pending') = 1
+                          OR EXISTS (
+                              SELECT 1 FROM application_state
+                              WHERE key = 'maintenance_work:' || cand.work_id
+                          )
+                      )
+                )
+                SELECT id FROM operations
+                WHERE state = 'finished' AND id NOT IN (SELECT id FROM protected_ops)
+                ORDER BY finished_at ASC, id ASC
+                LIMIT ?""",
+                (keep_finished, max_delete),
+            ).scalars()
+        )
+        if not prunable_ids:
+            return 0
+        placeholders = ",".join("?" for _ in prunable_ids)
+        params = tuple(prunable_ids)
+        existing_dirty_items = set(
+            connection.exec_driver_sql("SELECT identity FROM read_model_dirty WHERE entity = 'item'").scalars()
+        )
+        connection.exec_driver_sql(
+            f"UPDATE publication_journal SET operation_item_id = NULL "
+            f"WHERE operation_item_id IN (SELECT id FROM operation_items WHERE operation_id IN ({placeholders}))",
+            params,
+        )
+        connection.exec_driver_sql(
+            f"DELETE FROM operation_items WHERE operation_id IN ({placeholders})",
+            params,
+        )
+        if not existing_dirty_items:
+            connection.exec_driver_sql("DELETE FROM read_model_dirty WHERE entity = 'item'")
+        connection.exec_driver_sql(
+            f"DELETE FROM read_model_dirty WHERE entity = 'scope' AND identity IN ({placeholders})",
+            params,
+        )
+        connection.exec_driver_sql(
+            f"DELETE FROM operations WHERE id IN ({placeholders})",
+            params,
+        )
+        connection.exec_driver_sql(
+            """DELETE FROM task_rounds
+               WHERE state = 'finished'
+                 AND id NOT IN (SELECT id FROM (SELECT id FROM task_rounds ORDER BY created_at DESC LIMIT 2))
+                 AND id NOT IN (SELECT DISTINCT round_id FROM operations WHERE round_id IS NOT NULL)"""
+        )
+        return len(prunable_ids)
+
 
     @staticmethod
     def _round_counts(session, round_id):
@@ -1631,8 +1747,48 @@ class TaskQueue:
             operation.needs_attention = False
 
     def snapshot(self, *, watch_ids=()):
-        running_items = {}
+        generation = self.database.reads.generation
+        watched = tuple(dict.fromkeys(watch_ids))
         with self.database.read() as session:
+            key = (generation, session.info.get('read_projection_generation'), watched)
+            cached = self._snapshot_data.get(key)
+            missing = cached is None
+            if cached is None:
+                cached = self._snapshot_database_data(session, watch_ids=watched)
+        budget = current_read.get()
+        if budget is not None:
+            budget.checkpoint()
+        if missing:
+            # Capture database-only values before applying volatile fields.
+            from copy import deepcopy
+            stored = deepcopy(cached)
+            def publish():
+                if self.database.reads.generation == generation:
+                    self._snapshot_data.put(key, stored)
+            cache_after_read(publish)
+        response, running_items, stored_phases = cached
+        # Only database facts were cached. Re-evaluate connection, control and
+        # worker state on every call, after returning the read connection.
+        with track_read_stage('progress_assemble'):
+            for view in response['operations']:
+                paused = self.operation_paused(view['id'])
+                waiting_connection = view['state'] in ACTIVE and not self.kind_allowed(view['kind'])
+                if waiting_connection:
+                    view['lane'] = None
+                    view['phase'] = stored_phases[view['id']]
+                    view['phase'].update(name='waiting_connection', detail='等待连接 Pixiv，任务进度已保留')
+                    running_items.pop(view['id'], None)
+                if paused:
+                    view['state'] = 'pausing' if running_items.get(view['id']) or view['id'] in self._planning else 'paused'
+                elif waiting_connection:
+                    view['state'] = 'queued'
+            response['worker_error'] = self.worker_error
+        self._merge_byte_progress(response['operations'], running_items)
+        return response
+
+    def _snapshot_database_data(self, session, *, watch_ids):
+        running_items = {}
+        with diagnostics.span('read.tasks.database_snapshot'):
             current = session.scalar(select(TaskRound).order_by(TaskRound.created_at.desc()).limit(1))
             counters = task_reads.status_counts(session)
             waiting = counters["waiting"]
@@ -1655,26 +1811,26 @@ class TaskQueue:
                 history = task_reads.completion_feedback(session, operation_ids=watch_ids)
                 observation.update(active_count=len(active), history_count=len(history))
             attention_count = counters["attention"]
-            with diagnostics.span('read.tasks.assemble', row_count=len(active) + len(history)):
-                views = [self._operation_view(op, session, running_items, result_override=result) for op, result in active + history]
+            with track_read_stage('progress_assemble'), diagnostics.span('read.tasks.assemble', row_count=len(active) + len(history)):
+                views = [self._operation_view(op, session, running_items, result_override=result, live=False) for op, result in active + history]
                 for view in views:
                     view["result"] = {key: value for key, value in view["result"].items() if key not in ("child_operation_ids", "parent_operation_ids")}
             response = {"active_operation_count": active_operation_count, "queued_operation_count": queued_operation_count, "catalogue_revision": catalogue_revision(session), "round": rounds, "next_round_count": waiting, "needs_attention_count": attention_count,
                     "automatic_paused": bool((setting := session.get(ApplicationState, "automatic_paused")) and setting.value),
-                    "worker_error": self.worker_error,
                     "operations": views}
-        self._merge_byte_progress(views, running_items)
-        return response
+            stored_phases = {op.id: {'name': op.phase, 'unit': op.phase_unit,
+                'done': op.phase_done, 'total': op.phase_total, 'detail': op.detail} for op, _ in active + history}
+        return [response, running_items, stored_phases]
 
-    def _operation_view(self, op, session=None, running_items=None, *, result_override=_SOURCE_RESULT):
+    def _operation_view(self, op, session=None, running_items=None, *, result_override=_SOURCE_RESULT, live=True):
         if result_override is None:
             raise task_reads.ProjectionUnavailable("task operation result projection is missing")
         # Durable snapshots from older versions are never live byte progress.
         result = {key: value for key, value in (op.result if result_override is _SOURCE_RESULT else result_override).items()
             if key not in ("current_item", "current_items")}
         running = []
-        manually_paused = self.operation_paused(op.id)
-        waiting_connection = op.state in ACTIVE and not self.kind_allowed(op.kind)
+        manually_paused = live and self.operation_paused(op.id)
+        waiting_connection = live and op.state in ACTIVE and not self.kind_allowed(op.kind)
         phase, lane = {"name": op.phase, "unit": op.phase_unit, "done": op.phase_done, "total": op.phase_total, "detail": op.detail}, result.get("lane") or ("check" if op.state == "planning" else None)
         if waiting_connection:
             lane, phase["name"], phase["detail"] = None, "waiting_connection", "等待连接 Pixiv，任务进度已保留"

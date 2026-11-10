@@ -1,6 +1,7 @@
 """Read-only settings snapshot and explicit user-initiated settings edits."""
 from __future__ import annotations
 
+from contextvars import ContextVar
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Integer, String, and_, case, func, or_, select, text, union
@@ -27,7 +28,7 @@ class SettingsEdit(BaseModel):
     check_interval_minutes: int | None = Field(default=None, ge=1, le=43200)
 
 
-def lan_addresses(port):
+def _discover_lan_hosts():
     # These are addresses of local adapters, not a hostname lookup. Windows
     # DNS retries must not block the complete settings response while offline.
     try:
@@ -35,17 +36,65 @@ def lan_addresses(port):
         stats = psutil.net_if_stats()
         addresses = psutil.net_if_addrs()
     except OSError:
-        return []
+        return None
     hosts = {entry.address for name, entries in addresses.items()
              if name not in stats or stats[name].isup
              for entry in entries if entry.family == socket.AF_INET}
-    return [f"http://{host}:{port}" for host in sorted(hosts)
+    return tuple(host for host in sorted(hosts)
             if ipaddress.ip_address(host).is_private and not ipaddress.ip_address(host).is_loopback
-            and not ipaddress.ip_address(host).is_unspecified]
+            and not ipaddress.ip_address(host).is_unspecified)
+
+
+class _LanAddressCache:
+    """Cache adapter enumeration only; settings and the listening port stay live."""
+
+    def __init__(self, ttl=30):
+        self.ttl = ttl
+        self.lock = Lock()
+        self.hosts = None
+        self.expires = 0.0
+
+    def get(self):
+        budget = current_read.get()
+        while not self.lock.acquire(timeout=.05):
+            if budget is not None:
+                budget.checkpoint()
+        try:
+            if budget is not None:
+                budget.checkpoint()
+            if self.hosts is not None and monotonic() < self.expires:
+                return self.hosts
+            hosts = _discover_lan_hosts()
+            if budget is not None:
+                budget.checkpoint()
+            if hosts is None:
+                return ()  # Do not extend TTL after an adapter-enumeration error.
+            self.hosts = hosts
+            self.expires = monotonic() + self.ttl
+            return hosts
+        finally:
+            self.lock.release()
+
+
+_lan_cache_context: ContextVar[_LanAddressCache | None] = ContextVar("settings_lan_cache", default=None)
+
+
+def lan_addresses(port):
+    cache = _lan_cache_context.get()
+    hosts = cache.get() if cache is not None else (_discover_lan_hosts() or ())
+    return [f"http://{host}:{port}" for host in hosts]
 
 
 def create_settings_router(get_runtime):
     router = APIRouter()
+    lan_cache = _LanAddressCache()
+
+    def cached_lan_urls(port):
+        token = _lan_cache_context.set(lan_cache)
+        try:
+            return lan_addresses(port)
+        finally:
+            _lan_cache_context.reset(token)
 
     def runtime():
         current = get_runtime()
@@ -130,7 +179,7 @@ def create_settings_router(get_runtime):
             "data_root": str(config.DATA_ROOT),
             "check_interval_minutes": interval["minutes"],
             "next_check_at": interval["next_check_at"],
-            "lan_urls": lan_addresses(config.LISTENING_PORT)}
+            "lan_urls": cached_lan_urls(config.LISTENING_PORT)}
 
     @router.get("/api/settings")
     @local_read(get_runtime, coalesce=True, coalesce_context=lambda current:

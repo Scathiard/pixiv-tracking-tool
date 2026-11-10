@@ -1,1 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="89.787" timestamp="2026-10-21T11:42:41.808031+08:00" hostname="Baseline"><testcase classname="tests.test_reading_preparation_api" name="test_startup_and_waiting_browsers_do_not_block_library" time="11.551" /></testsuite></testsuites>

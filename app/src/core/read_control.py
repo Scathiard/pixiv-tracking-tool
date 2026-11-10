@@ -18,7 +18,11 @@ from . import diagnostics
 log = logging.getLogger(__name__)
 _READ_STAGES = frozenset(("progress_active_hydrate", "progress_history_hydrate",
     "library_works", "library_metadata", "library_revisions", "library_bookmarks",
-    "library_states", "library_media"))
+    "library_states", "library_media", "filter_tags", "filter_translations",
+    "filter_translation_fetch", "filter_translation_decode", "progress_assemble"))
+
+# Compared on the same dataset, including active cancellation latency.
+SQLITE_PROGRESS_OPCODE_STRIDE = 25000
 
 
 def _read_fields(budget):
@@ -76,6 +80,7 @@ class ReadBudget:
         self.cancelled_by_deadline = False
         self._lock = Lock()
         self._connections = set()
+        self._cache_publications = []
         self.diagnostic_cancel_at = None
         _read_event("read.budget_created", self, timeout_seconds=timeout)
 
@@ -117,6 +122,14 @@ class ReadBudget:
     def stopped(self):
         return self.cancelled.is_set() or monotonic() >= self.deadline
 
+    def publish_caches(self):
+        """Publish only after the controlled read, including its caller, succeeds."""
+        self.checkpoint()
+        for publish in self._cache_publications:
+            self.checkpoint()
+            publish()
+        self._cache_publications.clear()
+
     def cancel(self, *, timed_out=False, reason=None):
         # Clearing hooks and removing the connection use this same lock. An old
         # consumer can never interrupt a connection returned to a later borrower.
@@ -133,7 +146,7 @@ class ReadBudget:
     def attach(self, connection):
         with self._lock:
             self.checkpoint()
-            connection.set_progress_handler(lambda: int(self.stopped()), 1000)
+            connection.set_progress_handler(lambda: int(self.stopped()), SQLITE_PROGRESS_OPCODE_STRIDE)
             self._connections.add(connection)
             _read_event("read.connection_attached", self, connection_count=len(self._connections))
 
@@ -145,6 +158,15 @@ class ReadBudget:
 
 
 current_read: ContextVar[ReadBudget | None] = ContextVar("archive_read_budget", default=None)
+
+
+def cache_after_read(publish):
+    budget = current_read.get()
+    if budget is None:
+        publish()
+    else:
+        budget.checkpoint()
+        budget._cache_publications.append(publish)
 
 
 @contextmanager
@@ -160,7 +182,10 @@ def track_read_stage(stage):
             yield
     finally:
         elapsed = monotonic() - began
-        budget.last_read_stage, budget.last_stage_seconds = stage, elapsed
+        # Assembly is useful for the slowest-stage diagnosis but does not
+        # replace the last database hydration location in the existing log.
+        if stage != "progress_assemble":
+            budget.last_read_stage, budget.last_stage_seconds = stage, elapsed
         if budget.slowest_read_stage is None or elapsed > budget.slowest_stage_seconds:
             budget.slowest_read_stage, budget.slowest_stage_seconds = stage, elapsed
 
@@ -168,7 +193,7 @@ def track_read_stage(stage):
 class ReadController:
     def __init__(self):
         self.capacities = {"frontend": 4, "background": 2, "logs": 1}
-        self.queue_bounds = {"frontend": 64, "background": 64, "logs": 8}
+        self.queue_bounds = {"frontend": 256, "background": 64, "logs": 8}
         self._condition = Condition()
         self.active = dict.fromkeys(self.capacities, 0)
         self.pending = dict.fromkeys(self.capacities, 0)
@@ -309,8 +334,10 @@ class ReadController:
                     budget.checkpoint()
                     result = function()
                     budget.checkpoint()
+                    budget.publish_caches()
                     return result
             finally:
+                budget._cache_publications.clear()
                 _read_event("read.worker_cleanup", budget, cancelled=budget.cancelled.is_set(),
                     after_cancel_ms=(monotonic() - budget.diagnostic_cancel_at) * 1000
                         if budget.diagnostic_cancel_at is not None else None)

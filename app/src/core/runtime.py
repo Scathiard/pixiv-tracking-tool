@@ -1,8 +1,7 @@
 """One owned local library and one task worker. Authentication is optional."""
 from __future__ import annotations
 
-from pathlib import Path, PurePosixPath
-import re
+from pathlib import Path
 from stat import S_ISREG
 import threading
 import time
@@ -16,7 +15,8 @@ from .bookmarks import BookmarkService
 from .database import ArchiveDatabase
 from .library import Library
 from .reading import ReadingSessions
-from .media import Publisher, contained_path
+from .media import Publisher
+from .media_access import MediaAccess, media_work_hint
 from .maintenance import MissingMediaMaintenance
 from .models import ArchiveIntent, Artist, Asset, Derivative, Operation, PublicationJournal, TrackingPolicy, Work, utcnow
 from .ownership import LibraryLease
@@ -162,16 +162,23 @@ class Runtime:
             guard_upgrade_recovery(database_path)
             with _startup_phase("database_open"):
                 self.database = ArchiveDatabase.create(database_path) if create else ArchiveDatabase(database_path)
-            from .index_preparation import prepare_task_indexes
+            from .index_preparation import (
+                compact_bloated_task_history,
+                prepare_task_indexes,
+                # startup index check only
+            )
             with _startup_phase("query_indexes"):
                 self.index_preparation = prepare_task_indexes(self.database, self.lease, progress=index_progress)
+                compact_bloated_task_history(self.database, progress=index_progress)
                 self.database.refresh_schema_contract_after_index_preparation()
+                pass
         except BaseException:
             if hasattr(self, 'database'):
                 self.database.close()
             self.lease.close()
             raise
         self.images, self.client = Path(images).resolve(), client
+        self.media_access = MediaAccess(self.database, self.images)
         self.wal_maintenance = WalMaintenance(self.database.path)
         self.account_id = None
         self.library = Library(self.database)
@@ -291,6 +298,7 @@ class Runtime:
             self._started = True
 
     def request_stop(self, *, cancel_remote=False):
+        self.media_access.close()
         self._closing.set()
         self.queue.request_stop()
         self.bookmarks.request_stop()
@@ -402,28 +410,68 @@ class Runtime:
             observation['outcome'] = 'available' if result is not None else 'unavailable'
             return result
 
-    def _media_path_observed(self, relative):
-        if relative.startswith((".staging/", ".recovery/", ".archive-writer")):
+    def cached_media_path(self, relative):
+        """Fast-path check for an already authorized path in the current read generation."""
+        path = self.media_access.path(relative)
+        if path is None:
+            return None
+        generation = self.database.reads.generation
+        if not self.media_access.contains(relative, generation):
             return None
         try:
-            path = contained_path(self.images, relative)
-        except ValueError:
+            with diagnostics.span('media.authorize') as observation:
+                with diagnostics.span('media.stat') as stat_obs:
+                    stat = path.stat()
+                    stat_obs['file_bytes'] = stat.st_size
+                if (S_ISREG(stat.st_mode) and stat.st_size > 0
+                        and self.database.reads.generation == generation):
+                    observation['outcome'] = 'available'
+                    return path
+                observation['outcome'] = 'unavailable'
+        except OSError:
+            pass
+        self.media_access.discard(relative)
+        return None
+
+    def warm_media_paths(self, relatives):
+        """Best-effort page preheat: one batch of at most 64 literal relative paths.
+
+        Ownership and deletion intent are queried together; a page URL alone
+        never grants access. Database failures/cancellation still propagate.
+        """
+        return self.media_access.warm(relatives)
+
+    def _media_path_observed(self, relative):
+        path = self.media_access.path(relative)
+        if path is None:
             return None
+        generation = self.database.reads.generation
+        if self.media_access.contains(relative, generation):
+            try:
+                with diagnostics.span('media.stat') as observation:
+                    stat = path.stat()
+                    observation['file_bytes'] = stat.st_size
+                if (S_ISREG(stat.st_mode) and stat.st_size > 0
+                        and self.database.reads.generation == generation):
+                    return path
+            except OSError:
+                pass
+            self.media_access.discard(relative)
         with self.database.read() as session:
             allowed = False
             # Generated originals, previews and historical revisions retain the
             # Pixiv work ID in their basename. It is only a lookup hint: the full
             # registered path and deletion intent still decide authorisation.
-            match = re.fullmatch(r"([0-9]+)(?:_p[0-9]+(?:_v[0-9]+)?|_card_motion_v[0-9]+|_ugoira)?(?:\.[^.]+)+", PurePosixPath(relative).name)
-            if match:
-                work_id = session.scalar(select(Work.id).where(Work.pixiv_illust_id == match[1]))
+            hinted_id = media_work_hint(relative)
+            if hinted_id is not None:
+                work_id = session.scalar(select(Work.id).where(Work.pixiv_illust_id == hinted_id))
                 if work_id is not None:
                     models = (Derivative, Asset) if "/.thumbnails/" in relative else (Asset, Derivative)
                     for model in models:
                         if session.scalar(select(model.id).where(model.work_id == work_id,
                                 model.relative_path == relative,
                                 ~select(ArchiveIntent.pixiv_illust_id).where(
-                                    ArchiveIntent.pixiv_illust_id == match[1], ArchiveIntent.mode == "suppressed").exists()).limit(1)) is not None:
+                                    ArchiveIntent.pixiv_illust_id == hinted_id, ArchiveIntent.mode == "suppressed").exists()).limit(1)) is not None:
                             allowed = True
                             break
             if not allowed:
@@ -443,6 +491,7 @@ class Runtime:
                     stat = path.stat()
                     observation['file_bytes'] = stat.st_size
                 if S_ISREG(stat.st_mode) and stat.st_size > 0:
+                    self.media_access.publish((relative,), generation)
                     return path
                 if S_ISREG(stat.st_mode):
                     observed_state = "invalid"

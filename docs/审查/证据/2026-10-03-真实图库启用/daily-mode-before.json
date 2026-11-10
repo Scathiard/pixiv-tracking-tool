@@ -1,9 +1,0 @@
-{
-  "pid": 60076,
-  "program": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261003.6.exe",
-  "offline_argument": true,
-  "logged_in": false,
-  "listening_port": 1919,
-  "login_http": 503,
-  "login_error": "隔离验证实例不连接真实账号"
-}

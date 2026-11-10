@@ -44,6 +44,7 @@ class ArchiveDatabase:
         self._catalogue_publication = Lock()
         self._catalogue_subscribers_lock = RLock()
         self._catalogue_subscribers = {}
+        self._catalogue_data_generation = 0
         self.reads = ReadController()
         self.engine = self._engine(self.path)
         try:
@@ -109,18 +110,21 @@ class ArchiveDatabase:
             connection.execute("PRAGMA foreign_keys=ON")
             connection.execute("PRAGMA busy_timeout=5000")
             if writer:
-                connection.execute("PRAGMA synchronous=FULL")
+                connection.execute("PRAGMA synchronous=NORMAL")
                 connection.execute(f"PRAGMA wal_autocheckpoint={writer_policy() if writer_policy else 1000}")
 
         @event.listens_for(engine, "before_cursor_execute")
         def begin_statement(connection, cursor, statement, parameters, context, executemany):
+            # Also stop between two short statements that never reach SQLite's
+            # progress callback. Accepted writer transactions remain independent.
+            budget = current_read.get() if not writer else None
+            if budget is not None:
+                budget.checkpoint()
             if diagnostics.enabled():
                 context._diagnostic_sql = diagnostics.sql_start(connection, statement, executemany=executemany)
-            if not writer:
-                budget = current_read.get()
-                if budget is not None:
-                    context._read_timing = (budget, monotonic())
-                    budget.statement_count += 1
+            if budget is not None:
+                context._read_timing = (budget, monotonic())
+                budget.statement_count += 1
 
         def finish_statement(context, error=None, rowcount=None):
             if context is None:
@@ -232,6 +236,7 @@ class ArchiveDatabase:
                 # lock wait finite as well; WAL readers normally do not wait at all.
                 driver.execute("PRAGMA busy_timeout=100")
                 with self.session(bind=connection) as session:
+                    budget.read_generation = self.reads.generation
                     with diagnostics.span("db.read.begin"):
                         session.connection().exec_driver_sql("BEGIN")
                     from .read_projection import require_ready
@@ -393,6 +398,8 @@ class ArchiveDatabase:
                     # Notification failures happen after commit; they must
                     # never claim the persisted write was rolled back.
                     self.reads.advance_generation()
+                    if changed or session.info.get('catalogue_data_changed'):
+                        self._catalogue_data_generation += 1
                     if changed:
                         self._publish_catalogue_changes(changed_generation,
                             frozenset(session.info.get('catalogue_change_work_ids', ())))
@@ -402,6 +409,7 @@ class ArchiveDatabase:
                 session.info.pop('read_projection_writer', None)
                 session.info.pop('catalogue_change_generation', None)
                 session.info.pop('catalogue_change_work_ids', None)
+                session.info.pop('catalogue_data_changed', None)
                 self._writer_state.active = False
 
     def enable_wal_maintenance(self, owner):

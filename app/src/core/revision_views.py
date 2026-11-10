@@ -108,44 +108,78 @@ def card_media_maps(session, works, snapshots):
     the file row until the final ordered, bounded hydration query.
     """
     from .media import CARD_MOTION_SPEC
-    asset_queries, derivative_queries = [], []
+    conn = session.connection()
+    asset_terms, derivative_terms = [], []
     for work in works:
-        snapshot = snapshots.get(work.id)
+        wid = int(work.id)
+        snapshot = snapshots.get(wid)
         animation = (snapshot.type if snapshot is not None else work.type) == "ugoira"
         if snapshot is None:
-            asset_base = select(literal_column("assets.rowid").label("physical_row"),
-                literal(work.id).label("owner"), literal("image").label("slot_role"),
-                literal(0).label("slot_page")).select_from(Asset).where(
-                    Asset.work_id == work.id, Asset.revision_id.is_(None))
-            asset_role, asset_page = Asset.role, Asset.page_index
-            derivative_base = select(literal_column("derivatives.rowid").label("physical_row"),
-                literal(work.id).label("owner"), Derivative.kind.label("slot_kind"),
-                Derivative.page_index.label("slot_page"), Derivative.spec_key.label("slot_spec")).where(
-                    Derivative.work_id == work.id, Derivative.revision_id.is_(None))
-            kind, page, spec = Derivative.kind, Derivative.page_index, Derivative.spec_key
+            asset_terms.append((
+                f"SELECT assets.rowid AS physical_row, {wid} AS owner, 'image' AS slot_role, 0 AS slot_page "
+                f"FROM assets WHERE assets.work_id = {wid} AND assets.revision_id IS NULL "
+                f"AND assets.role = 'image' AND assets.page_index = 0",
+                (),
+            ))
+            spec_clause = (
+                f"derivatives.spec_key IN ('v1', '{CARD_MOTION_SPEC}')"
+                if animation
+                else "derivatives.spec_key = 'v1'"
+            )
+            derivative_terms.append((
+                f"SELECT derivatives.rowid AS physical_row, {wid} AS owner, derivatives.kind AS slot_kind, "
+                f"derivatives.page_index AS slot_page, derivatives.spec_key AS slot_spec "
+                f"FROM derivatives WHERE derivatives.work_id = {wid} AND derivatives.revision_id IS NULL "
+                f"AND derivatives.kind = 'thumbnail' AND derivatives.page_index = 0 AND {spec_clause}",
+                (),
+            ))
+            if animation:
+                derivative_terms.append((
+                    f"SELECT derivatives.rowid AS physical_row, {wid} AS owner, derivatives.kind AS slot_kind, "
+                    f"derivatives.page_index AS slot_page, derivatives.spec_key AS slot_spec "
+                    f"FROM derivatives WHERE derivatives.work_id = {wid} AND derivatives.revision_id IS NULL "
+                    f"AND derivatives.kind = 'gif' AND derivatives.page_index = 0 AND derivatives.spec_key = 'v1'",
+                    (),
+                ))
         else:
-            asset_row = select(literal_column("assets.rowid")).select_from(Asset).where(
-                Asset.id == RevisionAsset.asset_id).correlate(RevisionAsset).scalar_subquery()
-            asset_base = select(asset_row.label("physical_row"), literal(work.id).label("owner"),
-                RevisionAsset.role.label("slot_role"), RevisionAsset.page_index.label("slot_page")).where(
-                    RevisionAsset.revision_id == snapshot.id)
-            asset_role, asset_page = RevisionAsset.role, RevisionAsset.page_index
-            derivative_row = select(literal_column("derivatives.rowid")).select_from(Derivative).where(
-                Derivative.id == RevisionDerivative.derivative_id).correlate(RevisionDerivative).scalar_subquery()
-            derivative_base = select(derivative_row.label("physical_row"), literal(work.id).label("owner"),
-                RevisionDerivative.kind.label("slot_kind"), RevisionDerivative.page_index.label("slot_page"),
-                RevisionDerivative.spec_key.label("slot_spec")).where(RevisionDerivative.revision_id == snapshot.id)
-            kind, page, spec = RevisionDerivative.kind, RevisionDerivative.page_index, RevisionDerivative.spec_key
-        asset_queries.append(asset_base.where(asset_role == "image", asset_page == 0))
-        derivative_queries.append(derivative_base.where(kind == "thumbnail", page == 0,
-            spec.in_(("v1", CARD_MOTION_SPEC)) if animation else spec == "v1"))
-        if animation:
-            derivative_queries.append(derivative_base.where(kind == "gif", page == 0, spec == "v1"))
+            rev_id = snapshot.id
+            asset_terms.append((
+                f"SELECT (SELECT assets.rowid FROM assets WHERE assets.id = revision_assets.asset_id) AS physical_row, "
+                f"{wid} AS owner, revision_assets.role AS slot_role, revision_assets.page_index AS slot_page "
+                f"FROM revision_assets WHERE revision_assets.revision_id = ? "
+                f"AND revision_assets.role = 'image' AND revision_assets.page_index = 0",
+                (rev_id,),
+            ))
+            spec_clause = (
+                f"revision_derivatives.spec_key IN ('v1', '{CARD_MOTION_SPEC}')"
+                if animation
+                else "revision_derivatives.spec_key = 'v1'"
+            )
+            derivative_terms.append((
+                f"SELECT (SELECT derivatives.rowid FROM derivatives WHERE derivatives.id = revision_derivatives.derivative_id) AS physical_row, "
+                f"{wid} AS owner, revision_derivatives.kind AS slot_kind, revision_derivatives.page_index AS slot_page, "
+                f"revision_derivatives.spec_key AS slot_spec FROM revision_derivatives "
+                f"WHERE revision_derivatives.revision_id = ? "
+                f"AND revision_derivatives.kind = 'thumbnail' AND revision_derivatives.page_index = 0 AND {spec_clause}",
+                (rev_id,),
+            ))
+            if animation:
+                derivative_terms.append((
+                    f"SELECT (SELECT derivatives.rowid FROM derivatives WHERE derivatives.id = revision_derivatives.derivative_id) AS physical_row, "
+                    f"{wid} AS owner, revision_derivatives.kind AS slot_kind, revision_derivatives.page_index AS slot_page, "
+                    f"revision_derivatives.spec_key AS slot_spec FROM revision_derivatives "
+                    f"WHERE revision_derivatives.revision_id = ? "
+                    f"AND revision_derivatives.kind = 'gif' AND revision_derivatives.page_index = 0 AND revision_derivatives.spec_key = 'v1'",
+                    (rev_id,),
+                ))
 
-    def hydrate(model, queries, columns):
+    def hydrate(model, terms, columns):
         slots = []
-        for begin in range(0, len(queries), 480):
-            slots.extend(session.execute(union_all(*queries[begin:begin + 480])))
+        for begin in range(0, len(terms), 480):
+            batch = terms[begin:begin + 480]
+            sql = " UNION ALL ".join(item[0] for item in batch)
+            params = tuple(param for item in batch for param in item[1])
+            slots.extend(conn.exec_driver_sql(sql, params))
         physical = sorted({row[0] for row in slots if row[0] is not None})
         row_id = literal_column(f"{model.__tablename__}.rowid")
         records = {}
@@ -161,8 +195,8 @@ def card_media_maps(session, works, snapshots):
         return {tuple(slot[1:]): records[slot[0]] for slot in slots
                 if slot[0] in records and records[slot[0]].work_id == slot[1]}
 
-    assets = hydrate(Asset, asset_queries, (Asset.id, Asset.work_id, Asset.relative_path, Asset.state))
-    derivatives = hydrate(Derivative, derivative_queries, (Derivative.id, Derivative.work_id,
+    assets = hydrate(Asset, asset_terms, (Asset.id, Asset.work_id, Asset.relative_path, Asset.state))
+    derivatives = hydrate(Derivative, derivative_terms, (Derivative.id, Derivative.work_id,
         Derivative.relative_path, Derivative.state, Derivative.sha256, Derivative.source_version))
     return assets, derivatives
 

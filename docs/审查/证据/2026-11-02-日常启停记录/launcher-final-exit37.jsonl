@@ -1,4 +1,0 @@
-{"timestamp":"2026-11-02T22:14:40.4095337+08:00","event":"launch_requested","launch_id":"208da59c-3520-4b8e-9764-ac924997db95","recorder_pid":13556,"exe_name":"PixivTracker-exitprobe.exe"}
-{"timestamp":"2026-11-02T22:14:41.3228108+08:00","event":"process_started","launch_id":"208da59c-3520-4b8e-9764-ac924997db95","recorder_pid":13556,"exe_name":"PixivTracker-exitprobe.exe","pid":31952}
-{"timestamp":"2026-11-02T22:14:41.6874687+08:00","event":"monitor_error","launch_id":"208da59c-3520-4b8e-9764-ac924997db95","recorder_pid":55960,"exe_name":"PixivTracker-exitprobe.exe","error_type":"MethodInvocationException"}
-{"timestamp":"2026-11-02T22:14:41.7886363+08:00","event":"process_exited","launch_id":"208da59c-3520-4b8e-9764-ac924997db95","recorder_pid":13556,"exe_name":"PixivTracker-exitprobe.exe","exit_code":37,"pid":31952,"exit_code_hex":"0x00000025"}

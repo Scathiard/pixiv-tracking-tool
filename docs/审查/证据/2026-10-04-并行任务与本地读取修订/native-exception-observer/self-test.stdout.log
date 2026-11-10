@@ -1,1 +1,0 @@
-{"self_test": "passed", "win32_debug_api_calls": 0, "sizes": {"ExceptionRecord": 152, "ExceptionInfo": 160, "CreateProcessInfo": 72, "CreateThreadInfo": 24, "LoadDllInfo": 40, "DebugUnion": 160, "DebugEvent": 176, "Startup": 104, "ProcessInfo": 24, "ModuleInfo": 24}}

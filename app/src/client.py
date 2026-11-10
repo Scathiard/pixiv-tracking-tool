@@ -127,6 +127,23 @@ def _checked_response(response):
     return value
 
 
+def _is_restricted_illust_stub(illust: dict) -> bool:
+    """Detect Pixiv's HTTP 200 restricted/my-pixiv/private placeholder stub."""
+    if not isinstance(illust, dict):
+        return True
+    urls = []
+    image_urls = illust.get("image_urls")
+    if isinstance(image_urls, dict):
+        urls.extend(v for v in image_urls.values() if isinstance(v, str))
+    single = illust.get("meta_single_page")
+    if isinstance(single, dict) and isinstance(single.get("original_image_url"), str):
+        urls.append(single["original_image_url"])
+    for page in illust.get("meta_pages") or ():
+        if isinstance(page, dict) and isinstance(page.get("image_urls"), dict):
+            urls.extend(v for v in page["image_urls"].values() if isinstance(v, str))
+    return any("s.pximg.net" in u or "/common/images/limit_" in u for u in urls)
+
+
 def _token_expired(response):
     if response.status_code == 401:
         return True
@@ -342,7 +359,9 @@ class PixivClient:
         """A missing or non-boolean field is unknown, never false."""
         result = self._get("/v1/illust/detail", {"illust_id": illust_id})
         illust = result.get("illust")
-        if not isinstance(illust, dict) or str(illust.get("id", "")) != str(illust_id):
+        if (not isinstance(illust, dict)
+                or str(illust.get("id", "")) != str(illust_id)
+                or _is_restricted_illust_stub(illust)):
             return None
         value = illust.get("is_bookmarked") if isinstance(illust, dict) else None
         return value if type(value) is bool else None
@@ -379,6 +398,26 @@ class PixivClient:
         self._check_identity(identity)
         self._note_bookmark_limit(response)
         self._note_api_limit(response)
+        if _token_expired(response):
+            self._checkpoint()
+            from .auth import _try_refresh_token, credential_snapshot, refresh_scope
+            _, generation, _ = credential_snapshot()
+            with refresh_scope(generation):
+                refreshed = _try_refresh_token()
+            self._check_identity(identity)
+            if refreshed:
+                headers = self._bound_headers(account_id)
+                headers["Content-Type"] = "application/x-www-form-urlencoded"
+                self._bookmark_throttle()
+                self._check_identity(identity)
+                try:
+                    response = self._do_post(endpoint, headers, data)
+                except requests.RequestException as exc:
+                    raise PixivRequestError(None, "Pixiv 收藏结果未确认，请稍后核对",
+                        retryable=False, failure_code="api_write_unconfirmed") from exc
+                self._check_identity(identity)
+                self._note_bookmark_limit(response)
+                self._note_api_limit(response)
         result = _checked_response(response)
         self._note_api_limit(response, result)
         if "error" in result:
@@ -426,7 +465,9 @@ class PixivClient:
                     retryable=True, failure_code="api_rate_limit")
             raise PixivRequestError(response.status_code, "Pixiv 拒绝了此次收藏核对")
         illust = result.get("illust")
-        if not isinstance(illust, dict) or str(illust.get("id", "")) != str(illust_id):
+        if (not isinstance(illust, dict)
+                or str(illust.get("id", "")) != str(illust_id)
+                or _is_restricted_illust_stub(illust)):
             return None
         value = illust.get("is_bookmarked") if isinstance(illust, dict) else None
         return value if type(value) is bool else None
@@ -534,6 +575,9 @@ class PixivClient:
                     retryable=False, failure_code="artist_unavailable") from exc
             raise
         user = result.get("user")
+        if isinstance(user, dict) and (str(user.get("id", "")) in ("0", "") or user.get("name") == ""):
+            raise PixivRequestError(404, "主站画师主页已不存在；已有本地存档保留",
+                retryable=False, failure_code="artist_unavailable")
         if not isinstance(user, dict) or str(user.get("id", "")) != str(user_id):
             raise PixivRequestError(200, "主站未返回对应画师的有效资料，已有资料保留",
                 retryable=False, failure_code="api_invalid_response")
@@ -568,7 +612,7 @@ class PixivClient:
                 raise PixivRequestError(200, "主站分页进度无效", retryable=False, failure_code="api_invalid_response") from exc
             if next_offset <= offset:
                 raise PixivRequestError(200, "主站分页未前进", retryable=False, failure_code="api_invalid_response")
-        return {"items": [self._parse_illust(item) for item in items], "next_offset": next_offset}
+        return {"items": [self._parse_illust(item) for item in items if not _is_restricted_illust_stub(item)], "next_offset": next_offset}
 
     def get_all_artist_illusts(self, user_id):
         """迭代获取画师的全部作品（插画 + 漫画）。"""
@@ -580,6 +624,8 @@ class PixivClient:
                 data = self._get(url, params)
                 for illust in data.get("illusts", []):
                     self._checkpoint()
+                    if _is_restricted_illust_stub(illust):
+                        continue
                     yield self._parse_illust(illust)
 
                 next_url = data.get("next_url")
@@ -602,9 +648,18 @@ class PixivClient:
                     retryable=False, failure_code="work_unavailable") from exc
             raise
         illust = data.get("illust")
+        if isinstance(illust, dict) and _is_restricted_illust_stub(illust):
+            raise PixivRequestError(200, "主站返回受限占位图，作品可能已设为非公开或仅好P友可见；已有本地内容保留",
+                retryable=False, failure_code="work_private")
+        if isinstance(illust, dict) and str(illust.get("id", "")) in ("0", ""):
+            raise PixivRequestError(404, "主站作品页面已不存在；已有本地内容保留",
+                retryable=False, failure_code="work_unavailable")
         if not isinstance(illust, dict) or str(illust.get("id", "")) != str(illust_id):
             raise PixivRequestError(200, "主站未返回对应作品的有效资料，已有信息保留",
                 retryable=False, failure_code="api_invalid_response")
+        if _is_restricted_illust_stub(illust):
+            raise PixivRequestError(200, "主站返回受限占位图，作品可能已设为非公开或仅好P友可见；已有本地内容保留",
+                retryable=False, failure_code="work_private")
         try:
             return self._parse_illust(illust)
         except (KeyError, TypeError, ValueError) as exc:

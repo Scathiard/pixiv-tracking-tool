@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from time import monotonic
 from typing import Literal
 from uuid import UUID
+from urllib.parse import unquote, urlsplit
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -13,7 +14,7 @@ from starlette.datastructures import QueryParams
 
 from ..core.library import LibraryFilter
 from ..core.read_projection import CursorExpired
-from ..core.read_control import local_read, ReadCancelled, LocalReadBusy
+from ..core.read_control import local_read, run_read, ReadCancelled, LocalReadBusy
 from ..core import diagnostics
 from ..core.models import utcnow
 from ..core.tasks import safe_failure
@@ -121,6 +122,43 @@ def create_router(get_runtime):
         except ValueError as exc:
             raise HTTPException(422, "筛选条件无效") from exc
 
+    def with_media(value):
+        # Pre-authorize media paths referenced by the current response window in
+        # memory so subsequent /images/ requests hit MediaAccess without extra
+        # SQL table scans or synchronous HDD stat() calls during API responses.
+        def paths(row):
+            if not isinstance(row, dict):
+                return
+            for key in ("src", "thumbnail", "preview", "avatar", "avatar_url"):
+                url = row.get(key)
+                if isinstance(url, str) and url.startswith("/images/"):
+                    yield unquote(urlsplit(url).path[len("/images/"):])
+            for key in ("items", "pages", "recent_works"):
+                for child in row.get(key, ()) or ():
+                    yield from paths(child)
+        def distinct_paths():
+            seen = set()
+            for relative in paths(value):
+                if relative not in seen:
+                    seen.add(relative)
+                    yield relative
+        current = runtime()
+        access = getattr(current, "media_access", None)
+        database = getattr(current, "database", None)
+        if access is not None and database is not None:
+            from itertools import islice
+            from ..core.read_control import current_read
+            budget = current_read.get()
+            generation = getattr(budget, "read_generation", database.reads.generation)
+            valid = [relative for relative in islice(distinct_paths(), 768) if access.path(relative) is not None]
+            if valid:
+                access.publish(valid, generation)
+        else:
+            warm = getattr(current, "warm_media_paths", None)
+            if callable(warm):
+                warm(distinct_paths())
+        return value
+
     @router.get("/api/library")
     @local_read(get_runtime)
     def library(request: Request, offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=500), ceiling: int | None = Query(None, ge=0), compact: bool = False):
@@ -132,7 +170,7 @@ def create_router(get_runtime):
             selected = parse_filters(parameters)
         except ValueError as exc:
             raise HTTPException(422, "筛选条件无效") from exc
-        return {**runtime().library.query(selected, offset=offset, limit=limit, ceiling=ceiling, compact=compact), "as_of": parameters["as_of"]}
+        return with_media({**runtime().library.query(selected, offset=offset, limit=limit, ceiling=ceiling, compact=compact), "as_of": parameters["as_of"]})
 
     def cursor_failure(exc):
         if isinstance(exc, CursorExpired):
@@ -159,8 +197,8 @@ def create_router(get_runtime):
                        ceiling: int | None = Query(None, ge=0), compact: bool = False,
                        anchor_work_id: int | None = Query(None, gt=0)):
         try:
-            return runtime().library.list_cursor(cursor_filters(request, cursor), limit=limit, cursor=cursor,
-                direction=direction, ceiling=ceiling, compact=compact, anchor_work_id=anchor_work_id)
+            return with_media(runtime().library.list_cursor(cursor_filters(request, cursor), limit=limit, cursor=cursor,
+                direction=direction, ceiling=ceiling, compact=compact, anchor_work_id=anchor_work_id))
         except ValueError as exc:
             cursor_failure(exc)
         except KeyError as exc:
@@ -193,9 +231,9 @@ def create_router(get_runtime):
         # Ordinals are browser-local hints; identity, membership and image
         # slots are resolved together by Library in one read snapshot.
         try:
-            return runtime().library.cursor_feed(cursor_filters(request, cursor), limit=limit,
+            return with_media(runtime().library.cursor_feed(cursor_filters(request, cursor), limit=limit,
                 cursor=cursor, direction=direction, ceiling=ceiling, anchor_work_id=anchor_work_id,
-                page=page, index=index, work_index=work_index)
+                page=page, index=index, work_index=work_index))
         except ValueError as exc:
             cursor_failure(exc)
         except KeyError as exc:
@@ -204,7 +242,7 @@ def create_router(get_runtime):
     @router.get("/api/library/feed")
     @local_read(get_runtime)
     def feed(request: Request, offset: int = Query(0, ge=0), limit: int = Query(48, ge=1, le=120), ceiling: int = Query(..., ge=0)):
-        return runtime().library.feed(filters(request), offset=offset, limit=limit, ceiling=ceiling)
+        return with_media(runtime().library.feed(filters(request), offset=offset, limit=limit, ceiling=ceiling))
 
     @router.get("/api/library/counts")
     @local_read(get_runtime)
@@ -292,7 +330,7 @@ def create_router(get_runtime):
     @local_read(get_runtime)
     def reading_feed(session_id: str, offset: int = Query(0, ge=0), limit: int = Query(48, ge=1, le=120), mode: Literal["sequential", "random"] = "sequential"):
         try:
-            return runtime().reading.feed(session_id, offset=offset, limit=limit, mode=mode)
+            return with_media(runtime().reading.feed(session_id, offset=offset, limit=limit, mode=mode))
         except KeyError as exc:
             raise HTTPException(410, "阅读范围已过期，请重新打开图库；本地作品未改变") from exc
 
@@ -305,9 +343,20 @@ def create_router(get_runtime):
             raise HTTPException(404, "阅读位置已不在当前范围内") from exc
 
     @router.get("/api/library/tags")
-    @local_read(get_runtime)
-    def tags(request: Request, ceiling: int | None = Query(None, ge=0)):
-        return runtime().library.tag_catalogue(filters(request), ceiling=ceiling)
+    async def tags(request: Request, ceiling: int | None = Query(None, ge=0)):
+        current = runtime()
+        selected = filters(request)
+        normalized = current.library.tag_catalogue_key(selected, ceiling)
+        # Share the worker before admission, including equivalent query-string
+        # orderings. One consumer leaving cannot cancel the remaining readers.
+        key = ('tags', id(current), current.database.reads.generation,
+               current.library.account_id, normalized) if normalized is not None else None
+        try:
+            return await run_read(request, current.database,
+                lambda: current.library.tag_catalogue(selected, ceiling=ceiling), key=key, label='tags')
+        finally:
+            if diagnostics.enabled():
+                request.scope.setdefault('state', {})['diagnostic_business_ready_at'] = monotonic()
 
     @router.get("/api/library/missing-originals")
     @local_read(get_runtime)
@@ -318,7 +367,7 @@ def create_router(get_runtime):
     @local_read(get_runtime)
     def work(work_id: int, page_offset: int = Query(0, ge=0), page_limit: int = Query(100, ge=1, le=200), revision_id: str | None = Query(None, max_length=64)):
         try:
-            return runtime().library.detail(work_id, page_offset=page_offset, page_limit=page_limit, revision_id=revision_id)
+            return with_media(runtime().library.detail(work_id, page_offset=page_offset, page_limit=page_limit, revision_id=revision_id))
         except KeyError as exc:
             raise HTTPException(404, "作品不存在或已删除") from exc
 
@@ -395,7 +444,8 @@ def create_router(get_runtime):
     @local_read(get_runtime)
     def artists(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=100),
                 q: str = Query("", max_length=200), compact: bool = False):
-        return runtime().library.artist_page(offset=offset, limit=limit, q=q, compact=compact)
+        page = runtime().library.artist_page(offset=offset, limit=limit, q=q, compact=compact)
+        return page if compact else with_media(page)
 
     @router.get("/api/artists/search")
     def search_artist(query: str = Query(..., min_length=1, max_length=200)):
@@ -408,7 +458,7 @@ def create_router(get_runtime):
     @local_read(get_runtime)
     def artist(artist_id: int):
         try:
-            return runtime().library.artist_detail(artist_id)
+            return with_media(runtime().library.artist_detail(artist_id))
         except KeyError as exc:
             raise HTTPException(404, "画师不存在") from exc
 
@@ -471,6 +521,8 @@ def create_router(get_runtime):
                 if any(value <= 0 for value in ids):
                     raise HTTPException(422, "无效的作品或画师编号")
                 parameters[name] = sorted(set(ids))
+        if request.kind == "check":
+            parameters["incremental"] = True
         return runtime().queue.submit(request.kind, parameters, LABELS[request.kind])
 
     @router.get("/api/progress")
@@ -528,13 +580,28 @@ def create_router(get_runtime):
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
 
-    @router.get("/images/{path:path}")
     @local_read(get_runtime)
-    def media(path: str, request: Request):
+    def _uncached_media(path: str, request: Request):
         file_path = runtime().media_path(path)
         if file_path is None:
             raise HTTPException(404, "图片不存在")
         from .media_response import local_media_response
         return local_media_response(request, file_path)
+
+    def _cached_media_response(current, path: str, request: Request):
+        cached_lookup = getattr(current, "cached_media_path", None)
+        if callable(cached_lookup):
+            file_path = cached_lookup(path)
+            if file_path is not None:
+                from .media_response import local_media_response
+                return local_media_response(request, file_path)
+        return None
+
+    @router.get("/images/{path:path}")
+    async def media(path: str, request: Request):
+        response = await asyncio.to_thread(_cached_media_response, runtime(), path, request)
+        if response is not None:
+            return response
+        return await _uncached_media(path, request)
 
     return router

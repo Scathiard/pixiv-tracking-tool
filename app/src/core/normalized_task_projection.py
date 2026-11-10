@@ -14,6 +14,18 @@ from .read_projection import ProjectionUnavailable
 ACTIVE = "('queued','planning','ready','running','interrupted')"
 LOCAL = "('check','metadata','repair','verify','backfill','thumbnails','reconcile','compare')"
 TABLES = ('read_task_parent', 'read_task_item_fact', 'read_task_work_parent', 'read_task_scope_best')
+_TASK_PROJECTION_GENERATION = 0
+
+
+def bump_task_projection_generation():
+    global _TASK_PROJECTION_GENERATION
+    _TASK_PROJECTION_GENERATION += 1
+
+
+def has_active_local(connection):
+    return connection.exec_driver_sql(
+        f'SELECT 1 FROM read_task_parent INDEXED BY ix_read_task_parent_active WHERE state IN {ACTIVE} AND kind IN {LOCAL} LIMIT 1'
+    ).first() is not None
 _DDL = (
     "CREATE TABLE read_task_parent (operation_id TEXT PRIMARY KEY, kind TEXT NOT NULL, state TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL) WITHOUT ROWID",
     f"CREATE INDEX ix_read_task_parent_active ON read_task_parent(created_at DESC,updated_at DESC,operation_id DESC) WHERE state IN {ACTIVE} AND kind IN {LOCAL}",
@@ -27,6 +39,7 @@ _DDL = (
 
 
 def install(connection):
+    bump_task_projection_generation()
     for statement in _DDL:
         connection.exec_driver_sql(statement)
     connection.exec_driver_sql("""CREATE TRIGGER read_task_scope_definition_update AFTER UPDATE ON operations
@@ -63,6 +76,7 @@ def _refresh_group(connection, operation_id, work_id):
 
 
 def reconcile_item(connection, item_id):
+    bump_task_projection_generation()
     from .projection_maintenance import _DIRECT_SQL, _direct_candidate
     old = connection.exec_driver_sql('SELECT operation_id,work_id FROM read_task_item_fact WHERE item_id=?', (item_id,)).first()
     connection.exec_driver_sql('DELETE FROM read_task_item_fact WHERE item_id=?', (item_id,))
@@ -90,6 +104,7 @@ def reconcile_item(connection, item_id):
 
 
 def reconcile_scope(connection, operation_id, *, membership_unchanged=False):
+    bump_task_projection_generation()
     parent = connection.exec_driver_sql('SELECT operation_id FROM read_task_parent WHERE operation_id=?',(operation_id,)).first()
     if parent is None:
         return set()
@@ -113,6 +128,7 @@ def reconcile_scope(connection, operation_id, *, membership_unchanged=False):
 
 
 def reconcile_operation(connection, operation_id):
+    bump_task_projection_generation()
     parent = _parent(connection, operation_id)
     old = connection.exec_driver_sql('SELECT operation_id FROM read_task_parent WHERE operation_id=?',(operation_id,)).first()
     if parent is None:
@@ -132,6 +148,7 @@ def reconcile_operation(connection, operation_id):
 
 def backfill(connection):
     """Bulk candidate-only narrow source mapping; no per-item random queries."""
+    bump_task_projection_generation()
     from .projection_maintenance import _DIRECT_SQL
     for table in TABLES:
         connection.exec_driver_sql(f'DELETE FROM {table}')

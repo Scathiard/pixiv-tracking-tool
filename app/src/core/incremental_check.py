@@ -19,7 +19,7 @@ ANCHORS = 64
 
 def automatic(session, operation_id):
     operation = session.get(Operation, operation_id)
-    return operation is not None and operation.kind == "check" and operation.source == "automatic"
+    return operation is not None and operation.kind == "check" and (operation.source == "automatic" or bool((operation.parameters or {}).get("incremental")))
 
 
 def state_key(artist_id, work_type):
@@ -167,8 +167,19 @@ def execute_page(handler, item, context):
     target.setdefault("scan_started_at", utcnow().isoformat())
     target["boundary"] = boundary
     generation = _remote_generation(handler)
-    page = _page(handler, remote_id, target["work_type"], target["offset"], context.operation_id)
+    try:
+        page = _page(handler, remote_id, target["work_type"], target["offset"], context.operation_id)
+    except Exception as exc:
+        if handler.source_status and (getattr(exc, "status", None) == 404 or getattr(exc, "failure_code", None) == "artist_unavailable"):
+            acct = handler.source_status.account_context()
+            handler.source_status.apply_failure("artist", target["artist_id"], exc, handler.source_status.begin("artist", target["artist_id"], acct), acct)
+        raise
     data_items = page["items"]
+    if not data_items and target["offset"] == 0 and target["work_type"] == "illust" and boundary.get("head_id", 0) > 0 and handler.source_status:
+        try:
+            handler.source_status.fetch_artist(target["artist_id"])
+        except Exception:
+            pass
     context.checkpoint()
     identities = [str(data["illust_id"]) for data in data_items]
     # Consecutive repeated pages with advancing offsets indicate a bad remote
@@ -194,6 +205,8 @@ def execute_page(handler, item, context):
         for data in data_items:
             identity = str(data["illust_id"])
             if identity in known or identity in suppressed or not _eligible(data, boundary):
+                if (identity in known or identity in suppressed) and not boundary.get("bootstrap") and boundary.get("head_id", 0) and _number(identity) <= boundary["head_id"]:
+                    target["hit_watermark"] = True
                 continue
             specs.append(ItemSpec(f"incremental-work-{identity}", "discover_work", {"artist_id": target["artist_id"],
                 "data": data, "incremental": MODE, "remote_generation": generation}, "checking", "works"))
@@ -203,7 +216,7 @@ def execute_page(handler, item, context):
         next_offset = page.get("next_offset")
         if next_offset is not None and (type(next_offset) is not int or next_offset <= target["offset"]):
             raise ValueError("主站分页未前进")
-        target["scan_finished"] = next_offset is None or target["old_pages"] >= 2
+        target["scan_finished"] = next_offset is None or bool(target.get("hit_watermark")) or target["old_pages"] >= 2
         if next_offset is not None:
             # Re-read a few rows at page joins: deletion while listing can shift
             # unvisited records backwards. De-duplication happens in the writer.

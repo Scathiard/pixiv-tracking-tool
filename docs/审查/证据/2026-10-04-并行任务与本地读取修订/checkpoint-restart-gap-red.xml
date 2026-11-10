@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="2.256" timestamp="2026-10-08T05:00:54.754130+08:00" hostname="Baseline"><testcase classname="tests.test_wal_maintenance" name="test_restart_must_not_backfill_new_foreground_commit" time="0.901"><failure message="AssertionError: [10]&#10;assert (not [10] or 10 == 0)&#10; +  where 10 = max([10])">tests\test_wal_maintenance.py:514: in test_restart_must_not_backfill_new_foreground_commit
-    assert not pending_at_restart or max(pending_at_restart) == 0, pending_at_restart
-E   AssertionError: [10]
-E   assert (not [10] or 10 == 0)
-E    +  where 10 = max([10])</failure></testcase></testsuite></testsuites>

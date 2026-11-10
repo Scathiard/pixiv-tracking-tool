@@ -31,6 +31,11 @@ a = Analysis(
     optimize=0,
 )
 
+sqlite_dll = os.environ.get('PIXIV_SQLITE_DLL')
+if sqlite_dll:
+    a.binaries = [b for b in a.binaries if b[0].lower() != 'sqlite3.dll']
+    a.binaries.append(('sqlite3.dll', sqlite_dll, 'BINARY'))
+
 pyz = PYZ(a.pure)
 
 exe = EXE(

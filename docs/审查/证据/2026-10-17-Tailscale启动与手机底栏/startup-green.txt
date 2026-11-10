@@ -1,3 +1,0 @@
-{"history_items": 16000, "selected_items": 0, "vm_steps_floor": 0, "plan": [[2, 0, 91, "SEARCH operation_items USING INTEGER PRIMARY KEY (rowid=?)"], [6, 0, 0, "LIST SUBQUERY 2"], [8, 6, 99, "SEARCH operation_items USING COVERING INDEX ix_items_candidate (operation_id=? AND state=?)"], [10, 6, 0, "USING INDEX sqlite_autoindex_operations_1 FOR IN-OPERATOR"]]}
-...
-3 passed in 5.52s

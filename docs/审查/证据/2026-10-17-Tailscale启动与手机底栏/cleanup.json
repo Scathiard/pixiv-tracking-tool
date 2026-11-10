@@ -1,9 +1,0 @@
-[
-  "work/tmp/tailscale-startup-dock/network",
-  "work/tmp/tailscale-startup-dock/startup",
-  "work/tmp/tailscale-startup-dock/dock",
-  "work/tmp/tailscale-startup-dock/package/b20261017.2-package",
-  "work/tmp/tailscale-startup-dock/package/node-compile-cache",
-  "app/frontend/dist",
-  "app/.pytest_cache"
-]

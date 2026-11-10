@@ -264,6 +264,15 @@ class ArchiveHandler:
         count = int(data["page_count"])
         if count <= 0:
             raise ValueError("无效页数")
+        raw_urls = data.get("urls") or []
+        if any(
+            isinstance(u, dict) and any(
+                isinstance(v, str) and ("s.pximg.net" in v or "/common/images/limit_" in v)
+                for v in u.values()
+            )
+            for u in raw_urls
+        ):
+            raise ValueError("拒绝保存主站受限占位图")
         intent = session.get(ArchiveIntent, remote_id)
         if intent and intent.mode == "suppressed":
             return None

@@ -1,1 +1,0 @@
-{"check_workers": 1, "status": "failed", "failures": ["progress/resource sample: ReadDeadline", "probe failed: ReadDeadline: 本地读取超时，请重试"], "artifacts": "D:\\claude_sandbox\\pixiv-tracking-tool\\.devtools\\test-runs\\b20261004.3-reliability-20261008-10\\check-workers-1"}

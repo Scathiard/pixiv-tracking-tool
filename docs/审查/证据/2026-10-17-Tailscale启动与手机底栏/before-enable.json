@@ -1,8 +1,0 @@
-{
-  "version": "0.2.0",
-  "build": "20261017.1",
-  "automatic_paused": false,
-  "check_interval_minutes": 360,
-  "current_port": 1919,
-  "data_root": "D:\\PixivTracker"
-}

@@ -1,8 +1,0 @@
-{
-  "source_commit": "b351dee801b960d15c845a33c7e3ae38fcf85c1a",
-  "started_at": "2026-10-07T19:04:15.4690343+00:00",
-  "finished_at": "2026-10-07T19:21:29.9079879+00:00",
-  "exit_code": 1,
-  "scope": "synthetic full Python suite",
-  "real_library_used": false
-}

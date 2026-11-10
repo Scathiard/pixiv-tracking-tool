@@ -1,1 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="0.588" timestamp="2026-10-13T19:14:33.735484+08:00" hostname="Baseline"><testcase classname="tests.test_observation_transport" name="test_span_hierarchy_uses_enclosing_span_not_itself" time="0.234" /></testsuite></testsuites>

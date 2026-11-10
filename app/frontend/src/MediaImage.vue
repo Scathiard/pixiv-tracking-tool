@@ -38,7 +38,7 @@ onBeforeUnmount(() => { observation?.cancel('unmounted'); taps.cancel(); image.v
 </script>
 <template>
   <div class="media-image" :class="{'media-thumbnail': thumbnail}">
-    <img v-if="displaySrc && !failed" :key="revision" ref="image" :src="displaySrc" :alt="label" :width="width" :height="height" draggable="false" decoding="async"
+    <img v-if="displaySrc && !failed" :key="revision" ref="image" :src="displaySrc" :alt="label" :width="width" :height="height" :loading="thumbnail ? 'lazy' : undefined" draggable="false" decoding="async"
       @load="loaded" @error="loadFailed" @dblclick.prevent="!flowTaps && emit('zoom')"
       @pointerdown="flowTaps && $event.button === 0 && taps.down($event.pointerId, $event.clientX, $event.clientY)"
       @pointermove="flowTaps && taps.move($event.pointerId, $event.clientX, $event.clientY)"

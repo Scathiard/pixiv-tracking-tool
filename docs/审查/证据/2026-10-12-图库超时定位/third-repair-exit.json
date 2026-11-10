@@ -1,9 +1,0 @@
-{
-  "recorded_at": "2026-10-12T05:55:30.1835575+08:00",
-  "expected_exe": "D:\\PixivTracker\\PixivTracker_v0.2.0_build20261012.4.exe",
-  "force_used": false,
-  "remaining": [],
-  "exit_method": "owned tray stop message",
-  "verification": "process and port absent after exit",
-  "timing_limit": "normal exit command finished within 3.691 seconds; exact timer output was not saved due to UTF8 PowerShell5 helper path error"
-}

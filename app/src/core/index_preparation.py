@@ -161,3 +161,232 @@ def prepare_task_indexes(database, lease: LibraryLease, *, progress=None):
             if not isinstance(error, Exception):
                 raise
             raise TaskIndexPreparationError(TaskIndexPreparationError.user_message) from error
+
+
+def compact_bloated_task_history(
+    database,
+    *,
+    keep_finished: int = 24,
+    item_threshold: int = 5000,
+    vacuum: bool = True,
+    progress=None,
+) -> dict | None:
+    """Fast O(1)-table-truncate compaction for bloated historical operation_items on startup."""
+    from . import normalized_task_projection, task_read_projection
+
+    with database._write_lock:
+        with database.engine.connect() as connection:
+            has_pj_idx = (
+                connection.exec_driver_sql(
+                    "SELECT 1 FROM sqlite_master "
+                    "WHERE type='index' AND name='ix_publication_journal_operation_item_id'"
+                ).first()
+                is not None
+            )
+            item_count = connection.exec_driver_sql("SELECT count(*) FROM operation_items").scalar_one()
+            has_unfinished = (
+                connection.exec_driver_sql(
+                    "SELECT 1 FROM operations WHERE state != 'finished' OR finished_at IS NULL LIMIT 1"
+                ).first()
+                is not None
+            )
+            if item_count > item_threshold and not has_unfinished:
+                inc_ids = [
+                    row[0]
+                    for row in connection.exec_driver_sql(
+                        "SELECT work_id FROM read_work_state "
+                        "WHERE json_extract(value, '$.archive.state') != 'complete' "
+                        "   OR json_extract(value, '$.source_update.pending') = 1 "
+                        "UNION "
+                        "SELECT CAST(substr(key, 18) AS INTEGER) "
+                        "FROM application_state "
+                        "WHERE key >= 'maintenance_work:' AND key < 'maintenance_work;'"
+                    ).fetchall()
+                ]
+                winners = (
+                    normalized_task_projection.winners(connection, inc_ids, history_ids=inc_ids)
+                    if inc_ids
+                    else {}
+                )
+                winner_ops = {
+                    w["payload"]["operation_id"]
+                    for w in winners.values()
+                    if w and w.get("payload", {}).get("operation_id")
+                }
+                winner_items = {
+                    w["candidate_id"][5:]
+                    for w in winners.values()
+                    if w and str(w.get("candidate_id", "")).startswith("item:")
+                }
+                scope_ops = {
+                    w["payload"]["operation_id"]
+                    for w in winners.values()
+                    if w
+                    and str(w.get("candidate_id", "")).startswith("scope:")
+                    and w.get("payload", {}).get("operation_id")
+                }
+                if scope_ops:
+                    placeholders = ",".join("?" for _ in scope_ops)
+                    winner_items.update(
+                        row[0]
+                        for row in connection.exec_driver_sql(
+                            f"SELECT history_id FROM read_task_scope_best "
+                            f"WHERE operation_id IN ({placeholders}) AND history_id IS NOT NULL",
+                            tuple(scope_ops),
+                        ).fetchall()
+                    )
+            else:
+                winner_ops, winner_items = set(), set()
+
+        if not has_pj_idx:
+            with database.engine.begin() as connection:
+                connection.exec_driver_sql(
+                    "CREATE INDEX IF NOT EXISTS ix_publication_journal_operation_item_id "
+                    "ON publication_journal (operation_item_id)"
+                )
+        if item_count <= item_threshold or has_unfinished:
+            return None
+
+        if progress:
+            progress("正在清理历史冗余任务记录并收缩本地数据库")
+
+        database.engine.dispose()
+        database.writer_engine.dispose()
+
+        try:
+            with database.engine.begin() as connection:
+                connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+                connection.exec_driver_sql("BEGIN IMMEDIATE")
+                triggers = connection.exec_driver_sql(
+                    "SELECT name, sql FROM sqlite_master "
+                    "WHERE type='trigger' AND tbl_name IN ('operation_items', 'operations', 'task_rounds') "
+                    "ORDER BY name"
+                ).fetchall()
+                indexes = connection.exec_driver_sql(
+                    "SELECT name, sql FROM sqlite_master "
+                    "WHERE type='index' AND tbl_name IN ('operation_items', 'operations', 'task_rounds') "
+                    "AND sql IS NOT NULL ORDER BY name"
+                ).fetchall()
+
+                connection.exec_driver_sql(
+                    """
+                    CREATE TEMP TABLE _recent_ops AS
+                    SELECT id FROM (
+                        SELECT id FROM operations
+                        WHERE state = 'finished'
+                        ORDER BY finished_at DESC, id DESC
+                        LIMIT ?
+                    )
+                    UNION
+                    SELECT id FROM operations
+                    WHERE round_id IN (
+                        SELECT id FROM (
+                            SELECT id FROM task_rounds ORDER BY created_at DESC LIMIT 2
+                        )
+                    )
+                    """,
+                    (keep_finished,),
+                )
+                connection.exec_driver_sql("CREATE TEMP TABLE _keep_ops (id TEXT PRIMARY KEY)")
+                connection.exec_driver_sql("INSERT OR IGNORE INTO _keep_ops SELECT id FROM _recent_ops")
+                if winner_ops:
+                    connection.exec_driver_sql(
+                        "INSERT OR IGNORE INTO _keep_ops(id) VALUES (?)",
+                        [(op_id,) for op_id in winner_ops],
+                    )
+
+                connection.exec_driver_sql("CREATE TEMP TABLE _win_items (id TEXT PRIMARY KEY)")
+                if winner_items:
+                    connection.exec_driver_sql(
+                        "INSERT OR IGNORE INTO _win_items(id) VALUES (?)",
+                        [(it_id,) for it_id in winner_items],
+                    )
+
+                connection.exec_driver_sql(
+                    """
+                    CREATE TEMP TABLE _kept_items AS
+                    SELECT * FROM operation_items
+                    WHERE operation_id IN (SELECT id FROM _recent_ops)
+                       OR id IN (SELECT id FROM _win_items)
+                    """
+                )
+                connection.exec_driver_sql(
+                    "UPDATE _kept_items SET target = json_remove(target, '$.data') "
+                    "WHERE json_type(target, '$.data') IS NOT NULL"
+                )
+                connection.exec_driver_sql(
+                    "CREATE TEMP TABLE _kept_ops_rows AS "
+                    "SELECT * FROM operations WHERE id IN (SELECT id FROM _keep_ops)"
+                )
+                connection.exec_driver_sql(
+                    """
+                    CREATE TEMP TABLE _kept_rounds_rows AS
+                    SELECT * FROM task_rounds
+                    WHERE id IN (
+                        SELECT id FROM (SELECT id FROM task_rounds ORDER BY created_at DESC LIMIT 2)
+                        UNION
+                        SELECT DISTINCT round_id FROM _kept_ops_rows WHERE round_id IS NOT NULL
+                    )
+                    """
+                )
+                connection.exec_driver_sql(
+                    "UPDATE publication_journal SET operation_item_id = NULL "
+                    "WHERE operation_item_id IS NOT NULL "
+                    "AND operation_item_id NOT IN (SELECT id FROM _kept_items)"
+                )
+                for name, _ in triggers:
+                    connection.exec_driver_sql(f'DROP TRIGGER IF EXISTS "{name}"')
+                for name, _ in indexes:
+                    connection.exec_driver_sql(f'DROP INDEX IF EXISTS "{name}"')
+
+                connection.exec_driver_sql("DELETE FROM operation_items")
+                connection.exec_driver_sql("DELETE FROM operations")
+                connection.exec_driver_sql("DELETE FROM task_rounds")
+
+                connection.exec_driver_sql("INSERT INTO task_rounds SELECT * FROM _kept_rounds_rows")
+                connection.exec_driver_sql("INSERT INTO operations SELECT * FROM _kept_ops_rows")
+                connection.exec_driver_sql("INSERT INTO operation_items SELECT * FROM _kept_items")
+
+                connection.exec_driver_sql("DROP TABLE _kept_items")
+                connection.exec_driver_sql("DROP TABLE _kept_ops_rows")
+                connection.exec_driver_sql("DROP TABLE _kept_rounds_rows")
+                connection.exec_driver_sql("DROP TABLE _win_items")
+                connection.exec_driver_sql("DROP TABLE _keep_ops")
+                connection.exec_driver_sql("DROP TABLE _recent_ops")
+
+                for _, sql in indexes:
+                    connection.exec_driver_sql(sql)
+                for _, sql in triggers:
+                    connection.exec_driver_sql(sql)
+
+                items_after = connection.exec_driver_sql("SELECT count(*) FROM operation_items").scalar_one()
+                ops_after = connection.exec_driver_sql("SELECT count(*) FROM operations").scalar_one()
+
+                task_read_projection.rebuild_task_read_projection(connection)
+                normalized_task_projection.backfill(connection)
+                connection.exec_driver_sql(
+                    "DELETE FROM read_model_dirty "
+                    "WHERE entity IN ('operation', 'item', 'scope', 'scope_definition')"
+                )
+                database._schema_version = connection.exec_driver_sql("PRAGMA schema_version").scalar()
+        finally:
+            database.engine.dispose()
+            database.writer_engine.dispose()
+
+        if vacuum:
+            database.engine.dispose()
+            database.writer_engine.dispose()
+            raw_vac = sqlite3.connect(str(database.path), isolation_level=None, timeout=60.0)
+            try:
+                raw_vac.execute("VACUUM")
+                raw_vac.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            finally:
+                raw_vac.close()
+
+        return {
+            "items_before": item_count,
+            "items_after": items_after,
+            "operations_after": ops_after,
+            "vacuumed": vacuum,
+        }
+

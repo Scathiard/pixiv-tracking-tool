@@ -1,8 +1,0 @@
-{
-  "mode": "read-only-explain-no-task-materialization",
-  "sql": "SELECT work_id,candidate_id,priority,created_at,updated_at,failure_priority,\nposition,operation_id,item_id,payload FROM read_task_candidates\nWHERE operation_id=? AND candidate_id!='scope:'||operation_id",
-  "parameter": "synthetic absent operation ID; plan only",
-  "error_type": "OperationalError",
-  "sqlite_error": "SQLITE_INTERRUPT",
-  "elapsed_ms": 6907
-}

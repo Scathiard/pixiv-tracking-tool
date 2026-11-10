@@ -1,3 +1,0 @@
-{"timestamp":"2026-11-02T21:49:47.6070118+08:00","event":"launch_requested","launch_id":"f5759a66-c6a0-42e0-9083-babea393188a","monitor_pid":28880,"exe_name":"PixivTracker_v0.2.0_build20261102.1.exe"}
-{"timestamp":"2026-11-02T21:49:47.6944928+08:00","event":"process_started","launch_id":"f5759a66-c6a0-42e0-9083-babea393188a","monitor_pid":28880,"exe_name":"PixivTracker_v0.2.0_build20261102.1.exe","pid":52364}
-{"timestamp":"2026-11-02T22:01:40.7980236+08:00","event":"process_exited","launch_id":"f5759a66-c6a0-42e0-9083-babea393188a","monitor_pid":28880,"exe_name":"PixivTracker_v0.2.0_build20261102.1.exe","exit_code":-1,"pid":52364,"exit_code_hex":"0xFFFFFFFF"}

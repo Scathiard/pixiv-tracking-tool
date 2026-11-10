@@ -57,6 +57,7 @@ class AssetDownloader:
         schemes = ("https", "http") if self.allow_http else ("https",)
         hostname = parts.hostname or ""
         if (parts.scheme not in schemes or parts.username or parts.password
+                or hostname == "s.pximg.net" or "/common/images/limit_" in parts.path
                 or not any(hostname == host or hostname.endswith("." + host) for host in self.allowed_hosts)):
             raise DownloadFailure("invalid_source", "下载地址不属于允许的图片来源")
 

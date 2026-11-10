@@ -1,8 +1,0 @@
-{
-  "baseline": "1d2640f",
-  "scope": "Synthetic Runtime -> POST check-source -> TaskQueue terminal result; no real account or library",
-  "before": {"failed": 3, "symptom": "Terminal network, login and unavailable results lack safe error code", "seconds": 41.15},
-  "after": {"passed": 6, "seconds": 45.87, "cases": ["success with preserved local profile", "network failure with safe reason", "login failure with safe reason", "404 unavailable without declaring deletion", "RequestDeferred then success without spending an attempt", "existing source/profile preservation"]},
-  "limits": "Terminal network fixture is deliberately nonretryable to exercise handler feedback; retries and remote scheduling are unchanged. Real observed 155-214 second latency is unresolved because detailed capture had already stopped.",
-  "cleanup": "Delegated executor verified and removed its registered work/tmp/artist-source-check directory after validation."
-}

@@ -178,6 +178,13 @@ class MissingMediaMaintenance:
                                 failure_code=failure.get("failure_code"), http_status=status)
                             changed = True
                             continue
+                        if name == "local" and failure.get("code") == "InvalidMedia":
+                            track.update(status="attention", next_retry_at=None,
+                                reason=failure.get("message") or "本地衍生图超过转换上限，原文件已保留",
+                                failure_code=failure.get("failure_code") or "local_invalid_media",
+                                http_status=None)
+                            changed = True
+                            continue
                         if rejected or rate_limited:
                             delay = (900, 3600, 21600, 86400)[min(attempts - 1, 3)]
                         else:
