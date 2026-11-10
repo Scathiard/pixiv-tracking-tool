@@ -1,75 +1,70 @@
-# PixivTracker
+# Pixiv Tracking Tool
 
-一个本地优先的 Pixiv 存档与阅览工具。下载追踪画师的作品，在电脑和手机浏览已有图库；断网时仍可查看本地内容。
+自动监控 Pixiv 特别关注画师的新作品，无条件下载全部插画/漫画/动图，从此不再痛失最喜爱的画师的被删除作品，在有大量关注的情况下也不会错过特别关注画师的新作。
 
-源码当前版本为 **0.2.0**。可下载的正式版本以 [GitHub Releases](https://github.com/Scathiard/pixiv-tracking-tool/releases) 为准。
+## 快速开始
 
-## 使用
+1. 双击 `PixivTracker_vX.X.X.exe` 启动（启动后无窗口，图标在系统托盘区）
+2. 首次启动会自动弹出浏览器，登录你的 Pixiv 账号完成授权
+3. 浏览器登录成功后确认授权
+4. 打开 http://localhost:1919 进入 Web 界面
+5. 手机也可以访问 [你的电脑IP]:1919 进入 Web 界面
 
-Windows 版只需下载一个 EXE，放到独立目录后直接运行，无需解压或安装 Python、Node.js、PowerShell。程序驻留系统托盘，默认网页地址是 `http://127.0.0.1:1919/`；手机地址在设置页查看。程序目录及设置中配置的图库属于持久数据，更新时保留原有配置、数据和图片。
+## 功能
 
-- 图库支持搜索、画师／标签筛选、排序、连续滚动与页码浏览。
-- 普通详情与流式阅览支持多页作品、附近作品预取及局部缩放；流式可切换顺序／随机。
-- 可追踪画师并检查新作；设置中的“检查并补齐图库”用于完整维护与补缺。
-- 收藏对应当前 Pixiv 账号的主站收藏，需要联网核对；本地阅读不依赖登录。
-- 动图保留原包与时序，阅览预览可重建。已无法访问的主站作品仍保留本地存档。
+- **画师管理** — 搜索/Pixiv ID 添加特别关注，自动拉取全部作品并下载，支持暂停/恢复/刷新
+- **画廊浏览** — 缩略图网格，画师/类型/期间/Tag 多维度筛选，无限滚动或页码翻页
+- **收藏同步** — 一键收藏/取消收藏（同步 Pixiv 主站），校验补全作品信息（补拉 caption、标记缺失文件）
+- **筛选面板** — ☰ 浮动面板，手风琴式 section：画师、类型、投稿期间、Tag、显示选项
+- **作品详情** — 原图查看、画师简介（caption）、前后导航（键盘←→ / 触屏滑动）、点击 tag 跳转筛选
+- **隐藏/删除** — 隐藏作品（虚线边框+半透明）、永久删除本地文件
+- **Ugoira 转 GIF** — 动图自动转换
+- **数据目录迁移** — 设置页一键迁移存储位置
 
-第一次联网使用时在设置中登录。自动登录使用系统 Chrome／Edge，无需额外安装 Playwright 浏览器。
+## 使用方法
 
-退出使用托盘菜单。Release 页面提供使用说明和文件校验值，下载附件只有 EXE。
+### 添加画师
+- 进入「画师管理」页面
+- 搜索画师名称或直接输入 Pixiv 用户 ID（如 `12345678`）
+- 点击「特别关注」，系统会自动拉取该画师的全部已有作品并下载
 
-## 从源码构建 Windows x64 EXE
+### 浏览作品
+- 首页显示全部已下载作品，可按画师、类型、投稿期间和 Tag 筛选
+- 筛选面板：点击 ☰ 按钮打开，所有筛选条件 AJAX 即时生效
+- 默认无限滚动加载更多作品，可在设置切换为页码翻页
+- 点击作品缩略图查看详情
 
-需要 Python 3.12 x64、Node.js 22.12+（本次使用 Node 24），以及构建用 SQLite 3.51.3 或更新版本。构建结果为 Windows 程序，前端静态文件一同打包。
+### 收藏
+- 详情页右下角心形按钮、画廊卡片 hover 角标
+- 设置页可一键校验并补全所有已有作品的信息（简介 caption、缺失文件标记等）
 
-可下载 GitHub 源码 ZIP，或使用 `git clone --depth 1 https://github.com/Scathiard/pixiv-tracking-tool.git` 获取当前源码，避免下载保留的完整历史。进入仓库根目录后执行：
+### 定时检查
+- 默认每 6 小时自动检查关注画师是否有新作品
+- 可在「设置」页面手动触发检查
 
-```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r app/requirements-lock.txt
-npm.cmd --prefix app/frontend ci
-.\.venv\Scripts\python.exe -c "import sqlite3; print(sqlite3.sqlite_version)"
+## 数据存储
+
+所有数据存放在数据目录下（默认程序所在目录），结构如下：
+
+```
+数据目录/
+├── data/              数据库和认证 token
+├── images/            下载的作品图片
+│   ├── 画师名 12345/
+│   └── 画师名 67890/
+└── .env               配置文件
 ```
 
-`requirements-lock.txt` 固定直接依赖版本（含 PyInstaller），不是完整的传递依赖锁。前端使用 `package-lock.json` 与 `npm ci` 安装。
+在「设置」页面可修改数据存储目录，修改时自动迁移已有数据。
 
-如果上面的 SQLite 版本已达到 3.51.3：
 
-```powershell
-.\.venv\Scripts\python.exe app/build_release.py
-```
+## 系统要求
 
-如果 Python 自带 SQLite 较旧，从 [SQLite 官方下载页](https://www.sqlite.org/download.html) 下载 Windows x64 DLL 包，解压到本地构建依赖目录，例如 `.build-deps/sqlite/`，再执行：
+- Windows 10+
+- 能访问 Pixiv 的网络环境
 
-```powershell
-.\.venv\Scripts\python.exe app/build_release.py --sqlite-dll .build-deps/sqlite/sqlite3.dll
-```
+## 注意事项
 
-这只为本次 EXE 指定 SQLite，不修改系统目录或 Python 安装。脚本会先检查所选 DLL 的版本与可加载性，再构建前端和 EXE。DLL 架构必须与 Python 一致。
-
-本地构建输出位置（只有 EXE 作为 Release 下载附件，其余为开发记录与运维工具）：
-
-```text
-release/v0.2.0/build-<内部构建号>/
-  PixivTracker_v0.2.0_build<内部构建号>.exe
-  start_release.ps1
-  stop_release.ps1
-  build-manifest.json
-  SHA256SUMS.txt
-```
-
-公开版本与内部构建号统一定义于 `app/src/version.py`。为避免覆盖旧包，输出目录已存在时构建会停止；再次构建可用 `--output-root` 和 `--work-root` 指定新的位置，或为新构建修改内部构建号。
-
-Git 克隆与 GitHub 源码 ZIP 都可构建。克隆构建会记录源码提交；没有 Git 元数据时 manifest 的来源字段为 `null`。
-
-源码中的 `start_release.ps1` 和 `stop_release.ps1` 供开发者启动、记录退出码及自动更新时正常退出程序，需要 PowerShell 7；普通用户直接运行 EXE、从托盘退出即可，这两个脚本不随 Release 分发。
-
-## 配置与升级
-
-配置示例位于 `app/.env.example`。真实 `.env`、登录令牌、数据库、图片和日志不属于公开源码，构建脚本不会把它们复制进包。
-
-需要更新日常 EXE 时，先从托盘正常退出旧程序，确认退出后再运行新版 EXE。不要同时让两个实例写入同一图库。旧图库需要结构升级时，以程序提供的备份、转换及确认流程为准。
-
-## 源码范围
-
-本仓库当前树只保留构建／运行需要的后端源码、前端源码、静态资源、依赖与构建配置、配置示例和启动脚本。内部规划、审查记录、测试夹具、真实数据、构建缓存和历史安装包不随当前源码树分发。历史提交和已有 Release 保留。
+- 作品下载到本地后，即使画师在 Pixiv 上删除作品，本地仍有备份
+- Ugoira（动图）会自动转换为 GIF 格式
+- 多页作品（漫画）会下载所有页面
